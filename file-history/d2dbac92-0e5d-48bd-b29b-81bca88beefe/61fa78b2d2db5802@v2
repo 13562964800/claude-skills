@@ -1,0 +1,163 @@
+const { Document, Packer, Paragraph, TextRun, HeadingLevel, AlignmentType, LevelFormat } = require('docx');
+const fs = require('fs');
+
+const doc = new Document({
+  numbering: {
+    config: [
+      { reference: "numbers",
+        levels: [
+          { level: 0, format: LevelFormat.DECIMAL, text: "%1.", alignment: AlignmentType.LEFT,
+            style: { paragraph: { indent: { left: 720, hanging: 360 } } } },
+          { level: 1, format: LevelFormat.DECIMAL, text: "%1.%2", alignment: AlignmentType.LEFT,
+            style: { paragraph: { indent: { left: 1080, hanging: 360 } } } }
+        ]
+      }
+    ]
+  },
+  styles: {
+    default: { document: { run: { font: "宋体", size: 24 } } },
+    paragraphStyles: [
+      { id: "Heading1", name: "Heading 1", basedOn: "Normal", next: "Normal", quickFormat: true,
+        run: { size: 32, bold: true, font: "黑体", color: "000000" },
+        paragraph: { spacing: { before: 240, after: 120 }, outlineLevel: 0 } },
+      { id: "Heading2", name: "Heading 2", basedOn: "Normal", next: "Normal", quickFormat: true,
+        run: { size: 28, bold: true, font: "黑体", color: "000000" },
+        paragraph: { spacing: { before: 180, after: 100 }, outlineLevel: 1 } },
+      { id: "Heading3", name: "Heading 3", basedOn: "Normal", next: "Normal", quickFormat: true,
+        run: { size: 26, bold: true, font: "黑体" },
+        paragraph: { spacing: { before: 120, after: 80 }, outlineLevel: 2 } },
+    ]
+  },
+  sections: [{
+    properties: {
+      page: {
+        size: { width: 11906, height: 16838 },
+        margin: { top: 1440, right: 1800, bottom: 1440, left: 1800 }
+      }
+    },
+    children: [
+      new Paragraph({
+        heading: HeadingLevel.TITLE,
+        alignment: AlignmentType.CENTER,
+        spacing: { after: 200 },
+        children: [new TextRun({ text: "前期物业服务合同纠纷维权方案", size: 36, bold: true })]
+      }),
+      new Paragraph({
+        alignment: AlignmentType.CENTER,
+        spacing: { after: 600 },
+        children: [new TextRun({ text: "多智能体交叉验证研究报告", size: 32, bold: true })]
+      }),
+
+      new Paragraph({ heading: HeadingLevel.HEADING_1, children: [new TextRun("案情摘要")] }),
+      new Paragraph({ spacing: { after: 200 }, children: [new TextRun("甲方（开发商）与乙方（前期物业公司）签订前期物业服务合同。乙方违反保安职责，保安人员私下收取客户钱款，允许未购买地下车位的业主占用甲方产权车位停车，导致甲方车位销售损失200万元（经评估）。甲方已报警，乙方物业主管认可私租车位收钱并私分的事实。")] }),
+
+      new Paragraph({ heading: HeadingLevel.HEADING_1, children: [new TextRun("第一部分：案由选择与法律分析")] }),
+      new Paragraph({ spacing: { after: 100 }, children: [new TextRun({ text: "（智能体A研究结果）", italics: true, color: "666666" })] }),
+
+      new Paragraph({ heading: HeadingLevel.HEADING_2, children: [new TextRun("一、案由选择的利弊分析")] }),
+      new Paragraph({ spacing: { after: 100 }, children: [new TextRun({ text: "推荐案由：前期物业服务合同纠纷（违约责任）", bold: true })] }),
+
+      new Paragraph({ spacing: { after: 50 }, children: [new TextRun({ text: "优势：", bold: true })] }),
+      new Paragraph({ numbering: { reference: "numbers", level: 0 }, children: [new TextRun("法律关系明确 - 双方存在前期物业服务合同")] }),
+      new Paragraph({ numbering: { reference: "numbers", level: 0 }, children: [new TextRun("举证责任相对清晰 - 证明合同存在、违约行为、损失、因果关系")] }),
+      new Paragraph({ numbering: { reference: "numbers", level: 0 }, children: [new TextRun("违约责任为无过错责任，无需证明主观过错")] }),
+      new Paragraph({ numbering: { reference: "numbers", level: 0 }, children: [new TextRun("适用《民法典》合同编，法律规定完善")] }),
+      new Paragraph({ numbering: { reference: "numbers", level: 0 }, spacing: { after: 100 }, children: [new TextRun("可主张预期利益损失（车位销售收益）")] }),
+
+      new Paragraph({ spacing: { after: 50 }, children: [new TextRun({ text: "不推荐侵权案由的原因：", bold: true })] }),
+      new Paragraph({ numbering: { reference: "numbers", level: 0 }, children: [new TextRun("需证明四要件更复杂（侵权行为、损害事实、因果关系、主观过错）")] }),
+      new Paragraph({ numbering: { reference: "numbers", level: 0 }, children: [new TextRun("举证责任更重")] }),
+      new Paragraph({ numbering: { reference: "numbers", level: 0 }, spacing: { after: 200 }, children: [new TextRun("预期利益损失在侵权案件中较难获支持")] }),
+
+      new Paragraph({ heading: HeadingLevel.HEADING_2, children: [new TextRun("二、违约责任构成要件分析")] }),
+      new Paragraph({ children: [new TextRun({ text: "1. 合同关系存在 ✓", bold: true })] }),
+      new Paragraph({ spacing: { after: 100 }, children: [new TextRun("甲乙双方签订前期物业服务合同，合同合法有效")] }),
+
+      new Paragraph({ children: [new TextRun({ text: "2. 违约行为存在 ✓", bold: true })] }),
+      new Paragraph({ children: [new TextRun("保安私下收钱允许非业主占用车位；物业主管参与私租并私分收益；未履行车位管理职责")] }),
+      new Paragraph({ spacing: { after: 100 }, children: [new TextRun({ text: "法律依据：《民法典》第509条、第577条", italics: true })] }),
+
+      new Paragraph({ children: [new TextRun({ text: "3. 损害事实存在 ✓", bold: true })] }),
+      new Paragraph({ spacing: { after: 100 }, children: [new TextRun("车位被非法占用导致无法销售，经济损失200万元（有评估报告）")] }),
+
+      new Paragraph({ children: [new TextRun({ text: "4. 因果关系 ⚠️（需重点证明）", bold: true })] }),
+      new Paragraph({ spacing: { after: 200 }, children: [new TextRun("违约行为与损失之间存在直接因果关系，需排除其他原因导致车位未售出的可能")] }),
+
+      new Paragraph({ heading: HeadingLevel.HEADING_1, children: [new TextRun("第二部分：证据策略分析")] }),
+      new Paragraph({ spacing: { after: 100 }, children: [new TextRun({ text: "（智能体B研究结果）", italics: true, color: "666666" })] }),
+
+      new Paragraph({ heading: HeadingLevel.HEADING_2, children: [new TextRun("一、现有证据的证明力评估")] }),
+      new Paragraph({ children: [new TextRun({ text: "1. 报警记录（证明力：中等）", bold: true })] }),
+      new Paragraph({ spacing: { after: 100 }, children: [new TextRun("优势：官方记录，客观性强；不足：仅证明报警事实，不能直接证明具体细节")] }),
+
+      new Paragraph({ children: [new TextRun({ text: "2. 评估报告（证明力：较强）", bold: true })] }),
+      new Paragraph({ spacing: { after: 100 }, children: [new TextRun("优势：专业机构出具；风险：需审查评估依据和方法")] }),
+
+      new Paragraph({ children: [new TextRun({ text: "3. 物业主管认可（证明力：潜在最强，但不稳定）", bold: true })] }),
+      new Paragraph({ children: [new TextRun("优势：对方自认，证明力极强")] }),
+      new Paragraph({ children: [new TextRun({ text: "致命缺陷：未固定，随时可能翻供", color: "FF0000", bold: true })] }),
+      new Paragraph({ spacing: { after: 200 }, children: [new TextRun({ text: "紧急程度：★★★★★", color: "FF0000", bold: true })] }),
+
+      new Paragraph({ heading: HeadingLevel.HEADING_2, children: [new TextRun("二、是否需要申请法院调取报警笔录？")] }),
+      new Paragraph({ spacing: { after: 100 }, children: [new TextRun({ text: "结论：强烈建议申请调取", bold: true, color: "FF0000" })] }),
+
+      new Paragraph({ spacing: { after: 50 }, children: [new TextRun({ text: "理由：", bold: true })] }),
+      new Paragraph({ numbering: { reference: "numbers", level: 0 }, children: [new TextRun("证据关联性（《民事诉讼法》第67条）- 报警笔录可能记载具体侵权事实、现场情况、当事人陈述")] }),
+      new Paragraph({ numbering: { reference: "numbers", level: 0 }, children: [new TextRun("证据补强必要性 - 笔录内容是实质证据，可能包含保安收钱具体金额、次数、占用情况")] }),
+      new Paragraph({ numbering: { reference: "numbers", level: 0 }, children: [new TextRun("当事人无法自行取得（《民事诉讼法》第68条）- 公安机关不会向当事人提供完整笔录")] }),
+      new Paragraph({ numbering: { reference: "numbers", level: 0 }, spacing: { after: 200 }, children: [new TextRun("防止对方翻供的关键 - 如笔录中有物业方认可，可锁定其陈述")] }),
+
+      new Paragraph({ heading: HeadingLevel.HEADING_1, children: [new TextRun("第三部分：诉讼策略设计")] }),
+      new Paragraph({ spacing: { after: 100 }, children: [new TextRun({ text: "（智能体C研究结果）", italics: true, color: "666666" })] }),
+
+      new Paragraph({ heading: HeadingLevel.HEADING_2, children: [new TextRun("一、完整诉讼方案设计")] }),
+      new Paragraph({ children: [new TextRun({ text: "（一）诉前准备阶段（1-2个月）", bold: true })] }),
+      new Paragraph({ children: [new TextRun("证据固定与补强、法律关系梳理、诉前谈判（可选）")] }),
+      new Paragraph({ spacing: { after: 100 }, children: [new TextRun("")] }),
+
+      new Paragraph({ children: [new TextRun({ text: "（二）诉讼启动阶段（1周内）", bold: true })] }),
+      new Paragraph({ children: [new TextRun("1. 管辖法院：合同履行地或被告住所地基层人民法院")] }),
+      new Paragraph({ children: [new TextRun("2. 财产保全：必要性★★★★★（强烈建议）")] }),
+      new Paragraph({ spacing: { after: 100 }, children: [new TextRun("3. 诉讼请求：判令被告支付车位销售损失200万元+违约金+费用")] }),
+
+      new Paragraph({ children: [new TextRun({ text: "（三）诉讼进行阶段（6-12个月）", bold: true })] }),
+      new Paragraph({ spacing: { after: 200 }, children: [new TextRun("证据交换与质证准备、庭审重点")] }),
+
+      new Paragraph({ heading: HeadingLevel.HEADING_2, children: [new TextRun("二、如何防止对方以侵权为由反击？")] }),
+      new Paragraph({ numbering: { reference: "numbers", level: 0 }, children: [new TextRun("强调合同相对性 - 甲乙之间是合同关系，业主不是本案当事人")] }),
+      new Paragraph({ numbering: { reference: "numbers", level: 0 }, children: [new TextRun("证明甲方已履行管理义务 - 提供整改函件、证明已采取维权措施")] }),
+      new Paragraph({ numbering: { reference: "numbers", level: 0 }, children: [new TextRun("固定私自收费性质 - 强调收费未入账、未报告、钱款被私分（职务侵占）")] }),
+      new Paragraph({ numbering: { reference: "numbers", level: 0 }, spacing: { after: 200 }, children: [new TextRun("预防性主张 - 在起诉状中明确本案系合同纠纷")] }),
+
+      new Paragraph({ heading: HeadingLevel.HEADING_1, children: [new TextRun("第四部分：交叉验证结论")] }),
+      new Paragraph({ spacing: { after: 100 }, children: [new TextRun({ text: "三个智能体的研究结果高度一致，形成以下共识：", bold: true })] }),
+      new Paragraph({ numbering: { reference: "numbers", level: 0 }, children: [new TextRun({ text: "案由选择：", bold: true }), new TextRun('一致推荐"前期物业服务合同纠纷"（违约责任）')] }),
+      new Paragraph({ numbering: { reference: "numbers", level: 0 }, children: [new TextRun({ text: "证据调取：", bold: true }), new TextRun("一致认为必须申请法院调取报警笔录")] }),
+      new Paragraph({ numbering: { reference: "numbers", level: 0 }, children: [new TextRun({ text: "关键风险：", bold: true }), new TextRun("一致指出因果关系证明和物业主管认可证据固定的紧迫性")] }),
+      new Paragraph({ numbering: { reference: "numbers", level: 0 }, spacing: { after: 200 }, children: [new TextRun({ text: "诉讼策略：", bold: true }), new TextRun("一致建议诉前财产保全+完整证据链构建")] }),
+
+      new Paragraph({ heading: HeadingLevel.HEADING_1, children: [new TextRun("第五部分：最终维权方案")] }),
+      new Paragraph({ heading: HeadingLevel.HEADING_2, children: [new TextRun("一、立即行动事项（72小时内）")] }),
+      new Paragraph({ numbering: { reference: "numbers", level: 0 }, children: [new TextRun("固定物业主管认可证据：录音录像、书面确认函、公证")] }),
+      new Paragraph({ numbering: { reference: "numbers", level: 0 }, children: [new TextRun("申请调取监控视频：车位区域监控、保安岗亭监控")] }),
+      new Paragraph({ numbering: { reference: "numbers", level: 0 }, spacing: { after: 200 }, children: [new TextRun("整理补强证据：车位销售记录、客户咨询记录、市场比对数据")] }),
+
+      new Paragraph({ heading: HeadingLevel.HEADING_2, children: [new TextRun("二、诉讼准备事项（1-2周内）")] }),
+      new Paragraph({ numbering: { reference: "numbers", level: 0 }, children: [new TextRun("起草起诉状")] }),
+      new Paragraph({ numbering: { reference: "numbers", level: 0 }, children: [new TextRun("准备证据清单")] }),
+      new Paragraph({ numbering: { reference: "numbers", level: 0 }, children: [new TextRun("起草财产保全申请书")] }),
+      new Paragraph({ numbering: { reference: "numbers", level: 0 }, spacing: { after: 200 }, children: [new TextRun("起草证据调取申请书")] }),
+
+      new Paragraph({ spacing: { before: 400 }, children: [new TextRun({ text: "---", color: "CCCCCC" })] }),
+      new Paragraph({ alignment: AlignmentType.CENTER, children: [new TextRun({ text: "报告生成时间：2026-03-02", size: 20, color: "666666" })] }),
+      new Paragraph({ alignment: AlignmentType.CENTER, children: [new TextRun({ text: "研究方法：多AI子智能体并行交叉验证", size: 20, color: "666666" })] }),
+      new Paragraph({ alignment: AlignmentType.CENTER, children: [new TextRun({ text: "参与智能体：3个专业法律分析智能体", size: 20, color: "666666" })] }),
+      new Paragraph({ alignment: AlignmentType.CENTER, children: [new TextRun({ text: "验证结论：高度一致，方案可行", size: 20, color: "666666" })] }),
+    ]
+  }]
+});
+
+Packer.toBuffer(doc).then(buffer => {
+  fs.writeFileSync("前期物业服务合同纠纷维权方案-多智能体交叉验证报告.docx", buffer);
+  console.log("报告已生成");
+});

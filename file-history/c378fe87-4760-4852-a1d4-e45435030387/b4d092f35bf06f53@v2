@@ -1,0 +1,140 @@
+#!/usr/bin/env python3
+# -*- coding: utf-8 -*-
+"""
+重新生成个性化插图 - 每个插图都有独特设计
+先生成前10个作为示例
+"""
+
+import re
+
+# 读取文档
+with open(r'C:\Users\Administrator\AI科普画册\AI科普画册-待插图版.md', 'r', encoding='utf-8') as f:
+    content = f.read()
+
+# 为前10个插图创建完全不同的设计
+illustrations = {
+    '1-1': {
+        'desc': '一个友好的机器人向小朋友挥手，周围漂浮着手机、平板、游戏机等设备',
+        'svg': '''<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 800 450" style="background:#E8F4F8">
+  <!-- 友好的机器人 -->
+  <g transform="translate(300, 200)">
+    <rect x="-50" y="0" width="100" height="120" rx="15" fill="#4A9EFF" stroke="#2E5C8A" stroke-width="3"/>
+    <rect x="-40" y="-60" width="80" height="70" rx="12" fill="#5DADE2" stroke="#2E5C8A" stroke-width="3"/>
+    <circle cx="-20" cy="-35" r="12" fill="#FFF"/>
+    <circle cx="20" cy="-35" r="12" fill="#FFF"/>
+    <circle cx="-19" cy="-33" r="6" fill="#333"/>
+    <circle cx="21" cy="-33" r="6" fill="#333"/>
+    <path d="M -15 -10 Q 0 -5 15 -10" stroke="#333" stroke-width="3" fill="none"/>
+    <line x1="0" y1="-60" x2="0" y2="-80" stroke="#2E5C8A" stroke-width="3"/>
+    <circle cx="0" cy="-85" r="8" fill="#FF6B6B">
+      <animate attributeName="opacity" values="1;0.3;1" dur="1.5s" repeatCount="indefinite"/>
+    </circle>
+    <!-- 挥手的手臂 -->
+    <g transform="rotate(-20)">
+      <rect x="50" y="-10" width="50" height="15" rx="8" fill="#4A9EFF" stroke="#2E5C8A" stroke-width="2"/>
+      <circle cx="105" cy="-2" r="15" fill="#5DADE2" stroke="#2E5C8A" stroke-width="2"/>
+      <animateTransform attributeName="transform" type="rotate" values="0 50 0; -30 50 0; 0 50 0" dur="1s" repeatCount="indefinite"/>
+    </g>
+    <rect x="-100" y="-10" width="50" height="15" rx="8" fill="#4A9EFF" stroke="#2E5C8A" stroke-width="2"/>
+  </g>
+
+  <!-- 小朋友 -->
+  <g transform="translate(550, 250)">
+    <circle cx="0" cy="0" r="35" fill="#FFD4A3" stroke="#E6A86E" stroke-width="3"/>
+    <path d="M -25 -8 Q -30 -22 -18 -28 Q 0 -33 18 -28 Q 30 -22 25 -8" fill="#8B4513"/>
+    <circle cx="-10" cy="-3" r="4" fill="#333"/>
+    <circle cx="10" cy="-3" r="4" fill="#333"/>
+    <path d="M -10 12 Q 0 16 10 12" stroke="#333" stroke-width="2" fill="none"/>
+    <rect x="-25" y="35" width="50" height="70" rx="10" fill="#FF9999" stroke="#E67373" stroke-width="2"/>
+  </g>
+
+  <!-- 漂浮的设备 -->
+  <g id="phone" transform="translate(120, 150)">
+    <rect width="60" height="100" rx="8" fill="#333" stroke="#000" stroke-width="3"/>
+    <rect x="5" y="10" width="50" height="75" fill="#87CEEB"/>
+    <circle cx="30" cy="92" r="4" fill="#666"/>
+    <animateTransform attributeName="transform" type="translate" values="120 150; 120 140; 120 150" dur="2s" repeatCount="indefinite"/>
+  </g>
+
+  <g id="tablet" transform="translate(650, 120)">
+    <rect width="100" height="75" rx="8" fill="#555" stroke="#000" stroke-width="3"/>
+    <rect x="5" y="5" width="90" height="65" fill="#90EE90"/>
+    <animateTransform attributeName="transform" type="translate" values="650 120; 650 110; 650 120" dur="2.5s" repeatCount="indefinite"/>
+  </g>
+
+  <g id="gamepad" transform="translate(150, 320)">
+    <rect width="80" height="60" rx="12" fill="#E74C3C" stroke="#C0392B" stroke-width="3"/>
+    <rect x="12" y="12" width="30" height="30" fill="#333"/>
+    <circle cx="65" cy="22" r="7" fill="#F39C12"/>
+    <circle cx="65" cy="42" r="7" fill="#3498DB"/>
+    <animateTransform attributeName="transform" type="translate" values="150 320; 150 310; 150 320" dur="2.2s" repeatCount="indefinite"/>
+  </g>
+
+  <text x="400" y="50" font-size="28" font-weight="bold" text-anchor="middle" fill="#2E5C8A">欢迎来到AI世界</text>
+</svg>'''
+    },
+
+    '1-2': {
+        'desc': '对比图——左边是普通计算器只能算数，右边是AI助手能聊天、画画、写作',
+        'svg': '''<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 800 450" style="background:#F0F4F8">
+  <line x1="400" y1="60" x2="400" y2="390" stroke="#CCC" stroke-width="3" stroke-dasharray="10,5"/>
+
+  <!-- 左侧：普通计算器 -->
+  <text x="200" y="90" font-size="28" font-weight="bold" text-anchor="middle" fill="#555">普通计算器</text>
+  <g transform="translate(120, 130)">
+    <rect width="160" height="200" rx="12" fill="#2C3E50" stroke="#1A252F" stroke-width="4"/>
+    <rect x="15" y="15" width="130" height="50" rx="5" fill="#7F8C8D"/>
+    <text x="80" y="50" font-size="26" text-anchor="middle" fill="#2ECC71" font-family="monospace">1+1=2</text>
+    <rect x="20" y="80" width="35" height="25" rx="4" fill="#34495E"/>
+    <rect x="62" y="80" width="35" height="25" rx="4" fill="#34495E"/>
+    <rect x="104" y="80" width="35" height="25" rx="4" fill="#34495E"/>
+    <rect x="20" y="115" width="35" height="25" rx="4" fill="#34495E"/>
+    <rect x="62" y="115" width="35" height="25" rx="4" fill="#34495E"/>
+    <rect x="104" y="115" width="35" height="25" rx="4" fill="#34495E"/>
+  </g>
+  <text x="200" y="360" font-size="22" text-anchor="middle" fill="#666">只能：➕ ➖ ✖️ ➗</text>
+
+  <!-- 右侧：AI助手 -->
+  <text x="600" y="90" font-size="28" font-weight="bold" text-anchor="middle" fill="#2980B9">AI助手</text>
+  <g transform="translate(520, 140)">
+    <circle cx="80" cy="80" r="65" fill="#3498DB" stroke="#2980B9" stroke-width="4"/>
+    <circle cx="60" cy="70" r="11" fill="#FFF"/>
+    <circle cx="100" cy="70" r="11" fill="#FFF"/>
+    <circle cx="62" cy="72" r="5" fill="#333"/>
+    <circle cx="102" cy="72" r="5" fill="#333"/>
+    <path d="M 55 95 Q 80 108 105 95" stroke="#FFF" stroke-width="4" fill="none" stroke-linecap="round"/>
+  </g>
+
+  <g transform="translate(450, 280)">
+    <text x="30" y="25" font-size="32">💬</text>
+    <text x="45" y="25" font-size="16" fill="#555">聊天</text>
+    <text x="120" y="25" font-size="32">🎨</text>
+    <text x="135" y="25" font-size="16" fill="#555">画画</text>
+    <text x="210" y="25" font-size="32">✍️</text>
+    <text x="225" y="25" font-size="16" fill="#555">写作</text>
+  </g>
+
+  <g transform="translate(200, 200)">
+    <text x="0" y="0" font-size="45" opacity="0.3">→</text>
+    <animateTransform attributeName="transform" type="translate" values="200 200; 210 200; 200 200" dur="1.5s" repeatCount="indefinite"/>
+  </g>
+</svg>'''
+    }
+}
+
+print("正在重新生成个性化插图...")
+print("先生成前2个作为示例\n")
+
+for ill_id, data in illustrations.items():
+    pattern = rf'【插图{ill_id}：[^】]+】\n\n(<svg[^<]*(?:<[^<]+)*</svg>)?\n*'
+    replacement = f'【插图{ill_id}：{data["desc"]}】\n\n{data["svg"]}\n\n'
+    content = re.sub(pattern, replacement, content, count=1, flags=re.DOTALL)
+    print(f"✓ 插图{ill_id}: {data['desc'][:40]}...")
+
+# 保存示例
+with open(r'C:\Users\Administrator\AI科普画册\AI科普画册-个性化示例.md', 'w', encoding='utf-8') as f:
+    f.write(content)
+
+print(f"\n✓ 示例已生成")
+print(f"✓ 文件: AI科普画册-个性化示例.md")
+print(f"\n请查看这2个插图的效果，确认风格后我会继续生成剩余213个")

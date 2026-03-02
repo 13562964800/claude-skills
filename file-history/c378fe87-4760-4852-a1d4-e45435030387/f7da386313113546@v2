@@ -1,0 +1,47 @@
+#!/usr/bin/env python3
+# -*- coding: utf-8 -*-
+"""
+完整统计插图情况
+"""
+
+import re
+
+# 读取文档
+with open(r'C:\Users\Administrator\AI科普画册\AI科普画册-插图进行中.md', 'r', encoding='utf-8') as f:
+    content = f.read()
+
+# 提取所有插图标记
+all_illustrations = re.findall(r'【插图([^】]+)】', content)
+print(f"文档中插图标记总数: {len(all_illustrations)}")
+
+# 统计已插入SVG的插图
+svg_count = len(re.findall(r'<svg[^>]*>', content))
+print(f"已插入SVG的插图数: {svg_count}")
+
+# 统计各章节插图数量
+chapters = {}
+for ill in all_illustrations:
+    # 提取章节号 (如 "1-1" 中的 "1")
+    match = re.match(r'(\d+)-', ill)
+    if match:
+        chapter = match.group(1)
+        chapters[chapter] = chapters.get(chapter, 0) + 1
+
+print(f"\n各章节插图分布:")
+for chapter in sorted(chapters.keys(), key=int):
+    print(f"  第{chapter}章: {chapters[chapter]}个插图")
+
+# 找出未插入SVG的插图
+print(f"\n检查前20个插图的SVG插入情况:")
+for i, ill_marker in enumerate(all_illustrations[:20], 1):
+    # 查找这个插图标记后面是否有SVG
+    pattern = rf'【插图{re.escape(ill_marker)}】\n\n<svg'
+    has_svg = bool(re.search(pattern, content))
+    status = "✓" if has_svg else "✗"
+    print(f"  {status} 插图{ill_marker}")
+
+print(f"\n总结:")
+print(f"  需要生成: {len(all_illustrations)} 个插图")
+print(f"  已完成: {svg_count} 个插图")
+print(f"  剩余: {len(all_illustrations) - svg_count} 个插图")
+print(f"  完成度: {svg_count/len(all_illustrations)*100:.1f}%")

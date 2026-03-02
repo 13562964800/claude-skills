@@ -1,0 +1,109 @@
+# Legal MCP Servers Collection
+
+法律相关的MCP服务器集合，支持多国法律研究和案例分析。
+
+## 已安装的MCP服务器
+
+### 1. US Legal MCP (美国法律)
+- **仓库**: https://github.com/JamesANZ/us-legal-mcp
+- **功能**:
+  - 搜索国会法案和决议
+  - 查询联邦公报文件
+  - 搜索法院判决（联邦和州）
+  - 多源综合搜索
+- **数据源**: Congress.gov, Federal Register, CourtListener
+- **状态**: ✅ 已安装并构建
+
+### 2. Brazilian Law MCP (巴西法律)
+- **仓库**: https://github.com/pdmtt/brlaw_mcp_server
+- **功能**:
+  - 巴西最高法院判例
+  - 高等法院判例
+  - 劳动法院判例
+- **数据源**: STF, STJ, TST
+- **状态**: ✅ 已安装
+
+### 3. Swiss Legal Case Law MCP (瑞士法律案例)
+- **仓库**: https://github.com/self-tech-labs/entscheidsuche-mcp-server
+- **功能**:
+  - 搜索瑞士法律案例
+  - 访问法院判决
+  - 检索完整文档
+- **数据源**: Entscheidsuche API
+- **状态**: ✅ 已安装
+
+### 4. French Legal Research MCP (法国法律)
+- **仓库**: https://github.com/jmtanguy/droit-francais-mcp
+- **功能**:
+  - 搜索法国法典条文
+  - 查询法律和法令
+  - 访问法院判决
+- **数据源**: Légifrance, Judilibre
+- **状态**: ✅ 已安装
+
+### 5. Chinese Laws Database (中国法律)
+- **仓库**: https://github.com/risshun/Chinese_Laws
+- **功能**:
+  - 中国宪法
+  - 基本法律（民法、刑法、诉讼法等）
+  - 法律分类综述
+- **状态**: ✅ 已安装
+
+## 使用方法
+
+### 配置Claude Desktop
+
+编辑 `~/.config/Claude/claude_desktop_config.json` (Mac/Linux) 或 `%APPDATA%\Claude\claude_desktop_config.json` (Windows):
+
+```json
+{
+  "mcpServers": {
+    "us-legal": {
+      "command": "node",
+      "args": ["C:/Users/Administrator/mcp-servers/us-legal-mcp/dist/index.js"]
+    },
+    "brazilian-law": {
+      "command": "uv",
+      "args": ["--directory", "C:/Users/Administrator/mcp-servers/brlaw_mcp_server", "run", "brlaw_mcp_server"]
+    }
+  }
+}
+```
+
+### 在Claude Code中使用
+
+这些MCP服务器会自动集成到Claude Code中，可以直接查询：
+- "搜索美国关于隐私保护的法案"
+- "查找巴西最高法院关于合同纠纷的判例"
+- "检索瑞士关于劳动法的案例"
+
+## 安装依赖
+
+```bash
+# US Legal MCP
+cd ~/mcp-servers/us-legal-mcp
+npm install && npm run build
+
+# Brazilian Law MCP
+pip install uv
+cd ~/mcp-servers/brlaw_mcp_server
+uv run patchright install
+
+# 其他MCP服务器根据各自README安装
+```
+
+## 同步到其他电脑
+
+```bash
+# 克隆仓库
+git clone https://github.com/13562964800/legal-mcp-servers.git ~/mcp-servers
+
+# 安装依赖（根据需要）
+cd ~/mcp-servers/us-legal-mcp && npm install && npm run build
+```
+
+## 参考资源
+
+- [Model Context Protocol](https://modelcontextprotocol.io)
+- [MCP Registry](https://github.com/modelcontextprotocol/registry)
+- [Legal MCP Case Study](https://edwin.genego.io/ai/mcp-servers/legal-mcp-server)

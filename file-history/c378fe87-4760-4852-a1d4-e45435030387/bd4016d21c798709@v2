@@ -1,0 +1,80 @@
+#!/usr/bin/env python3
+# -*- coding: utf-8 -*-
+"""
+完整版生成器 - 处理原始文档中的全部215个插图
+"""
+
+import re
+
+# 读取原始文档
+with open(r'C:\Users\Administrator\AI科普画册\AI科普画册-待插图版.md', 'r', encoding='utf-8') as f:
+    content = f.read()
+
+# 提取所有插图标记
+all_illustrations = re.findall(r'【插图([^：]+)：([^】]+)】', content)
+print(f"找到 {len(all_illustrations)} 个插图标记")
+
+# 智能SVG生成
+def smart_svg(ill_id, desc):
+    """根据描述生成个性化SVG"""
+    # 简化的emoji选择逻辑
+    emoji_map = {
+        '机器人': '🤖', '计算': '💻', '图灵': '👨‍💻', '测试': '💬',
+        '深蓝': '♟️', '沃森': '🎯', 'AlphaGo': '⚫⚪', 'GPT': '🧠',
+        '神经': '🧠', '学习': '📚', '数据': '📊', '训练': '💪',
+        '聊天': '💬', '图像': '📷', '语音': '🎤', '驾驶': '🚗',
+        '游戏': '🎮', '艺术': '🎨', '医疗': '👨‍⚕️', '环保': '🌳',
+    }
+
+    emoji = '🤖✨'
+    for key, em in emoji_map.items():
+        if key in desc:
+            emoji = em
+            break
+
+    bg_colors = ['#E8F4F8', '#F3E5F5', '#FFF8E1', '#E8F5E9', '#FFF3E0', '#F1F8E9']
+    bg = bg_colors[hash(ill_id) % len(bg_colors)]
+
+    title = desc[:22] if len(desc) <= 22 else desc[:19] + '...'
+
+    return f'''<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 800 450" style="background:{bg}">
+  <text x="400" y="70" font-size="28" font-weight="bold" text-anchor="middle" fill="#333">{title}</text>
+  <g transform="translate(400, 225)">
+    <circle cx="0" cy="0" r="90" fill="#333" opacity="0.04"/>
+    <text x="0" y="25" font-size="85" text-anchor="middle">{emoji}</text>
+  </g>
+  <circle cx="150" cy="150" r="35" fill="#333" opacity="0.02"/>
+  <circle cx="650" cy="320" r="45" fill="#333" opacity="0.02"/>
+  <text x="400" y="385" font-size="19" text-anchor="middle" fill="#666" opacity="0.7">{desc[:48]}</text>
+</svg>'''
+
+# 批量生成
+generated = 0
+for ill_id, desc in all_illustrations:
+    # 检查是否已有SVG
+    pattern = rf'【插图{re.escape(ill_id)}：[^】]+】\n\n<svg'
+    if re.search(pattern, content):
+        continue
+
+    # 生成并替换
+    svg = smart_svg(ill_id, desc)
+    replace_pattern = rf'【插图{re.escape(ill_id)}：[^】]+】\n\n\n'
+    replacement = f'【插图{ill_id}：{desc}】\n\n{svg}\n\n'
+
+    if re.search(replace_pattern, content):
+        content = re.sub(replace_pattern, replacement, content, count=1)
+        generated += 1
+
+        if generated % 25 == 0:
+            print(f"  已生成 {generated} 个...")
+
+# 保存
+output = r'C:\Users\Administrator\AI科普画册\AI科普画册-215插图完整版.md'
+with open(output, 'w', encoding='utf-8') as f:
+    f.write(content)
+
+final_count = len(re.findall(r'<svg[^>]*>', content))
+print(f"\n✓ 完成！")
+print(f"✓ 本次生成: {generated} 个")
+print(f"✓ 总计: {final_count}/215 ({final_count/215*100:.1f}%)")
+print(f"✓ 文件: {output}")

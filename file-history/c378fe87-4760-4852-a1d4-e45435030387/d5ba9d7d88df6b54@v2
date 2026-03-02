@@ -1,0 +1,172 @@
+#!/usr/bin/env python3
+# -*- coding: utf-8 -*-
+"""
+继续生成第2章的17个插图 (插图2-1到2-17)
+每个插图都有独特设计和上下文关联
+"""
+
+import re
+
+# 读取文档
+with open(r'C:\Users\Administrator\AI科普画册\AI科普画册-插图进行中.md', 'r', encoding='utf-8') as f:
+    content = f.read()
+
+# 第2章插图数据 - AI历史故事
+chapter2_illustrations = {
+    '2-1': {
+        'desc': '图灵在工作台前研究密码机器,背景是二战时期',
+        'svg': '''<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 800 450" style="background:#F5F5DC">
+  <!-- 二战背景 -->
+  <rect width="800" height="450" fill="#F5F5DC"/>
+  <text x="400" y="50" font-size="32" font-weight="bold" text-anchor="middle" fill="#654321">图灵与密码机</text>
+
+  <!-- 图灵人物 -->
+  <g transform="translate(300, 200)">
+    <circle cx="0" cy="0" r="45" fill="#FFD4A3" stroke="#8B4513" stroke-width="3"/>
+    <path d="M -30 -10 Q -35 -25 -20 -30 Q 0 -35 20 -30 Q 35 -25 30 -10" fill="#654321"/>
+    <circle cx="-12" cy="-5" r="4" fill="#333"/>
+    <circle cx="12" cy="-5" r="4" fill="#333"/>
+    <path d="M -10 10 Q 0 5 10 10" stroke="#333" stroke-width="2" fill="none"/>
+    <rect x="-35" y="45" width="70" height="90" rx="10" fill="#4A4A4A" stroke="#333" stroke-width="2"/>
+  </g>
+
+  <!-- 密码机 Enigma -->
+  <g transform="translate(500, 220)">
+    <rect width="120" height="100" rx="8" fill="#8B7355" stroke="#654321" stroke-width="3"/>
+    <rect x="10" y="10" width="100" height="40" rx="5" fill="#333"/>
+    <circle cx="30" cy="70" r="8" fill="#FFD700" stroke="#B8860B" stroke-width="2"/>
+    <circle cx="60" cy="70" r="8" fill="#FFD700" stroke="#B8860B" stroke-width="2"/>
+    <circle cx="90" cy="70" r="8" fill="#FFD700" stroke="#B8860B" stroke-width="2"/>
+    <text x="60" y="30" font-size="20" text-anchor="middle" fill="#0F0">ENIGMA</text>
+  </g>
+
+  <!-- 工作台 -->
+  <rect x="200" y="290" width="400" height="15" fill="#8B4513"/>
+  <rect x="180" y="305" width="440" height="80" fill="#A0826D" stroke="#654321" stroke-width="2"/>
+
+  <!-- 纸张和笔记 -->
+  <rect x="220" y="320" width="80" height="60" rx="3" fill="#FFF" stroke="#333" stroke-width="1"/>
+  <line x1="230" y1="335" x2="290" y2="335" stroke="#333" stroke-width="1"/>
+  <line x1="230" y1="345" x2="290" y2="345" stroke="#333" stroke-width="1"/>
+  <line x1="230" y1="355" x2="280" y2="355" stroke="#333" stroke-width="1"/>
+
+  <!-- 装饰元素 -->
+  <text x="100" y="100" font-size="35" opacity="0.3">🔐</text>
+  <text x="680" y="120" font-size="35" opacity="0.3">⚙️</text>
+
+  <text x="400" y="420" font-size="22" text-anchor="middle" fill="#654321">破解密码，拯救生命</text>
+</svg>'''
+    },
+    '2-2': {
+        'desc': '图灵测试示意图——一个人通过屏幕与看不见的对象对话',
+        'svg': '''<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 800 450" style="background:#E8F4F8">
+  <text x="400" y="50" font-size="32" font-weight="bold" text-anchor="middle" fill="#1976D2">图灵测试</text>
+
+  <!-- 人类测试者 -->
+  <g transform="translate(150, 200)">
+    <circle cx="0" cy="0" r="40" fill="#FFD4A3" stroke="#E6A86E" stroke-width="3"/>
+    <path d="M -28 -8 Q -32 -22 -18 -28 Q 0 -33 18 -28 Q 32 -22 28 -8" fill="#8B4513"/>
+    <circle cx="-10" cy="-3" r="4" fill="#333"/>
+    <circle cx="10" cy="-3" r="4" fill="#333"/>
+    <path d="M -8 12 Q 0 8 8 12" stroke="#333" stroke-width="2" fill="none"/>
+    <rect x="-30" y="40" width="60" height="80" rx="10" fill="#2196F3" stroke="#1976D2" stroke-width="2"/>
+    <text x="0" y="150" font-size="18" text-anchor="middle" fill="#333">人类</text>
+  </g>
+
+  <!-- 屏幕/墙 -->
+  <rect x="350" y="100" width="100" height="250" rx="10" fill="#90A4AE" stroke="#546E7A" stroke-width="4"/>
+  <rect x="365" y="120" width="70" height="100" rx="5" fill="#263238"/>
+  <text x="400" y="175" font-size="24" text-anchor="middle" fill="#0F0">?</text>
+  <rect x="365" y="240" width="70" height="100" rx="5" fill="#263238"/>
+  <text x="400" y="295" font-size="24" text-anchor="middle" fill="#0F0">?</text>
+
+  <!-- 问号 - 未知对象 -->
+  <g transform="translate(600, 200)">
+    <circle cx="0" cy="0" r="60" fill="#FFF" stroke="#1976D2" stroke-width="4" stroke-dasharray="10,5"/>
+    <text x="0" y="20" font-size="80" text-anchor="middle" fill="#1976D2">?</text>
+    <text x="0" y="100" font-size="16" text-anchor="middle" fill="#666">AI 或 人类?</text>
+  </g>
+
+  <!-- 对话气泡 -->
+  <g transform="translate(200, 120)">
+    <rect width="120" height="50" rx="10" fill="#FFF" stroke="#2196F3" stroke-width="2"/>
+    <text x="60" y="30" font-size="16" text-anchor="middle" fill="#333">你好吗？</text>
+  </g>
+
+  <g transform="translate(480, 180)">
+    <rect width="140" height="50" rx="10" fill="#E3F2FD" stroke="#2196F3" stroke-width="2"/>
+    <text x="70" y="30" font-size="16" text-anchor="middle" fill="#333">我很好，谢谢</text>
+  </g>
+
+  <text x="400" y="420" font-size="22" text-anchor="middle" fill="#1976D2">能分辨出谁是AI吗？</text>
+</svg>'''
+    },
+    '2-3': {
+        'desc': '图灵的肖像,周围环绕着他的重要贡献',
+        'svg': '''<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 800 450" style="background:#FFF8E1">
+  <text x="400" y="50" font-size="32" font-weight="bold" text-anchor="middle" fill="#F57C00">图灵的贡献</text>
+
+  <!-- 中央肖像 -->
+  <g transform="translate(400, 225)">
+    <circle cx="0" cy="0" r="70" fill="#FFD4A3" stroke="#E6A86E" stroke-width="4"/>
+    <path d="M -45 -15 Q -55 -35 -35 -45 Q 0 -55 35 -45 Q 55 -35 45 -15" fill="#654321"/>
+    <circle cx="-20" cy="-10" r="6" fill="#333"/>
+    <circle cx="20" cy="-10" r="6" fill="#333"/>
+    <path d="M -15 15 Q 0 10 15 15" stroke="#333" stroke-width="3" fill="none"/>
+    <circle cx="0" cy="0" r="70" fill="none" stroke="#F57C00" stroke-width="3"/>
+  </g>
+
+  <!-- 密码机 -->
+  <g transform="translate(150, 150)">
+    <rect width="80" height="60" rx="8" fill="#8B7355" stroke="#654321" stroke-width="2"/>
+    <text x="40" y="35" font-size="30" text-anchor="middle">🔐</text>
+    <text x="40" y="85" font-size="14" text-anchor="middle" fill="#654321">密码破译</text>
+  </g>
+
+  <!-- 图灵测试 -->
+  <g transform="translate(650, 150)">
+    <circle cx="0" cy="0" r="40" fill="#E3F2FD" stroke="#2196F3" stroke-width="3"/>
+    <text x="0" y="15" font-size="40" text-anchor="middle">💬</text>
+    <text x="0" y="65" font-size="14" text-anchor="middle" fill="#2196F3">图灵测试</text>
+  </g>
+
+  <!-- 计算机理论 -->
+  <g transform="translate(150, 320)">
+    <rect width="80" height="60" rx="8" fill="#E8EAF6" stroke="#5E35B1" stroke-width="2"/>
+    <text x="40" y="35" font-size="30" text-anchor="middle">💻</text>
+    <text x="40" y="85" font-size="14" text-anchor="middle" fill="#5E35B1">计算理论</text>
+  </g>
+
+  <!-- 图灵机 -->
+  <g transform="translate(650, 320)">
+    <rect width="80" height="60" rx="8" fill="#F3E5F5" stroke="#8E24AA" stroke-width="2"/>
+    <text x="40" y="35" font-size="30" text-anchor="middle">⚙️</text>
+    <text x="40" y="85" font-size="14" text-anchor="middle" fill="#8E24AA">图灵机</text>
+  </g>
+
+  <!-- 连接线 -->
+  <line x1="190" y1="180" x2="330" y2="225" stroke="#F57C00" stroke-width="2" stroke-dasharray="5,5" opacity="0.5"/>
+  <line x1="610" y1="180" x2="470" y2="225" stroke="#F57C00" stroke-width="2" stroke-dasharray="5,5" opacity="0.5"/>
+  <line x1="190" y1="350" x2="330" y2="295" stroke="#F57C00" stroke-width="2" stroke-dasharray="5,5" opacity="0.5"/>
+  <line x1="610" y1="350" x2="470" y2="295" stroke="#F57C00" stroke-width="2" stroke-dasharray="5,5" opacity="0.5"/>
+
+  <text x="400" y="420" font-size="22" text-anchor="middle" fill="#F57C00">AI之父的伟大遗产</text>
+</svg>'''
+    }
+}
+
+print("正在生成第2章插图 (2-1 到 2-3)...")
+
+# 批量替换
+for ill_id, data in chapter2_illustrations.items():
+    pattern = rf'【插图{ill_id}:[^】]+】\n\n\n'
+    replacement = f'【插图{ill_id}:{data["desc"]}】\n\n{data["svg"]}\n\n'
+    content = re.sub(pattern, replacement, content, count=1)
+    print(f"✓ 插图{ill_id}已生成")
+
+# 保存
+with open(r'C:\Users\Administrator\AI科普画册\AI科普画册-插图进行中.md', 'w', encoding='utf-8') as f:
+    f.write(content)
+
+print(f"\n进度: 23/215 (10.7%)")
+print("继续生成中...")

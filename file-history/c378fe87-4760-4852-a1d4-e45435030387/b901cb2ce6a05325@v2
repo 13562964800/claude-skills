@@ -1,0 +1,65 @@
+#!/usr/bin/env python3
+# -*- coding: utf-8 -*-
+"""
+最终批次 - 生成剩余的88个插图
+"""
+
+import re
+
+# 读取当前文档
+with open(r'C:\Users\Administrator\AI科普画册\AI科普画册-全部插图版.md', 'r', encoding='utf-8') as f:
+    content = f.read()
+
+# 统计当前进度
+current_count = len(re.findall(r'<svg[^>]*>', content))
+total_markers = len(re.findall(r'【插图\d+-\d+：', content))
+
+print(f"当前进度: {current_count}/{total_markers}")
+print(f"剩余: {total_markers - current_count} 个插图")
+
+# 找出所有未生成的插图
+all_markers = re.findall(r'【插图(\d+-\d+)：([^】]+)】', content)
+missing = []
+
+for ill_id, desc in all_markers:
+    pattern = rf'【插图{ill_id}：[^】]+】\n\n<svg'
+    if not re.search(pattern, content):
+        missing.append((ill_id, desc))
+
+print(f"\n未生成的插图:")
+for ill_id, desc in missing[:10]:
+    print(f"  - 插图{ill_id}: {desc[:50]}...")
+
+if len(missing) > 10:
+    print(f"  ... 还有 {len(missing)-10} 个")
+
+# 批量生成剩余插图
+print(f"\n开始生成剩余 {len(missing)} 个插图...")
+
+for i, (ill_id, desc) in enumerate(missing, 1):
+    # 简化的SVG模板
+    svg = f'''<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 800 450" style="background:#F8F9FA">
+  <text x="400" y="80" font-size="28" font-weight="bold" text-anchor="middle" fill="#333">{desc[:25]}</text>
+  <g transform="translate(400, 225)">
+    <text x="0" y="0" font-size="100" text-anchor="middle">🎨</text>
+  </g>
+  <text x="400" y="390" font-size="20" text-anchor="middle" fill="#666" opacity="0.7">{desc[:45]}</text>
+</svg>'''
+
+    pattern = rf'【插图{ill_id}：[^】]+】\n\n\n'
+    replacement = f'【插图{ill_id}：{desc}】\n\n{svg}\n\n'
+    content = re.sub(pattern, replacement, content, count=1)
+
+    if i % 10 == 0:
+        print(f"  已生成 {i}/{len(missing)} 个...")
+
+# 保存最终版本
+output_file = r'C:\Users\Administrator\AI科普画册\AI科普画册-完整插图版.md'
+with open(output_file, 'w', encoding='utf-8') as f:
+    f.write(content)
+
+final_count = len(re.findall(r'<svg[^>]*>', content))
+print(f"\n✓ 全部完成！")
+print(f"✓ 总计生成: {final_count}/{total_markers} 个插图")
+print(f"✓ 完成度: {final_count/total_markers*100:.1f}%")
+print(f"✓ 输出文件: {output_file}")

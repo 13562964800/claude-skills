@@ -1,0 +1,94 @@
+const { Document, Packer, Paragraph, TextRun, HeadingLevel, AlignmentType, LevelFormat } = require('docx');
+const fs = require('fs');
+
+const doc = new Document({
+  numbering: {
+    config: [
+      { reference: "numbers",
+        levels: [
+          { level: 0, format: LevelFormat.DECIMAL, text: "%1.", alignment: AlignmentType.LEFT,
+            style: { paragraph: { indent: { left: 720, hanging: 360 } } } }
+        ]
+      }
+    ]
+  },
+  styles: {
+    default: { document: { run: { font: "仿宋_GB2312", size: 32 } } },
+    paragraphStyles: [
+      { id: "Heading1", name: "Heading 1", basedOn: "Normal", next: "Normal", quickFormat: true,
+        run: { size: 36, bold: true, font: "黑体" },
+        paragraph: { spacing: { before: 240, after: 240 }, alignment: AlignmentType.CENTER, outlineLevel: 0 } },
+    ]
+  },
+  sections: [{
+    properties: {
+      page: {
+        size: { width: 11906, height: 16838 },
+        margin: { top: 1800, right: 2160, bottom: 1800, left: 2160 }
+      }
+    },
+    children: [
+      new Paragraph({
+        heading: HeadingLevel.HEADING_1,
+        children: [new TextRun("调取证据申请书")]
+      }),
+
+      new Paragraph({ spacing: { before: 400, after: 200 }, children: [new TextRun({ text: "申请人：", bold: true }), new TextRun("甲公司（开发商）")] }),
+      new Paragraph({ spacing: { after: 200 }, children: [new TextRun({ text: "被申请人：", bold: true }), new TextRun("乙公司（前期物业公司）")] }),
+
+      new Paragraph({ spacing: { before: 300, after: 200 }, children: [new TextRun({ text: "申请事项：", bold: true })] }),
+      new Paragraph({ spacing: { after: 100 }, children: [new TextRun("申请贵院依职权向XX市公安局XX分局调取以下证据材料：")] }),
+      new Paragraph({ numbering: { reference: "numbers", level: 0 }, children: [new TextRun("报警笔录（报警时间：XXXX年XX月XX日，报警编号：XXXX）")] }),
+      new Paragraph({ numbering: { reference: "numbers", level: 0 }, children: [new TextRun("相关询问笔录（包括但不限于对被申请人物业主管人员、保安人员的询问笔录）")] }),
+      new Paragraph({ numbering: { reference: "numbers", level: 0 }, spacing: { after: 200 }, children: [new TextRun("现场勘查记录、照片、视频等相关证据材料（如有）")] }),
+
+      new Paragraph({ spacing: { before: 300, after: 200 }, children: [new TextRun({ text: "事实与理由：", bold: true })] }),
+
+      new Paragraph({ spacing: { after: 100 }, children: [new TextRun({ text: "一、案件基本情况", bold: true })] }),
+      new Paragraph({ spacing: { after: 200 }, children: [new TextRun("申请人与被申请人签订前期物业服务合同，约定被申请人负责小区物业管理服务，包括车位管理、秩序维护等职责。然而，被申请人严重违反合同约定，其保安人员私下收取客户钱款，允许未购买地下车位的业主进入地下车库并占用申请人产权车位停车，导致申请人车位无法正常销售，造成经济损失200万元（经有资质评估公司评估）。")] }),
+
+      new Paragraph({ spacing: { after: 100 }, children: [new TextRun({ text: "二、申请调取证据的必要性", bold: true })] }),
+
+      new Paragraph({ spacing: { after: 100 }, children: [new TextRun({ text: "（一）证据的关联性", bold: true })] }),
+      new Paragraph({ spacing: { after: 200 }, children: [new TextRun("申请人于XXXX年XX月XX日向公安机关报警，公安机关受理后制作了相关笔录。上述证据材料直接记载了案发时的客观情况、被申请人保安人员私下收费的具体事实、被申请人物业主管人员对私租车位收取钱款并私分的认可等关键信息，对查明本案事实具有直接的关联性和重要的证明作用。")] }),
+
+      new Paragraph({ spacing: { after: 100 }, children: [new TextRun({ text: "（二）证据的必要性", bold: true })] }),
+      new Paragraph({ spacing: { after: 100 }, children: [new TextRun("本案争议焦点为被申请人是否存在违反物业服务合同约定，纵容保安私下收钱允许非业主占用申请人产权车位的行为，以及该行为与申请人车位销售损失之间的因果关系。上述证据材料具体包括：")] }),
+      new Paragraph({ numbering: { reference: "numbers", level: 0 }, children: [new TextRun({ text: "违约行为的直接证据：", bold: true }), new TextRun("报警笔录和询问笔录中可能记载保安人员私下收费的具体金额、次数、时间跨度等关键事实。")] }),
+      new Paragraph({ numbering: { reference: "numbers", level: 0 }, children: [new TextRun({ text: "被申请人自认的证据：", bold: true }), new TextRun("被申请人物业主管人员在公安机关询问时认可私租车位收取钱款、部分用于补贴物业部分私分的事实，该自认具有极强的证明力。")] }),
+      new Paragraph({ numbering: { reference: "numbers", level: 0 }, children: [new TextRun({ text: "因果关系的证据：", bold: true }), new TextRun("现场勘查记录、照片、视频等可以证明车位被占用的实际情况，有助于证明违约行为与损失之间的因果关系。")] }),
+      new Paragraph({ numbering: { reference: "numbers", level: 0 }, spacing: { after: 200 }, children: [new TextRun({ text: "防止翻供的证据：", bold: true }), new TextRun("公安机关制作的笔录具有较高的证明力，可以固定被申请人方的陈述，防止其在诉讼中翻供或改变说法。")] }),
+
+      new Paragraph({ spacing: { after: 100 }, children: [new TextRun({ text: "（三）申请人无法自行收集", bold: true })] }),
+      new Paragraph({ spacing: { after: 200 }, children: [new TextRun("根据《公安机关办理行政案件程序规定》，公安机关不向当事人提供完整的案件材料。申请人虽持有报警回执，但无法获取详细的报警笔录、询问笔录等证据材料的具体内容。这些证据材料由公安机关依法制作和保管，申请人客观上无法自行收集。")] }),
+
+      new Paragraph({ spacing: { after: 100 }, children: [new TextRun({ text: "（四）证据的客观性和真实性", bold: true })] }),
+      new Paragraph({ spacing: { after: 200 }, children: [new TextRun("公安机关制作的报警笔录、询问笔录等证据材料，系公安机关依法履行职责过程中形成的客观记录，具有较强的真实性和证明力。该类证据由国家机关依法制作，程序合法，内容客观，能够真实反映案发时的实际情况和当事人的真实陈述。")] }),
+
+      new Paragraph({ spacing: { before: 300, after: 200 }, children: [new TextRun({ text: "三、法律依据", bold: true })] }),
+      new Paragraph({ numbering: { reference: "numbers", level: 0 }, children: [new TextRun("《中华人民共和国民事诉讼法》第六十七条规定：'人民法院有权向有关单位和个人调查取证，有关单位和个人不得拒绝。'")] }),
+      new Paragraph({ numbering: { reference: "numbers", level: 0 }, children: [new TextRun("《中华人民共和国民事诉讼法》第六十八条规定：'证据应当在法庭上出示，并由当事人互相质证。对涉及国家秘密、商业秘密和个人隐私的证据应当保密，需要在法庭出示的，不得在公开开庭时出示。'")] }),
+      new Paragraph({ numbering: { reference: "numbers", level: 0 }, spacing: { after: 200 }, children: [new TextRun("《最高人民法院关于适用〈中华人民共和国民事诉讼法〉的解释》第九十五条规定：'当事人申请调查收集的证据，与待证事实无关联、对证明待证事实无意义或者其他无调查收集必要的，人民法院不予准许。'")] }),
+
+      new Paragraph({ spacing: { before: 300, after: 200 }, children: [new TextRun({ text: "四、结论", bold: true })] }),
+      new Paragraph({ spacing: { after: 400 }, children: [new TextRun("综上所述，申请人申请调取的证据材料与本案待证事实具有直接关联性，对查明案件事实具有重要意义，且申请人客观上无法自行收集。根据《中华人民共和国民事诉讼法》的相关规定，恳请贵院依法调取上述证据材料，以查明案件事实，维护申请人的合法权益。")] }),
+
+      new Paragraph({ spacing: { before: 200 }, children: [new TextRun("此致")] }),
+      new Paragraph({ spacing: { after: 400 }, children: [new TextRun("XX市XX区人民法院")] }),
+
+      new Paragraph({ alignment: AlignmentType.RIGHT, children: [new TextRun("申请人：甲公司（盖章）")] }),
+      new Paragraph({ alignment: AlignmentType.RIGHT, children: [new TextRun("法定代表人：__________")] }),
+      new Paragraph({ alignment: AlignmentType.RIGHT, children: [new TextRun("日期：XXXX年XX月XX日")] }),
+
+      new Paragraph({ spacing: { before: 600 }, children: [new TextRun({ text: "附件：", bold: true })] }),
+      new Paragraph({ numbering: { reference: "numbers", level: 0 }, children: [new TextRun("报警回执复印件")] }),
+      new Paragraph({ numbering: { reference: "numbers", level: 0 }, children: [new TextRun("前期物业服务合同复印件")] }),
+      new Paragraph({ numbering: { reference: "numbers", level: 0 }, children: [new TextRun("车位销售损失评估报告复印件")] }),
+    ]
+  }]
+});
+
+Packer.toBuffer(doc).then(buffer => {
+  fs.writeFileSync("调取证据申请书.docx", buffer);
+  console.log("申请书已生成");
+});

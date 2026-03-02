@@ -1,0 +1,74 @@
+#!/usr/bin/env python3
+# -*- coding: utf-8 -*-
+"""
+提取所有SVG插图到独立文件
+"""
+
+import re
+import os
+
+# 读取文档
+input_file = r'C:\Users\Administrator\AI科普画册\AI科普画册-全部215插图.md'
+with open(input_file, 'r', encoding='utf-8') as f:
+    content = f.read()
+
+# 创建输出目录
+output_dir = r'C:\Users\Administrator\AI科普画册\插图SVG'
+os.makedirs(output_dir, exist_ok=True)
+
+# 分段查找：先找插图标记，然后找紧随其后的SVG
+lines = content.split('\n')
+current_id = None
+svg_buffer = []
+in_svg = False
+saved_count = 0
+
+for line in lines:
+    # 检查是否是插图标记
+    if '【插图' in line and '】' in line:
+        # 保存之前的SVG
+        if current_id and svg_buffer:
+            svg_code = '\n'.join(svg_buffer)
+            safe_id = re.sub(r'[<>:"/\\|?*]', '_', current_id)
+            svg_path = os.path.join(output_dir, f"插图{safe_id}.svg")
+            with open(svg_path, 'w', encoding='utf-8') as f:
+                f.write(svg_code)
+            saved_count += 1
+            svg_buffer = []
+
+        # 提取新的插图ID
+        match = re.search(r'【插图([^】]+)】', line)
+        if match:
+            current_id = match.group(1)
+            in_svg = False
+
+    # 检查SVG开始
+    elif '<svg' in line:
+        in_svg = True
+        svg_buffer = [line]
+
+    # 收集SVG内容
+    elif in_svg:
+        svg_buffer.append(line)
+        if '</svg>' in line:
+            in_svg = False
+
+# 保存最后一个
+if current_id and svg_buffer:
+    svg_code = '\n'.join(svg_buffer)
+    safe_id = re.sub(r'[<>:"/\\|?*]', '_', current_id)
+    svg_path = os.path.join(output_dir, f"插图{safe_id}.svg")
+    with open(svg_path, 'w', encoding='utf-8') as f:
+        f.write(svg_code)
+    saved_count += 1
+
+print(f"✓ 已提取 {saved_count} 个SVG文件到: {output_dir}")
+
+# 列出前10个文件
+svg_files = sorted(os.listdir(output_dir))
+print(f"\n前10个文件:")
+for f in svg_files[:10]:
+    print(f"  - {f}")
+
+if len(svg_files) > 10:
+    print(f"  ... 还有 {len(svg_files)-10} 个文件")

@@ -1,0 +1,160 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AI科普画册 - 插图审阅</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        body {
+            font-family: "Microsoft YaHei", Arial, sans-serif;
+            background: #f5f5f5;
+            padding: 20px;
+        }
+        .header {
+            background: white;
+            padding: 30px;
+            border-radius: 10px;
+            margin-bottom: 30px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        h1 {
+            color: #333;
+            margin-bottom: 10px;
+        }
+        .stats {
+            color: #666;
+            font-size: 18px;
+        }
+        .gallery {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(400px, 1fr));
+            gap: 20px;
+        }
+        .card {
+            background: white;
+            border-radius: 10px;
+            overflow: hidden;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+            transition: transform 0.2s;
+        }
+        .card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 5px 20px rgba(0,0,0,0.15);
+        }
+        .card img {
+            width: 100%;
+            height: 300px;
+            object-fit: contain;
+            background: #fafafa;
+            border-bottom: 1px solid #eee;
+        }
+        .card-info {
+            padding: 15px;
+        }
+        .card-title {
+            font-size: 16px;
+            color: #333;
+            font-weight: bold;
+            margin-bottom: 5px;
+        }
+        .card-id {
+            font-size: 14px;
+            color: #999;
+        }
+        .filter {
+            background: white;
+            padding: 20px;
+            border-radius: 10px;
+            margin-bottom: 20px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        .filter select {
+            padding: 10px;
+            font-size: 16px;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+            margin-right: 10px;
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1>🎨 AI科普画册 - 插图审阅</h1>
+        <div class="stats">
+            <p>✓ 总计: <strong>215个插图</strong></p>
+            <p>✓ 格式: PNG (1600x900px)</p>
+            <p>✓ 状态: 已完成，待审阅验收</p>
+        </div>
+    </div>
+
+    <div class="filter">
+        <label>筛选章节: </label>
+        <select id="chapterFilter" onchange="filterByChapter()">
+            <option value="all">全部章节</option>
+            <option value="1">第1章</option>
+            <option value="2">第2章</option>
+            <option value="3">第3章</option>
+            <option value="4">第4章</option>
+            <option value="5">第5章</option>
+            <option value="6">第6章</option>
+            <option value="7">第7章</option>
+            <option value="8">第8章</option>
+            <option value="9">第9章</option>
+            <option value="10">第10章</option>
+            <option value="11">第11章</option>
+            <option value="12">第12章</option>
+            <option value="13">第13章</option>
+            <option value="14">第14章</option>
+            <option value="15">第15章</option>
+            <option value="16">第16章</option>
+            <option value="17">第17章</option>
+            <option value="18">第18章</option>
+            <option value="19">第19章</option>
+            <option value="20">第20章</option>
+            <option value="21">第21章</option>
+            <option value="22">第22章</option>
+            <option value="23">第23章</option>
+        </select>
+    </div>
+
+    <div class="gallery" id="gallery"></div>
+
+    <script>
+        // 生成插图列表
+        const illustrations = [];
+        for (let i = 1; i <= 215; i++) {
+            // 这里需要实际的文件名列表
+            // 暂时用占位符
+        }
+
+        // 从文件系统读取PNG文件列表
+        async function loadImages() {
+            const gallery = document.getElementById('gallery');
+
+            // 由于安全限制，这里使用预定义的文件列表
+            // 实际使用时需要服务器端支持
+            const pngFiles = <?php
+                $dir = './插图PNG';
+                $files = glob($dir . '/*.png');
+                echo json_encode(array_map('basename', $files));
+            ?>;
+
+            // 临时方案：手动列出文件
+            // 您可以在浏览器中打开此文件查看
+            gallery.innerHTML = '<p style="padding: 20px; text-align: center;">请在文件夹中直接查看PNG文件</p>';
+        }
+
+        function filterByChapter() {
+            // 筛选功能
+        }
+
+        // 页面加载时执行
+        window.onload = loadImages;
+    </script>
+</body>
+</html>

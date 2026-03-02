@@ -1,0 +1,83 @@
+#!/usr/bin/env python3
+# -*- coding: utf-8 -*-
+"""
+将文档中的所有SVG插图提取并转换为PNG格式
+使用插图编号作为文件名
+"""
+
+import re
+import os
+import base64
+from pathlib import Path
+
+# 读取文档
+input_file = r'C:\Users\Administrator\AI科普画册\AI科普画册-全部215插图.md'
+with open(input_file, 'r', encoding='utf-8') as f:
+    content = f.read()
+
+# 创建输出目录
+output_dir = r'C:\Users\Administrator\AI科普画册\插图PNG'
+os.makedirs(output_dir, exist_ok=True)
+
+# 提取所有插图
+pattern = r'【插图([^】]+)】\n\n(<svg[^<]*(?:<[^<]+)*</svg>)'
+matches = re.findall(pattern, content, re.DOTALL)
+
+print(f"找到 {len(matches)} 个SVG插图")
+print(f"输出目录: {output_dir}")
+
+# 保存SVG文件
+svg_files = []
+for i, (ill_id, svg_code) in enumerate(matches, 1):
+    # 清理文件名（移除特殊字符）
+    safe_id = re.sub(r'[<>:"/\\|?*]', '_', ill_id)
+    safe_id = safe_id.replace('：', '-')
+
+    # 保存SVG
+    svg_filename = f"插图{safe_id}.svg"
+    svg_path = os.path.join(output_dir, svg_filename)
+
+    with open(svg_path, 'w', encoding='utf-8') as f:
+        f.write(svg_code)
+
+    svg_files.append((safe_id, svg_path))
+
+    if i % 20 == 0:
+        print(f"  已保存 {i} 个SVG文件...")
+
+print(f"\n✓ 已保存 {len(svg_files)} 个SVG文件到: {output_dir}")
+print(f"\n接下来需要将SVG转换为PNG...")
+print(f"提示: 可以使用以下工具:")
+print(f"  1. Inkscape (命令行): inkscape --export-type=png *.svg")
+print(f"  2. ImageMagick: convert *.svg *.png")
+print(f"  3. 在线工具: cloudconvert.com")
+print(f"  4. Python库: cairosvg, svglib")
+
+# 尝试使用Python库转换
+try:
+    from cairosvg import svg2png
+    print(f"\n检测到 cairosvg，开始转换为PNG...")
+
+    for i, (safe_id, svg_path) in enumerate(svg_files, 1):
+        png_filename = f"插图{safe_id}.png"
+        png_path = os.path.join(output_dir, png_filename)
+
+        with open(svg_path, 'r', encoding='utf-8') as f:
+            svg_code = f.read()
+
+        svg2png(bytestring=svg_code.encode('utf-8'),
+                write_to=png_path,
+                output_width=1600,  # 2倍分辨率
+                output_height=900)
+
+        if i % 20 == 0:
+            print(f"  已转换 {i}/{len(svg_files)} 个PNG...")
+
+    print(f"\n✓ 已转换 {len(svg_files)} 个PNG文件！")
+
+except ImportError:
+    print(f"\n⚠ 未安装 cairosvg")
+    print(f"安装命令: pip install cairosvg")
+    print(f"或使用其他工具手动转换SVG文件")
+
+print(f"\n文件保存在: {output_dir}")

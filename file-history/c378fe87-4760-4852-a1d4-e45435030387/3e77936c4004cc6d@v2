@@ -1,0 +1,124 @@
+#!/usr/bin/env python3
+# -*- coding: utf-8 -*-
+"""
+超级批量生成系统 - 使用模板快速生成大量插图
+然后可以逐个优化
+"""
+
+import re
+import json
+
+# 读取文档
+with open(r'C:\Users\Administrator\AI科普画册\AI科普画册-插图进行中.md', 'r', encoding='utf-8') as f:
+    content = f.read()
+
+# 读取插图清单
+with open(r'C:\Users\Administrator\AI科普画册\illustrations_todo.json', 'r', encoding='utf-8') as f:
+    illustrations = json.load(f)
+
+# 智能SVG生成器 - 根据关键词选择合适的视觉元素
+def generate_contextual_svg(ill_id, description, context=""):
+    """根据描述和上下文生成个性化SVG"""
+
+    # 关键词到视觉元素的映射
+    visual_map = {
+        # 历史人物
+        '图灵': ('👨‍💻', '#E3F2FD', '#1976D2'),
+        '卡斯帕罗夫': ('♟️', '#FFF3E0', '#E65100'),
+        '李世石': ('⚫⚪', '#F1F8E9', '#558B2F'),
+
+        # AI系统
+        '深蓝': ('🤖♟️', '#E0F2F1', '#00897B'),
+        '沃森': ('🎯📺', '#FCE4EC', '#C2185B'),
+        'AlphaGo': ('⚫⚪🏆', '#F1F8E9', '#558B2F'),
+        'GPT': ('🧠💬', '#E1F5FE', '#0277BD'),
+        'ChatGPT': ('💬🌍', '#FFF8E1', '#F9A825'),
+
+        # 概念
+        '神经网络': ('🧠🔗', '#E3F2FD', '#1E88E5'),
+        '机器学习': ('🤖📖', '#E8F5E9', '#43A047'),
+        '深度学习': ('🧠📊', '#E8EAF6', '#5E35B1'),
+        '数据': ('📊💾', '#E3F2FD', '#1565C0'),
+        '训练': ('💪📈', '#FFF3E0', '#FB8C00'),
+
+        # 应用
+        '聊天': ('💬😊', '#E8F5E9', '#66BB6A'),
+        '图像': ('📷👁️', '#F3E5F5', '#AB47BC'),
+        '语音': ('🎤🔊', '#E1F5FE', '#29B6F6'),
+        '驾驶': ('🚗🛣️', '#FFF9C4', '#FFCA28'),
+        '游戏': ('🎮🕹️', '#E8EAF6', '#7E57C2'),
+
+        # 其他
+        '未来': ('🔮🌟', '#E8EAF6', '#5E35B1'),
+        '历史': ('📜🕰️', '#FFF3E0', '#E65100'),
+        '测试': ('💬🤖', '#F3E5F5', '#7B1FA2'),
+    }
+
+    # 选择视觉元素
+    emoji, bg_color, text_color = '🤖✨', '#F5F5F5', '#333'
+    for keyword, (em, bg, tc) in visual_map.items():
+        if keyword in description or keyword in context:
+            emoji, bg_color, text_color = em, bg, tc
+            break
+
+    # 生成标题
+    title = description[:20] if len(description) <= 20 else description[:17] + '...'
+
+    # 生成SVG
+    return f'''<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 800 450" style="background:{bg_color}">
+  <!-- 标题区 -->
+  <text x="400" y="60" font-size="30" font-weight="bold" text-anchor="middle" fill="{text_color}">{title}</text>
+
+  <!-- 主视觉区 -->
+  <g transform="translate(400, 225)">
+    <circle cx="0" cy="0" r="100" fill="{text_color}" opacity="0.05"/>
+    <text x="0" y="30" font-size="90" text-anchor="middle">{emoji}</text>
+  </g>
+
+  <!-- 装饰元素 -->
+  <circle cx="120" cy="120" r="30" fill="{text_color}" opacity="0.03"/>
+  <circle cx="680" cy="330" r="40" fill="{text_color}" opacity="0.03"/>
+
+  <!-- 底部说明 -->
+  <text x="400" y="400" font-size="20" text-anchor="middle" fill="{text_color}" opacity="0.7">{description[:50]}</text>
+</svg>'''
+
+# 统计当前进度
+current_svg_count = len(re.findall(r'<svg[^>]*>', content))
+print(f"当前已完成: {current_svg_count} 个插图")
+
+# 批量生成所有剩余插图
+generated = 0
+for ill in illustrations:
+    ill_id = ill['id']
+    desc = ill['description']
+    ctx = ill.get('context', '')
+
+    # 检查是否已生成
+    pattern = rf'【插图{ill_id}：[^】]+】\n\n<svg'
+    if re.search(pattern, content):
+        continue  # 已生成，跳过
+
+    # 生成SVG
+    svg_code = generate_contextual_svg(ill_id, desc, ctx)
+    replace_pattern = rf'【插图{ill_id}：[^】]+】\n\n\n'
+    replacement = f'【插图{ill_id}：{desc}】\n\n{svg_code}\n\n'
+
+    if re.search(replace_pattern, content):
+        content = re.sub(replace_pattern, replacement, content, count=1)
+        generated += 1
+
+        if generated % 20 == 0:
+            print(f"  已生成 {generated} 个插图...")
+
+# 保存
+output_file = r'C:\Users\Administrator\AI科普画册\AI科普画册-全部插图版.md'
+with open(output_file, 'w', encoding='utf-8') as f:
+    f.write(content)
+
+total = current_svg_count + generated
+print(f"\n✓ 批量生成完成！")
+print(f"✓ 本次生成: {generated} 个插图")
+print(f"✓ 总计完成: {total}/215 ({total/215*100:.1f}%)")
+print(f"✓ 输出文件: {output_file}")
+print(f"\n提示: 这些是基础版本，可以根据需要逐个优化")

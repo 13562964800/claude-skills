@@ -1,0 +1,69 @@
+#!/usr/bin/env python3
+# -*- coding: utf-8 -*-
+"""
+使用Playwright将SVG转换为PNG
+高质量渲染，支持所有SVG特性
+"""
+
+import os
+import asyncio
+from pathlib import Path
+
+async def convert_svg_to_png():
+    from playwright.async_api import async_playwright
+
+    svg_dir = r'C:\Users\Administrator\AI科普画册\插图SVG'
+    png_dir = r'C:\Users\Administrator\AI科普画册\插图PNG'
+    os.makedirs(png_dir, exist_ok=True)
+
+    svg_files = sorted([f for f in os.listdir(svg_dir) if f.endswith('.svg')])
+    print(f"找到 {len(svg_files)} 个SVG文件")
+    print(f"开始转换为PNG...")
+
+    async with async_playwright() as p:
+        browser = await p.chromium.launch()
+        page = await browser.new_page(viewport={'width': 1600, 'height': 900})
+
+        for i, svg_file in enumerate(svg_files, 1):
+            svg_path = os.path.join(svg_dir, svg_file)
+            png_file = svg_file.replace('.svg', '.png')
+            png_path = os.path.join(png_dir, png_file)
+
+            # 读取SVG内容
+            with open(svg_path, 'r', encoding='utf-8') as f:
+                svg_content = f.read()
+
+            # 创建HTML包装
+            html = f'''
+            <!DOCTYPE html>
+            <html>
+            <head>
+                <style>
+                    body {{ margin: 0; padding: 0; background: white; }}
+                    svg {{ display: block; }}
+                </style>
+            </head>
+            <body>
+                {svg_content}
+            </body>
+            </html>
+            '''
+
+            # 加载并截图
+            await page.set_content(html)
+            await page.screenshot(path=png_path, full_page=True)
+
+            if i % 20 == 0:
+                print(f"  已转换 {i}/{len(svg_files)} 个...")
+
+        await browser.close()
+
+    print(f"\n✓ 已转换 {len(svg_files)} 个PNG文件！")
+    print(f"✓ 输出目录: {png_dir}")
+
+# 运行
+try:
+    asyncio.run(convert_svg_to_png())
+except ImportError:
+    print("⚠ 未安装 playwright")
+    print("安装命令: pip install playwright && playwright install chromium")
