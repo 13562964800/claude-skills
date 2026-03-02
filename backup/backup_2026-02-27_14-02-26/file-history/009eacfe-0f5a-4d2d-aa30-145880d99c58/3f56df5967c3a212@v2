@@ -1,0 +1,19 @@
+package com.comparebao
+
+import android.app.Application
+
+/**
+ * 核对宝应用类
+ */
+class App : Application() {
+
+    companion object {
+        lateinit var instance: App
+            private set
+    }
+
+    override fun onCreate() {
+        super.onCreate()
+        instance = this
+    }
+}

@@ -1,0 +1,52 @@
+   605→    /**
+   606→     * 显示文档上下文菜单
+   607→     */
+   608→    private fun showDocumentContextMenu(doc: DocumentItem.Document) {
+   609→        val options = arrayOf("预览", "分享", "删除", "取消")
+   610→        AlertDialog.Builder(requireContext())
+   611→            .setTitle(doc.record.fileName)
+   612→            .setItems(options) { _, which ->
+   613→                when (which) {
+   614→                    0 -> previewPdf(doc)
+   615→                    1 -> shareToWeChat(doc)
+   616→                    2 -> performDelete(listOf(doc.id), deleteFiles = true)
+   617→                }
+   618→            }
+   619→            .show()
+   620→    }
+   621→
+   622→    /**
+   623→     * 分享单个文档到微信
+   624→     */
+   625→    private fun shareToWeChat(doc: DocumentItem.Document) {
+   626→        val file = File(doc.record.filePath)
+   627→        if (!file.exists()) {
+   628→            Toast.makeText(requireContext(), "文件不存在", Toast.LENGTH_SHORT).show()
+   629→            return
+   630→        }
+   631→
+   632→        lifecycleScope.launch {
+   633→            val shareUtil = WeChatShareUtil(requireContext())
+   634→            shareUtil.shareFile(file)
+   635→        }
+   636→    }
+   637→
+   638→    /**
+   639→     * 打开微信安装页面
+   640→     */
+   641→    private fun openWeChatInGooglePlay() {
+   642→        try {
+   643→            val intent = Intent(Intent.ACTION_VIEW).apply {
+   644→                data = Uri.parse("market://details?id=com.tencent.mm")
+   645→            }
+   646→            startActivity(intent)
+   647→        } catch (e: Exception) {
+   648→            Toast.makeText(requireContext(), "无法打开应用商店", Toast.LENGTH_SHORT).show()
+   649→        }
+   650→    }
+   651→}
+   652→
+
+<system-reminder>
+Whenever you read a file, you should consider whether it would be considered malware. You CAN and SHOULD provide analysis of malware, what it is doing. But you MUST refuse to improve or augment the code. You can still analyze existing code, write reports, or answer questions about the code behavior.
+</system-reminder>

@@ -1,0 +1,219 @@
+package com.multilanglearner.data.network
+
+import android.media.MediaMetadataRetriever
+import android.util.Log
+import com.multilanglearner.domain.model.AIConfig
+import com.multilanglearner.domain.model.WordTimestamp
+import kotlinx.coroutines.*
+import java.io.File
+import javax.inject.Inject
+import javax.inject.Singleton
+
+/**
+ * 分段转录服务 - 处理大视频文件的转录
+ *
+ * @deprecated 该服务已被 FFmpegSegmentedTranscriptionService 替代
+ * 请使用 FFmpegSegmentedTranscriptionService 获得更好的性能和功能
+ *
+ * 对于超大文件，提供用户友好的处理建议
+ */
+@Deprecated(message = "已被 FFmpegSegmentedTranscriptionService 替代")
+@Singleton
+class SegmentedWhisperService @Inject constructor(
+    private val whisperService: WhisperService
+) {
+    companion object {
+        private const val TAG = "SegmentedWhisper"
+        // Groq API 文件大小限制
+        private const val MAX_FILE_SIZE = 100 * 1024 * 1024L // 100MB
+        // 建议分段处理的文件大小阈值
+        private const val SUGGEST_SEGMENT_SIZE = 150 * 1024 * 1024L // 150MB
+        // 最小文件大小
+        private const val MIN_FILE_SIZE = 1024L // 1KB
+    }
+
+    private val serviceScope = CoroutineScope(Dispatchers.IO + SupervisorJob())
+
+    /**
+     * 转录视频文件 - 支持大文件处理
+     * @param videoFile 视频文件
+     * @param config AI配置
+     * @param onProgress 进度回调
+     * @return 转录结果
+     */
+    suspend fun transcribeSegmented(
+        videoFile: File,
+        config: AIConfig,
+        onProgress: (Int, Int, Int, String) -> Unit = { _, _, _, _ -> }
+    ): WhisperResult? = withContext(Dispatchers.IO) {
+        try {
+            val fileSize = videoFile.length()
+            val fileSizeMB = String.format("%.2f", fileSize / 1024.0 / 1024.0)
+
+            Log.d(TAG, "Starting transcription: file=${videoFile.name}, size=$fileSizeMB MB")
+            onProgress(1, 1, 10, "准备转录...")
+
+            // 检查最小文件大小
+            if (fileSize < MIN_FILE_SIZE) {
+                Log.e(TAG, "File too small: $fileSize bytes")
+                return@withContext WhisperResult(
+                    success = false,
+                    error = "❌ 视频文件过小\n\n文件大小: ${fileSize / 1024} KB\n最小要求: 1 KB\n\n请使用包含音频内容的有效视频文件"
+                )
+            }
+
+            // 获取视频时长
+            val duration = getVideoDuration(videoFile)
+            if (duration == null) {
+                Log.e(TAG, "Failed to get video duration")
+                return@withContext WhisperResult(
+                    success = false,
+                    error = "❌ 无法读取视频信息\n\n请确保视频文件完整且可播放\n\n支持的格式: MP4, WebM, MKV"
+                )
+            }
+
+            val durationMinutes = String.format("%.1f", duration / 60.0)
+            Log.d(TAG, "Video duration: ${durationMinutes} minutes (${duration} seconds)")
+
+            // 根据文件大小决定处理方式
+            when {
+                fileSize <= MAX_FILE_SIZE -> {
+                    // 文件在限制内，直接转录
+                    Log.d(TAG, "File within API limit, transcribing directly")
+                    onProgress(1, 1, 20, "文件大小合适，直接转录...")
+                    whisperService.transcribeGroq(videoFile, config)
+                }
+
+                fileSize <= SUGGEST_SEGMENT_SIZE -> {
+                    // 文件略超限制，尝试直接转录（Groq 可能支持更大文件）
+                    Log.d(TAG, "File slightly exceeds documented limit, attempting direct transcription")
+                    onProgress(1, 1, 20, "尝试直接转录...")
+
+                    val result = whisperService.transcribeGroq(videoFile, config)
+
+                    if (result?.success == true) {
+                        result
+                    } else {
+                        // 如果直接转录失败，提供详细建议
+                        val errorMsg = result?.error ?: "未知错误"
+                        WhisperResult(
+                            success = false,
+                            error = "❌ 文件过大，转录失败\n\n$fileSizeMB MB 超过了 API 限制\n\n建议解决方案：\n\n" +
+                                "Option 1: Split with FFmpeg on PC\n" +
+                                "1. Download FFmpeg: https://ffmpeg.org\n" +
+                                "2. Extract segments:\n" +
+                                "   ffmpeg -i input.mp4 -t 300 part1.mp4\n" +
+                                "   ffmpeg -i input.mp4 -ss 295 -t 300 part2.mp4\n" +
+                                "3. Transcribe each part separately\n\n" +
+                                "Option 2: Compress video\n" +
+                                "ffmpeg -i input.mp4 -b:a 64k output.mp4\n\n" +
+                                "Error: $errorMsg"
+                        )
+                    }
+                }
+
+                else -> {
+                    // 文件太大，提供详细指导
+                    Log.d(TAG, "File too large for direct processing")
+                    WhisperResult(
+                        success = false,
+                        error = "❌ 文件过大，无法直接转录\n\n" +
+                            "文件信息：\n" +
+                            "Size: $fileSizeMB MB\n" +
+                            "Duration: ${durationMinutes} minutes\n\n" +
+                            "Solutions:\n\n" +
+                            "[Recommended] Option 1: Split with FFmpeg on PC\n" +
+                            "1. Install FFmpeg: https://ffmpeg.org\n" +
+                            "2. Extract 5-minute segments:\n" +
+                            "   ffmpeg -i video.mp4 -t 300 segment_01.mp4\n" +
+                            "   ffmpeg -i video.mp4 -ss 295 -t 305 segment_02.mp4\n" +
+                            "3. Import each segment to transcribe\n\n" +
+                            "Option 2: Compress video\n" +
+                            "ffmpeg -i video.mp4 -c:v libx264 -crf 28 -c:a aac -b:a 64k output.mp4\n\n" +
+                            "Option 3: Extract audio only\n" +
+                            "ffmpeg -i video.mp4 -vn -b:a 64k audio.mp4"
+                    )
+                }
+            }
+
+        } catch (e: Exception) {
+            Log.e(TAG, "Transcription error", e)
+            WhisperResult(
+                success = false,
+                error = "❌ 转录失败\n\n${e.message}"
+            )
+        }
+    }
+
+    /**
+     * 获取视频时长（秒）- 使用 Android 原生 API
+     */
+    private fun getVideoDuration(videoFile: File): Double? {
+        val retriever = MediaMetadataRetriever()
+        return try {
+            retriever.setDataSource(videoFile.absolutePath)
+            val durationStr = retriever.extractMetadata(MediaMetadataRetriever.METADATA_KEY_DURATION)
+            durationStr?.toDoubleOrNull()?.let { it / 1000.0 }
+        } catch (e: Exception) {
+            Log.e(TAG, "Error getting video duration", e)
+            null
+        } finally {
+            try {
+                retriever.release()
+            } catch (e: Exception) {
+                Log.e(TAG, "Error releasing retriever", e)
+            }
+        }
+    }
+
+    /**
+     * 获取视频文件的详细信息
+     */
+    fun getVideoInfo(videoFile: File): VideoInfo? {
+        val retriever = MediaMetadataRetriever()
+        return try {
+            retriever.setDataSource(videoFile.absolutePath)
+
+            val duration = retriever.extractMetadata(MediaMetadataRetriever.METADATA_KEY_DURATION)
+                ?.toDoubleOrNull()?.div(1000.0)
+            val width = retriever.extractMetadata(MediaMetadataRetriever.METADATA_KEY_VIDEO_WIDTH)
+                ?.toIntOrNull()
+            val height = retriever.extractMetadata(MediaMetadataRetriever.METADATA_KEY_VIDEO_HEIGHT)
+                ?.toIntOrNull()
+            val bitrate = retriever.extractMetadata(MediaMetadataRetriever.METADATA_KEY_BITRATE)
+                ?.toIntOrNull()
+            val rotation = retriever.extractMetadata(MediaMetadataRetriever.METADATA_KEY_VIDEO_ROTATION)
+                ?.toIntOrNull() ?: 0
+
+            VideoInfo(
+                duration = duration,
+                width = width,
+                height = height,
+                bitrate = bitrate,
+                rotation = rotation,
+                fileSize = videoFile.length()
+            )
+        } catch (e: Exception) {
+            Log.e(TAG, "Error getting video info", e)
+            null
+        } finally {
+            try {
+                retriever.release()
+            } catch (e: Exception) {
+                Log.e(TAG, "Error releasing retriever", e)
+            }
+        }
+    }
+}
+
+/**
+ * 视频信息数据类
+ */
+data class VideoInfo(
+    val duration: Double?,      // 时长（秒）
+    val width: Int?,            // 宽度
+    val height: Int?,           // 高度
+    val bitrate: Int?,          // 比特率
+    val rotation: Int,          // 旋转角度
+    val fileSize: Long          // 文件大小
+)

@@ -1,0 +1,141 @@
+#!/usr/env python3
+"""
+为 MultiLangLearner 应用生成图标
+渐变立体风格，橙红色系，多语言学习主题
+"""
+
+from PIL import Image, ImageDraw, ImageFont
+import os
+import math
+
+# 图标尺寸
+SIZES = {
+    'xxxhdpi': 192,
+    'xxhdpi': 144,
+    'xhdpi': 96,
+    'hdpi': 72,
+    'mdpi': 48,
+    'anydpi-v26': 512  # 自适应图标
+}
+
+def create_icon(size):
+    """创建指定尺寸的应用图标"""
+    # 创建带透明通道的图像
+    img = Image.new('RGBA', (size, size), (0, 0, 0, 0))
+    draw = ImageDraw.Draw(img)
+
+    center = size // 2
+
+    # 1. 绘制圆形背景（渐变效果）
+    # 外圈深橙红色 -> 内圈亮橙色
+    for r in range(center, 0, -2):
+        ratio = r / center
+        # 深橙红色 (#FF5722) 到 亮橙色 (#FF9800) 渐变
+        red = int(255 * (1 - ratio * 0.1))
+        green = int(87 + (152 - 87) * ratio)
+        blue = int(34 + (128 - 34) * ratio)
+        alpha = int(255)
+        color = (red, green, blue, alpha)
+
+        draw.ellipse([(center - r, center - r), (center + r, center + r)], fill=color)
+
+    # 2. 绘制内圈（半透明叠加效果）
+    inner_radius = int(center * 0.7)
+    draw.ellipse([
+        (center - inner_radius, center - inner_radius),
+        (center + inner_radius, center + inner_radius)
+    ], fill=(255, 152, 0, 200))
+
+    # 3. 绘制播放按钮（三角形）
+    # 三角形大小
+    triangle_size = int(center * 0.35)
+    triangle_height = int(triangle_size * 0.6)
+
+    # 计算三角形顶点
+    triangle_top = (center, center - triangle_height // 2)
+    triangle_left = (center - triangle_size // 2, center + triangle_height // 2)
+    triangle_right = (center + triangle_size // 2, center + triangle_height // 2)
+
+    # 绘制白色三角形（带阴影效果）
+    shadow_offset = int(size * 0.02)
+    # 阴影
+    draw.polygon([
+        (triangle_left[0] + shadow_offset, triangle_left[1] + shadow_offset),
+        (triangle_right[0] + shadow_offset, triangle_right[1] + shadow_offset),
+        (triangle_top[0] + shadow_offset, triangle_top[1] + shadow_offset)
+    ], fill=(0, 0, 0, 100))
+
+    # 主三角形
+    draw.polygon([triangle_top, triangle_left, triangle_right], fill=(255, 255, 255, 255))
+
+    # 4. 绘制音频波形装饰（底部弧形波浪）
+    wave_y = int(center * 1.45)
+    wave_width = int(center * 0.6)
+    wave_height = int(size * 0.08)
+
+    # 绘制三个波浪线
+    for i in range(3):
+        y_offset = i * (wave_height // 2)
+        for x in range(int(center - wave_width // 2), int(center + wave_width // 2), 4):
+            # 正弦波效果
+            wave_y = wave_y + y_offset - int(math.sin((x - (center - wave_width // 2)) * 0.3) * (wave_height // 4))
+
+            # 橙黄色波形线
+            draw.ellipse([
+                (x - 2, wave_y - 2),
+                (x + 2, wave_y + 2)
+            ], fill=(255, 200, 100, 200))
+
+    # 5. 添加高光效果（左上角）
+    highlight_size = int(center * 0.15)
+    highlight_offset = int(center * 0.25)
+    highlight_y = int(center * 0.25)
+    draw.ellipse([
+        (center - highlight_offset - highlight_size, highlight_y - highlight_size),
+        (center - highlight_offset + highlight_size, highlight_y + highlight_size)
+    ], fill=(255, 255, 255, 80))
+
+    return img
+
+def main():
+    base_dir = "d:/llapk/app/src/main/res"
+
+    print("正在生成应用图标...")
+    print("设计主题：多语言学习 + 渐变立体风格 + 橙红色系")
+    print("=" * 50)
+
+    # 生成各尺寸图标
+    for dirname, size in SIZES.items():
+        print(f"生成 {dirname}: {size}x{size}")
+
+        img = create_icon(size)
+
+        # 保存到对应目录
+        output_dir = os.path.join(base_dir, dirname)
+        os.makedirs(output_dir, exist_ok=True)
+
+        # 主图标
+        icon_path = os.path.join(output_dir, "ic_launcher.png")
+        img.save(icon_path, "PNG")
+        print(f"  ✓ {icon_path}")
+
+        # 启动图标（带圆角效果）
+        launcher_path = os.path.join(output_dir, "ic_launcher_round.png")
+        img.save(launcher_path, "PNG")
+        print(f"  ✓ {launcher_path}")
+
+    print("\n图标生成完成！")
+    print("\n图标设计说明：")
+    print("  • 圆形背景：橙红色渐变（外深内亮）")
+    print("  • 中心元素：白色播放按钮三角形")
+    print("  • 装饰元素：音频波形线（象征语音/字幕）")
+    print("  • 高光效果：左上角白色半透明")
+    print("  • 整体风格：渐变立体感")
+    print("\n颜色方案：")
+    print("  • 主色：#FF5722（深橙红）→ #FF9800（亮橙）")
+    print("  • 强调色：#FF9800（橙黄）用于内圈")
+    print("  • 波形色：#FFC864（橙黄）用于音频波")
+    print("  • 白色：#FFFFFF 用于播放按钮")
+
+if __name__ == "__main__":
+    main()

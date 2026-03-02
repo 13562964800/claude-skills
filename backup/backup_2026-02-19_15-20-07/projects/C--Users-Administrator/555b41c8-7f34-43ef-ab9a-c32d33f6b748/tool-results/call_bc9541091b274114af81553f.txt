@@ -1,0 +1,612 @@
+The file C:\Users\Administrator\CourtAssistant\app\src\main\java\com\shanfuchun\courtassistant\ui\DocsFragment.kt has been updated. Here's the result of running `cat -n` on a snippet of the edited file:
+     1→package com.shanfuchun.courtassistant.ui
+     2→
+     3→import android.app.ProgressDialog
+     4→import android.content.Intent
+     5→import android.net.Uri
+     6→import android.os.Bundle
+     7→import android.view.LayoutInflater
+     8→import android.view.View
+     9→import android.view.ViewGroup
+    10→import android.widget.Toast
+    11→import androidx.appcompat.app.AlertDialog
+    12→import androidx.appcompat.app.AppCompatActivity
+    13→import androidx.fragment.app.Fragment
+    14→import androidx.fragment.app.activityViewModels
+    15→import androidx.lifecycle.lifecycleScope
+    16→import androidx.lifecycle.observe
+    17→import androidx.recyclerview.widget.LinearLayoutManager
+    18→import com.shanfuchun.courtassistant.R
+    19→import com.shanfuchun.courtassistant.data.DocumentRecord
+    20→import com.shanfuchun.courtassistant.databinding.FragmentDocsBinding
+    21→import com.shanfuchun.courtassistant.ui.DocAdapter
+    22→import com.shanfuchun.courtassistant.util.share.ShareTarget
+    23→import com.shanfuchun.courtassistant.util.share.WeChatShareUtil
+    24→import kotlinx.coroutines.Dispatchers
+    25→import kotlinx.coroutines.delay
+    26→import kotlinx.coroutines.launch
+    27→import kotlinx.coroutines.withContext
+    28→import java.io.File
+    29→import java.util.zip.ZipEntry
+    30→import java.util.zip.ZipOutputStream
+    31→
+    32→/**
+    33→ * 文档管理 Fragment（增强版）
+    34→ *
+    35→ * 新增功能：
+    36→ * 1. 单选/多选模式切换
+    37→ * 2. 多选后显示批量操作栏
+    38→ * 3. 打包ZIP压缩分享
+    39→ * 4. 分享到微信支持
+    40→ */
+    41→class DocsFragment : Fragment() {
+    42→
+    43→    private var _b: FragmentDocsBinding? = null
+    44→    private val b get() = _b!!
+    45→    private val vm: MainViewModel by activityViewModels()
+    46→
+    47→    // 选择模式
+    48→    enum class SelectionMode {
+    49→        SINGLE,      // 单选模式
+    50→        MULTI        // 多选模式
+    51→    }
+    52→
+    53→    private var selectionMode: SelectionMode = SelectionMode.SINGLE
+    54→    private val selectedDocIds = mutableSetOf<Long>()
+    55→    private var docAdapter: DocAdapter? = null
+    56→
+    57→    override fun onCreateView(inflater: LayoutInflater, container: ViewGroup?, savedInstanceState: Bundle?): View {
+    58→        _b = FragmentDocsBinding.inflate(inflater, container, false)
+    59→        return b.root
+    60→    }
+    61→
+    62→    override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
+    63→        super.onViewCreated(view, savedInstanceState)
+    64→
+    65→        setupToolbar()
+    66→        setupRecyclerView()
+    67→        observeData()
+    68→        setupClickListeners()
+    69→    }
+    70→
+    71→    override fun onDestroyView() {
+    72→        super.onDestroyView()
+    73→        _b = null
+    74→        docAdapter = null
+    75→    }
+    76→
+    77→    /**
+    78→     * 设置工具栏
+    79→     */
+    80→    private fun setupToolbar() {
+    81→        (requireActivity() as AppCompatActivity).setSupportActionBar(b.toolbar)
+    82→        b.toolbar.title = "文档管理"
+    83→    }
+    84→
+    85→    /**
+    86→     * 设置列表
+    87→     */
+    88→    private fun setupRecyclerView() {
+    89→        // 文档列表
+    90→        b.rvDocs.layoutManager = LinearLayoutManager(requireContext())
+    91→        docAdapter = DocAdapter(
+    92→            onShare = { doc -> showDocumentContextMenu(doc) },
+    93→            onSelect = { updateSelectionFromAdapter() },
+    94→            onClick = { doc -> previewPdf(doc) }
+    95→        )
+    96→        b.rvDocs.adapter = docAdapter
+    97→
+    98→        // 空状态处理
+    99→        updateEmptyState(emptyList())
+   100→    }
+   101→
+   102→    /**
+   103→     * 观察数据
+   104→     */
+   105→    private fun observeData() {
+   106→        // 观察文档列表
+   107→        vm.currentDocs.observe(viewLifecycleOwner) { list ->
+   108→            docAdapter?.submitList(list)
+   109→            updateEmptyState(list)
+   110→            updateSelectionFromAdapter()
+   111→        }
+   112→
+   113→        // 观察日历同步状态
+   114→        vm.calendarSyncMap.observe(viewLifecycleOwner) { map ->
+   115→            // TODO: 更新日历同步状态显示
+   116→        }
+   117→    }
+   118→
+   119→    /**
+   120→     * 设置点击监听器
+   121→     */
+   122→    private fun setupClickListeners() {
+   123→        // 全选按钮
+   124→        b.btnSelectAll.setOnClickListener {
+   125→            toggleSelectionMode()
+   126→        }
+   127→
+   128→        // 删除按钮
+   129→        b.btnDelete.setOnClickListener {
+   130→            handleDeleteClick()
+   131→        }
+   132→
+   133→        // 批量操作按钮
+   134→        b.btnShareWechat.setOnClickListener {
+   135→            handleShareWeChatClick()
+   136→        }
+   137→    }
+   138→
+   139→    /**
+   140→     * 切换选择模式
+   141→     */
+   142→    private fun toggleSelectionMode() {
+   143→        when (selectionMode) {
+   144→            SelectionMode.SINGLE -> {
+   145→                // 切换到多选模式
+   146→                selectionMode = SelectionMode.MULTI
+   147→                b.btnSelectAll.text = "取消全选"
+   148→                showBatchActionBar(true)
+   149→                docAdapter?.toggleSelectAll()
+   150→            }
+   151→            SelectionMode.MULTI -> {
+   152→                // 切换到单选模式
+   153→                selectionMode = SelectionMode.SINGLE
+   154→                b.btnSelectAll.text = "全选"
+   155→                showBatchActionBar(false)
+   156→                docAdapter?.clearSelection()
+   157→                clearAllSelection()
+   158→            }
+   159→        }
+   160→    }
+   161→
+   162→    /**
+   163→     * 显示批量操作栏
+   164→     */
+   165→    private fun showBatchActionBar(show: Boolean) {
+   166→        b.selectionActionBar.visibility = if (show) View.VISIBLE else View.GONE
+   167→        b.tvBatchActionHint.visibility = if (show) View.VISIBLE else View.GONE
+   168→        b.btnDelete.text = if (show) "删除选中" else "删除"
+   169→        b.btnShareWechat.visibility = if (show) View.VISIBLE else View.GONE
+   170→
+   171→        // 更新提示文本
+   172→        b.tvSelectionHint.text = if (show) {
+   173→            val count = selectedDocIds.size
+   174→            "已选 $count 项"
+   175→        } else {
+   176→            ""
+   177→        }
+   178→    }
+   179→
+   180→    /**
+   181→     * 更新空状态
+   182→     */
+   183→    private fun updateEmptyState(list: List<DocumentRecord>) {
+   184→        b.tvEmpty.visibility = if (list.isEmpty()) View.VISIBLE else View.GONE
+   185→        b.rvDocs.visibility = if (list.isEmpty()) View.GONE else View.VISIBLE
+   186→    }
+   187→
+   188→    /**
+   189→     * 从适配器更新选择状态
+   190→     */
+   191→    private fun updateSelectionFromAdapter() {
+   192→        selectedDocIds.clear()
+   193→        docAdapter?.getSelectedIds()?.let { selectedDocIds.addAll(it) }
+   194→        updateActionBar()
+   195→    }
+   196→
+   197→    /**
+   198→     * 清空所有选择
+   199→     */
+   200→    private fun clearAllSelection() {
+   201→        selectedDocIds.clear()
+   202→        docAdapter?.clearSelection()
+   203→        updateActionBar()
+   204→    }
+   205→
+   206→    /**
+   207→     * 更新操作栏状态
+   208→     */
+   209→    private fun updateActionBar() {
+   210→        val count = selectedDocIds.size
+   211→        if (count > 0) {
+   212→            b.tvSelectionHint.text = "已选 $count 项"
+   213→        } else {
+   214→            b.tvSelectionHint.text = ""
+   215→        }
+   216→    }
+   217→
+   218→    /**
+   219→     * 处理删除点击
+   220→     */
+   221→    private fun handleDeleteClick() {
+   222→        when (selectionMode) {
+   223→            SelectionMode.SINGLE -> {
+   224→                Toast.makeText(requireContext(), "长按文档进入多选模式", Toast.LENGTH_SHORT).show()
+   225→            }
+   226→            SelectionMode.MULTI -> {
+   227→                val count = selectedDocIds.size
+   228→                if (count == 0) {
+   229→                    Toast.makeText(requireContext(), "请先选择文档", Toast.LENGTH_SHORT).show()
+   230→                    return
+   231→                }
+   232→                showMultiDeleteDialog(count)
+   233→            }
+   234→        }
+   235→    }
+   236→
+   237→    /**
+   238→     * 多选删除对话框
+   239→     */
+   240→    private fun showMultiDeleteDialog(count: Int) {
+   241→        val options = arrayOf("仅删除记录（保留文件）", "删除记录和文件")
+   242→        AlertDialog.Builder(requireContext())
+   243→            .setTitle("确认删除")
+   244→            .setMessage("将删除 $count 个文档")
+   245→            .setSingleChoiceItems(options, -1) { _, _ -> }
+   246→            .setPositiveButton("删除") { dialog, _ ->
+   247→                val selectedOption = (dialog as AlertDialog).listView.checkedItemPosition
+   248→                when (selectedOption) {
+   249→                    0 -> performDelete(selectedDocIds.toList(), deleteFiles = false)
+   250→                    1 -> performDelete(selectedDocIds.toList(), deleteFiles = true)
+   251→                    else -> performDelete(selectedDocIds.toList(), deleteFiles = false)
+   252→                }
+   253→            }
+   254→            .setNegativeButton("取消", null)
+   255→            .show()
+   256→    }
+   257→
+   258→    /**
+   259→     * 执行删除操作
+   260→     */
+   261→    private fun performDelete(ids: List<Long>, deleteFiles: Boolean) {
+   262→        lifecycleScope.launch {
+   263→            try {
+   264→                Toast.makeText(requireContext(), "正在删除...", Toast.LENGTH_SHORT).show()
+   265→
+   266→                if (deleteFiles) {
+   267→                    vm.getDocsByIds(ids) { docs ->
+   268→                        docs.forEach { doc ->
+   269→                            val file = File(doc.filePath)
+   270→                            if (file.exists()) {
+   271→                                file.delete()
+   272→                            }
+   273→                        }
+   274→                    }
+   275→                }
+   276→
+   277→                vm.deleteDocs(ids, deleteFiles)
+   278→                clearAllSelection()
+   279→                Toast.makeText(requireContext(), "删除完成", Toast.LENGTH_SHORT).show()
+   280→            } catch (e: Exception) {
+   281→                Toast.makeText(requireContext(), "删除失败: ${e.message}", Toast.LENGTH_SHORT).show()
+   282→            }
+   283→        }
+   284→    }
+   285→
+   286→    /**
+   287→     * 处理微信分享点击
+   288→     */
+   289→    private fun handleShareWeChatClick() {
+   290→        val count = selectedDocIds.size
+   291→        if (count == 0) {
+   292→            Toast.makeText(requireContext(), "请先选择文档", Toast.LENGTH_SHORT).show()
+   293→            return
+   294→        }
+   295→
+   296→        when (count) {
+   297→            1 -> {
+   298→                val docId = selectedDocIds.first()
+   299→                vm.getDocsByIds(listOf(docId)) { docs ->
+   300→                    docs.firstOrNull()?.let { shareToWeChat(it) }
+   301→                }
+   302→            }
+   303→            else -> {
+   304→                showCompressionDialog()
+   305→            }
+   306→        }
+   307→    }
+   308→
+   309→    /**
+   310→     * 压缩对话框
+   311→     */
+   312→    private fun showCompressionDialog() {
+   313→        val docs = vm.currentDocs.value?.filter { it.id in selectedDocIds } ?: emptyList()
+   314→
+   315→        if (docs.isEmpty()) {
+   316→            Toast.makeText(requireContext(), "请先选择文档", Toast.LENGTH_SHORT).show()
+   317→            return
+   318→        }
+   319→
+   320→        val totalSize = docs.sumOf { it.fileSize }
+   321→        val totalSizeMB = totalSize / (1024 * 1024)
+   322→        val sizeText = if (totalSizeMB < 1) {
+   323→            String.format("%.2f MB", totalSize.toDouble() / (1024 * 1024))
+   324→        } else {
+   325→            "$totalSizeMB MB"
+   326→        }
+   327→
+   328→        val progressDialog = ProgressDialog(requireContext()).apply {
+   329→            setMessage("正在打包 $sizeText...")
+   330→            setCancelable(false)
+   331→            setProgressStyle(ProgressDialog.STYLE_HORIZONTAL)
+   332→            max = docs.size
+   333→        }
+   334→        progressDialog.show()
+   335→
+   336→        lifecycleScope.launch(Dispatchers.IO) {
+   337→            try {
+   338→                val zipFile = createZipFile(docs, progressDialog)
+   339→
+   340→                withContext(Dispatchers.Main) {
+   341→                    progressDialog.dismiss()
+   342→                    shareZipToWeChat(zipFile, docs.size)
+   343→                }
+   344→            } catch (e: Exception) {
+   345→                withContext(Dispatchers.Main) {
+   346→                    progressDialog.dismiss()
+   347→                    Toast.makeText(requireContext(), "打包失败：${e.message}", Toast.LENGTH_SHORT).show()
+   348→                }
+   349→            }
+   350→        }
+   351→    }
+   352→
+   353→    /**
+   354→     * 创建ZIP文件
+   355→     */
+   356→    private suspend fun createZipFile(
+   357→        docs: List<DocumentRecord>,
+   358→        progress: ProgressDialog
+   359→    ): File = withContext(Dispatchers.IO) {
+   360→        val timestamp = System.currentTimeMillis()
+   361→        val zipFile = File(requireContext().cacheDir, "court_docs_$timestamp.zip")
+   362→
+   363→        var processedCount = 0
+   364→
+   365→        ZipOutputStream(zipFile.outputStream()).use { zos ->
+   366→            for (doc in docs) {
+   367→                val file = File(doc.filePath)
+   368→                if (!file.exists()) {
+   369→                    processedCount++
+   370→                    withContext(Dispatchers.Main) {
+   371→                        progress.progress = processedCount
+   372→                    }
+   373→                    delay(10)
+   374→                    continue
+   375→                }
+   376→
+   377→                val entry = ZipEntry(doc.fileName)
+   378→                zos.putNextEntry(entry)
+   379→                file.inputStream().use { input ->
+   380→                    input.copyTo(zos)
+   381→                }
+   382→                zos.closeEntry()
+   383→
+   384→                processedCount++
+   385→                withContext(Dispatchers.Main) {
+   386→                    progress.progress = processedCount
+   387→                }
+   388→                delay(50)
+   389→            }
+   390→        }
+   391→
+   392→        return@withContext zipFile
+   393→    }
+   394→
+   395→    /**
+   396→     * 分享ZIP到微信
+   397→     */
+   398→    private fun shareZipToWeChat(zipFile: File, fileCount: Int) {
+   399→        val shareUtil = WeChatShareUtil(requireContext())
+   400→        val targets = shareUtil.getAvailableShareTargets()
+   401→
+   402→        if (targets.isEmpty()) {
+   403→            shareZipSystem(zipFile, fileCount)
+   404→            return
+   405→        }
+   406→
+   407→        showShareTargetDialog(targets, zipFile, fileCount)
+   408→    }
+   409→
+   410→    /**
+   411→     * 分享目标选择对话框
+   412→     */
+   413→    private fun showShareTargetDialog(
+   414→        targets: List<ShareTarget>,
+   415→        zipFile: File,
+   416→        fileCount: Int
+   417→    ) {
+   418→        val targetNames = targets.map {
+   419→            "${it.appName} ${if (it.priority == 1) "(推荐)" else ""}"
+   420→        }.toTypedArray()
+   421→
+   422→        AlertDialog.Builder(requireContext())
+   423→            .setTitle("选择分享方式")
+   424→            .setSingleChoiceItems(targetNames, 0) { _, _ -> }
+   425→            .setPositiveButton("分享") { dialog, _ ->
+   426→                val selectedPosition = (dialog as AlertDialog).listView.checkedItemPosition
+   427→                if (selectedPosition >= 0 && selectedPosition < targets.size) {
+   428→                    val target = targets[selectedPosition]
+   429→                    shareToTarget(target, zipFile, fileCount)
+   430→                }
+   431→            }
+   432→            .setNegativeButton("取消") { _ ->
+   433→                zipFile.delete()
+   434→            }
+   435→            .show()
+   436→    }
+   437→
+   438→    /**
+   439→     * 分享到指定目标
+   440→     */
+   441→    private fun shareToTarget(
+   442→        target: ShareTarget,
+   443→        zipFile: File,
+   444→        fileCount: Int
+   445→    ) {
+   446→        val uri = com.shanfuchun.courtassistant.util.file.UriUtils.createFileUri(
+   447→            requireContext(),
+   448→            zipFile
+   449→        )
+   450→
+   451→        when (target.packageName) {
+   452→            WeChatShareUtil.WECHAT_PACKAGE_NAME -> {
+   453→                shareToWeChatIntent(uri, fileCount)
+   454→            }
+   455→            else -> {
+   456→                shareSystemIntent(uri, fileCount, target.appName)
+   457→            }
+   458→        }
+   459→    }
+   460→
+   461→    /**
+   462→     * 分享到微信
+   463→     */
+   464→    private fun shareToWeChatIntent(uri: Uri, fileCount: Int) {
+   465→        val intent = WeChatShareUtil.createShareIntent(
+   466→            packageName = WeChatShareUtil.WECHAT_PACKAGE_NAME,
+   467→            className = WeChatShareUtil.POSSIBLE_SHARE_CLASSES[0],
+   468→            uri = uri
+   469→        ).apply {
+   470→            putExtra("KDescription", "$fileCount 个法院文档")
+   471→            putExtra("KFilePath", uri.path)
+   472→        }
+   473→
+   474→        try {
+   475→            startActivity(intent)
+   476→        } catch (e: Exception) {
+   477→            showWeChatInstallDialog()
+   478→        }
+   479→    }
+   480→
+   481→    /**
+   482→     * 微信未安装对话框
+   483→     */
+   484→    private fun showWeChatInstallDialog() {
+   485→        AlertDialog.Builder(requireContext())
+   486→            .setTitle("分享提示")
+   487→            .setMessage("未检测到微信应用，是否前往安装？")
+   488→            .setPositiveButton("安装") { _, _ ->
+   489→                openWeChatInGooglePlay()
+   490→            }
+   491→            .setNegativeButton("取消") { _ ->
+   492→                Toast.makeText(requireContext(), "已取消分享", Toast.LENGTH_SHORT).show()
+   493→            }
+   494→            .setNeutralButton("其他方式") { _, _ ->
+   495→                Toast.makeText(requireContext(), "请选择其他分享方式", Toast.LENGTH_SHORT).show()
+   496→            }
+   497→            .show()
+   498→    }
+   499→
+   500→    /**
+   501→     * 使用系统分享ZIP
+   502→     */
+   503→    private fun shareZipSystem(zipFile: File, fileCount: Int) {
+   504→        val uri = com.shanfuchun.courtassistant.util.file.UriUtils.createFileUri(
+   505→            requireContext(),
+   506→            zipFile
+   507→        )
+   508→
+   509→        val intent = Intent(Intent.ACTION_SEND).apply {
+   510→            type = "application/zip"
+   511→            flags = Intent.FLAG_GRANT_READ_URI_PERMISSION
+   512→            putExtra(Intent.EXTRA_STREAM, uri)
+   513→            putExtra(Intent.EXTRA_TEXT, "$fileCount 个法院文档")
+   514→        }
+   515→
+   516→        startActivity(Intent.createChooser(intent, "分享到"))
+   517→    }
+   518→
+   519→    /**
+   520→     * 使用系统分享Intent
+   521→     */
+   522→    private fun shareSystemIntent(uri: Uri, fileCount: Int, appName: String) {
+   523→        val intent = Intent(Intent.ACTION_SEND).apply {
+   524→            type = "*/*"
+   525→            flags = Intent.FLAG_GRANT_READ_URI_PERMISSION
+   526→            putExtra(Intent.EXTRA_STREAM, uri)
+   527→            putExtra(Intent.EXTRA_TEXT, "$fileCount 个法院文档")
+   528→        }
+   529→
+   530→        try {
+   531→            startActivity(Intent.createChooser(intent, "分享到 $appName"))
+   532→        } catch (e: Exception) {
+   533→            Toast.makeText(requireContext(), "分享失败", Toast.LENGTH_SHORT).show()
+   534→        }
+   535→    }
+   536→
+   537→    /**
+   538→     * 预览PDF文档
+   539→     */
+   540→    private fun previewPdf(doc: DocumentRecord) {
+   541→        val file = File(doc.filePath)
+   542→        if (!file.exists()) {
+   543→            Toast.makeText(requireContext(), "文件不存在", Toast.LENGTH_SHORT).show()
+   544→            return
+   545→        }
+   546→
+   547→        val uri = com.shanfuchun.courtassistant.util.file.UriUtils.createFileUri(
+   548→            requireContext(),
+   549→            file
+   550→        )
+   551→
+   552→        val intent = Intent(Intent.ACTION_VIEW).apply {
+   553→            setDataAndType(uri, "application/pdf")
+   554→            flags = Intent.FLAG_GRANT_READ_URI_PERMISSION
+   555→        }
+   556→
+   557→        try {
+   558→            startActivity(intent)
+   559→        } catch (e: Exception) {
+   560→            Toast.makeText(requireContext(), "无法打开PDF", Toast.LENGTH_SHORT).show()
+   561→        }
+   562→    }
+   563→
+   564→    /**
+   565→     * 显示文档上下文菜单
+   566→     */
+   567→    private fun showDocumentContextMenu(doc: DocumentRecord) {
+   568→        val options = arrayOf("预览", "分享", "删除", "取消")
+   569→        AlertDialog.Builder(requireContext())
+   570→            .setTitle(doc.fileName)
+   571→            .setItems(options) { _, which ->
+   572→                when (which) {
+   573→                    0 -> previewPdf(doc)
+   574→                    1 -> shareToWeChat(doc)
+   575→                    2 -> performDelete(listOf(doc.id), deleteFiles = true)
+   576→                }
+   577→            }
+   578→            .show()
+   579→    }
+   580→
+   581→    /**
+   582→     * 分享单个文档到微信
+   583→     */
+   584→    private fun shareToWeChat(doc: DocumentRecord) {
+   585→        val file = File(doc.filePath)
+   586→        if (!file.exists()) {
+   587→            Toast.makeText(requireContext(), "文件不存在", Toast.LENGTH_SHORT).show()
+   588→            return
+   589→        }
+   590→
+   591→        lifecycleScope.launch {
+   592→            val shareUtil = WeChatShareUtil(requireContext())
+   593→            shareUtil.shareFile(file)
+   594→        }
+   595→    }
+   596→
+   597→    /**
+   598→     * 打开微信安装页面
+   599→     */
+   600→    private fun openWeChatInGooglePlay() {
+   601→        try {
+   602→            val intent = Intent(Intent.ACTION_VIEW).apply {
+   603→                data = Uri.parse("market://details?id=com.tencent.mm")
+   604→            }
+   605→            startActivity(intent)
+   606→        } catch (e: Exception) {
+   607→            Toast.makeText(requireContext(), "无法打开应用商店", Toast.LENGTH_SHORT).show()
+   608→        }
+   609→    }
+   610→}
+   611→

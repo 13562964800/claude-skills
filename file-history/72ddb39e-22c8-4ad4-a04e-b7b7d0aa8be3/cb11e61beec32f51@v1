@@ -1,0 +1,40 @@
+package com.multilanglearner.ui.assistant
+
+import androidx.lifecycle.ViewModel
+import androidx.lifecycle.viewModelScope
+import com.multilanglearner.data.network.AIService
+import com.multilanglearner.data.store.AIConfigStore
+import com.multilanglearner.domain.model.AIConfig
+import dagger.hilt.android.lifecycle.HiltViewModel
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.flow.*
+import kotlinx.coroutines.launch
+import javax.inject.Inject
+
+data class AssistantUiState(
+    val lectureText: String = "",
+    val isProcessing: Boolean = false
+)
+
+@HiltViewModel
+class AssistantViewModel @Inject constructor(
+    private val aiService: AIService,
+    private val aiConfigStore: AIConfigStore
+) : ViewModel() {
+    private val _uiState = MutableStateFlow(AssistantUiState())
+    val uiState: StateFlow<AssistantUiState> = _uiState.asStateFlow()
+
+    fun uploadDocument() {
+        // Placeholder - actual file picking happens via ActivityResult in UI
+    }
+
+    fun processText(text: String) {
+        _uiState.update { it.copy(isProcessing = true, lectureText = "🤖 AI整理讲稿中...") }
+        viewModelScope.launch(Dispatchers.IO) {
+            val config = aiConfigStore.config.first()
+            val prompt = "将以下文本整理为清晰讲稿，分段落，加过渡语，适合朗读：\n\n${text.take(3000)}"
+            val result = aiService.chat(config, prompt)
+            _uiState.update { it.copy(isProcessing = false, lectureText = result ?: text) }
+        }
+    }
+}

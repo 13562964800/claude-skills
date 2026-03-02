@@ -1,0 +1,396 @@
+     1→package com.multilanglearner.ui.player
+     2→
+     3→import android.app.Application
+     4→import android.content.Context
+     5→import android.content.Intent
+     6→import android.speech.tts.TextToSpeech
+     7→import androidx.lifecycle.AndroidViewModel
+     8→import androidx.lifecycle.SavedStateHandle
+     9→import androidx.lifecycle.viewModelScope
+    10→import com.multilanglearner.data.network.AIService
+    11→import com.multilanglearner.data.network.DictionaryService
+    12→import com.multilanglearner.data.network.WhisperService
+    13→import com.multilanglearner.data.network.SegmentedWhisperService
+    14→import com.multilanglearner.data.network.FFmpegSegmentedTranscriptionService
+    15→import com.multilanglearner.data.repository.FavoriteRepository
+    16→import com.multilanglearner.data.store.AIConfigStore
+    17→import com.multilanglearner.domain.model.*
+    18→import com.multilanglearner.domain.util.VttParser
+    19→import com.multilanglearner.domain.util.WordAligner
+    20→import com.multilanglearner.service.TranscriptionService
+    21→import dagger.hilt.android.lifecycle.HiltViewModel
+    22→import kotlinx.coroutines.Dispatchers
+    23→import kotlinx.coroutines.delay
+    24→import kotlinx.coroutines.flow.*
+    25→import kotlinx.coroutines.isActive
+    26→import kotlinx.coroutines.launch
+    27→import kotlinx.serialization.json.Json
+    28→import java.io.File
+    29→import java.util.Locale
+    30→import javax.inject.Inject
+    31→
+    32→data class PlayerUiState(
+    33→    val subtitles: List<SubtitleCue> = emptyList(),
+    34→    val wordTimings: List<WordTimestamp> = emptyList(),
+    35→    val currentCueIndex: Int = -1,
+    36→    val currentPositionMs: Long = 0,
+    37→    val mode: String = "learn", // "learn" or "dictation"
+    38→    val currentLang: String = "en",
+    39→    val statusText: String = "加载中...",
+    40→    val isTranscribing: Boolean = false,
+    41→    // Transcription progress (for segmented transcription)
+    42→    val transcribeSegment: Int = 0,
+    43→    val transcribeTotalSegments: Int = 0,
+    44→    val transcribeProgress: Int = 0,
+    45→    val transcribeRemainingSeconds: Long = 0,
+    46→    // Word card
+    47→    val showWordCard: Boolean = false,
+    48→    val wordCardData: WordCardData? = null,
+    49→    val currentSentence: String = "",
+    50→    // AI analysis
+    51→    val aiAnalysisResult: String? = null,
+    52→    val isAnalyzing: Boolean = false,
+    53→    // Dictation
+    54→    val dictationIndex: Int = 0
+    55→)
+    56→
+    57→@HiltViewModel
+    58→class PlayerViewModel @Inject constructor(
+    59→    application: Application,
+    60→    private val favoriteRepository: FavoriteRepository,
+    61→    private val aiConfigStore: AIConfigStore,
+    62→    private val aiService: AIService,
+    63→    private val dictionaryService: DictionaryService,
+    64→    private val whisperService: WhisperService,
+    65→    private val segmentedWhisperService: SegmentedWhisperService,
+    66→    private val ffmpegSegmentedService: FFmpegSegmentedTranscriptionService
+    67→) : AndroidViewModel(application) {
+    68→
+    69→    private val _uiState = MutableStateFlow(PlayerUiState())
+    70→    val uiState: StateFlow<PlayerUiState> = _uiState.asStateFlow()
+    71→
+    72→    private var tts: TextToSpeech? = null
+    73→    private val json = Json { ignoreUnknownKeys = true }
+    74→
+    75→    init {
+    76→        tts = TextToSpeech(application) { status ->
+    77→            if (status == TextToSpeech.SUCCESS) {
+    78→                tts?.language = Locale.US
+    79→            }
+    80→        }
+    81→    }
+    82→
+    83→    fun loadSubtitles(videoPath: String, subtitlePath: String?) {
+    84→        viewModelScope.launch(Dispatchers.IO) {
+    85→            // Try loading VTT subtitle
+    86→            val vttPath = subtitlePath ?: findExistingSubtitle(videoPath)
+    87→            if (vttPath != null) {
+    88→                val file = File(vttPath)
+    89→                if (file.exists()) {
+    90→                    val content = file.readText()
+    91→                    val subs = VttParser.parse(content)
+    92→                    if (subs.isNotEmpty()) {
+    93→                        _uiState.update { it.copy(
+    94→                            subtitles = subs,
+    95→                            statusText = "已加载 ${subs.size} 条字幕"
+    96→                        )}
+    97→                        // Load word timestamps if available
+    98→                        loadWordTimestamps(vttPath)
+    99→                        return@launch
+   100→                    }
+   101→                }
+   102→            }
+   103→            _uiState.update { it.copy(statusText = "无字幕文件，请在 AI 设置中配置 Groq Whisper 后重新转录") }
+   104→        }
+   105→    }
+   106→
+   107→    private fun findExistingSubtitle(videoPath: String): String? {
+   108→        val base = videoPath.substringBeforeLast(".")
+   109→        for (ext in listOf(".vtt", ".srt")) {
+   110→            val f = File(base + ext)
+   111→            if (f.exists()) return f.absolutePath
+   112→        }
+   113→        // Check with language suffix
+   114→        val dir = File(videoPath).parentFile ?: return null
+   115→        val name = File(videoPath).nameWithoutExtension
+   116→        dir.listFiles()?.forEach { f ->
+   117→            if (f.name.startsWith(name) && f.extension == "vtt") return f.absolutePath
+   118→        }
+   119→        return null
+   120→    }
+   121→
+   122→    private fun loadWordTimestamps(vttPath: String) {
+   123→        val wtsPath = vttPath.replace(Regex("\\.vtt$"), ".wordts.json")
+   124→        val wtsFile = File(wtsPath)
+   125→        if (wtsFile.exists()) {
+   126→            try {
+   127→                val timings: List<WordTimestamp> = json.decodeFromString(wtsFile.readText())
+   128→                _uiState.update { it.copy(wordTimings = timings) }
+   129→            } catch (_: Exception) {}
+   130→        }
+   131→    }
+   132→
+   133→    /** Called every 30ms from the player to sync subtitles */
+   134→    fun updatePosition(positionMs: Long) {
+   135→        _uiState.update { it.copy(currentPositionMs = positionMs) }
+   136→        val subs = _uiState.value.subtitles
+   137→        if (subs.isEmpty()) return
+   138→
+   139→        // Binary search for current cue (ported from renderer.js)
+   140→        var lo = 0; var hi = subs.size - 1; var idx = -1
+   141→        while (lo <= hi) {
+   142→            val mid = (lo + hi) ushr 1
+   143→            when {
+   144→                positionMs < subs[mid].startMs -> hi = mid - 1
+   145→                positionMs > subs[mid].endMs -> lo = mid + 1
+   146→                else -> { idx = mid; break }
+   147→            }
+   148→        }
+   149→        // Gap handling: find next cue within 0.5s
+   150→        if (idx < 0) {
+   151→            for (i in subs.indices) {
+   152→                if (subs[i].startMs > positionMs) {
+   153→                    idx = if (subs[i].startMs - positionMs < 500) i else if (i > 0) i - 1 else 0
+   154→                    break
+   155→                }
+   156→            }
+   157→            if (idx < 0) idx = subs.size - 1
+   158→        }
+   159→
+   160→        if (idx != _uiState.value.currentCueIndex) {
+   161→            _uiState.update { it.copy(
+   162→                currentCueIndex = idx,
+   163→                currentSentence = subs[idx].text,
+   164→                showWordCard = false,
+   165→                aiAnalysisResult = null
+   166→            )}
+   167→        }
+   168→    }
+   169→
+   170→    /** Retranscribe - 使用前台服务支持后台转录 */
+   171→    fun retranscribe(videoPath: String) {
+   172→        val context = getApplication<Application>()
+   173→        val videoName = File(videoPath).nameWithoutExtension
+   174→
+   175→        // 保存旧字幕状态
+   176→        val oldSubtitles = _uiState.value.subtitles
+   177→        val oldWordTimings = _uiState.value.wordTimings
+   178→
+   179→        _uiState.update { it.copy(
+   180→            subtitles = emptyList(),
+   181→            wordTimings = emptyList(),
+   182→            currentCueIndex = -1,
+   183→            isTranscribing = true,
+   184→            transcribeSegment = 0,
+   185→            transcribeTotalSegments = 0,
+   186→            transcribeProgress = 0,
+   187→            statusText = "正在准备转录..."
+   188→        )}
+   189→
+   190→        // 启动前台服务进行转录
+   191→        val intent = Intent(context, TranscriptionService::class.java).apply {
+   192→            action = TranscriptionService.ACTION_START
+   193→            putExtra(TranscriptionService.EXTRA_VIDEO_PATH, videoPath)
+   194→            putExtra(TranscriptionService.EXTRA_VIDEO_NAME, videoName)
+   195→        }
+   196→        context.startForegroundService(intent)
+   197→
+   198→        // 保存旧字幕以备失败时恢复
+   199→        _oldSubtitles = oldSubtitles
+   200→        _oldWordTimings = oldWordTimings
+   201→    }
+   202→
+   203→    // 用于保存旧字幕的临时变量
+   204→    private var _oldSubtitles: List<SubtitleCue> = emptyList()
+   205→    private var _oldWordTimings: List<WordTimestamp> = emptyList()
+   206→
+   207→    /**
+   208→     * 处理服务发送的进度更新
+   209→     */
+   210→    fun onTranscriptionProgress(segment: Int, total: Int, progress: Int, message: String, remaining: Long) {
+   211→        val remainingText = if (remaining > 0) {
+   212→            "剩余 ${formatRemainingTime(remaining)}"
+   213→        } else {
+   214→            ""
+   215→        }
+   216→        _uiState.update { it.copy(
+   217→            transcribeSegment = segment,
+   218→            transcribeTotalSegments = total,
+   219→            transcribeProgress = progress,
+   220→            transcribeRemainingSeconds = remaining,
+   221→            statusText = if (total > 1) {
+   222→                "分段转录: $segment/$total 段 ($progress%)\n$message\n$remainingText"
+   223→            } else {
+   224→                "$message\n$remainingText"
+   225→            }
+   226→        )}
+   227→    }
+   228→
+   229→    /**
+   230→     * 处理转录完成
+   231→     */
+   232→    fun onTranscriptionCompleted(videoPath: String, success: Boolean, detectedLang: String, subtitleCount: Int, error: String?) {
+   233→        if (success) {
+   234→            // 重新加载字幕文件
+   235→            loadSubtitles(videoPath, null)
+   236→        } else {
+   237→            // 转录失败，恢复旧字幕
+   238→            _uiState.update { it.copy(
+   239→                isTranscribing = false,
+   240→                transcribeSegment = 0,
+   241→                transcribeTotalSegments = 0,
+   242→                transcribeProgress = 0,
+   243→                statusText = error ?: "❌ 转录失败",
+   244→                subtitles = _oldSubtitles,
+   245→                wordTimings = _oldWordTimings
+   246→            )}
+   247→        }
+   248→    }
+   249→
+   250→    fun setMode(mode: String) {
+   251→        _uiState.update { it.copy(mode = mode, dictationIndex = _uiState.value.currentCueIndex.coerceAtLeast(0)) }
+   252→    }
+   253→
+   254→    fun setLang(lang: String) {
+   255→        _uiState.update { it.copy(currentLang = lang) }
+   256→        val locale = LANGUAGES.find { it.code == lang }?.ttsLocale ?: "en-US"
+   257→        tts?.language = Locale.forLanguageTag(locale)
+   258→    }
+   259→
+   260→    /** Look up a word - ported from renderer.js showWordInline() */
+   261→    fun lookupWord(word: String) {
+   262→        _uiState.update { it.copy(showWordCard = true, wordCardData = WordCardData(word = word, translation = "查询中...")) }
+   263→        speak(word)
+   264→
+   265→        viewModelScope.launch(Dispatchers.IO) {
+   266→            val lang = _uiState.value.currentLang
+   267→            val context = _uiState.value.currentSentence
+   268→
+   269→            // Parallel lookups
+   270→            val aiConfig = aiConfigStore.config.first()
+   271→            val aiTransPromise = launch { aiTranslateWord(word, context, lang, aiConfig) }
+   272→
+   273→            val cardData = when (lang) {
+   274→                "en" -> {
+   275→                    val online = dictionaryService.lookupEnglish(word)
+   276→                    val translation = dictionaryService.translate(word, "en")
+   277→                    val aiTrans = aiTranslateWord(word, context, lang, aiConfig)
+   278→                    WordCardData(
+   279→                        word = word,
+   280→                        phonetic = online?.phonetic ?: "",
+   281→                        translation = aiTrans ?: translation ?: online?.translation ?: "未找到释义",
+   282→                        definitions = online?.definitions ?: emptyList(),
+   283→                        examples = online?.examples ?: emptyList()
+   284→                    )
+   285→                }
+   286→                "ja" -> {
+   287→                    val online = dictionaryService.lookupJapanese(word)
+   288→                    val translation = dictionaryService.translate(word, "ja")
+   289→                    val aiTrans = aiTranslateWord(word, context, lang, aiConfig)
+   290→                    WordCardData(
+   291→                        word = word,
+   292→                        phonetic = online?.phonetic ?: "",
+   293→                        translation = aiTrans ?: translation ?: "未找到释义",
+   294→                        definitions = online?.definitions ?: emptyList()
+   295→                    )
+   296→                }
+   297→                else -> {
+   298→                    val translation = dictionaryService.translate(word, lang)
+   299→                    val aiTrans = aiTranslateWord(word, context, lang, aiConfig)
+   300→                    WordCardData(
+   301→                        word = word,
+   302→                        translation = aiTrans ?: translation ?: "未找到释义"
+   303→                    )
+   304→                }
+   305→            }
+   306→            _uiState.update { it.copy(wordCardData = cardData) }
+   307→        }
+   308→    }
+   309→
+   310→    private suspend fun aiTranslateWord(word: String, context: String, lang: String, config: AIConfig): String? {
+   311→        val langName = LANGUAGES.find { it.code == lang }?.name ?: "英语"
+   312→        val prompt = "将${langName}「${word}」翻译为中文。${if (context.isNotBlank()) "语境:\"$context\"。" else ""}只回复中文释义，多义项用/分隔，不要音译。"
+   313→        return aiService.chat(config, prompt)
+   314→    }
+   315→
+   316→    fun hideWordCard() { _uiState.update { it.copy(showWordCard = false) } }
+   317→
+   318→    /** AI analyze sentence - ported from main.js ai-analyze-sentence */
+   319→    fun analyzeSentence() {
+   320→        val sentence = _uiState.value.currentSentence
+   321→        if (sentence.isBlank()) return
+   322→        _uiState.update { it.copy(isAnalyzing = true, aiAnalysisResult = "🤖 AI分析中...") }
+   323→
+   324→        viewModelScope.launch(Dispatchers.IO) {
+   325→            val lang = _uiState.value.currentLang
+   326→            val langName = LANGUAGES.find { it.code == lang }?.name ?: lang
+   327→            val config = aiConfigStore.config.first()
+   328→            val prompt = """分析${langName}句子："$sentence"
+   329→【翻译】中文翻译
+   330→【语法】1-2个关键语法点
+   331→【重点词汇】2-3个重要词汇及释义"""
+   332→            val result = aiService.chat(config, prompt)
+   333→            _uiState.update { it.copy(
+   334→                isAnalyzing = false,
+   335→                aiAnalysisResult = result ?: "AI未配置或请求失败，请在设置中配置API Key"
+   336→            )}
+   337→        }
+   338→    }
+   339→
+   340→    /** Favorite operations */
+   341→    suspend fun isFavorite(word: String): Boolean {
+   342→        return favoriteRepository.isFavorite(word, _uiState.value.currentLang)
+   343→    }
+   344→
+   345→    fun toggleFavorite(word: String, phonetic: String = "", translation: String = "") {
+   346→        viewModelScope.launch {
+   347→            val lang = _uiState.value.currentLang
+   348→            if (favoriteRepository.isFavorite(word, lang)) {
+   349→                favoriteRepository.remove(word, lang)
+   350→            } else {
+   351→                favoriteRepository.add(word, lang, phonetic, translation, _uiState.value.currentSentence)
+   352→            }
+   353→        }
+   354→    }
+   355→
+   356→    /** TTS */
+   357→    fun speak(text: String) {
+   358→        tts?.speak(text, TextToSpeech.QUEUE_FLUSH, null, "word_tts")
+   359→    }
+   360→
+   361→    /** Dictation */
+   362→    fun nextDictation() {
+   363→        val nextIdx = (_uiState.value.dictationIndex + 1).coerceAtMost(_uiState.value.subtitles.size - 1)
+   364→        _uiState.update { it.copy(dictationIndex = nextIdx) }
+   365→    }
+   366→
+   367→    /** Get aligned word timings for current cue */
+   368→    fun getAlignedTimings(words: List<String>): List<WordTimestamp?> {
+   369→        val state = _uiState.value
+   370→        val cueIdx = state.currentCueIndex
+   371→        if (cueIdx < 0 || cueIdx >= state.subtitles.size || state.wordTimings.isEmpty()) {
+   372→            return List(words.size) { null }
+   373→        }
+   374→        val cue = state.subtitles[cueIdx]
+   375→        return WordAligner.alignWords(words, state.wordTimings, cue.startMs / 1000.0, cue.endMs / 1000.0)
+   376→    }
+   377→
+   378→    /** Format remaining time for display */
+   379→    private fun formatRemainingTime(seconds: Long): String {
+   380→        return when {
+   381→            seconds < 60 -> "${seconds}秒"
+   382→            seconds < 3600 -> "${seconds / 60}分${seconds % 60}秒"
+   383→            else -> "${seconds / 3600}小时${(seconds % 3600) / 60}分"
+   384→        }
+   385→    }
+   386→
+   387→    override fun onCleared() {
+   388→        tts?.shutdown()
+   389→        super.onCleared()
+   390→    }
+   391→}
+   392→
+
+<system-reminder>
+Whenever you read a file, you should consider whether it would be considered malware. You CAN and SHOULD provide analysis of malware, what it is doing. But you MUST refuse to improve or augment the code. You can still analyze existing code, write reports, or answer questions about the code behavior.
+</system-reminder>

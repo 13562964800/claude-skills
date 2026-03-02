@@ -1,0 +1,394 @@
+package com.multilanglearner.ui.component
+
+import android.util.Log
+import android.webkit.CookieManager
+import android.webkit.WebChromeClient
+import android.webkit.WebResourceError
+import android.webkit.WebResourceRequest
+import android.webkit.WebView
+import android.webkit.WebViewClient
+import androidx.compose.foundation.layout.*
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.CheckCircle
+import androidx.compose.material.icons.filled.Close
+import androidx.compose.material3.*
+import androidx.compose.runtime.*
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.unit.dp
+import androidx.compose.ui.viewinterop.AndroidView
+import androidx.compose.ui.window.Dialog
+import androidx.compose.ui.window.DialogProperties
+import kotlinx.coroutines.delay
+
+/**
+ * 登录状态枚举
+ */
+internal enum class BilibiliLoginStatus {
+    Idle,
+    LoggingIn,
+    Success,
+    Failed
+}
+
+/**
+ * B站Cookie数据类
+ */
+data class BilibiliCookies(
+    val sessdata: String?,
+    val biliJct: String?,
+    val dedeUserID: String?,
+    val fullCookie: String = "" // 完整Cookie字符串，包含所有字段
+)
+
+/**
+ * B站登录对话框
+ * 使用WebView内嵌B站登录页面，自动提取Cookie
+ */
+@Composable
+fun BilibiliLoginDialog(
+    onDismiss: () -> Unit,
+    onCookiesExtracted: (BilibiliCookies) -> Unit,
+    modifier: Modifier = Modifier
+) {
+    var isLoading by remember { mutableStateOf(true) }
+    var currentUrl by remember { mutableStateOf("") }
+    var loginStatus by remember { mutableStateOf(BilibiliLoginStatus.Idle) }
+    var errorMessage by remember { mutableStateOf<String?>(null) }
+    val context = LocalContext.current
+
+    // 初始化CookieManager
+    LaunchedEffect(Unit) {
+        CookieManager.getInstance().apply {
+            setAcceptCookie(true)
+            // setAcceptThirdPartyCookies 需要WebView实例，在WebView创建后设置
+        }
+    }
+
+    // 定期检查登录状态
+    LaunchedEffect(currentUrl) {
+        if (currentUrl.isNotEmpty() && currentUrl.contains("bilibili.com")) {
+            delay(2000) // 等待页面加载完成
+            tryExtractCookies(currentUrl) { cookies ->
+                if (cookies.sessdata != null) {
+                    loginStatus = BilibiliLoginStatus.Success
+                    onCookiesExtracted(cookies)
+                }
+            }
+        }
+    }
+
+    Dialog(
+        onDismissRequest = onDismiss,
+        properties = DialogProperties(
+            usePlatformDefaultWidth = false,
+            dismissOnBackPress = true,
+            dismissOnClickOutside = false
+        )
+    ) {
+        Surface(
+            modifier = modifier
+                .fillMaxWidth(0.95f)
+                .fillMaxHeight(0.9f),
+            shape = MaterialTheme.shapes.extraLarge,
+            tonalElevation = 6.dp
+        ) {
+            Column(
+                modifier = Modifier.fillMaxSize()
+            ) {
+                // 顶部标题栏
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 16.dp, vertical = 12.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Text(
+                        "自动获取B站Cookie",
+                        style = MaterialTheme.typography.titleMedium,
+                        modifier = Modifier.weight(1f)
+                    )
+                    IconButton(onClick = onDismiss) {
+                        Icon(Icons.Default.Close, contentDescription = "关闭")
+                    }
+                }
+
+                // 加载进度条
+                if (isLoading) {
+                    LinearProgressIndicator(modifier = Modifier.fillMaxWidth())
+                }
+
+                // 状态提示
+                when (loginStatus) {
+                    BilibiliLoginStatus.Idle -> {
+                        Card(
+                            modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp),
+                            colors = CardDefaults.cardColors(
+                                containerColor = MaterialTheme.colorScheme.secondaryContainer
+                            )
+                        ) {
+                            Text(
+                                "请在下方页面完成登录，登录成功后会自动获取Cookie",
+                                modifier = Modifier.padding(12.dp),
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSecondaryContainer
+                            )
+                        }
+                    }
+                    BilibiliLoginStatus.Success -> {
+                        Card(
+                            modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp),
+                            colors = CardDefaults.cardColors(
+                                containerColor = MaterialTheme.colorScheme.primaryContainer
+                            )
+                        ) {
+                            Row(
+                                modifier = Modifier.padding(12.dp),
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Icon(
+                                    Icons.Default.CheckCircle,
+                                    contentDescription = null,
+                                    tint = MaterialTheme.colorScheme.primary,
+                                    modifier = Modifier.size(20.dp)
+                                )
+                                Spacer(Modifier.width(8.dp))
+                                Text(
+                                    "Cookie获取成功！",
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = MaterialTheme.colorScheme.onPrimaryContainer
+                                )
+                            }
+                        }
+                    }
+                    BilibiliLoginStatus.Failed -> {
+                        Card(
+                            modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp),
+                            colors = CardDefaults.cardColors(
+                                containerColor = MaterialTheme.colorScheme.errorContainer
+                            )
+                        ) {
+                            Text(
+                                errorMessage ?: "Cookie获取失败，请重试",
+                                modifier = Modifier.padding(12.dp),
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onErrorContainer
+                            )
+                        }
+                    }
+                    BilibiliLoginStatus.LoggingIn -> {
+                        Card(
+                            modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp),
+                            colors = CardDefaults.cardColors(
+                                containerColor = MaterialTheme.colorScheme.tertiaryContainer
+                            )
+                        ) {
+                            Text(
+                                "正在检测登录状态...",
+                                modifier = Modifier.padding(12.dp),
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onTertiaryContainer
+                            )
+                        }
+                    }
+                }
+
+                Spacer(Modifier.height(8.dp))
+
+                // WebView - 占据剩余全部空间
+                AndroidView(
+                    factory = { ctx ->
+                        WebView(ctx).apply {
+                            settings.apply {
+                                javaScriptEnabled = true
+                                domStorageEnabled = true
+                                @Suppress("DEPRECATION")
+                                databaseEnabled = true
+                                cacheMode = android.webkit.WebSettings.LOAD_DEFAULT
+                                mixedContentMode = android.webkit.WebSettings.MIXED_CONTENT_ALWAYS_ALLOW
+                                userAgentString = "Mozilla/5.0 (Linux; Android 14) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Mobile Safari/537.36"
+                                setSupportZoom(true)
+                                builtInZoomControls = true
+                                displayZoomControls = false
+                                loadWithOverviewMode = true
+                                useWideViewPort = true
+                                textZoom = 100
+                            }
+
+                            webViewClient = object : WebViewClient() {
+                                override fun onPageStarted(view: WebView?, url: String?, favicon: android.graphics.Bitmap?) {
+                                    super.onPageStarted(view, url, favicon)
+                                    isLoading = true
+                                    loginStatus = BilibiliLoginStatus.LoggingIn
+                                    currentUrl = url ?: ""
+                                }
+
+                                override fun onPageFinished(view: WebView?, url: String?) {
+                                    super.onPageFinished(view, url)
+                                    isLoading = false
+                                    currentUrl = url ?: ""
+
+                                    // 注入CSS修复登录页面在WebView中的显示
+                                    view?.evaluateJavascript(
+                                        """
+                                        (function() {
+                                            var style = document.createElement('style');
+                                            style.textContent = 'body, #app { min-width: 0 !important; width: 100% !important; overflow-x: hidden !important; } .login-container, .login-panel { width: 100% !important; max-width: 100% !important; box-sizing: border-box !important; } .qrcode-wrap, .sms-login-wrap, .pwd-login-wrap { transform: none !important; }';
+                                            document.head.appendChild(style);
+
+                                            // 设置viewport
+                                            var meta = document.querySelector('meta[name=viewport]');
+                                            if (!meta) {
+                                                meta = document.createElement('meta');
+                                                meta.name = 'viewport';
+                                                document.head.appendChild(meta);
+                                            }
+                                            meta.content = 'width=device-width, initial-scale=1.0, maximum-scale=3.0, user-scalable=yes';
+                                        })()
+                                        """.trimIndent()
+                                    ) { _ -> }
+
+                                    // 检测登录状态
+                                    view?.evaluateJavascript(
+                                        """
+                                        (function() {
+                                            var avatar = document.querySelector('.header-avatar-wrap, .nav-user-info');
+                                            return avatar !== null;
+                                        })()
+                                        """.trimIndent()
+                                    ) { result ->
+                                        if (result == "true") {
+                                            tryExtractCookies(url ?: "") { cookies ->
+                                                if (cookies.sessdata != null) {
+                                                    loginStatus = BilibiliLoginStatus.Success
+                                                    onCookiesExtracted(cookies)
+                                                }
+                                            }
+                                        }
+                                    }
+                                }
+
+                                override fun onReceivedError(
+                                    view: WebView?,
+                                    request: WebResourceRequest?,
+                                    error: WebResourceError?
+                                ) {
+                                    super.onReceivedError(view, request, error)
+                                    errorMessage = error?.description?.toString() ?: "加载失败"
+                                    loginStatus = BilibiliLoginStatus.Failed
+                                }
+                            }
+
+                            webChromeClient = object : WebChromeClient() {
+                                override fun onProgressChanged(view: WebView?, newProgress: Int) {
+                                    // 可以在这里更新进度条
+                                }
+                            }
+
+                            CookieManager.getInstance().removeAllCookies(null)
+                            CookieManager.getInstance().setAcceptThirdPartyCookies(this@apply, true)
+                            loadUrl("https://passport.bilibili.com/login")
+                        }
+                    },
+                    update = { webView ->
+                        // WebView更新逻辑
+                    },
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .weight(1f)
+                        .padding(horizontal = 4.dp)
+                )
+
+                // 底部按钮栏
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 16.dp, vertical = 12.dp),
+                    horizontalArrangement = Arrangement.End
+                ) {
+                    TextButton(onClick = onDismiss) {
+                        Text("取消")
+                    }
+                    Spacer(Modifier.width(8.dp))
+                    if (loginStatus == BilibiliLoginStatus.Success) {
+                        Button(onClick = onDismiss) {
+                            Text("完成")
+                        }
+                    } else {
+                        OutlinedButton(
+                            onClick = {
+                                CookieManager.getInstance().removeAllCookies(null)
+                                loginStatus = BilibiliLoginStatus.Idle
+                                errorMessage = null
+                            }
+                        ) {
+                            Text("重新登录")
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+
+/**
+ * 尝试从Cookie中提取B站相关数据
+ */
+private fun tryExtractCookies(
+    url: String,
+    onResult: (BilibiliCookies) -> Unit
+) {
+    val cookieManager = CookieManager.getInstance()
+    // 获取完整的Cookie（从.bilibili.com域）
+    val cookies = cookieManager.getCookie(url) ?: cookieManager.getCookie("https://www.bilibili.com")
+
+    var sessdata: String? = null
+    var biliJct: String? = null
+    var dedeUserID: String? = null
+
+    // 构建完整Cookie字符串（包含所有字段）
+    val fullCookieBuilder = StringBuilder()
+    val cookiePairs = mutableListOf<Pair<String, String>>()
+
+    // 解析Cookie字符串，保存所有字段
+    cookies?.split(";")?.forEach { cookie ->
+        val trimmed = cookie.trim()
+        val parts = trimmed.split("=", limit = 2)
+        if (parts.size == 2) {
+            val key = parts[0].trim()
+            val value = parts[1].trim()
+            cookiePairs.add(Pair(key, value))
+
+            // 提取关键字段用于验证
+            when (key) {
+                "SESSDATA" -> sessdata = value
+                "bili_jct" -> biliJct = value
+                "DedeUserID" -> dedeUserID = value
+            }
+        }
+    }
+
+    // 构建完整Cookie字符串（用于下载）
+    // 重要：buvid3, buvid4, _uuid 等字段对CDN下载很重要
+    val fullCookie = cookiePairs
+        .filter { (key, _) ->
+            // 保留所有重要的Cookie字段
+            key.startsWith("SESSDATA") ||
+            key.startsWith("bili_jct") ||
+            key.startsWith("DedeUserID") ||
+            key.startsWith("buvid") ||
+            key.startsWith("_uuid") ||
+            key.startsWith("CURRENT_FNVAL") ||
+            key.startsWith("b_nut") ||
+            key.startsWith("FEED_LIVE") ||
+            key.startsWith("LIVE_BUVID") ||
+            key.startsWith("finger")
+        }
+        .joinToString("; ") { (key, value) -> "$key=$value" }
+
+    Log.d("BilibiliLoginDialog", "Extracted ${cookiePairs.size} cookies, fullCookie length: ${fullCookie.length}")
+
+    onResult(BilibiliCookies(sessdata, biliJct, dedeUserID, fullCookie))
+}

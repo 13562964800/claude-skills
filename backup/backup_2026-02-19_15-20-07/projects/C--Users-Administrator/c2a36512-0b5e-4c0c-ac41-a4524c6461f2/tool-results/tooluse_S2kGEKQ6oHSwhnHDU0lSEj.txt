@@ -1,0 +1,884 @@
+     1	import fs from "node:fs/promises";
+     2	import os from "node:os";
+     3	
+     4	import type { AgentMessage } from "@mariozechner/pi-agent-core";
+     5	import type { AssistantMessage, ImageContent } from "@mariozechner/pi-ai";
+     6	import { streamSimple } from "@mariozechner/pi-ai";
+     7	import { createAgentSession, SessionManager, SettingsManager } from "@mariozechner/pi-coding-agent";
+     8	
+     9	import { resolveHeartbeatPrompt } from "../../../auto-reply/heartbeat.js";
+    10	import {
+    11	  listChannelSupportedActions,
+    12	  resolveChannelMessageToolHints,
+    13	} from "../../channel-tools.js";
+    14	import { resolveChannelCapabilities } from "../../../config/channel-capabilities.js";
+    15	import { getMachineDisplayName } from "../../../infra/machine-name.js";
+    16	import { resolveTelegramInlineButtonsScope } from "../../../telegram/inline-buttons.js";
+    17	import { resolveTelegramReactionLevel } from "../../../telegram/reaction-level.js";
+    18	import { resolveSignalReactionLevel } from "../../../signal/reaction-level.js";
+    19	import { normalizeMessageChannel } from "../../../utils/message-channel.js";
+    20	import { isReasoningTagProvider } from "../../../utils/provider-utils.js";
+    21	import { isSubagentSessionKey } from "../../../routing/session-key.js";
+    22	import { resolveUserPath } from "../../../utils.js";
+    23	import { createCacheTrace } from "../../cache-trace.js";
+    24	import { createAnthropicPayloadLogger } from "../../anthropic-payload-log.js";
+    25	import { resolveMoltbotAgentDir } from "../../agent-paths.js";
+    26	import { resolveSessionAgentIds } from "../../agent-scope.js";
+    27	import { makeBootstrapWarn, resolveBootstrapContextForRun } from "../../bootstrap-files.js";
+    28	import { resolveMoltbotDocsPath } from "../../docs-path.js";
+    29	import { resolveModelAuthMode } from "../../model-auth.js";
+    30	import {
+    31	  isCloudCodeAssistFormatError,
+    32	  resolveBootstrapMaxChars,
+    33	  validateAnthropicTurns,
+    34	  validateGeminiTurns,
+    35	} from "../../pi-embedded-helpers.js";
+    36	import { subscribeEmbeddedPiSession } from "../../pi-embedded-subscribe.js";
+    37	import {
+    38	  ensurePiCompactionReserveTokens,
+    39	  resolveCompactionReserveTokensFloor,
+    40	} from "../../pi-settings.js";
+    41	import { createMoltbotCodingTools } from "../../pi-tools.js";
+    42	import { resolveSandboxContext } from "../../sandbox.js";
+    43	import { guardSessionManager } from "../../session-tool-result-guard-wrapper.js";
+    44	import { resolveTranscriptPolicy } from "../../transcript-policy.js";
+    45	import { acquireSessionWriteLock } from "../../session-write-lock.js";
+    46	import {
+    47	  applySkillEnvOverrides,
+    48	  applySkillEnvOverridesFromSnapshot,
+    49	  loadWorkspaceSkillEntries,
+    50	  resolveSkillsPromptForRun,
+    51	} from "../../skills.js";
+    52	import { DEFAULT_BOOTSTRAP_FILENAME } from "../../workspace.js";
+    53	import { buildSystemPromptReport } from "../../system-prompt-report.js";
+    54	import { resolveDefaultModelForAgent } from "../../model-selection.js";
+    55	
+    56	import { isAbortError } from "../abort.js";
+    57	import { buildEmbeddedExtensionPaths } from "../extensions.js";
+    58	import { applyExtraParamsToAgent } from "../extra-params.js";
+    59	import { appendCacheTtlTimestamp, isCacheTtlEligibleProvider } from "../cache-ttl.js";
+    60	import {
+    61	  logToolSchemasForGoogle,
+    62	  sanitizeSessionHistory,
+    63	  sanitizeToolsForGoogle,
+    64	} from "../google.js";
+    65	import { getDmHistoryLimitFromSessionKey, limitHistoryTurns } from "../history.js";
+    66	import { log } from "../logger.js";
+    67	import { buildModelAliasLines } from "../model.js";
+    68	import {
+    69	  clearActiveEmbeddedRun,
+    70	  type EmbeddedPiQueueHandle,
+    71	  setActiveEmbeddedRun,
+    72	} from "../runs.js";
+    73	import { buildEmbeddedSandboxInfo } from "../sandbox-info.js";
+    74	import { prewarmSessionFile, trackSessionManagerAccess } from "../session-manager-cache.js";
+    75	import { prepareSessionManagerForRun } from "../session-manager-init.js";
+    76	import { buildEmbeddedSystemPrompt, createSystemPromptOverride } from "../system-prompt.js";
+    77	import { splitSdkTools } from "../tool-split.js";
+    78	import { toClientToolDefinitions } from "../../pi-tool-definition-adapter.js";
+    79	import { buildSystemPromptParams } from "../../system-prompt-params.js";
+    80	import { describeUnknownError, mapThinkingLevel } from "../utils.js";
+    81	import { resolveSandboxRuntimeStatus } from "../../sandbox/runtime-status.js";
+    82	import { buildTtsSystemPromptHint } from "../../../tts/tts.js";
+    83	import { isTimeoutError } from "../../failover-error.js";
+    84	import { getGlobalHookRunner } from "../../../plugins/hook-runner-global.js";
+    85	import { MAX_IMAGE_BYTES } from "../../../media/constants.js";
+    86	import type { EmbeddedRunAttemptParams, EmbeddedRunAttemptResult } from "./types.js";
+    87	import { detectAndLoadPromptImages } from "./images.js";
+    88	
+    89	export function injectHistoryImagesIntoMessages(
+    90	  messages: AgentMessage[],
+    91	  historyImagesByIndex: Map<number, ImageContent[]>,
+    92	): boolean {
+    93	  if (historyImagesByIndex.size === 0) return false;
+    94	  let didMutate = false;
+    95	
+    96	  for (const [msgIndex, images] of historyImagesByIndex) {
+    97	    // Bounds check: ensure index is valid before accessing
+    98	    if (msgIndex < 0 || msgIndex >= messages.length) continue;
+    99	    const msg = messages[msgIndex];
+   100	    if (msg && msg.role === "user") {
+   101	      // Convert string content to array format if needed
+   102	      if (typeof msg.content === "string") {
+   103	        msg.content = [{ type: "text", text: msg.content }];
+   104	        didMutate = true;
+   105	      }
+   106	      if (Array.isArray(msg.content)) {
+   107	        // Check for existing image content to avoid duplicates across turns
+   108	        const existingImageData = new Set(
+   109	          msg.content
+   110	            .filter(
+   111	              (c): c is ImageContent =>
+   112	                c != null &&
+   113	                typeof c === "object" &&
+   114	                c.type === "image" &&
+   115	                typeof c.data === "string",
+   116	            )
+   117	            .map((c) => c.data),
+   118	        );
+   119	        for (const img of images) {
+   120	          // Only add if this image isn't already in the message
+   121	          if (!existingImageData.has(img.data)) {
+   122	            msg.content.push(img);
+   123	            didMutate = true;
+   124	          }
+   125	        }
+   126	      }
+   127	    }
+   128	  }
+   129	
+   130	  return didMutate;
+   131	}
+   132	
+   133	export async function runEmbeddedAttempt(
+   134	  params: EmbeddedRunAttemptParams,
+   135	): Promise<EmbeddedRunAttemptResult> {
+   136	  const resolvedWorkspace = resolveUserPath(params.workspaceDir);
+   137	  const prevCwd = process.cwd();
+   138	  const runAbortController = new AbortController();
+   139	
+   140	  log.debug(
+   141	    `embedded run start: runId=${params.runId} sessionId=${params.sessionId} provider=${params.provider} model=${params.modelId} thinking=${params.thinkLevel} messageChannel=${params.messageChannel ?? params.messageProvider ?? "unknown"}`,
+   142	  );
+   143	
+   144	  await fs.mkdir(resolvedWorkspace, { recursive: true });
+   145	
+   146	  const sandboxSessionKey = params.sessionKey?.trim() || params.sessionId;
+   147	  const sandbox = await resolveSandboxContext({
+   148	    config: params.config,
+   149	    sessionKey: sandboxSessionKey,
+   150	    workspaceDir: resolvedWorkspace,
+   151	  });
+   152	  const effectiveWorkspace = sandbox?.enabled
+   153	    ? sandbox.workspaceAccess === "rw"
+   154	      ? resolvedWorkspace
+   155	      : sandbox.workspaceDir
+   156	    : resolvedWorkspace;
+   157	  await fs.mkdir(effectiveWorkspace, { recursive: true });
+   158	
+   159	  let restoreSkillEnv: (() => void) | undefined;
+   160	  process.chdir(effectiveWorkspace);
+   161	  try {
+   162	    const shouldLoadSkillEntries = !params.skillsSnapshot || !params.skillsSnapshot.resolvedSkills;
+   163	    const skillEntries = shouldLoadSkillEntries
+   164	      ? loadWorkspaceSkillEntries(effectiveWorkspace)
+   165	      : [];
+   166	    restoreSkillEnv = params.skillsSnapshot
+   167	      ? applySkillEnvOverridesFromSnapshot({
+   168	          snapshot: params.skillsSnapshot,
+   169	          config: params.config,
+   170	        })
+   171	      : applySkillEnvOverrides({
+   172	          skills: skillEntries ?? [],
+   173	          config: params.config,
+   174	        });
+   175	
+   176	    const skillsPrompt = resolveSkillsPromptForRun({
+   177	      skillsSnapshot: params.skillsSnapshot,
+   178	      entries: shouldLoadSkillEntries ? skillEntries : undefined,
+   179	      config: params.config,
+   180	      workspaceDir: effectiveWorkspace,
+   181	    });
+   182	
+   183	    const sessionLabel = params.sessionKey ?? params.sessionId;
+   184	    const { bootstrapFiles: hookAdjustedBootstrapFiles, contextFiles } =
+   185	      await resolveBootstrapContextForRun({
+   186	        workspaceDir: effectiveWorkspace,
+   187	        config: params.config,
+   188	        sessionKey: params.sessionKey,
+   189	        sessionId: params.sessionId,
+   190	        warn: makeBootstrapWarn({ sessionLabel, warn: (message) => log.warn(message) }),
+   191	      });
+   192	    const workspaceNotes = hookAdjustedBootstrapFiles.some(
+   193	      (file) => file.name === DEFAULT_BOOTSTRAP_FILENAME && !file.missing,
+   194	    )
+   195	      ? ["Reminder: commit your changes in this workspace after edits."]
+   196	      : undefined;
+   197	
+   198	    const agentDir = params.agentDir ?? resolveMoltbotAgentDir();
+   199	
+   200	    // Check if the model supports native image input
+   201	    const modelHasVision = params.model.input?.includes("image") ?? false;
+   202	    const toolsRaw = params.disableTools
+   203	      ? []
+   204	      : createMoltbotCodingTools({
+   205	          exec: {
+   206	            ...params.execOverrides,
+   207	            elevated: params.bashElevated,
+   208	          },
+   209	          sandbox,
+   210	          messageProvider: params.messageChannel ?? params.messageProvider,
+   211	          agentAccountId: params.agentAccountId,
+   212	          messageTo: params.messageTo,
+   213	          messageThreadId: params.messageThreadId,
+   214	          groupId: params.groupId,
+   215	          groupChannel: params.groupChannel,
+   216	          groupSpace: params.groupSpace,
+   217	          spawnedBy: params.spawnedBy,
+   218	          senderId: params.senderId,
+   219	          senderName: params.senderName,
+   220	          senderUsername: params.senderUsername,
+   221	          senderE164: params.senderE164,
+   222	          sessionKey: params.sessionKey ?? params.sessionId,
+   223	          agentDir,
+   224	          workspaceDir: effectiveWorkspace,
+   225	          config: params.config,
+   226	          abortSignal: runAbortController.signal,
+   227	          modelProvider: params.model.provider,
+   228	          modelId: params.modelId,
+   229	          modelAuthMode: resolveModelAuthMode(params.model.provider, params.config),
+   230	          currentChannelId: params.currentChannelId,
+   231	          currentThreadTs: params.currentThreadTs,
+   232	          replyToMode: params.replyToMode,
+   233	          hasRepliedRef: params.hasRepliedRef,
+   234	          modelHasVision,
+   235	        });
+   236	    const tools = sanitizeToolsForGoogle({ tools: toolsRaw, provider: params.provider });
+   237	    logToolSchemasForGoogle({ tools, provider: params.provider });
+   238	
+   239	    const machineName = await getMachineDisplayName();
+   240	    const runtimeChannel = normalizeMessageChannel(params.messageChannel ?? params.messageProvider);
+   241	    let runtimeCapabilities = runtimeChannel
+   242	      ? (resolveChannelCapabilities({
+   243	          cfg: params.config,
+   244	          channel: runtimeChannel,
+   245	          accountId: params.agentAccountId,
+   246	        }) ?? [])
+   247	      : undefined;
+   248	    if (runtimeChannel === "telegram" && params.config) {
+   249	      const inlineButtonsScope = resolveTelegramInlineButtonsScope({
+   250	        cfg: params.config,
+   251	        accountId: params.agentAccountId ?? undefined,
+   252	      });
+   253	      if (inlineButtonsScope !== "off") {
+   254	        if (!runtimeCapabilities) runtimeCapabilities = [];
+   255	        if (
+   256	          !runtimeCapabilities.some((cap) => String(cap).trim().toLowerCase() === "inlinebuttons")
+   257	        ) {
+   258	          runtimeCapabilities.push("inlineButtons");
+   259	        }
+   260	      }
+   261	    }
+   262	    const reactionGuidance =
+   263	      runtimeChannel && params.config
+   264	        ? (() => {
+   265	            if (runtimeChannel === "telegram") {
+   266	              const resolved = resolveTelegramReactionLevel({
+   267	                cfg: params.config,
+   268	                accountId: params.agentAccountId ?? undefined,
+   269	              });
+   270	              const level = resolved.agentReactionGuidance;
+   271	              return level ? { level, channel: "Telegram" } : undefined;
+   272	            }
+   273	            if (runtimeChannel === "signal") {
+   274	              const resolved = resolveSignalReactionLevel({
+   275	                cfg: params.config,
+   276	                accountId: params.agentAccountId ?? undefined,
+   277	              });
+   278	              const level = resolved.agentReactionGuidance;
+   279	              return level ? { level, channel: "Signal" } : undefined;
+   280	            }
+   281	            return undefined;
+   282	          })()
+   283	        : undefined;
+   284	    const { defaultAgentId, sessionAgentId } = resolveSessionAgentIds({
+   285	      sessionKey: params.sessionKey,
+   286	      config: params.config,
+   287	    });
+   288	    const sandboxInfo = buildEmbeddedSandboxInfo(sandbox, params.bashElevated);
+   289	    const reasoningTagHint = isReasoningTagProvider(params.provider);
+   290	    // Resolve channel-specific message actions for system prompt
+   291	    const channelActions = runtimeChannel
+   292	      ? listChannelSupportedActions({
+   293	          cfg: params.config,
+   294	          channel: runtimeChannel,
+   295	        })
+   296	      : undefined;
+   297	    const messageToolHints = runtimeChannel
+   298	      ? resolveChannelMessageToolHints({
+   299	          cfg: params.config,
+   300	          channel: runtimeChannel,
+   301	          accountId: params.agentAccountId,
+   302	        })
+   303	      : undefined;
+   304	
+   305	    const defaultModelRef = resolveDefaultModelForAgent({
+   306	      cfg: params.config ?? {},
+   307	      agentId: sessionAgentId,
+   308	    });
+   309	    const defaultModelLabel = `${defaultModelRef.provider}/${defaultModelRef.model}`;
+   310	    const { runtimeInfo, userTimezone, userTime, userTimeFormat } = buildSystemPromptParams({
+   311	      config: params.config,
+   312	      agentId: sessionAgentId,
+   313	      workspaceDir: effectiveWorkspace,
+   314	      cwd: process.cwd(),
+   315	      runtime: {
+   316	        host: machineName,
+   317	        os: `${os.type()} ${os.release()}`,
+   318	        arch: os.arch(),
+   319	        node: process.version,
+   320	        model: `${params.provider}/${params.modelId}`,
+   321	        defaultModel: defaultModelLabel,
+   322	        channel: runtimeChannel,
+   323	        capabilities: runtimeCapabilities,
+   324	        channelActions,
+   325	      },
+   326	    });
+   327	    const isDefaultAgent = sessionAgentId === defaultAgentId;
+   328	    const promptMode = isSubagentSessionKey(params.sessionKey) ? "minimal" : "full";
+   329	    const docsPath = await resolveMoltbotDocsPath({
+   330	      workspaceDir: effectiveWorkspace,
+   331	      argv1: process.argv[1],
+   332	      cwd: process.cwd(),
+   333	      moduleUrl: import.meta.url,
+   334	    });
+   335	    const ttsHint = params.config ? buildTtsSystemPromptHint(params.config) : undefined;
+   336	
+   337	    const appendPrompt = buildEmbeddedSystemPrompt({
+   338	      workspaceDir: effectiveWorkspace,
+   339	      defaultThinkLevel: params.thinkLevel,
+   340	      reasoningLevel: params.reasoningLevel ?? "off",
+   341	      extraSystemPrompt: params.extraSystemPrompt,
+   342	      ownerNumbers: params.ownerNumbers,
+   343	      reasoningTagHint,
+   344	      heartbeatPrompt: isDefaultAgent
+   345	        ? resolveHeartbeatPrompt(params.config?.agents?.defaults?.heartbeat?.prompt)
+   346	        : undefined,
+   347	      skillsPrompt,
+   348	      docsPath: docsPath ?? undefined,
+   349	      ttsHint,
+   350	      workspaceNotes,
+   351	      reactionGuidance,
+   352	      promptMode,
+   353	      runtimeInfo,
+   354	      messageToolHints,
+   355	      sandboxInfo,
+   356	      tools,
+   357	      modelAliasLines: buildModelAliasLines(params.config),
+   358	      userTimezone,
+   359	      userTime,
+   360	      userTimeFormat,
+   361	      contextFiles,
+   362	    });
+   363	    const systemPromptReport = buildSystemPromptReport({
+   364	      source: "run",
+   365	      generatedAt: Date.now(),
+   366	      sessionId: params.sessionId,
+   367	      sessionKey: params.sessionKey,
+   368	      provider: params.provider,
+   369	      model: params.modelId,
+   370	      workspaceDir: effectiveWorkspace,
+   371	      bootstrapMaxChars: resolveBootstrapMaxChars(params.config),
+   372	      sandbox: (() => {
+   373	        const runtime = resolveSandboxRuntimeStatus({
+   374	          cfg: params.config,
+   375	          sessionKey: params.sessionKey ?? params.sessionId,
+   376	        });
+   377	        return { mode: runtime.mode, sandboxed: runtime.sandboxed };
+   378	      })(),
+   379	      systemPrompt: appendPrompt,
+   380	      bootstrapFiles: hookAdjustedBootstrapFiles,
+   381	      injectedFiles: contextFiles,
+   382	      skillsPrompt,
+   383	      tools,
+   384	    });
+   385	    const systemPrompt = createSystemPromptOverride(appendPrompt);
+   386	
+   387	    const sessionLock = await acquireSessionWriteLock({
+   388	      sessionFile: params.sessionFile,
+   389	    });
+   390	
+   391	    let sessionManager: ReturnType<typeof guardSessionManager> | undefined;
+   392	    let session: Awaited<ReturnType<typeof createAgentSession>>["session"] | undefined;
+   393	    try {
+   394	      const hadSessionFile = await fs
+   395	        .stat(params.sessionFile)
+   396	        .then(() => true)
+   397	        .catch(() => false);
+   398	
+   399	      const transcriptPolicy = resolveTranscriptPolicy({
+   400	        modelApi: params.model?.api,
+   401	        provider: params.provider,
+   402	        modelId: params.modelId,
+   403	      });
+   404	
+   405	      await prewarmSessionFile(params.sessionFile);
+   406	      sessionManager = guardSessionManager(SessionManager.open(params.sessionFile), {
+   407	        agentId: sessionAgentId,
+   408	        sessionKey: params.sessionKey,
+   409	        allowSyntheticToolResults: transcriptPolicy.allowSyntheticToolResults,
+   410	      });
+   411	      trackSessionManagerAccess(params.sessionFile);
+   412	
+   413	      await prepareSessionManagerForRun({
+   414	        sessionManager,
+   415	        sessionFile: params.sessionFile,
+   416	        hadSessionFile,
+   417	        sessionId: params.sessionId,
+   418	        cwd: effectiveWorkspace,
+   419	      });
+   420	
+   421	      const settingsManager = SettingsManager.create(effectiveWorkspace, agentDir);
+   422	      ensurePiCompactionReserveTokens({
+   423	        settingsManager,
+   424	        minReserveTokens: resolveCompactionReserveTokensFloor(params.config),
+   425	      });
+   426	
+   427	      const additionalExtensionPaths = buildEmbeddedExtensionPaths({
+   428	        cfg: params.config,
+   429	        sessionManager,
+   430	        provider: params.provider,
+   431	        modelId: params.modelId,
+   432	        model: params.model,
+   433	      });
+   434	
+   435	      const { builtInTools, customTools } = splitSdkTools({
+   436	        tools,
+   437	        sandboxEnabled: !!sandbox?.enabled,
+   438	      });
+   439	
+   440	      // Add client tools (OpenResponses hosted tools) to customTools
+   441	      let clientToolCallDetected: { name: string; params: Record<string, unknown> } | null = null;
+   442	      const clientToolDefs = params.clientTools
+   443	        ? toClientToolDefinitions(params.clientTools, (toolName, toolParams) => {
+   444	            clientToolCallDetected = { name: toolName, params: toolParams };
+   445	          })
+   446	        : [];
+   447	
+   448	      const allCustomTools = [...customTools, ...clientToolDefs];
+   449	
+   450	      ({ session } = await createAgentSession({
+   451	        cwd: resolvedWorkspace,
+   452	        agentDir,
+   453	        authStorage: params.authStorage,
+   454	        modelRegistry: params.modelRegistry,
+   455	        model: params.model,
+   456	        thinkingLevel: mapThinkingLevel(params.thinkLevel),
+   457	        systemPrompt,
+   458	        tools: builtInTools,
+   459	        customTools: allCustomTools,
+   460	        sessionManager,
+   461	        settingsManager,
+   462	        skills: [],
+   463	        contextFiles: [],
+   464	        additionalExtensionPaths,
+   465	      }));
+   466	      if (!session) {
+   467	        throw new Error("Embedded agent session missing");
+   468	      }
+   469	      const activeSession = session;
+   470	      const cacheTrace = createCacheTrace({
+   471	        cfg: params.config,
+   472	        env: process.env,
+   473	        runId: params.runId,
+   474	        sessionId: activeSession.sessionId,
+   475	        sessionKey: params.sessionKey,
+   476	        provider: params.provider,
+   477	        modelId: params.modelId,
+   478	        modelApi: params.model.api,
+   479	        workspaceDir: params.workspaceDir,
+   480	      });
+   481	      const anthropicPayloadLogger = createAnthropicPayloadLogger({
+   482	        env: process.env,
+   483	        runId: params.runId,
+   484	        sessionId: activeSession.sessionId,
+   485	        sessionKey: params.sessionKey,
+   486	        provider: params.provider,
+   487	        modelId: params.modelId,
+   488	        modelApi: params.model.api,
+   489	        workspaceDir: params.workspaceDir,
+   490	      });
+   491	
+   492	      // Force a stable streamFn reference so vitest can reliably mock @mariozechner/pi-ai.
+   493	      activeSession.agent.streamFn = streamSimple;
+   494	
+   495	      applyExtraParamsToAgent(
+   496	        activeSession.agent,
+   497	        params.config,
+   498	        params.provider,
+   499	        params.modelId,
+   500	        params.streamParams,
+   501	      );
+   502	
+   503	      if (cacheTrace) {
+   504	        cacheTrace.recordStage("session:loaded", {
+   505	          messages: activeSession.messages,
+   506	          system: systemPrompt,
+   507	          note: "after session create",
+   508	        });
+   509	        activeSession.agent.streamFn = cacheTrace.wrapStreamFn(activeSession.agent.streamFn);
+   510	      }
+   511	      if (anthropicPayloadLogger) {
+   512	        activeSession.agent.streamFn = anthropicPayloadLogger.wrapStreamFn(
+   513	          activeSession.agent.streamFn,
+   514	        );
+   515	      }
+   516	
+   517	      try {
+   518	        const prior = await sanitizeSessionHistory({
+   519	          messages: activeSession.messages,
+   520	          modelApi: params.model.api,
+   521	          modelId: params.modelId,
+   522	          provider: params.provider,
+   523	          sessionManager,
+   524	          sessionId: params.sessionId,
+   525	          policy: transcriptPolicy,
+   526	        });
+   527	        cacheTrace?.recordStage("session:sanitized", { messages: prior });
+   528	        const validatedGemini = transcriptPolicy.validateGeminiTurns
+   529	          ? validateGeminiTurns(prior)
+   530	          : prior;
+   531	        const validated = transcriptPolicy.validateAnthropicTurns
+   532	          ? validateAnthropicTurns(validatedGemini)
+   533	          : validatedGemini;
+   534	        const limited = limitHistoryTurns(
+   535	          validated,
+   536	          getDmHistoryLimitFromSessionKey(params.sessionKey, params.config),
+   537	        );
+   538	        cacheTrace?.recordStage("session:limited", { messages: limited });
+   539	        if (limited.length > 0) {
+   540	          activeSession.agent.replaceMessages(limited);
+   541	        }
+   542	      } catch (err) {
+   543	        sessionManager.flushPendingToolResults?.();
+   544	        activeSession.dispose();
+   545	        throw err;
+   546	      }
+   547	
+   548	      let aborted = Boolean(params.abortSignal?.aborted);
+   549	      let timedOut = false;
+   550	      const getAbortReason = (signal: AbortSignal): unknown =>
+   551	        "reason" in signal ? (signal as { reason?: unknown }).reason : undefined;
+   552	      const makeTimeoutAbortReason = (): Error => {
+   553	        const err = new Error("request timed out");
+   554	        err.name = "TimeoutError";
+   555	        return err;
+   556	      };
+   557	      const makeAbortError = (signal: AbortSignal): Error => {
+   558	        const reason = getAbortReason(signal);
+   559	        const err = reason ? new Error("aborted", { cause: reason }) : new Error("aborted");
+   560	        err.name = "AbortError";
+   561	        return err;
+   562	      };
+   563	      const abortRun = (isTimeout = false, reason?: unknown) => {
+   564	        aborted = true;
+   565	        if (isTimeout) timedOut = true;
+   566	        if (isTimeout) {
+   567	          runAbortController.abort(reason ?? makeTimeoutAbortReason());
+   568	        } else {
+   569	          runAbortController.abort(reason);
+   570	        }
+   571	        void activeSession.abort();
+   572	      };
+   573	      const abortable = <T>(promise: Promise<T>): Promise<T> => {
+   574	        const signal = runAbortController.signal;
+   575	        if (signal.aborted) {
+   576	          return Promise.reject(makeAbortError(signal));
+   577	        }
+   578	        return new Promise<T>((resolve, reject) => {
+   579	          const onAbort = () => {
+   580	            signal.removeEventListener("abort", onAbort);
+   581	            reject(makeAbortError(signal));
+   582	          };
+   583	          signal.addEventListener("abort", onAbort, { once: true });
+   584	          promise.then(
+   585	            (value) => {
+   586	              signal.removeEventListener("abort", onAbort);
+   587	              resolve(value);
+   588	            },
+   589	            (err) => {
+   590	              signal.removeEventListener("abort", onAbort);
+   591	              reject(err);
+   592	            },
+   593	          );
+   594	        });
+   595	      };
+   596	
+   597	      const subscription = subscribeEmbeddedPiSession({
+   598	        session: activeSession,
+   599	        runId: params.runId,
+   600	        verboseLevel: params.verboseLevel,
+   601	        reasoningMode: params.reasoningLevel ?? "off",
+   602	        toolResultFormat: params.toolResultFormat,
+   603	        shouldEmitToolResult: params.shouldEmitToolResult,
+   604	        shouldEmitToolOutput: params.shouldEmitToolOutput,
+   605	        onToolResult: params.onToolResult,
+   606	        onReasoningStream: params.onReasoningStream,
+   607	        onBlockReply: params.onBlockReply,
+   608	        onBlockReplyFlush: params.onBlockReplyFlush,
+   609	        blockReplyBreak: params.blockReplyBreak,
+   610	        blockReplyChunking: params.blockReplyChunking,
+   611	        onPartialReply: params.onPartialReply,
+   612	        onAssistantMessageStart: params.onAssistantMessageStart,
+   613	        onAgentEvent: params.onAgentEvent,
+   614	        enforceFinalTag: params.enforceFinalTag,
+   615	      });
+   616	
+   617	      const {
+   618	        assistantTexts,
+   619	        toolMetas,
+   620	        unsubscribe,
+   621	        waitForCompactionRetry,
+   622	        getMessagingToolSentTexts,
+   623	        getMessagingToolSentTargets,
+   624	        didSendViaMessagingTool,
+   625	        getLastToolError,
+   626	      } = subscription;
+   627	
+   628	      const queueHandle: EmbeddedPiQueueHandle = {
+   629	        queueMessage: async (text: string) => {
+   630	          await activeSession.steer(text);
+   631	        },
+   632	        isStreaming: () => activeSession.isStreaming,
+   633	        isCompacting: () => subscription.isCompacting(),
+   634	        abort: abortRun,
+   635	      };
+   636	      setActiveEmbeddedRun(params.sessionId, queueHandle);
+   637	
+   638	      let abortWarnTimer: NodeJS.Timeout | undefined;
+   639	      const isProbeSession = params.sessionId?.startsWith("probe-") ?? false;
+   640	      const abortTimer = setTimeout(
+   641	        () => {
+   642	          if (!isProbeSession) {
+   643	            log.warn(
+   644	              `embedded run timeout: runId=${params.runId} sessionId=${params.sessionId} timeoutMs=${params.timeoutMs}`,
+   645	            );
+   646	          }
+   647	          abortRun(true);
+   648	          if (!abortWarnTimer) {
+   649	            abortWarnTimer = setTimeout(() => {
+   650	              if (!activeSession.isStreaming) return;
+   651	              if (!isProbeSession) {
+   652	                log.warn(
+   653	                  `embedded run abort still streaming: runId=${params.runId} sessionId=${params.sessionId}`,
+   654	                );
+   655	              }
+   656	            }, 10_000);
+   657	          }
+   658	        },
+   659	        Math.max(1, params.timeoutMs),
+   660	      );
+   661	
+   662	      let messagesSnapshot: AgentMessage[] = [];
+   663	      let sessionIdUsed = activeSession.sessionId;
+   664	      const onAbort = () => {
+   665	        const reason = params.abortSignal ? getAbortReason(params.abortSignal) : undefined;
+   666	        const timeout = reason ? isTimeoutError(reason) : false;
+   667	        abortRun(timeout, reason);
+   668	      };
+   669	      if (params.abortSignal) {
+   670	        if (params.abortSignal.aborted) {
+   671	          onAbort();
+   672	        } else {
+   673	          params.abortSignal.addEventListener("abort", onAbort, {
+   674	            once: true,
+   675	          });
+   676	        }
+   677	      }
+   678	
+   679	      // Get hook runner once for both before_agent_start and agent_end hooks
+   680	      const hookRunner = getGlobalHookRunner();
+   681	
+   682	      let promptError: unknown = null;
+   683	      try {
+   684	        const promptStartedAt = Date.now();
+   685	
+   686	        // Run before_agent_start hooks to allow plugins to inject context
+   687	        let effectivePrompt = params.prompt;
+   688	        if (hookRunner?.hasHooks("before_agent_start")) {
+   689	          try {
+   690	            const hookResult = await hookRunner.runBeforeAgentStart(
+   691	              {
+   692	                prompt: params.prompt,
+   693	                messages: activeSession.messages,
+   694	              },
+   695	              {
+   696	                agentId: params.sessionKey?.split(":")[0] ?? "main",
+   697	                sessionKey: params.sessionKey,
+   698	                workspaceDir: params.workspaceDir,
+   699	                messageProvider: params.messageProvider ?? undefined,
+   700	              },
+   701	            );
+   702	            if (hookResult?.prependContext) {
+   703	              effectivePrompt = `${hookResult.prependContext}\n\n${params.prompt}`;
+   704	              log.debug(
+   705	                `hooks: prepended context to prompt (${hookResult.prependContext.length} chars)`,
+   706	              );
+   707	            }
+   708	          } catch (hookErr) {
+   709	            log.warn(`before_agent_start hook failed: ${String(hookErr)}`);
+   710	          }
+   711	        }
+   712	
+   713	        log.debug(`embedded run prompt start: runId=${params.runId} sessionId=${params.sessionId}`);
+   714	        cacheTrace?.recordStage("prompt:before", {
+   715	          prompt: effectivePrompt,
+   716	          messages: activeSession.messages,
+   717	        });
+   718	
+   719	        // Repair orphaned trailing user messages so new prompts don't violate role ordering.
+   720	        const leafEntry = sessionManager.getLeafEntry();
+   721	        if (leafEntry?.type === "message" && leafEntry.message.role === "user") {
+   722	          if (leafEntry.parentId) {
+   723	            sessionManager.branch(leafEntry.parentId);
+   724	          } else {
+   725	            sessionManager.resetLeaf();
+   726	          }
+   727	          const sessionContext = sessionManager.buildSessionContext();
+   728	          activeSession.agent.replaceMessages(sessionContext.messages);
+   729	          log.warn(
+   730	            `Removed orphaned user message to prevent consecutive user turns. ` +
+   731	              `runId=${params.runId} sessionId=${params.sessionId}`,
+   732	          );
+   733	        }
+   734	
+   735	        try {
+   736	          // Detect and load images referenced in the prompt for vision-capable models.
+   737	          // This eliminates the need for an explicit "view" tool call by injecting
+   738	          // images directly into the prompt when the model supports it.
+   739	          // Also scans conversation history to enable follow-up questions about earlier images.
+   740	          const imageResult = await detectAndLoadPromptImages({
+   741	            prompt: effectivePrompt,
+   742	            workspaceDir: effectiveWorkspace,
+   743	            model: params.model,
+   744	            existingImages: params.images,
+   745	            historyMessages: activeSession.messages,
+   746	            maxBytes: MAX_IMAGE_BYTES,
+   747	            // Enforce sandbox path restrictions when sandbox is enabled
+   748	            sandboxRoot: sandbox?.enabled ? sandbox.workspaceDir : undefined,
+   749	          });
+   750	
+   751	          // Inject history images into their original message positions.
+   752	          // This ensures the model sees images in context (e.g., "compare to the first image").
+   753	          const didMutate = injectHistoryImagesIntoMessages(
+   754	            activeSession.messages,
+   755	            imageResult.historyImagesByIndex,
+   756	          );
+   757	          if (didMutate) {
+   758	            // Persist message mutations (e.g., injected history images) so we don't re-scan/reload.
+   759	            activeSession.agent.replaceMessages(activeSession.messages);
+   760	          }
+   761	
+   762	          cacheTrace?.recordStage("prompt:images", {
+   763	            prompt: effectivePrompt,
+   764	            messages: activeSession.messages,
+   765	            note: `images: prompt=${imageResult.images.length} history=${imageResult.historyImagesByIndex.size}`,
+   766	          });
+   767	
+   768	          const shouldTrackCacheTtl =
+   769	            params.config?.agents?.defaults?.contextPruning?.mode === "cache-ttl" &&
+   770	            isCacheTtlEligibleProvider(params.provider, params.modelId);
+   771	          if (shouldTrackCacheTtl) {
+   772	            appendCacheTtlTimestamp(sessionManager, {
+   773	              timestamp: Date.now(),
+   774	              provider: params.provider,
+   775	              modelId: params.modelId,
+   776	            });
+   777	          }
+   778	
+   779	          // Only pass images option if there are actually images to pass
+   780	          // This avoids potential issues with models that don't expect the images parameter
+   781	          if (imageResult.images.length > 0) {
+   782	            await abortable(activeSession.prompt(effectivePrompt, { images: imageResult.images }));
+   783	          } else {
+   784	            await abortable(activeSession.prompt(effectivePrompt));
+   785	          }
+   786	        } catch (err) {
+   787	          promptError = err;
+   788	        } finally {
+   789	          log.debug(
+   790	            `embedded run prompt end: runId=${params.runId} sessionId=${params.sessionId} durationMs=${Date.now() - promptStartedAt}`,
+   791	          );
+   792	        }
+   793	
+   794	        try {
+   795	          await waitForCompactionRetry();
+   796	        } catch (err) {
+   797	          if (isAbortError(err)) {
+   798	            if (!promptError) promptError = err;
+   799	          } else {
+   800	            throw err;
+   801	          }
+   802	        }
+   803	
+   804	        messagesSnapshot = activeSession.messages.slice();
+   805	        sessionIdUsed = activeSession.sessionId;
+   806	        cacheTrace?.recordStage("session:after", {
+   807	          messages: messagesSnapshot,
+   808	          note: promptError ? "prompt error" : undefined,
+   809	        });
+   810	        anthropicPayloadLogger?.recordUsage(messagesSnapshot, promptError);
+   811	
+   812	        // Run agent_end hooks to allow plugins to analyze the conversation
+   813	        // This is fire-and-forget, so we don't await
+   814	        if (hookRunner?.hasHooks("agent_end")) {
+   815	          hookRunner
+   816	            .runAgentEnd(
+   817	              {
+   818	                messages: messagesSnapshot,
+   819	                success: !aborted && !promptError,
+   820	                error: promptError ? describeUnknownError(promptError) : undefined,
+   821	                durationMs: Date.now() - promptStartedAt,
+   822	              },
+   823	              {
+   824	                agentId: params.sessionKey?.split(":")[0] ?? "main",
+   825	                sessionKey: params.sessionKey,
+   826	                workspaceDir: params.workspaceDir,
+   827	                messageProvider: params.messageProvider ?? undefined,
+   828	              },
+   829	            )
+   830	            .catch((err) => {
+   831	              log.warn(`agent_end hook failed: ${err}`);
+   832	            });
+   833	        }
+   834	      } finally {
+   835	        clearTimeout(abortTimer);
+   836	        if (abortWarnTimer) clearTimeout(abortWarnTimer);
+   837	        unsubscribe();
+   838	        clearActiveEmbeddedRun(params.sessionId, queueHandle);
+   839	        params.abortSignal?.removeEventListener?.("abort", onAbort);
+   840	      }
+   841	
+   842	      const lastAssistant = messagesSnapshot
+   843	        .slice()
+   844	        .reverse()
+   845	        .find((m) => (m as AgentMessage)?.role === "assistant") as AssistantMessage | undefined;
+   846	
+   847	      const toolMetasNormalized = toolMetas
+   848	        .filter(
+   849	          (entry): entry is { toolName: string; meta?: string } =>
+   850	            typeof entry.toolName === "string" && entry.toolName.trim().length > 0,
+   851	        )
+   852	        .map((entry) => ({ toolName: entry.toolName, meta: entry.meta }));
+   853	
+   854	      return {
+   855	        aborted,
+   856	        timedOut,
+   857	        promptError,
+   858	        sessionIdUsed,
+   859	        systemPromptReport,
+   860	        messagesSnapshot,
+   861	        assistantTexts,
+   862	        toolMetas: toolMetasNormalized,
+   863	        lastAssistant,
+   864	        lastToolError: getLastToolError?.(),
+   865	        didSendViaMessagingTool: didSendViaMessagingTool(),
+   866	        messagingToolSentTexts: getMessagingToolSentTexts(),
+   867	        messagingToolSentTargets: getMessagingToolSentTargets(),
+   868	        cloudCodeAssistFormatError: Boolean(
+   869	          lastAssistant?.errorMessage && isCloudCodeAssistFormatError(lastAssistant.errorMessage),
+   870	        ),
+   871	        // Client tool call detected (OpenResponses hosted tools)
+   872	        clientToolCall: clientToolCallDetected ?? undefined,
+   873	      };
+   874	    } finally {
+   875	      // Always tear down the session (and release the lock) before we leave this attempt.
+   876	      sessionManager?.flushPendingToolResults?.();
+   877	      session?.dispose();
+   878	      await sessionLock.release();
+   879	    }
+   880	  } finally {
+   881	    restoreSkillEnv?.();
+   882	    process.chdir(prevCwd);
+   883	  }
+   884	}

@@ -1,0 +1,58 @@
+package com.ai.hotspot.presentation.navigation
+
+import androidx.compose.runtime.Composable
+import androidx.navigation.NavHostController
+import androidx.navigation.compose.NavHost
+import androidx.navigation.compose.composable
+import androidx.navigation.compose.rememberNavController
+import com.ai.hotspot.domain.model.Hotspot
+import com.ai.hotspot.presentation.detail.DetailScreen
+import com.ai.hotspot.presentation.home.HomeScreen
+import com.ai.hotspot.presentation.settings.SettingsScreen
+
+sealed class Screen(val route: String) {
+    object Home : Screen("home")
+    object Detail : Screen("detail/{hotspotId}") {
+        fun createRoute(hotspotId: String) = "detail/$hotspotId"
+    }
+    object Settings : Screen("settings")
+}
+
+@Composable
+fun AppNavigation(
+    navController: NavHostController = rememberNavController()
+) {
+    NavHost(
+        navController = navController,
+        startDestination = Screen.Home.route
+    ) {
+        composable(Screen.Home.route) {
+            HomeScreen(
+                onItemClick = { hotspot ->
+                    navController.navigate(Screen.Detail.createRoute(hotspot.id))
+                },
+                onSettingsClick = {
+                    navController.navigate(Screen.Settings.route)
+                }
+            )
+        }
+
+        composable(Screen.Detail.route) { backStackEntry ->
+            val hotspotId = backStackEntry.arguments?.getString("hotspotId") ?: ""
+            DetailScreen(
+                hotspotId = hotspotId,
+                onBackClick = {
+                    navController.popBackStack()
+                }
+            )
+        }
+
+        composable(Screen.Settings.route) {
+            SettingsScreen(
+                onBackClick = {
+                    navController.popBackStack()
+                }
+            )
+        }
+    }
+}

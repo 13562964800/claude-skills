@@ -1,0 +1,2590 @@
+2026-02-13T14:50:41.031Z [DEBUG] [init] configureGlobalMTLS starting
+2026-02-13T14:50:41.032Z [DEBUG] [init] configureGlobalMTLS complete
+2026-02-13T14:50:41.032Z [DEBUG] [init] configureGlobalAgents starting
+2026-02-13T14:50:41.032Z [DEBUG] [init] configureGlobalAgents complete
+2026-02-13T14:50:41.076Z [DEBUG] Using bash path: "C:\Program Files\Git\bin\bash.exe"
+2026-02-13T14:50:41.106Z [DEBUG] [STARTUP] Loading MCP configs...
+2026-02-13T14:50:41.111Z [DEBUG] [ToolSearch:optimistic] mode=tst-auto, ENABLE_TOOL_SEARCH=undefined, result=true
+2026-02-13T14:50:41.112Z [DEBUG] [STARTUP] Running setup()...
+2026-02-13T14:50:41.112Z [DEBUG] Found 0 plugins (0 enabled, 0 disabled)
+2026-02-13T14:50:41.128Z [DEBUG] Loading skills from: managed=C:\ProgramData\ClaudeCode\.claude\skills, user=C:\Users\Administrator\.claude\skills, project=[]
+2026-02-13T14:50:41.129Z [DEBUG] Error log sink initialized
+2026-02-13T14:50:41.132Z [DEBUG] getPluginSkills: Processing 0 enabled plugins
+2026-02-13T14:50:41.132Z [DEBUG] Total plugin skills loaded: 0
+2026-02-13T14:50:41.132Z [DEBUG] Total plugin commands loaded: 0
+2026-02-13T14:50:41.132Z [DEBUG] [STARTUP] setup() completed in 20ms
+2026-02-13T14:50:41.132Z [DEBUG] [STARTUP] Loading commands and agents...
+2026-02-13T14:50:41.134Z [DEBUG] Registered 0 hooks from 0 plugins
+2026-02-13T14:50:41.135Z [DEBUG] Total plugin agents loaded: 0
+2026-02-13T14:50:41.135Z [DEBUG] Loaded 0 unique skills (0 unconditional, 0 conditional, managed: 0, user: 0, project: 0, additional: 0, legacy commands: 0)
+2026-02-13T14:50:41.140Z [DEBUG] Writing to temp file: C:\Users\Administrator\.claude.json.tmp.20692.1770994241140
+2026-02-13T14:50:41.140Z [DEBUG] Preserving file permissions: 100666
+2026-02-13T14:50:41.141Z [DEBUG] Temp file written successfully, size: 2755 bytes
+2026-02-13T14:50:41.141Z [DEBUG] Applied original permissions to temp file
+2026-02-13T14:50:41.141Z [DEBUG] Renaming C:\Users\Administrator\.claude.json.tmp.20692.1770994241140 to C:\Users\Administrator\.claude.json
+2026-02-13T14:50:41.141Z [DEBUG] File C:\Users\Administrator\.claude.json written atomically
+2026-02-13T14:50:41.141Z [DEBUG] getSkills returning: 0 skill dir commands, 0 plugin skills, 2 bundled skills
+2026-02-13T14:50:41.142Z [DEBUG] [STARTUP] Commands and agents loaded in 10ms
+2026-02-13T14:50:41.156Z [DEBUG] [STARTUP] Running showSetupScreens()...
+2026-02-13T14:50:41.175Z [DEBUG] [keybindings] KeybindingSetup initialized with 102 bindings, 0 warnings
+2026-02-13T14:50:41.233Z [DEBUG] [keybindings] Skipping file watcher - user customization disabled
+2026-02-13T14:50:41.236Z [DEBUG] [Claude in Chrome] Found edge profiles: Default
+2026-02-13T14:50:41.237Z [DEBUG] [Claude in Chrome] Extension not found in any browser
+2026-02-13T14:50:42.541Z [DEBUG] [Perfetto] initializePerfettoTracing called, env value: undefined
+2026-02-13T14:50:42.547Z [DEBUG] [STARTUP] showSetupScreens() completed in 1391ms
+2026-02-13T14:50:42.547Z [DEBUG] [LSP MANAGER] initializeLspServerManager() called
+2026-02-13T14:50:42.547Z [DEBUG] [LSP MANAGER] Created manager instance, state=pending
+2026-02-13T14:50:42.547Z [DEBUG] [LSP MANAGER] Starting async initialization (generation 1)
+2026-02-13T14:50:42.570Z [DEBUG] Total LSP servers loaded: 0
+2026-02-13T14:50:42.582Z [DEBUG] [LSP SERVER MANAGER] getAllLspServers returned 0 server(s)
+2026-02-13T14:50:42.582Z [DEBUG] LSP manager initialized with 0 servers
+2026-02-13T14:50:42.582Z [DEBUG] LSP server manager initialized successfully
+2026-02-13T14:50:42.583Z [DEBUG] LSP notification handlers registered successfully for all 0 server(s)
+2026-02-13T14:50:42.583Z [DEBUG] Git remote URL: null
+2026-02-13T14:50:42.583Z [DEBUG] No git remote URL found
+2026-02-13T14:50:42.583Z [DEBUG] Not in a GitHub repository, skipping path mapping update
+2026-02-13T14:50:44.284Z [DEBUG] [STARTUP] MCP configs loaded in 3177ms
+2026-02-13T14:50:44.301Z [DEBUG] MCP server "zai-mcp-server": Starting connection with timeout of 30000ms
+2026-02-13T14:50:44.344Z [DEBUG] MCP server "web-search-prime": Initializing HTTP transport to https://api.z.ai/api/mcp/web_search_prime/mcp
+2026-02-13T14:50:44.344Z [DEBUG] MCP server "web-search-prime": Node version: v25.5.0, Platform: win32
+2026-02-13T14:50:44.344Z [DEBUG] MCP server "web-search-prime": Environment: {"NODE_OPTIONS":"not set","UV_THREADPOOL_SIZE":"default","HTTP_PROXY":"not set","HTTPS_PROXY":"not set","NO_PROXY":"not set"}
+2026-02-13T14:50:44.345Z [DEBUG] MCP server "web-reader": Initializing HTTP transport to https://api.z.ai/api/mcp/web_reader/mcp
+2026-02-13T14:50:44.346Z [DEBUG] MCP server "web-reader": Node version: v25.5.0, Platform: win32
+2026-02-13T14:50:44.346Z [DEBUG] MCP server "web-reader": Environment: {"NODE_OPTIONS":"not set","UV_THREADPOOL_SIZE":"default","HTTP_PROXY":"not set","HTTPS_PROXY":"not set","NO_PROXY":"not set"}
+2026-02-13T14:50:44.346Z [DEBUG] MCP server "zread": Initializing HTTP transport to https://api.z.ai/api/mcp/zread/mcp
+2026-02-13T14:50:44.347Z [DEBUG] MCP server "zread": Node version: v25.5.0, Platform: win32
+2026-02-13T14:50:44.347Z [DEBUG] MCP server "zread": Environment: {"NODE_OPTIONS":"not set","UV_THREADPOOL_SIZE":"default","HTTP_PROXY":"not set","HTTPS_PROXY":"not set","NO_PROXY":"not set"}
+2026-02-13T14:50:44.353Z [DEBUG] [Reconnection] computeInitialTeamContext: No teammate context set (not a teammate)
+2026-02-13T14:50:44.357Z [DEBUG] Writing to temp file: C:\Users\Administrator\.claude.json.tmp.20692.1770994244357
+2026-02-13T14:50:44.357Z [DEBUG] Preserving file permissions: 100666
+2026-02-13T14:50:44.358Z [DEBUG] Temp file written successfully, size: 2755 bytes
+2026-02-13T14:50:44.358Z [DEBUG] Applied original permissions to temp file
+2026-02-13T14:50:44.358Z [DEBUG] Renaming C:\Users\Administrator\.claude.json.tmp.20692.1770994244357 to C:\Users\Administrator\.claude.json
+2026-02-13T14:50:44.358Z [DEBUG] File C:\Users\Administrator\.claude.json written atomically
+2026-02-13T14:50:44.367Z [DEBUG] Getting matching hook commands for SessionStart with query: startup
+2026-02-13T14:50:44.367Z [DEBUG] Found 0 hook matchers in settings
+2026-02-13T14:50:44.367Z [DEBUG] Matched 0 unique hooks for query "startup" (0 before deduplication)
+2026-02-13T14:50:44.370Z [DEBUG] Loaded 3 installed plugins from C:\Users\Administrator\.claude\plugins\installed_plugins.json
+2026-02-13T14:50:44.370Z [DEBUG] Initialized versioned plugins system with 3 plugins
+2026-02-13T14:50:44.423Z [DEBUG] MCP server "web-search-prime": Proxy options: default
+2026-02-13T14:50:44.424Z [DEBUG] MCP server "web-search-prime": HTTP transport options: {"url":"https://api.z.ai/api/mcp/web_search_prime/mcp","headers":{"User-Agent":"claude-code/2.1.41 (cli)","Authorization":"[REDACTED]"},"hasAuthProvider":true,"timeoutMs":60000}
+2026-02-13T14:50:44.425Z [DEBUG] MCP server "web-search-prime": HTTP transport created successfully
+2026-02-13T14:50:44.427Z [DEBUG] MCP server "web-search-prime": Client created, setting up request handler
+2026-02-13T14:50:44.427Z [DEBUG] MCP server "web-search-prime": Starting connection with timeout of 30000ms
+2026-02-13T14:50:44.427Z [DEBUG] MCP server "web-search-prime": Testing basic HTTP connectivity to https://api.z.ai/api/mcp/web_search_prime/mcp
+2026-02-13T14:50:44.427Z [DEBUG] MCP server "web-search-prime": Parsed URL: host=api.z.ai, port=default, protocol=https:
+2026-02-13T14:50:44.427Z [DEBUG] MCP server "web-reader": Proxy options: default
+2026-02-13T14:50:44.428Z [DEBUG] MCP server "web-reader": HTTP transport options: {"url":"https://api.z.ai/api/mcp/web_reader/mcp","headers":{"User-Agent":"claude-code/2.1.41 (cli)","Authorization":"[REDACTED]"},"hasAuthProvider":true,"timeoutMs":60000}
+2026-02-13T14:50:44.428Z [DEBUG] MCP server "web-reader": HTTP transport created successfully
+2026-02-13T14:50:44.429Z [DEBUG] MCP server "web-reader": Client created, setting up request handler
+2026-02-13T14:50:44.429Z [DEBUG] MCP server "web-reader": Starting connection with timeout of 30000ms
+2026-02-13T14:50:44.429Z [DEBUG] MCP server "web-reader": Testing basic HTTP connectivity to https://api.z.ai/api/mcp/web_reader/mcp
+2026-02-13T14:50:44.429Z [DEBUG] MCP server "web-reader": Parsed URL: host=api.z.ai, port=default, protocol=https:
+2026-02-13T14:50:44.430Z [DEBUG] MCP server "zread": Proxy options: default
+2026-02-13T14:50:44.430Z [DEBUG] MCP server "zread": HTTP transport options: {"url":"https://api.z.ai/api/mcp/zread/mcp","headers":{"User-Agent":"claude-code/2.1.41 (cli)","Authorization":"[REDACTED]"},"hasAuthProvider":true,"timeoutMs":60000}
+2026-02-13T14:50:44.430Z [DEBUG] MCP server "zread": HTTP transport created successfully
+2026-02-13T14:50:44.432Z [DEBUG] MCP server "zread": Client created, setting up request handler
+2026-02-13T14:50:44.432Z [DEBUG] MCP server "zread": Starting connection with timeout of 30000ms
+2026-02-13T14:50:44.432Z [DEBUG] MCP server "zread": Testing basic HTTP connectivity to https://api.z.ai/api/mcp/zread/mcp
+2026-02-13T14:50:44.432Z [DEBUG] MCP server "zread": Parsed URL: host=api.z.ai, port=default, protocol=https:
+2026-02-13T14:50:44.446Z [DEBUG] MCP server "web-search-prime": No token data found
+2026-02-13T14:50:44.446Z [DEBUG] MCP server "web-reader": No token data found
+2026-02-13T14:50:44.447Z [DEBUG] MCP server "zread": No token data found
+2026-02-13T14:50:44.480Z [DEBUG] [keybindings] KeybindingSetup initialized with 102 bindings, 0 warnings
+2026-02-13T14:50:44.558Z [DEBUG] [keybindings] Skipping file watcher - user customization disabled
+2026-02-13T14:50:44.558Z [DEBUG] [REPL:mount] REPL mounted, disabled=false
+2026-02-13T14:50:44.567Z [DEBUG] Official marketplace auto-install skipped: already_attempted
+2026-02-13T14:50:44.569Z [DEBUG] performStartupChecks called
+2026-02-13T14:50:44.574Z [DEBUG] Starting background plugin installations
+2026-02-13T14:50:44.575Z [DEBUG] performBackgroundPluginInstallations called
+2026-02-13T14:50:44.584Z [DEBUG] No CLAUDE.md/rules files found
+2026-02-13T14:50:44.635Z [DEBUG] Watching for changes in setting files C:\Users\Administrator\.claude\settings.json, C:\Users\Administrator\.claude\settings.local.json...
+2026-02-13T14:50:44.642Z [DEBUG] AutoUpdaterWrapper: Installation type: npm-global
+2026-02-13T14:50:44.664Z [DEBUG] [claudeai-mcp] Checking gate (cached)...
+2026-02-13T14:50:44.665Z [DEBUG] [claudeai-mcp] Gate returned: false
+2026-02-13T14:50:44.665Z [DEBUG] [claudeai-mcp] Disabled via gate
+2026-02-13T14:50:44.685Z [DEBUG] Setting installation status: 0 marketplaces, 0 installable plugins, 0 uninstallable plugins
+2026-02-13T14:50:44.685Z [DEBUG] Loaded plugins - Enabled: 0, Disabled: 0, Commands: 0, Agents: 0, Errors: 0
+2026-02-13T14:50:45.790Z [DEBUG] MCP server "zread": HTTP Connection failed after 1444ms: [
+  {
+    "code": "invalid_union",
+    "errors": [
+      [
+        {
+          "code": "invalid_value",
+          "values": [
+            "2.0"
+          ],
+          "path": [
+            "jsonrpc"
+          ],
+          "message": "Invalid input: expected \"2.0\""
+        },
+        {
+          "code": "invalid_union",
+          "errors": [
+            [
+              {
+                "expected": "string",
+                "code": "invalid_type",
+                "path": [],
+                "message": "Invalid input: expected string, received undefined"
+              }
+            ],
+            [
+              {
+                "expected": "number",
+                "code": "invalid_type",
+                "path": [],
+                "message": "Invalid input: expected number, received undefined"
+              }
+            ]
+          ],
+          "path": [
+            "id"
+          ],
+          "message": "Invalid input"
+        },
+        {
+          "expected": "string",
+          "code": "invalid_type",
+          "path": [
+            "method"
+          ],
+          "message": "Invalid input: expected string, received undefined"
+        },
+        {
+          "code": "unrecognized_keys",
+          "keys": [
+            "code",
+            "msg",
+            "success"
+          ],
+          "path": [],
+          "message": "Unrecognized keys: \"code\", \"msg\", \"success\""
+        }
+      ],
+      [
+        {
+          "code": "invalid_value",
+          "values": [
+            "2.0"
+          ],
+          "path": [
+            "jsonrpc"
+          ],
+          "message": "Invalid input: expected \"2.0\""
+        },
+        {
+          "expected": "string",
+          "code": "invalid_type",
+          "path": [
+            "method"
+          ],
+          "message": "Invalid input: expected string, received undefined"
+        },
+        {
+          "code": "unrecognized_keys",
+          "keys": [
+            "code",
+            "msg",
+            "success"
+          ],
+          "path": [],
+          "message": "Unrecognized keys: \"code\", \"msg\", \"success\""
+        }
+      ],
+      [
+        {
+          "code": "invalid_value",
+          "values": [
+            "2.0"
+          ],
+          "path": [
+            "jsonrpc"
+          ],
+          "message": "Invalid input: expected \"2.0\""
+        },
+        {
+          "code": "invalid_union",
+          "errors": [
+            [
+              {
+                "expected": "string",
+                "code": "invalid_type",
+                "path": [],
+                "message": "Invalid input: expected string, received undefined"
+              }
+            ],
+            [
+              {
+                "expected": "number",
+                "code": "invalid_type",
+                "path": [],
+                "message": "Invalid input: expected number, received undefined"
+              }
+            ]
+          ],
+          "path": [
+            "id"
+          ],
+          "message": "Invalid input"
+        },
+        {
+          "expected": "object",
+          "code": "invalid_type",
+          "path": [
+            "result"
+          ],
+          "message": "Invalid input: expected object, received undefined"
+        },
+        {
+          "code": "unrecognized_keys",
+          "keys": [
+            "code",
+            "msg",
+            "success"
+          ],
+          "path": [],
+          "message": "Unrecognized keys: \"code\", \"msg\", \"success\""
+        }
+      ],
+      [
+        {
+          "code": "invalid_value",
+          "values": [
+            "2.0"
+          ],
+          "path": [
+            "jsonrpc"
+          ],
+          "message": "Invalid input: expected \"2.0\""
+        },
+        {
+          "code": "invalid_union",
+          "errors": [
+            [
+              {
+                "expected": "string",
+                "code": "invalid_type",
+                "path": [],
+                "message": "Invalid input: expected string, received undefined"
+              }
+            ],
+            [
+              {
+                "expected": "number",
+                "code": "invalid_type",
+                "path": [],
+                "message": "Invalid input: expected number, received undefined"
+              }
+            ]
+          ],
+          "path": [
+            "id"
+          ],
+          "message": "Invalid input"
+        },
+        {
+          "expected": "object",
+          "code": "invalid_type",
+          "path": [
+            "error"
+          ],
+          "message": "Invalid input: expected object, received undefined"
+        },
+        {
+          "code": "unrecognized_keys",
+          "keys": [
+            "code",
+            "msg",
+            "success"
+          ],
+          "path": [],
+          "message": "Unrecognized keys: \"code\", \"msg\", \"success\""
+        }
+      ]
+    ],
+    "path": [],
+    "message": "Invalid input"
+  }
+] (code: none, errno: none)
+2026-02-13T14:50:45.791Z [ERROR] MCP server "zread" ZodError: [
+  {
+    "code": "invalid_union",
+    "errors": [
+      [
+        {
+          "code": "invalid_value",
+          "values": [
+            "2.0"
+          ],
+          "path": [
+            "jsonrpc"
+          ],
+          "message": "Invalid input: expected \"2.0\""
+        },
+        {
+          "code": "invalid_union",
+          "errors": [
+            [
+              {
+                "expected": "string",
+                "code": "invalid_type",
+                "path": [],
+                "message": "Invalid input: expected string, received undefined"
+              }
+            ],
+            [
+              {
+                "expected": "number",
+                "code": "invalid_type",
+                "path": [],
+                "message": "Invalid input: expected number, received undefined"
+              }
+            ]
+          ],
+          "path": [
+            "id"
+          ],
+          "message": "Invalid input"
+        },
+        {
+          "expected": "string",
+          "code": "invalid_type",
+          "path": [
+            "method"
+          ],
+          "message": "Invalid input: expected string, received undefined"
+        },
+        {
+          "code": "unrecognized_keys",
+          "keys": [
+            "code",
+            "msg",
+            "success"
+          ],
+          "path": [],
+          "message": "Unrecognized keys: \"code\", \"msg\", \"success\""
+        }
+      ],
+      [
+        {
+          "code": "invalid_value",
+          "values": [
+            "2.0"
+          ],
+          "path": [
+            "jsonrpc"
+          ],
+          "message": "Invalid input: expected \"2.0\""
+        },
+        {
+          "expected": "string",
+          "code": "invalid_type",
+          "path": [
+            "method"
+          ],
+          "message": "Invalid input: expected string, received undefined"
+        },
+        {
+          "code": "unrecognized_keys",
+          "keys": [
+            "code",
+            "msg",
+            "success"
+          ],
+          "path": [],
+          "message": "Unrecognized keys: \"code\", \"msg\", \"success\""
+        }
+      ],
+      [
+        {
+          "code": "invalid_value",
+          "values": [
+            "2.0"
+          ],
+          "path": [
+            "jsonrpc"
+          ],
+          "message": "Invalid input: expected \"2.0\""
+        },
+        {
+          "code": "invalid_union",
+          "errors": [
+            [
+              {
+                "expected": "string",
+                "code": "invalid_type",
+                "path": [],
+                "message": "Invalid input: expected string, received undefined"
+              }
+            ],
+            [
+              {
+                "expected": "number",
+                "code": "invalid_type",
+                "path": [],
+                "message": "Invalid input: expected number, received undefined"
+              }
+            ]
+          ],
+          "path": [
+            "id"
+          ],
+          "message": "Invalid input"
+        },
+        {
+          "expected": "object",
+          "code": "invalid_type",
+          "path": [
+            "result"
+          ],
+          "message": "Invalid input: expected object, received undefined"
+        },
+        {
+          "code": "unrecognized_keys",
+          "keys": [
+            "code",
+            "msg",
+            "success"
+          ],
+          "path": [],
+          "message": "Unrecognized keys: \"code\", \"msg\", \"success\""
+        }
+      ],
+      [
+        {
+          "code": "invalid_value",
+          "values": [
+            "2.0"
+          ],
+          "path": [
+            "jsonrpc"
+          ],
+          "message": "Invalid input: expected \"2.0\""
+        },
+        {
+          "code": "invalid_union",
+          "errors": [
+            [
+              {
+                "expected": "string",
+                "code": "invalid_type",
+                "path": [],
+                "message": "Invalid input: expected string, received undefined"
+              }
+            ],
+            [
+              {
+                "expected": "number",
+                "code": "invalid_type",
+                "path": [],
+                "message": "Invalid input: expected number, received undefined"
+              }
+            ]
+          ],
+          "path": [
+            "id"
+          ],
+          "message": "Invalid input"
+        },
+        {
+          "expected": "object",
+          "code": "invalid_type",
+          "path": [
+            "error"
+          ],
+          "message": "Invalid input: expected object, received undefined"
+        },
+        {
+          "code": "unrecognized_keys",
+          "keys": [
+            "code",
+            "msg",
+            "success"
+          ],
+          "path": [],
+          "message": "Unrecognized keys: \"code\", \"msg\", \"success\""
+        }
+      ]
+    ],
+    "path": [],
+    "message": "Invalid input"
+  }
+]
+2026-02-13T14:50:45.811Z [DEBUG] MCP server "zread": Connection failed after 1465ms: [
+  {
+    "code": "invalid_union",
+    "errors": [
+      [
+        {
+          "code": "invalid_value",
+          "values": [
+            "2.0"
+          ],
+          "path": [
+            "jsonrpc"
+          ],
+          "message": "Invalid input: expected \"2.0\""
+        },
+        {
+          "code": "invalid_union",
+          "errors": [
+            [
+              {
+                "expected": "string",
+                "code": "invalid_type",
+                "path": [],
+                "message": "Invalid input: expected string, received undefined"
+              }
+            ],
+            [
+              {
+                "expected": "number",
+                "code": "invalid_type",
+                "path": [],
+                "message": "Invalid input: expected number, received undefined"
+              }
+            ]
+          ],
+          "path": [
+            "id"
+          ],
+          "message": "Invalid input"
+        },
+        {
+          "expected": "string",
+          "code": "invalid_type",
+          "path": [
+            "method"
+          ],
+          "message": "Invalid input: expected string, received undefined"
+        },
+        {
+          "code": "unrecognized_keys",
+          "keys": [
+            "code",
+            "msg",
+            "success"
+          ],
+          "path": [],
+          "message": "Unrecognized keys: \"code\", \"msg\", \"success\""
+        }
+      ],
+      [
+        {
+          "code": "invalid_value",
+          "values": [
+            "2.0"
+          ],
+          "path": [
+            "jsonrpc"
+          ],
+          "message": "Invalid input: expected \"2.0\""
+        },
+        {
+          "expected": "string",
+          "code": "invalid_type",
+          "path": [
+            "method"
+          ],
+          "message": "Invalid input: expected string, received undefined"
+        },
+        {
+          "code": "unrecognized_keys",
+          "keys": [
+            "code",
+            "msg",
+            "success"
+          ],
+          "path": [],
+          "message": "Unrecognized keys: \"code\", \"msg\", \"success\""
+        }
+      ],
+      [
+        {
+          "code": "invalid_value",
+          "values": [
+            "2.0"
+          ],
+          "path": [
+            "jsonrpc"
+          ],
+          "message": "Invalid input: expected \"2.0\""
+        },
+        {
+          "code": "invalid_union",
+          "errors": [
+            [
+              {
+                "expected": "string",
+                "code": "invalid_type",
+                "path": [],
+                "message": "Invalid input: expected string, received undefined"
+              }
+            ],
+            [
+              {
+                "expected": "number",
+                "code": "invalid_type",
+                "path": [],
+                "message": "Invalid input: expected number, received undefined"
+              }
+            ]
+          ],
+          "path": [
+            "id"
+          ],
+          "message": "Invalid input"
+        },
+        {
+          "expected": "object",
+          "code": "invalid_type",
+          "path": [
+            "result"
+          ],
+          "message": "Invalid input: expected object, received undefined"
+        },
+        {
+          "code": "unrecognized_keys",
+          "keys": [
+            "code",
+            "msg",
+            "success"
+          ],
+          "path": [],
+          "message": "Unrecognized keys: \"code\", \"msg\", \"success\""
+        }
+      ],
+      [
+        {
+          "code": "invalid_value",
+          "values": [
+            "2.0"
+          ],
+          "path": [
+            "jsonrpc"
+          ],
+          "message": "Invalid input: expected \"2.0\""
+        },
+        {
+          "code": "invalid_union",
+          "errors": [
+            [
+              {
+                "expected": "string",
+                "code": "invalid_type",
+                "path": [],
+                "message": "Invalid input: expected string, received undefined"
+              }
+            ],
+            [
+              {
+                "expected": "number",
+                "code": "invalid_type",
+                "path": [],
+                "message": "Invalid input: expected number, received undefined"
+              }
+            ]
+          ],
+          "path": [
+            "id"
+          ],
+          "message": "Invalid input"
+        },
+        {
+          "expected": "object",
+          "code": "invalid_type",
+          "path": [
+            "error"
+          ],
+          "message": "Invalid input: expected object, received undefined"
+        },
+        {
+          "code": "unrecognized_keys",
+          "keys": [
+            "code",
+            "msg",
+            "success"
+          ],
+          "path": [],
+          "message": "Unrecognized keys: \"code\", \"msg\", \"success\""
+        }
+      ]
+    ],
+    "path": [],
+    "message": "Invalid input"
+  }
+]
+2026-02-13T14:50:45.811Z [ERROR] MCP server "zread" Connection failed: [
+  {
+    "code": "invalid_union",
+    "errors": [
+      [
+        {
+          "code": "invalid_value",
+          "values": [
+            "2.0"
+          ],
+          "path": [
+            "jsonrpc"
+          ],
+          "message": "Invalid input: expected \"2.0\""
+        },
+        {
+          "code": "invalid_union",
+          "errors": [
+            [
+              {
+                "expected": "string",
+                "code": "invalid_type",
+                "path": [],
+                "message": "Invalid input: expected string, received undefined"
+              }
+            ],
+            [
+              {
+                "expected": "number",
+                "code": "invalid_type",
+                "path": [],
+                "message": "Invalid input: expected number, received undefined"
+              }
+            ]
+          ],
+          "path": [
+            "id"
+          ],
+          "message": "Invalid input"
+        },
+        {
+          "expected": "string",
+          "code": "invalid_type",
+          "path": [
+            "method"
+          ],
+          "message": "Invalid input: expected string, received undefined"
+        },
+        {
+          "code": "unrecognized_keys",
+          "keys": [
+            "code",
+            "msg",
+            "success"
+          ],
+          "path": [],
+          "message": "Unrecognized keys: \"code\", \"msg\", \"success\""
+        }
+      ],
+      [
+        {
+          "code": "invalid_value",
+          "values": [
+            "2.0"
+          ],
+          "path": [
+            "jsonrpc"
+          ],
+          "message": "Invalid input: expected \"2.0\""
+        },
+        {
+          "expected": "string",
+          "code": "invalid_type",
+          "path": [
+            "method"
+          ],
+          "message": "Invalid input: expected string, received undefined"
+        },
+        {
+          "code": "unrecognized_keys",
+          "keys": [
+            "code",
+            "msg",
+            "success"
+          ],
+          "path": [],
+          "message": "Unrecognized keys: \"code\", \"msg\", \"success\""
+        }
+      ],
+      [
+        {
+          "code": "invalid_value",
+          "values": [
+            "2.0"
+          ],
+          "path": [
+            "jsonrpc"
+          ],
+          "message": "Invalid input: expected \"2.0\""
+        },
+        {
+          "code": "invalid_union",
+          "errors": [
+            [
+              {
+                "expected": "string",
+                "code": "invalid_type",
+                "path": [],
+                "message": "Invalid input: expected string, received undefined"
+              }
+            ],
+            [
+              {
+                "expected": "number",
+                "code": "invalid_type",
+                "path": [],
+                "message": "Invalid input: expected number, received undefined"
+              }
+            ]
+          ],
+          "path": [
+            "id"
+          ],
+          "message": "Invalid input"
+        },
+        {
+          "expected": "object",
+          "code": "invalid_type",
+          "path": [
+            "result"
+          ],
+          "message": "Invalid input: expected object, received undefined"
+        },
+        {
+          "code": "unrecognized_keys",
+          "keys": [
+            "code",
+            "msg",
+            "success"
+          ],
+          "path": [],
+          "message": "Unrecognized keys: \"code\", \"msg\", \"success\""
+        }
+      ],
+      [
+        {
+          "code": "invalid_value",
+          "values": [
+            "2.0"
+          ],
+          "path": [
+            "jsonrpc"
+          ],
+          "message": "Invalid input: expected \"2.0\""
+        },
+        {
+          "code": "invalid_union",
+          "errors": [
+            [
+              {
+                "expected": "string",
+                "code": "invalid_type",
+                "path": [],
+                "message": "Invalid input: expected string, received undefined"
+              }
+            ],
+            [
+              {
+                "expected": "number",
+                "code": "invalid_type",
+                "path": [],
+                "message": "Invalid input: expected number, received undefined"
+              }
+            ]
+          ],
+          "path": [
+            "id"
+          ],
+          "message": "Invalid input"
+        },
+        {
+          "expected": "object",
+          "code": "invalid_type",
+          "path": [
+            "error"
+          ],
+          "message": "Invalid input: expected object, received undefined"
+        },
+        {
+          "code": "unrecognized_keys",
+          "keys": [
+            "code",
+            "msg",
+            "success"
+          ],
+          "path": [],
+          "message": "Unrecognized keys: \"code\", \"msg\", \"success\""
+        }
+      ]
+    ],
+    "path": [],
+    "message": "Invalid input"
+  }
+]
+2026-02-13T14:50:45.999Z [DEBUG] MCP server "web-search-prime": HTTP Connection failed after 1655ms: [
+  {
+    "code": "invalid_union",
+    "errors": [
+      [
+        {
+          "code": "invalid_value",
+          "values": [
+            "2.0"
+          ],
+          "path": [
+            "jsonrpc"
+          ],
+          "message": "Invalid input: expected \"2.0\""
+        },
+        {
+          "code": "invalid_union",
+          "errors": [
+            [
+              {
+                "expected": "string",
+                "code": "invalid_type",
+                "path": [],
+                "message": "Invalid input: expected string, received undefined"
+              }
+            ],
+            [
+              {
+                "expected": "number",
+                "code": "invalid_type",
+                "path": [],
+                "message": "Invalid input: expected number, received undefined"
+              }
+            ]
+          ],
+          "path": [
+            "id"
+          ],
+          "message": "Invalid input"
+        },
+        {
+          "expected": "string",
+          "code": "invalid_type",
+          "path": [
+            "method"
+          ],
+          "message": "Invalid input: expected string, received undefined"
+        },
+        {
+          "code": "unrecognized_keys",
+          "keys": [
+            "code",
+            "msg",
+            "success"
+          ],
+          "path": [],
+          "message": "Unrecognized keys: \"code\", \"msg\", \"success\""
+        }
+      ],
+      [
+        {
+          "code": "invalid_value",
+          "values": [
+            "2.0"
+          ],
+          "path": [
+            "jsonrpc"
+          ],
+          "message": "Invalid input: expected \"2.0\""
+        },
+        {
+          "expected": "string",
+          "code": "invalid_type",
+          "path": [
+            "method"
+          ],
+          "message": "Invalid input: expected string, received undefined"
+        },
+        {
+          "code": "unrecognized_keys",
+          "keys": [
+            "code",
+            "msg",
+            "success"
+          ],
+          "path": [],
+          "message": "Unrecognized keys: \"code\", \"msg\", \"success\""
+        }
+      ],
+      [
+        {
+          "code": "invalid_value",
+          "values": [
+            "2.0"
+          ],
+          "path": [
+            "jsonrpc"
+          ],
+          "message": "Invalid input: expected \"2.0\""
+        },
+        {
+          "code": "invalid_union",
+          "errors": [
+            [
+              {
+                "expected": "string",
+                "code": "invalid_type",
+                "path": [],
+                "message": "Invalid input: expected string, received undefined"
+              }
+            ],
+            [
+              {
+                "expected": "number",
+                "code": "invalid_type",
+                "path": [],
+                "message": "Invalid input: expected number, received undefined"
+              }
+            ]
+          ],
+          "path": [
+            "id"
+          ],
+          "message": "Invalid input"
+        },
+        {
+          "expected": "object",
+          "code": "invalid_type",
+          "path": [
+            "result"
+          ],
+          "message": "Invalid input: expected object, received undefined"
+        },
+        {
+          "code": "unrecognized_keys",
+          "keys": [
+            "code",
+            "msg",
+            "success"
+          ],
+          "path": [],
+          "message": "Unrecognized keys: \"code\", \"msg\", \"success\""
+        }
+      ],
+      [
+        {
+          "code": "invalid_value",
+          "values": [
+            "2.0"
+          ],
+          "path": [
+            "jsonrpc"
+          ],
+          "message": "Invalid input: expected \"2.0\""
+        },
+        {
+          "code": "invalid_union",
+          "errors": [
+            [
+              {
+                "expected": "string",
+                "code": "invalid_type",
+                "path": [],
+                "message": "Invalid input: expected string, received undefined"
+              }
+            ],
+            [
+              {
+                "expected": "number",
+                "code": "invalid_type",
+                "path": [],
+                "message": "Invalid input: expected number, received undefined"
+              }
+            ]
+          ],
+          "path": [
+            "id"
+          ],
+          "message": "Invalid input"
+        },
+        {
+          "expected": "object",
+          "code": "invalid_type",
+          "path": [
+            "error"
+          ],
+          "message": "Invalid input: expected object, received undefined"
+        },
+        {
+          "code": "unrecognized_keys",
+          "keys": [
+            "code",
+            "msg",
+            "success"
+          ],
+          "path": [],
+          "message": "Unrecognized keys: \"code\", \"msg\", \"success\""
+        }
+      ]
+    ],
+    "path": [],
+    "message": "Invalid input"
+  }
+] (code: none, errno: none)
+2026-02-13T14:50:45.999Z [ERROR] MCP server "web-search-prime" ZodError: [
+  {
+    "code": "invalid_union",
+    "errors": [
+      [
+        {
+          "code": "invalid_value",
+          "values": [
+            "2.0"
+          ],
+          "path": [
+            "jsonrpc"
+          ],
+          "message": "Invalid input: expected \"2.0\""
+        },
+        {
+          "code": "invalid_union",
+          "errors": [
+            [
+              {
+                "expected": "string",
+                "code": "invalid_type",
+                "path": [],
+                "message": "Invalid input: expected string, received undefined"
+              }
+            ],
+            [
+              {
+                "expected": "number",
+                "code": "invalid_type",
+                "path": [],
+                "message": "Invalid input: expected number, received undefined"
+              }
+            ]
+          ],
+          "path": [
+            "id"
+          ],
+          "message": "Invalid input"
+        },
+        {
+          "expected": "string",
+          "code": "invalid_type",
+          "path": [
+            "method"
+          ],
+          "message": "Invalid input: expected string, received undefined"
+        },
+        {
+          "code": "unrecognized_keys",
+          "keys": [
+            "code",
+            "msg",
+            "success"
+          ],
+          "path": [],
+          "message": "Unrecognized keys: \"code\", \"msg\", \"success\""
+        }
+      ],
+      [
+        {
+          "code": "invalid_value",
+          "values": [
+            "2.0"
+          ],
+          "path": [
+            "jsonrpc"
+          ],
+          "message": "Invalid input: expected \"2.0\""
+        },
+        {
+          "expected": "string",
+          "code": "invalid_type",
+          "path": [
+            "method"
+          ],
+          "message": "Invalid input: expected string, received undefined"
+        },
+        {
+          "code": "unrecognized_keys",
+          "keys": [
+            "code",
+            "msg",
+            "success"
+          ],
+          "path": [],
+          "message": "Unrecognized keys: \"code\", \"msg\", \"success\""
+        }
+      ],
+      [
+        {
+          "code": "invalid_value",
+          "values": [
+            "2.0"
+          ],
+          "path": [
+            "jsonrpc"
+          ],
+          "message": "Invalid input: expected \"2.0\""
+        },
+        {
+          "code": "invalid_union",
+          "errors": [
+            [
+              {
+                "expected": "string",
+                "code": "invalid_type",
+                "path": [],
+                "message": "Invalid input: expected string, received undefined"
+              }
+            ],
+            [
+              {
+                "expected": "number",
+                "code": "invalid_type",
+                "path": [],
+                "message": "Invalid input: expected number, received undefined"
+              }
+            ]
+          ],
+          "path": [
+            "id"
+          ],
+          "message": "Invalid input"
+        },
+        {
+          "expected": "object",
+          "code": "invalid_type",
+          "path": [
+            "result"
+          ],
+          "message": "Invalid input: expected object, received undefined"
+        },
+        {
+          "code": "unrecognized_keys",
+          "keys": [
+            "code",
+            "msg",
+            "success"
+          ],
+          "path": [],
+          "message": "Unrecognized keys: \"code\", \"msg\", \"success\""
+        }
+      ],
+      [
+        {
+          "code": "invalid_value",
+          "values": [
+            "2.0"
+          ],
+          "path": [
+            "jsonrpc"
+          ],
+          "message": "Invalid input: expected \"2.0\""
+        },
+        {
+          "code": "invalid_union",
+          "errors": [
+            [
+              {
+                "expected": "string",
+                "code": "invalid_type",
+                "path": [],
+                "message": "Invalid input: expected string, received undefined"
+              }
+            ],
+            [
+              {
+                "expected": "number",
+                "code": "invalid_type",
+                "path": [],
+                "message": "Invalid input: expected number, received undefined"
+              }
+            ]
+          ],
+          "path": [
+            "id"
+          ],
+          "message": "Invalid input"
+        },
+        {
+          "expected": "object",
+          "code": "invalid_type",
+          "path": [
+            "error"
+          ],
+          "message": "Invalid input: expected object, received undefined"
+        },
+        {
+          "code": "unrecognized_keys",
+          "keys": [
+            "code",
+            "msg",
+            "success"
+          ],
+          "path": [],
+          "message": "Unrecognized keys: \"code\", \"msg\", \"success\""
+        }
+      ]
+    ],
+    "path": [],
+    "message": "Invalid input"
+  }
+]
+2026-02-13T14:50:46.000Z [DEBUG] MCP server "web-search-prime": Connection failed after 1656ms: [
+  {
+    "code": "invalid_union",
+    "errors": [
+      [
+        {
+          "code": "invalid_value",
+          "values": [
+            "2.0"
+          ],
+          "path": [
+            "jsonrpc"
+          ],
+          "message": "Invalid input: expected \"2.0\""
+        },
+        {
+          "code": "invalid_union",
+          "errors": [
+            [
+              {
+                "expected": "string",
+                "code": "invalid_type",
+                "path": [],
+                "message": "Invalid input: expected string, received undefined"
+              }
+            ],
+            [
+              {
+                "expected": "number",
+                "code": "invalid_type",
+                "path": [],
+                "message": "Invalid input: expected number, received undefined"
+              }
+            ]
+          ],
+          "path": [
+            "id"
+          ],
+          "message": "Invalid input"
+        },
+        {
+          "expected": "string",
+          "code": "invalid_type",
+          "path": [
+            "method"
+          ],
+          "message": "Invalid input: expected string, received undefined"
+        },
+        {
+          "code": "unrecognized_keys",
+          "keys": [
+            "code",
+            "msg",
+            "success"
+          ],
+          "path": [],
+          "message": "Unrecognized keys: \"code\", \"msg\", \"success\""
+        }
+      ],
+      [
+        {
+          "code": "invalid_value",
+          "values": [
+            "2.0"
+          ],
+          "path": [
+            "jsonrpc"
+          ],
+          "message": "Invalid input: expected \"2.0\""
+        },
+        {
+          "expected": "string",
+          "code": "invalid_type",
+          "path": [
+            "method"
+          ],
+          "message": "Invalid input: expected string, received undefined"
+        },
+        {
+          "code": "unrecognized_keys",
+          "keys": [
+            "code",
+            "msg",
+            "success"
+          ],
+          "path": [],
+          "message": "Unrecognized keys: \"code\", \"msg\", \"success\""
+        }
+      ],
+      [
+        {
+          "code": "invalid_value",
+          "values": [
+            "2.0"
+          ],
+          "path": [
+            "jsonrpc"
+          ],
+          "message": "Invalid input: expected \"2.0\""
+        },
+        {
+          "code": "invalid_union",
+          "errors": [
+            [
+              {
+                "expected": "string",
+                "code": "invalid_type",
+                "path": [],
+                "message": "Invalid input: expected string, received undefined"
+              }
+            ],
+            [
+              {
+                "expected": "number",
+                "code": "invalid_type",
+                "path": [],
+                "message": "Invalid input: expected number, received undefined"
+              }
+            ]
+          ],
+          "path": [
+            "id"
+          ],
+          "message": "Invalid input"
+        },
+        {
+          "expected": "object",
+          "code": "invalid_type",
+          "path": [
+            "result"
+          ],
+          "message": "Invalid input: expected object, received undefined"
+        },
+        {
+          "code": "unrecognized_keys",
+          "keys": [
+            "code",
+            "msg",
+            "success"
+          ],
+          "path": [],
+          "message": "Unrecognized keys: \"code\", \"msg\", \"success\""
+        }
+      ],
+      [
+        {
+          "code": "invalid_value",
+          "values": [
+            "2.0"
+          ],
+          "path": [
+            "jsonrpc"
+          ],
+          "message": "Invalid input: expected \"2.0\""
+        },
+        {
+          "code": "invalid_union",
+          "errors": [
+            [
+              {
+                "expected": "string",
+                "code": "invalid_type",
+                "path": [],
+                "message": "Invalid input: expected string, received undefined"
+              }
+            ],
+            [
+              {
+                "expected": "number",
+                "code": "invalid_type",
+                "path": [],
+                "message": "Invalid input: expected number, received undefined"
+              }
+            ]
+          ],
+          "path": [
+            "id"
+          ],
+          "message": "Invalid input"
+        },
+        {
+          "expected": "object",
+          "code": "invalid_type",
+          "path": [
+            "error"
+          ],
+          "message": "Invalid input: expected object, received undefined"
+        },
+        {
+          "code": "unrecognized_keys",
+          "keys": [
+            "code",
+            "msg",
+            "success"
+          ],
+          "path": [],
+          "message": "Unrecognized keys: \"code\", \"msg\", \"success\""
+        }
+      ]
+    ],
+    "path": [],
+    "message": "Invalid input"
+  }
+]
+2026-02-13T14:50:46.000Z [ERROR] MCP server "web-search-prime" Connection failed: [
+  {
+    "code": "invalid_union",
+    "errors": [
+      [
+        {
+          "code": "invalid_value",
+          "values": [
+            "2.0"
+          ],
+          "path": [
+            "jsonrpc"
+          ],
+          "message": "Invalid input: expected \"2.0\""
+        },
+        {
+          "code": "invalid_union",
+          "errors": [
+            [
+              {
+                "expected": "string",
+                "code": "invalid_type",
+                "path": [],
+                "message": "Invalid input: expected string, received undefined"
+              }
+            ],
+            [
+              {
+                "expected": "number",
+                "code": "invalid_type",
+                "path": [],
+                "message": "Invalid input: expected number, received undefined"
+              }
+            ]
+          ],
+          "path": [
+            "id"
+          ],
+          "message": "Invalid input"
+        },
+        {
+          "expected": "string",
+          "code": "invalid_type",
+          "path": [
+            "method"
+          ],
+          "message": "Invalid input: expected string, received undefined"
+        },
+        {
+          "code": "unrecognized_keys",
+          "keys": [
+            "code",
+            "msg",
+            "success"
+          ],
+          "path": [],
+          "message": "Unrecognized keys: \"code\", \"msg\", \"success\""
+        }
+      ],
+      [
+        {
+          "code": "invalid_value",
+          "values": [
+            "2.0"
+          ],
+          "path": [
+            "jsonrpc"
+          ],
+          "message": "Invalid input: expected \"2.0\""
+        },
+        {
+          "expected": "string",
+          "code": "invalid_type",
+          "path": [
+            "method"
+          ],
+          "message": "Invalid input: expected string, received undefined"
+        },
+        {
+          "code": "unrecognized_keys",
+          "keys": [
+            "code",
+            "msg",
+            "success"
+          ],
+          "path": [],
+          "message": "Unrecognized keys: \"code\", \"msg\", \"success\""
+        }
+      ],
+      [
+        {
+          "code": "invalid_value",
+          "values": [
+            "2.0"
+          ],
+          "path": [
+            "jsonrpc"
+          ],
+          "message": "Invalid input: expected \"2.0\""
+        },
+        {
+          "code": "invalid_union",
+          "errors": [
+            [
+              {
+                "expected": "string",
+                "code": "invalid_type",
+                "path": [],
+                "message": "Invalid input: expected string, received undefined"
+              }
+            ],
+            [
+              {
+                "expected": "number",
+                "code": "invalid_type",
+                "path": [],
+                "message": "Invalid input: expected number, received undefined"
+              }
+            ]
+          ],
+          "path": [
+            "id"
+          ],
+          "message": "Invalid input"
+        },
+        {
+          "expected": "object",
+          "code": "invalid_type",
+          "path": [
+            "result"
+          ],
+          "message": "Invalid input: expected object, received undefined"
+        },
+        {
+          "code": "unrecognized_keys",
+          "keys": [
+            "code",
+            "msg",
+            "success"
+          ],
+          "path": [],
+          "message": "Unrecognized keys: \"code\", \"msg\", \"success\""
+        }
+      ],
+      [
+        {
+          "code": "invalid_value",
+          "values": [
+            "2.0"
+          ],
+          "path": [
+            "jsonrpc"
+          ],
+          "message": "Invalid input: expected \"2.0\""
+        },
+        {
+          "code": "invalid_union",
+          "errors": [
+            [
+              {
+                "expected": "string",
+                "code": "invalid_type",
+                "path": [],
+                "message": "Invalid input: expected string, received undefined"
+              }
+            ],
+            [
+              {
+                "expected": "number",
+                "code": "invalid_type",
+                "path": [],
+                "message": "Invalid input: expected number, received undefined"
+              }
+            ]
+          ],
+          "path": [
+            "id"
+          ],
+          "message": "Invalid input"
+        },
+        {
+          "expected": "object",
+          "code": "invalid_type",
+          "path": [
+            "error"
+          ],
+          "message": "Invalid input: expected object, received undefined"
+        },
+        {
+          "code": "unrecognized_keys",
+          "keys": [
+            "code",
+            "msg",
+            "success"
+          ],
+          "path": [],
+          "message": "Unrecognized keys: \"code\", \"msg\", \"success\""
+        }
+      ]
+    ],
+    "path": [],
+    "message": "Invalid input"
+  }
+]
+2026-02-13T14:50:48.717Z [DEBUG] MCP server "web-reader": HTTP Connection failed after 4372ms: [
+  {
+    "code": "invalid_union",
+    "errors": [
+      [
+        {
+          "code": "invalid_value",
+          "values": [
+            "2.0"
+          ],
+          "path": [
+            "jsonrpc"
+          ],
+          "message": "Invalid input: expected \"2.0\""
+        },
+        {
+          "code": "invalid_union",
+          "errors": [
+            [
+              {
+                "expected": "string",
+                "code": "invalid_type",
+                "path": [],
+                "message": "Invalid input: expected string, received undefined"
+              }
+            ],
+            [
+              {
+                "expected": "number",
+                "code": "invalid_type",
+                "path": [],
+                "message": "Invalid input: expected number, received undefined"
+              }
+            ]
+          ],
+          "path": [
+            "id"
+          ],
+          "message": "Invalid input"
+        },
+        {
+          "expected": "string",
+          "code": "invalid_type",
+          "path": [
+            "method"
+          ],
+          "message": "Invalid input: expected string, received undefined"
+        },
+        {
+          "code": "unrecognized_keys",
+          "keys": [
+            "code",
+            "msg",
+            "success"
+          ],
+          "path": [],
+          "message": "Unrecognized keys: \"code\", \"msg\", \"success\""
+        }
+      ],
+      [
+        {
+          "code": "invalid_value",
+          "values": [
+            "2.0"
+          ],
+          "path": [
+            "jsonrpc"
+          ],
+          "message": "Invalid input: expected \"2.0\""
+        },
+        {
+          "expected": "string",
+          "code": "invalid_type",
+          "path": [
+            "method"
+          ],
+          "message": "Invalid input: expected string, received undefined"
+        },
+        {
+          "code": "unrecognized_keys",
+          "keys": [
+            "code",
+            "msg",
+            "success"
+          ],
+          "path": [],
+          "message": "Unrecognized keys: \"code\", \"msg\", \"success\""
+        }
+      ],
+      [
+        {
+          "code": "invalid_value",
+          "values": [
+            "2.0"
+          ],
+          "path": [
+            "jsonrpc"
+          ],
+          "message": "Invalid input: expected \"2.0\""
+        },
+        {
+          "code": "invalid_union",
+          "errors": [
+            [
+              {
+                "expected": "string",
+                "code": "invalid_type",
+                "path": [],
+                "message": "Invalid input: expected string, received undefined"
+              }
+            ],
+            [
+              {
+                "expected": "number",
+                "code": "invalid_type",
+                "path": [],
+                "message": "Invalid input: expected number, received undefined"
+              }
+            ]
+          ],
+          "path": [
+            "id"
+          ],
+          "message": "Invalid input"
+        },
+        {
+          "expected": "object",
+          "code": "invalid_type",
+          "path": [
+            "result"
+          ],
+          "message": "Invalid input: expected object, received undefined"
+        },
+        {
+          "code": "unrecognized_keys",
+          "keys": [
+            "code",
+            "msg",
+            "success"
+          ],
+          "path": [],
+          "message": "Unrecognized keys: \"code\", \"msg\", \"success\""
+        }
+      ],
+      [
+        {
+          "code": "invalid_value",
+          "values": [
+            "2.0"
+          ],
+          "path": [
+            "jsonrpc"
+          ],
+          "message": "Invalid input: expected \"2.0\""
+        },
+        {
+          "code": "invalid_union",
+          "errors": [
+            [
+              {
+                "expected": "string",
+                "code": "invalid_type",
+                "path": [],
+                "message": "Invalid input: expected string, received undefined"
+              }
+            ],
+            [
+              {
+                "expected": "number",
+                "code": "invalid_type",
+                "path": [],
+                "message": "Invalid input: expected number, received undefined"
+              }
+            ]
+          ],
+          "path": [
+            "id"
+          ],
+          "message": "Invalid input"
+        },
+        {
+          "expected": "object",
+          "code": "invalid_type",
+          "path": [
+            "error"
+          ],
+          "message": "Invalid input: expected object, received undefined"
+        },
+        {
+          "code": "unrecognized_keys",
+          "keys": [
+            "code",
+            "msg",
+            "success"
+          ],
+          "path": [],
+          "message": "Unrecognized keys: \"code\", \"msg\", \"success\""
+        }
+      ]
+    ],
+    "path": [],
+    "message": "Invalid input"
+  }
+] (code: none, errno: none)
+2026-02-13T14:50:48.717Z [ERROR] MCP server "web-reader" ZodError: [
+  {
+    "code": "invalid_union",
+    "errors": [
+      [
+        {
+          "code": "invalid_value",
+          "values": [
+            "2.0"
+          ],
+          "path": [
+            "jsonrpc"
+          ],
+          "message": "Invalid input: expected \"2.0\""
+        },
+        {
+          "code": "invalid_union",
+          "errors": [
+            [
+              {
+                "expected": "string",
+                "code": "invalid_type",
+                "path": [],
+                "message": "Invalid input: expected string, received undefined"
+              }
+            ],
+            [
+              {
+                "expected": "number",
+                "code": "invalid_type",
+                "path": [],
+                "message": "Invalid input: expected number, received undefined"
+              }
+            ]
+          ],
+          "path": [
+            "id"
+          ],
+          "message": "Invalid input"
+        },
+        {
+          "expected": "string",
+          "code": "invalid_type",
+          "path": [
+            "method"
+          ],
+          "message": "Invalid input: expected string, received undefined"
+        },
+        {
+          "code": "unrecognized_keys",
+          "keys": [
+            "code",
+            "msg",
+            "success"
+          ],
+          "path": [],
+          "message": "Unrecognized keys: \"code\", \"msg\", \"success\""
+        }
+      ],
+      [
+        {
+          "code": "invalid_value",
+          "values": [
+            "2.0"
+          ],
+          "path": [
+            "jsonrpc"
+          ],
+          "message": "Invalid input: expected \"2.0\""
+        },
+        {
+          "expected": "string",
+          "code": "invalid_type",
+          "path": [
+            "method"
+          ],
+          "message": "Invalid input: expected string, received undefined"
+        },
+        {
+          "code": "unrecognized_keys",
+          "keys": [
+            "code",
+            "msg",
+            "success"
+          ],
+          "path": [],
+          "message": "Unrecognized keys: \"code\", \"msg\", \"success\""
+        }
+      ],
+      [
+        {
+          "code": "invalid_value",
+          "values": [
+            "2.0"
+          ],
+          "path": [
+            "jsonrpc"
+          ],
+          "message": "Invalid input: expected \"2.0\""
+        },
+        {
+          "code": "invalid_union",
+          "errors": [
+            [
+              {
+                "expected": "string",
+                "code": "invalid_type",
+                "path": [],
+                "message": "Invalid input: expected string, received undefined"
+              }
+            ],
+            [
+              {
+                "expected": "number",
+                "code": "invalid_type",
+                "path": [],
+                "message": "Invalid input: expected number, received undefined"
+              }
+            ]
+          ],
+          "path": [
+            "id"
+          ],
+          "message": "Invalid input"
+        },
+        {
+          "expected": "object",
+          "code": "invalid_type",
+          "path": [
+            "result"
+          ],
+          "message": "Invalid input: expected object, received undefined"
+        },
+        {
+          "code": "unrecognized_keys",
+          "keys": [
+            "code",
+            "msg",
+            "success"
+          ],
+          "path": [],
+          "message": "Unrecognized keys: \"code\", \"msg\", \"success\""
+        }
+      ],
+      [
+        {
+          "code": "invalid_value",
+          "values": [
+            "2.0"
+          ],
+          "path": [
+            "jsonrpc"
+          ],
+          "message": "Invalid input: expected \"2.0\""
+        },
+        {
+          "code": "invalid_union",
+          "errors": [
+            [
+              {
+                "expected": "string",
+                "code": "invalid_type",
+                "path": [],
+                "message": "Invalid input: expected string, received undefined"
+              }
+            ],
+            [
+              {
+                "expected": "number",
+                "code": "invalid_type",
+                "path": [],
+                "message": "Invalid input: expected number, received undefined"
+              }
+            ]
+          ],
+          "path": [
+            "id"
+          ],
+          "message": "Invalid input"
+        },
+        {
+          "expected": "object",
+          "code": "invalid_type",
+          "path": [
+            "error"
+          ],
+          "message": "Invalid input: expected object, received undefined"
+        },
+        {
+          "code": "unrecognized_keys",
+          "keys": [
+            "code",
+            "msg",
+            "success"
+          ],
+          "path": [],
+          "message": "Unrecognized keys: \"code\", \"msg\", \"success\""
+        }
+      ]
+    ],
+    "path": [],
+    "message": "Invalid input"
+  }
+]
+2026-02-13T14:50:48.717Z [DEBUG] MCP server "web-reader": Connection failed after 4372ms: [
+  {
+    "code": "invalid_union",
+    "errors": [
+      [
+        {
+          "code": "invalid_value",
+          "values": [
+            "2.0"
+          ],
+          "path": [
+            "jsonrpc"
+          ],
+          "message": "Invalid input: expected \"2.0\""
+        },
+        {
+          "code": "invalid_union",
+          "errors": [
+            [
+              {
+                "expected": "string",
+                "code": "invalid_type",
+                "path": [],
+                "message": "Invalid input: expected string, received undefined"
+              }
+            ],
+            [
+              {
+                "expected": "number",
+                "code": "invalid_type",
+                "path": [],
+                "message": "Invalid input: expected number, received undefined"
+              }
+            ]
+          ],
+          "path": [
+            "id"
+          ],
+          "message": "Invalid input"
+        },
+        {
+          "expected": "string",
+          "code": "invalid_type",
+          "path": [
+            "method"
+          ],
+          "message": "Invalid input: expected string, received undefined"
+        },
+        {
+          "code": "unrecognized_keys",
+          "keys": [
+            "code",
+            "msg",
+            "success"
+          ],
+          "path": [],
+          "message": "Unrecognized keys: \"code\", \"msg\", \"success\""
+        }
+      ],
+      [
+        {
+          "code": "invalid_value",
+          "values": [
+            "2.0"
+          ],
+          "path": [
+            "jsonrpc"
+          ],
+          "message": "Invalid input: expected \"2.0\""
+        },
+        {
+          "expected": "string",
+          "code": "invalid_type",
+          "path": [
+            "method"
+          ],
+          "message": "Invalid input: expected string, received undefined"
+        },
+        {
+          "code": "unrecognized_keys",
+          "keys": [
+            "code",
+            "msg",
+            "success"
+          ],
+          "path": [],
+          "message": "Unrecognized keys: \"code\", \"msg\", \"success\""
+        }
+      ],
+      [
+        {
+          "code": "invalid_value",
+          "values": [
+            "2.0"
+          ],
+          "path": [
+            "jsonrpc"
+          ],
+          "message": "Invalid input: expected \"2.0\""
+        },
+        {
+          "code": "invalid_union",
+          "errors": [
+            [
+              {
+                "expected": "string",
+                "code": "invalid_type",
+                "path": [],
+                "message": "Invalid input: expected string, received undefined"
+              }
+            ],
+            [
+              {
+                "expected": "number",
+                "code": "invalid_type",
+                "path": [],
+                "message": "Invalid input: expected number, received undefined"
+              }
+            ]
+          ],
+          "path": [
+            "id"
+          ],
+          "message": "Invalid input"
+        },
+        {
+          "expected": "object",
+          "code": "invalid_type",
+          "path": [
+            "result"
+          ],
+          "message": "Invalid input: expected object, received undefined"
+        },
+        {
+          "code": "unrecognized_keys",
+          "keys": [
+            "code",
+            "msg",
+            "success"
+          ],
+          "path": [],
+          "message": "Unrecognized keys: \"code\", \"msg\", \"success\""
+        }
+      ],
+      [
+        {
+          "code": "invalid_value",
+          "values": [
+            "2.0"
+          ],
+          "path": [
+            "jsonrpc"
+          ],
+          "message": "Invalid input: expected \"2.0\""
+        },
+        {
+          "code": "invalid_union",
+          "errors": [
+            [
+              {
+                "expected": "string",
+                "code": "invalid_type",
+                "path": [],
+                "message": "Invalid input: expected string, received undefined"
+              }
+            ],
+            [
+              {
+                "expected": "number",
+                "code": "invalid_type",
+                "path": [],
+                "message": "Invalid input: expected number, received undefined"
+              }
+            ]
+          ],
+          "path": [
+            "id"
+          ],
+          "message": "Invalid input"
+        },
+        {
+          "expected": "object",
+          "code": "invalid_type",
+          "path": [
+            "error"
+          ],
+          "message": "Invalid input: expected object, received undefined"
+        },
+        {
+          "code": "unrecognized_keys",
+          "keys": [
+            "code",
+            "msg",
+            "success"
+          ],
+          "path": [],
+          "message": "Unrecognized keys: \"code\", \"msg\", \"success\""
+        }
+      ]
+    ],
+    "path": [],
+    "message": "Invalid input"
+  }
+]
+2026-02-13T14:50:48.717Z [ERROR] MCP server "web-reader" Connection failed: [
+  {
+    "code": "invalid_union",
+    "errors": [
+      [
+        {
+          "code": "invalid_value",
+          "values": [
+            "2.0"
+          ],
+          "path": [
+            "jsonrpc"
+          ],
+          "message": "Invalid input: expected \"2.0\""
+        },
+        {
+          "code": "invalid_union",
+          "errors": [
+            [
+              {
+                "expected": "string",
+                "code": "invalid_type",
+                "path": [],
+                "message": "Invalid input: expected string, received undefined"
+              }
+            ],
+            [
+              {
+                "expected": "number",
+                "code": "invalid_type",
+                "path": [],
+                "message": "Invalid input: expected number, received undefined"
+              }
+            ]
+          ],
+          "path": [
+            "id"
+          ],
+          "message": "Invalid input"
+        },
+        {
+          "expected": "string",
+          "code": "invalid_type",
+          "path": [
+            "method"
+          ],
+          "message": "Invalid input: expected string, received undefined"
+        },
+        {
+          "code": "unrecognized_keys",
+          "keys": [
+            "code",
+            "msg",
+            "success"
+          ],
+          "path": [],
+          "message": "Unrecognized keys: \"code\", \"msg\", \"success\""
+        }
+      ],
+      [
+        {
+          "code": "invalid_value",
+          "values": [
+            "2.0"
+          ],
+          "path": [
+            "jsonrpc"
+          ],
+          "message": "Invalid input: expected \"2.0\""
+        },
+        {
+          "expected": "string",
+          "code": "invalid_type",
+          "path": [
+            "method"
+          ],
+          "message": "Invalid input: expected string, received undefined"
+        },
+        {
+          "code": "unrecognized_keys",
+          "keys": [
+            "code",
+            "msg",
+            "success"
+          ],
+          "path": [],
+          "message": "Unrecognized keys: \"code\", \"msg\", \"success\""
+        }
+      ],
+      [
+        {
+          "code": "invalid_value",
+          "values": [
+            "2.0"
+          ],
+          "path": [
+            "jsonrpc"
+          ],
+          "message": "Invalid input: expected \"2.0\""
+        },
+        {
+          "code": "invalid_union",
+          "errors": [
+            [
+              {
+                "expected": "string",
+                "code": "invalid_type",
+                "path": [],
+                "message": "Invalid input: expected string, received undefined"
+              }
+            ],
+            [
+              {
+                "expected": "number",
+                "code": "invalid_type",
+                "path": [],
+                "message": "Invalid input: expected number, received undefined"
+              }
+            ]
+          ],
+          "path": [
+            "id"
+          ],
+          "message": "Invalid input"
+        },
+        {
+          "expected": "object",
+          "code": "invalid_type",
+          "path": [
+            "result"
+          ],
+          "message": "Invalid input: expected object, received undefined"
+        },
+        {
+          "code": "unrecognized_keys",
+          "keys": [
+            "code",
+            "msg",
+            "success"
+          ],
+          "path": [],
+          "message": "Unrecognized keys: \"code\", \"msg\", \"success\""
+        }
+      ],
+      [
+        {
+          "code": "invalid_value",
+          "values": [
+            "2.0"
+          ],
+          "path": [
+            "jsonrpc"
+          ],
+          "message": "Invalid input: expected \"2.0\""
+        },
+        {
+          "code": "invalid_union",
+          "errors": [
+            [
+              {
+                "expected": "string",
+                "code": "invalid_type",
+                "path": [],
+                "message": "Invalid input: expected string, received undefined"
+              }
+            ],
+            [
+              {
+                "expected": "number",
+                "code": "invalid_type",
+                "path": [],
+                "message": "Invalid input: expected number, received undefined"
+              }
+            ]
+          ],
+          "path": [
+            "id"
+          ],
+          "message": "Invalid input"
+        },
+        {
+          "expected": "object",
+          "code": "invalid_type",
+          "path": [
+            "error"
+          ],
+          "message": "Invalid input: expected object, received undefined"
+        },
+        {
+          "code": "unrecognized_keys",
+          "keys": [
+            "code",
+            "msg",
+            "success"
+          ],
+          "path": [],
+          "message": "Unrecognized keys: \"code\", \"msg\", \"success\""
+        }
+      ]
+    ],
+    "path": [],
+    "message": "Invalid input"
+  }
+]
+2026-02-13T14:50:48.752Z [ERROR] MCP server "zai-mcp-server" Server stderr: [2026-02-13T14:50:48.738Z] INFO: MCP Server Application initialized
+[2026-02-13T14:50:48.739Z] INFO: Starting MCP server...
+[2026-02-13T14:50:48.739Z] INFO: UI to Artifact tool registered successfully
+[2026-02-13T14:50:48.740Z] INFO: Text Extraction tool registered successfully
+[2026-02-13T14:50:48.740Z] INFO: Error Diagnosis tool registered successfully
+[2026-02-13T14:50:48.740Z] INFO: Diagram Analysis tool registered successfully
+[2026-02-13T14:50:48.740Z] INFO: Data Visualization Analysis tool registered successfully
+[2026-02-13T14:50:48.740Z] INFO: UI Diff Check tool registered successfully
+[2026-02-13T14:50:48.741Z] INFO: General Image Analysis tool registered successfully
+[2026-02-13T14:50:48.741Z] INFO: Video analysis tool registered successfully
+[2026-02-13T14:50:48.741Z] INFO: Successfully registered all tools
+[2026-02-13T14:50:48.741Z] INFO: MCP Server started successfully [{"mode":"ZHIPU","name":"zai-mcp-server","version":"0.1.2"}]
+2026-02-13T14:50:48.752Z [DEBUG] MCP server "zai-mcp-server": Successfully connected to stdio server in 4464ms
+2026-02-13T14:50:48.752Z [DEBUG] MCP server "zai-mcp-server": Connection established with capabilities: {"hasTools":true,"hasPrompts":false,"hasResources":false,"serverVersion":{"name":"zai-mcp-server","version":"0.1.2"}}
+2026-02-13T14:51:02.985Z [DEBUG] High write ratio: blit=662, write=691 (51.1% writes), screen=16x110
+2026-02-13T14:51:05.851Z [DEBUG] High write ratio: blit=660, write=702 (51.5% writes), screen=22x110
+2026-02-13T14:51:05.858Z [DEBUG] Plugin autoupdate: skipped (auto-updater disabled)
+2026-02-13T14:51:05.897Z [DEBUG] Stats cache is up to date
+2026-02-13T14:51:12.222Z [DEBUG] Writing to temp file: C:\Users\Administrator\.claude\settings.json.tmp.20692.1770994272222
+2026-02-13T14:51:12.222Z [DEBUG] Preserving file permissions: 100666
+2026-02-13T14:51:12.222Z [DEBUG] Temp file written successfully, size: 3 bytes
+2026-02-13T14:51:12.222Z [DEBUG] Applied original permissions to temp file
+2026-02-13T14:51:12.222Z [DEBUG] Renaming C:\Users\Administrator\.claude\settings.json.tmp.20692.1770994272222 to C:\Users\Administrator\.claude\settings.json
+2026-02-13T14:51:12.223Z [DEBUG] File C:\Users\Administrator\.claude\settings.json written atomically
+2026-02-13T14:51:12.224Z [DEBUG] Writing to temp file: C:\Users\Administrator\.claude\settings.json.tmp.20692.1770994272224
+2026-02-13T14:51:12.224Z [DEBUG] Preserving file permissions: 100666
+2026-02-13T14:51:12.225Z [DEBUG] Temp file written successfully, size: 3 bytes
+2026-02-13T14:51:12.225Z [DEBUG] Applied original permissions to temp file
+2026-02-13T14:51:12.225Z [DEBUG] Renaming C:\Users\Administrator\.claude\settings.json.tmp.20692.1770994272224 to C:\Users\Administrator\.claude\settings.json
+2026-02-13T14:51:12.225Z [DEBUG] File C:\Users\Administrator\.claude\settings.json written atomically
+2026-02-13T14:51:12.231Z [DEBUG] FileHistory: Added snapshot for 00c6e146-88e7-4b88-9787-9210aa3ccf0b, tracking 0 files
+2026-02-13T14:51:12.232Z [DEBUG] [useDeferredValue] Messages deferred by 3 (0→3)
+2026-02-13T14:51:12.257Z [DEBUG] [useDeferredValue] Messages deferred by 3 (0→3)
+2026-02-13T14:51:12.262Z [DEBUG] AutoUpdaterWrapper: Installation type: npm-global
+2026-02-13T14:51:12.272Z [DEBUG] [useDeferredValue] Messages deferred by 3 (0→3)

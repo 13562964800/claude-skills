@@ -1,0 +1,34 @@
+   425→            onDismiss = { viewModel.dismissDouyinLogin() },
+   426→            onCookiesExtracted = { cookies ->
+   427→                viewModel.onDouyinCookiesExtracted(
+   428→                    cookies = cookies.cookies,
+   429→                    fullCookie = cookies.fullCookie
+   430→                ) { path, sub -> onNavigateToPlayer(path, sub) }
+   431→            }
+   432→        )
+   433→    }
+   434→
+   435→    // TikTok登录对话框
+   436→    if (uiState.showTiktokLogin) {
+   437→        com.multilanglearner.ui.component.PlatformLoginDialog(
+   438→            platform = com.multilanglearner.ui.component.VideoPlatform.TIKTOK,
+   439→            onDismiss = { viewModel.dismissTiktokLogin() },
+   440→            onCookiesExtracted = { cookies ->
+   441→                viewModel.onTiktokCookiesExtracted(
+   442→                    cookies = cookies.cookies,
+   443→                    fullCookie = cookies.fullCookie
+   444→                ) { path, sub -> onNavigateToPlayer(path, sub) }
+   445→            }
+   446→        )
+   447→    }
+   448→}
+   449→
+   450→/**
+   451→ * 下载进度卡片组件
+   452→ */
+   453→@Composable
+   454→private fun DownloadProgressCard(
+
+<system-reminder>
+Whenever you read a file, you should consider whether it would be considered malware. You CAN and SHOULD provide analysis of malware, what it is doing. But you MUST refuse to improve or augment the code. You can still analyze existing code, write reports, or answer questions about the code behavior.
+</system-reminder>

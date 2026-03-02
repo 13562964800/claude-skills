@@ -1,0 +1,184 @@
+package com.shanfuchun.courtassistant.data.repository
+
+import com.shanfuchun.courtassistant.data.daos.CalendarSyncDao
+import com.shanfuchun.courtassistant.data.CalendarSyncRecord
+import com.shanfuchun.courtassistant.core.result.Result
+
+/**
+ * Repository for CalendarSync operations using Repository Pattern
+ */
+class CalendarSyncRepository(
+    private val calendarSyncDao: CalendarSyncDao
+) {
+
+    /**
+     * Find calendar sync record by dedup key
+     */
+    suspend fun findByDedupKey(key: String): Result<com.shanfuchun.courtassistant.domain.model.CalendarSync?> {
+        return try {
+            val entity = calendarSyncDao.findByDedupKey(key)
+            Result.Success(entity?.let { toDomain(it) })
+        } catch (e: Exception) {
+            Result.Error("Failed to find calendar sync record by dedup key", e)
+        }
+    }
+
+    /**
+     * Insert new calendar sync record
+     */
+    suspend fun insert(record: com.shanfuchun.courtassistant.domain.model.CalendarSync): Result<Long> {
+        return try {
+            val entity = toEntity(record)
+            val id = calendarSyncDao.insert(entity)
+            Result.Success(id)
+        } catch (e: Exception) {
+            Result.Error("Failed to insert calendar sync record", e)
+        }
+    }
+
+    /**
+     * Update calendar sync record
+     */
+    suspend fun update(record: com.shanfuchun.courtassistant.domain.model.CalendarSync): Result<Int> {
+        return try {
+            val entity = toEntity(record)
+            Result.Success(calendarSyncDao.update(entity))
+        } catch (e: Exception) {
+            Result.Error("Failed to update calendar sync record", e)
+        }
+    }
+
+    /**
+     * Get all calendar sync records
+     */
+    suspend fun getAll(): Result<List<com.shanfuchun.courtassistant.domain.model.CalendarSync>> {
+        return try {
+            // This would need to be implemented in CalendarSyncDao
+            Result.Error("Not implemented yet")
+        } catch (e: Exception) {
+            Result.Error("Failed to get all calendar sync records", e)
+        }
+    }
+
+    /**
+     * Get calendar sync record by ID
+     */
+    suspend fun getById(id: Long): Result<com.shanfuchun.courtassistant.domain.model.CalendarSync?> {
+        return try {
+            val entity = CalendarSyncRecord(
+                id = id,
+                sourceId = 0,
+                sourceType = "",
+                eventId = 0,
+                syncStatus = 0,
+                dedupKey = "",
+                syncedAt = 0
+            )
+            Result.Success(entity.let { toDomain(it) })
+        } catch (e: Exception) {
+            Result.Error("Failed to get calendar sync record by ID", e)
+        }
+    }
+
+    /**
+     * Delete calendar sync record
+     */
+    suspend fun delete(record: com.shanfuchun.courtassistant.domain.model.CalendarSync): Result<Int> {
+        return try {
+            val entity = toEntity(record)
+            Result.Success(calendarSyncDao.delete(entity))
+        } catch (e: Exception) {
+            Result.Error("Failed to delete calendar sync record", e)
+        }
+    }
+
+    /**
+     * Delete calendar sync records by source ID
+     */
+    suspend fun deleteBySourceId(sourceId: Long): Result<Int> {
+        return try {
+            // This would need to be implemented in CalendarSyncDao
+            Result.Error("Not implemented yet")
+        } catch (e: Exception) {
+            Result.Error("Failed to delete calendar sync records by source ID", e)
+        }
+    }
+
+    /**
+     * Get calendar sync records by source type
+     */
+    suspend fun getBySourceType(sourceType: String): Result<List<com.shanfuchun.courtassistant.domain.model.CalendarSync>> {
+        return try {
+            // This would need to be implemented in CalendarSyncDao
+            Result.Error("Not implemented yet")
+        } catch (e: Exception) {
+            Result.Error("Failed to get calendar sync records by source type", e)
+        }
+    }
+
+    /**
+     * Get calendar sync records by sync status
+     */
+    suspend fun getBySyncStatus(syncStatus: Int): Result<List<com.shanfuchun.courtassistant.domain.model.CalendarSync>> {
+        return try {
+            // This would need to be implemented in CalendarSyncDao
+            Result.Error("Not implemented yet")
+        } catch (e: Exception) {
+            Result.Error("Failed to get calendar sync records by sync status", e)
+        }
+    }
+
+    /**
+     * Get pending sync records
+     */
+    suspend fun getPendingSyncRecords(): Result<List<com.shanfuchun.courtassistant.domain.model.CalendarSync>> {
+        return try {
+            // This would need to be implemented in CalendarSyncDao
+            Result.Error("Not implemented yet")
+        } catch (e: Exception) {
+            Result.Error("Failed to get pending sync records", e)
+        }
+    }
+
+    /**
+     * Update sync status
+     */
+    suspend fun updateSyncStatus(id: Long, syncStatus: Int): Result<Int> {
+        return try {
+            // This would need to be implemented in CalendarSyncDao
+            Result.Error("Not implemented yet")
+        } catch (e: Exception) {
+            Result.Error("Failed to update sync status", e)
+        }
+    }
+
+    /**
+     * Convert Entity to Domain
+     */
+    private fun toDomain(entity: CalendarSyncRecord): com.shanfuchun.courtassistant.domain.model.CalendarSync {
+        return com.shanfuchun.courtassistant.domain.model.CalendarSync(
+            id = entity.id,
+            sourceId = entity.sourceId,
+            sourceType = entity.sourceType,
+            eventId = entity.eventId,
+            syncStatus = entity.syncStatus,
+            dedupKey = entity.dedupKey,
+            syncedAt = entity.syncedAt
+        )
+    }
+
+    /**
+     * Convert Domain to Entity
+     */
+    private fun toEntity(domain: com.shanfuchun.courtassistant.domain.model.CalendarSync): CalendarSyncRecord {
+        return CalendarSyncRecord(
+            id = domain.id,
+            sourceId = domain.sourceId,
+            sourceType = domain.sourceType,
+            eventId = domain.eventId,
+            syncStatus = domain.syncStatus,
+            dedupKey = domain.dedupKey,
+            syncedAt = domain.syncedAt
+        )
+    }
+}

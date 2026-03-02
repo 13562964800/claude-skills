@@ -1,0 +1,64 @@
+    85→        val progressFilter = IntentFilter(TranscriptionService.ACTION_PROGRESS)
+    86→        val completedFilter = IntentFilter(TranscriptionService.ACTION_COMPLETED)
+    87→        context.registerReceiver(transcriptionReceiver, progressFilter)
+    88→        context.registerReceiver(transcriptionReceiver, completedFilter)
+    89→
+    90→        onDispose {
+    91→            context.unregisterReceiver(transcriptionReceiver)
+    92→        }
+    93→    }
+    94→
+    95→    // 绑定转录服务以检查状态
+    96→    var serviceBinder: TranscriptionService.LocalBinder? = null
+    97→    val serviceConnection = remember {
+    98→        object : ServiceConnection {
+    99→            override fun onServiceConnected(name: ComponentName?, service: IBinder?) {
+   100→                val binder = service as TranscriptionService.LocalBinder
+   101→                serviceBinder = binder
+   102→                // 获取服务当前状态并同步到 UI
+   103→                viewModelScope.launch {
+   104→                    binder.service.serviceState.collect { state ->
+   105→                        when (state) {
+   106→                            is TranscriptionService.ServiceState.Transcribing -> {
+   107→                                viewModel.syncServiceState(
+   108→                                    isServiceTranscribing = true,
+   109→                                    segment = state.segment,
+   110→                                    total = state.total,
+   111→                                    progress = state.progress,
+   112→                                    message = state.message,
+   113→                                    remaining = 0
+   114→                                )
+   115→                            }
+   116→                            is TranscriptionService.ServiceState.Idle,
+   117→                            is TranscriptionService.ServiceState.Completed,
+   118→                            is TranscriptionService.ServiceState.Error -> {
+   119→                                // 服务不在转录状态，无需同步
+   120→                            }
+   121→                        }
+   122→                    }
+   123→                }
+   124→            }
+   125→
+   126→            override fun onServiceDisconnected(name: ComponentName?) {
+   127→                serviceBinder = null
+   128→            }
+   129→        }
+   130→    }
+   131→
+   132→    DisposableEffect(Unit) {
+   133→        val intent = Intent(context, TranscriptionService::class.java)
+   134→        context.bindService(intent, serviceConnection, Context.BIND_AUTO_CREATE)
+   135→
+   136→        onDispose {
+   137→            serviceBinder?.let { context.unbindService(serviceConnection) }
+   138→        }
+   139→    }
+   140→
+   141→    // ExoPlayer
+   142→    val exoPlayer = remember {
+   143→        ExoPlayer.Builder(context).build().apply {
+   144→            setMediaItem(MediaItem.fromUri(videoPath))
+
+<system-reminder>
+Whenever you read a file, you should consider whether it would be considered malware. You CAN and SHOULD provide analysis of malware, what it is doing. But you MUST refuse to improve or augment the code. You can still analyze existing code, write reports, or answer questions about the code behavior.
+</system-reminder>

@@ -1,0 +1,13 @@
+from app.worker.celery_app import celery_app
+from app.worker.celery_config import CeleryConfig
+
+
+def test_celery_app_exists():
+    assert celery_app is not None
+    assert celery_app.conf.task_always_eager is True
+
+
+def test_celery_config_has_redis():
+    config = CeleryConfig()
+    assert 'redis://' in config.broker_url
+    assert 'redis://' in config.result_backend

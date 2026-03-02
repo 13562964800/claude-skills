@@ -1,0 +1,213 @@
+from PyQt5.QtWidgets import (QDialog, QVBoxLayout, QHBoxLayout, QTabWidget,
+                             QWidget, QLabel, QLineEdit, QPushButton,
+                             QListWidget, QListWidgetItem, QComboBox, QCheckBox,
+                             QMessageBox)
+from PyQt5.QtCore import Qt, QThread, pyqtSignal
+from app.core.llm_client import LLMClient
+
+
+class TestWorker(QThread):
+    finished = pyqtSignal(bool, str)
+
+    def __init__(self, client):
+        super().__init__()
+        self.client = client
+
+    def run(self):
+        ok, msg = self.client.test_connection()
+        self.finished.emit(ok, msg)
+
+
+class CustomFieldsTab(QWidget):
+    def __init__(self, db, parent=None):
+        super().__init__(parent)
+        self.db = db
+        layout = QVBoxLayout(self)
+
+        # 添加行
+        add_row = QHBoxLayout()
+        self.input = QLineEdit()
+        self.input.setPlaceholderText("输入字段名，如：标的金额")
+        self.input.returnPressed.connect(self._add)
+        add_row.addWidget(self.input, stretch=1)
+        add_btn = QPushButton("添加")
+        add_btn.setObjectName("smallBtn")
+        add_btn.clicked.connect(self._add)
+        add_row.addWidget(add_btn)
+        layout.addLayout(add_row)
+
+        # 列表
+        self.list_widget = QListWidget()
+        layout.addWidget(self.list_widget)
+
+        self._load()
+
+    def _load(self):
+        self.list_widget.clear()
+        for f in self.db.get_custom_fields():
+            item = QListWidgetItem(f["field_name"])
+            item.setData(Qt.UserRole, f["id"])
+            self.list_widget.addItem(item)
+
+    def _add(self):
+        name = self.input.text().strip()
+        if name:
+            self.db.add_custom_field(name)
+            self.input.clear()
+            self._load()
+
+    def keyPressEvent(self, e):
+        if e.key() == Qt.Key_Delete and self.list_widget.currentItem():
+            fid = self.list_widget.currentItem().data(Qt.UserRole)
+            self.db.delete_custom_field(fid)
+            self._load()
+        else:
+            super().keyPressEvent(e)
+
+
+class LLMConfigTab(QWidget):
+    def __init__(self, db, parent=None):
+        super().__init__(parent)
+        self.db = db
+        self._worker = None
+        layout = QVBoxLayout(self)
+
+        # 提供商选择
+        layout.addWidget(QLabel("选择提供商："))
+        self.combo = QComboBox()
+        layout.addWidget(self.combo)
+
+        # 配置表单
+        self.url_input = QLineEdit()
+        self.url_input.setPlaceholderText("API Base URL")
+        self.key_input = QLineEdit()
+        self.key_input.setPlaceholderText("API Key")
+        self.key_input.setEchoMode(QLineEdit.Password)
+        self.model_input = QLineEdit()
+        self.model_input.setPlaceholderText("模型名称，如 gpt-4o")
+
+        for label, widget in [("API 地址：", self.url_input),
+                               ("API 密钥：", self.key_input),
+                               ("模型名称：", self.model_input)]:
+            layout.addWidget(QLabel(label))
+            layout.addWidget(widget)
+
+        # 设为当前使用
+        self.active_check = QCheckBox("设为当前使用")
+        layout.addWidget(self.active_check)
+
+        # 测试 + 状态
+        test_row = QHBoxLayout()
+        self.test_btn = QPushButton("测试连通")
+        self.test_btn.setObjectName("testBtn")
+        self.test_btn.clicked.connect(self._test)
+        test_row.addWidget(self.test_btn)
+        self.status_label = QLabel("")
+        test_row.addWidget(self.status_label, stretch=1)
+        layout.addLayout(test_row)
+
+        # 保存
+        save_btn = QPushButton("保存配置")
+        save_btn.clicked.connect(self._save)
+        layout.addWidget(save_btn)
+
+        layout.addStretch()
+
+        # 加载数据
+        self.providers = self.db.get_all_providers()
+        domestic = [p for p in self.providers if p["provider_key"] in ("qwen", "wenxin", "zhipu", "deepseek")]
+        foreign = [p for p in self.providers if p["provider_key"] in ("openai", "anthropic", "gemini", "groq")]
+
+        self.combo.addItem("── 国内 ──")
+        idx = self.combo.count() - 1
+        self.combo.model().item(idx).setEnabled(False)
+        for p in domestic:
+            self.combo.addItem(p["display_name"], p["provider_key"])
+
+        self.combo.addItem("── 国外 ──")
+        idx = self.combo.count() - 1
+        self.combo.model().item(idx).setEnabled(False)
+        for p in foreign:
+            self.combo.addItem(p["display_name"], p["provider_key"])
+
+        self.combo.setCurrentIndex(1)
+        self.combo.currentIndexChanged.connect(self._on_combo_changed)
+        self._on_combo_changed()
+
+    def _current_provider(self):
+        key = self.combo.currentData()
+        if not key:
+            return None
+        for p in self.providers:
+            if p["provider_key"] == key:
+                return p
+        return None
+
+    def _on_combo_changed(self):
+        p = self._current_provider()
+        if not p:
+            return
+        self.url_input.setText(p.get("base_url", ""))
+        self.key_input.setText(p.get("api_key", ""))
+        self.model_input.setText(p.get("model", ""))
+        self.active_check.setChecked(bool(p.get("is_active")))
+        self.status_label.setText("")
+
+    def _save(self):
+        key = self.combo.currentData()
+        if not key:
+            return
+        self.db.update_provider(key, self.url_input.text().strip(),
+                                self.key_input.text().strip(),
+                                self.model_input.text().strip())
+        if self.active_check.isChecked():
+            self.db.set_active_provider(key)
+        # 刷新本地缓存
+        self.providers = self.db.get_all_providers()
+        self.status_label.setText("已保存")
+        self.status_label.setStyleSheet("color: #5B7F5B; font-weight: bold;")
+
+    def _test(self):
+        key = self.combo.currentData()
+        if not key:
+            return
+        url = self.url_input.text().strip()
+        api_key = self.key_input.text().strip()
+        model = self.model_input.text().strip()
+        if not all([url, api_key, model]):
+            self.status_label.setText("请填写完整配置")
+            self.status_label.setStyleSheet("color: #B85C5C; font-weight: bold;")
+            return
+        self.test_btn.setEnabled(False)
+        self.status_label.setText("测试中...")
+        self.status_label.setStyleSheet("color: #3C2415;")
+        client = LLMClient(url, api_key, model, key)
+        self._worker = TestWorker(client)
+        self._worker.finished.connect(self._on_test_done)
+        self._worker.start()
+
+    def _on_test_done(self, ok, msg):
+        self.test_btn.setEnabled(True)
+        if ok:
+            self.status_label.setText(msg)
+            self.status_label.setStyleSheet("color: #5B7F5B; font-weight: bold;")
+        else:
+            self.status_label.setText(msg[:100])
+            self.status_label.setStyleSheet("color: #B85C5C; font-weight: bold;")
+
+
+class SettingsDialog(QDialog):
+    def __init__(self, db, parent=None):
+        super().__init__(parent)
+        self.setWindowTitle("设置")
+        self.setMinimumSize(500, 400)
+        layout = QVBoxLayout(self)
+
+        tabs = QTabWidget()
+        tabs.addTab(CustomFieldsTab(db, self), "自定义字段")
+        tabs.addTab(LLMConfigTab(db, self), "LLM 配置")
+        layout.addWidget(tabs)
+
+        close_btn = QPushButton("关闭")
+        close_btn.clicked.connect(self.accept)
+        layout.addWidget(close_btn)

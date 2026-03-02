@@ -1,0 +1,606 @@
+"""语音转录模块 - Android版，使用云端ASR API"""
+import os, json, base64, tempfile, subprocess
+import requests
+from typing import Optional, Callable
+
+# Groq内置密钥
+GROQ_BUILTIN_KEY = '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'
+
+
+def _convert_silk_to_wav(silk_path, output_path=None):
+    """将微信SILK/AMR格式音频转为WAV
+    微信语音消息格式：.amr 或 .silk（实际是silk v3编码）
+    """
+    if output_path is None:
+        output_path = silk_path.rsplit('.', 1)[0] + '.wav'
+
+    # 尝试用ffmpeg转换（支持amr和大部分格式）
+    try:
+        subprocess.run([
+            'ffmpeg', '-y', '-i', silk_path,
+            '-ac', '1', '-ar', '16000', '-acodec', 'pcm_s16le',
+            output_path
+        ], capture_output=True, timeout=30)
+        if os.path.exists(output_path) and os.path.getsize(output_path) > 100:
+            return output_path
+    except:
+        pass
+
+    # 尝试用silk-decoder（针对silk v3格式）
+    try:
+        subprocess.run(['silk_decoder', silk_path, output_path.replace('.wav', '.pcm')],
+                       capture_output=True, timeout=10)
+        pcm_path = output_path.replace('.wav', '.pcm')
+        if os.path.exists(pcm_path):
+            subprocess.run([
+                'ffmpeg', '-y', '-f', 's16le', '-ar', '24000', '-ac', '1',
+                '-i', pcm_path, output_path
+            ], capture_output=True, timeout=10)
+            os.remove(pcm_path)
+            if os.path.exists(output_path):
+                return output_path
+    except:
+        pass
+
+    return silk_path  # 返回原文件，让ASR尝试处理
+
+
+def preprocess_audio(filepath, progress_cb=None):
+    """音频预处理：格式转换 + 重采样"""
+    ext = os.path.splitext(filepath)[1].lower()
+
+    # 微信语音格式需要特殊处理
+    if ext in ('.silk', '.amr', '.slk'):
+        if progress_cb:
+            progress_cb('正在转换微信语音格式...')
+        wav_path = filepath.rsplit('.', 1)[0] + '_converted.wav'
+        return _convert_silk_to_wav(filepath, wav_path)
+
+    # 其他格式用ffmpeg统一转为16kHz WAV
+    if progress_cb:
+        progress_cb('正在预处理音频...')
+    out = filepath.rsplit('.', 1)[0] + '_preprocessed.wav'
+    try:
+        subprocess.run([
+            'ffmpeg', '-y', '-i', filepath,
+            '-ac', '1', '-ar', '16000', '-acodec', 'pcm_s16le', out
+        ], capture_output=True, timeout=60)
+        if os.path.exists(out) and os.path.getsize(out) > 100:
+            return out
+    except:
+        pass
+    return filepath
+
+
+def transcribe_baidu(filepath, api_key, secret_key, app_id='', progress_cb=None):
+    """百度语音识别API - 自动分段突破60秒限制"""
+    if progress_cb:
+        progress_cb('正在获取百度Token...')
+
+    # 获取token
+    resp = requests.post('https://aip.baidubce.com/oauth/2.0/token',
+        params={'grant_type': 'client_credentials', 'client_id': api_key, 'client_secret': secret_key}, timeout=10)
+    token = resp.json().get('access_token')
+    if not token:
+        raise Exception('百度Token获取失败')
+
+    # 检查音频时长，超过55秒自动分段
+    duration = _get_audio_duration(filepath)
+    if duration > 55:
+        if progress_cb:
+            progress_cb(f'音频{duration:.0f}秒，正在分段转写...')
+        return _transcribe_baidu_chunked(filepath, token, app_id, progress_cb)
+
+    # 读取音频
+    with open(filepath, 'rb') as f:
+        audio_data = f.read()
+
+    if len(audio_data) > 10 * 1024 * 1024:
+        # 数据太大，强制分段
+        if progress_cb:
+            progress_cb('音频较大，正在分段转写...')
+        return _transcribe_baidu_chunked(filepath, token, app_id, progress_cb)
+
+    if progress_cb:
+        progress_cb('正在识别语音...')
+
+    payload = {
+        'format': 'wav', 'rate': 16000, 'channel': 1,
+        'cuid': app_id or 'voice_doc_compare_apk',
+        'token': token,
+        'speech': base64.b64encode(audio_data).decode(),
+        'len': len(audio_data),
+        'dev_pid': 1537
+    }
+    resp = requests.post('https://vop.baidu.com/server_api', json=payload, timeout=60)
+    result = resp.json()
+    if result.get('err_no', -1) == 0:
+        return ''.join(result.get('result', []))
+    raise Exception(f'百度识别失败[{result.get("err_no")}]: {result.get("err_msg", "未知错误")}')
+
+
+def _get_audio_duration(filepath):
+    """获取音频时长（秒）"""
+    try:
+        import wave
+        with wave.open(filepath, 'rb') as wf:
+            frames = wf.getnframes()
+            rate = wf.getframerate()
+            return frames / rate
+    except:
+        pass
+    # 备用：通过文件大小估算（16kHz 16bit 单声道 = 32000 bytes/sec）
+    try:
+        size = os.path.getsize(filepath)
+        return size / 32000
+    except:
+        return 0
+
+
+def _transcribe_baidu_chunked(filepath, token, app_id, progress_cb=None):
+    """长音频分段百度识别 - 每段50秒以内，合并结果"""
+    tmpdir = tempfile.mkdtemp()
+    chunk_pattern = os.path.join(tmpdir, 'chunk_%03d.wav')
+
+    # 分段参数：每段50秒，百度限制60秒
+    segment_time = 50
+    chunks = []
+
+    # 方案1：用ffmpeg分段
+    ffmpeg_ok = False
+    try:
+        result = subprocess.run([
+            'ffmpeg', '-i', filepath, '-f', 'segment', '-segment_time', str(segment_time),
+            '-ac', '1', '-ar', '16000', '-acodec', 'pcm_s16le', '-y', chunk_pattern
+        ], capture_output=True, timeout=120)
+        if result.returncode == 0:
+            chunks = sorted([os.path.join(tmpdir, f) for f in os.listdir(tmpdir) if f.startswith('chunk_')])
+            if chunks:
+                ffmpeg_ok = True
+    except (FileNotFoundError, OSError):
+        pass
+    except Exception:
+        pass
+
+    # 方案2：纯Python WAV切分（Android无ffmpeg时）
+    if not ffmpeg_ok:
+        if progress_cb:
+            progress_cb('正在用Python分段音频...')
+        chunks = _split_wav_python(filepath, tmpdir, segment_time)
+
+    if not chunks:
+        ext = os.path.splitext(filepath)[1].lower()
+        raise Exception(f'音频分段失败({ext})：请先转换为WAV格式，或改用Groq/离线引擎')
+
+    if progress_cb:
+        progress_cb(f'共{len(chunks)}个分段，开始识别...')
+
+    results = []
+    failed = 0
+    import time as _time
+    for i, chunk in enumerate(chunks):
+        if progress_cb:
+            progress_cb(f'转写分段 {i+1}/{len(chunks)}...')
+        with open(chunk, 'rb') as f:
+            audio_data = f.read()
+
+        if len(audio_data) < 100:
+            continue
+
+        payload = {
+            'format': 'wav', 'rate': 16000, 'channel': 1,
+            'cuid': app_id or 'voice_doc_compare_apk',
+            'token': token,
+            'speech': base64.b64encode(audio_data).decode(),
+            'len': len(audio_data),
+            'dev_pid': 1537
+        }
+        # 重试机制：失败后重试1次
+        for attempt in range(2):
+            try:
+                resp = requests.post('https://vop.baidu.com/server_api', json=payload, timeout=60)
+                r = resp.json()
+                if r.get('err_no', -1) == 0:
+                    text = ''.join(r.get('result', []))
+                    if text.strip():
+                        results.append(text)
+                    break
+                elif r.get('err_no') == 3301:
+                    # 音频质量过差，跳过此段
+                    if progress_cb:
+                        progress_cb(f'分段{i+1}音频质量差，跳过')
+                    break
+                elif attempt == 0:
+                    # 第一次失败，等待后重试
+                    _time.sleep(1)
+                    continue
+                else:
+                    failed += 1
+                    if progress_cb:
+                        progress_cb(f'分段{i+1}识别异常: {r.get("err_msg", "")[:20]}')
+            except Exception as e:
+                if attempt == 1:
+                    failed += 1
+                else:
+                    _time.sleep(1)
+
+        try:
+            os.remove(chunk)
+        except:
+            pass
+
+    # 清理临时目录
+    try:
+        import shutil
+        shutil.rmtree(tmpdir, ignore_errors=True)
+    except:
+        pass
+
+    if not results:
+        raise Exception(f'所有{len(chunks)}个分段识别失败')
+    if progress_cb and failed:
+        progress_cb(f'完成，{failed}/{len(chunks)}个分段失败')
+    return ''.join(results)
+
+
+def _split_wav_python(filepath, output_dir, segment_seconds):
+    """纯Python WAV切分（不依赖ffmpeg），支持格式自动转换"""
+    try:
+        import wave
+
+        # 检查文件是否为有效WAV
+        if not os.path.exists(filepath):
+            print(f'[split_wav] 文件不存在: {filepath}')
+            return []
+
+        try:
+            wf = wave.open(filepath, 'rb')
+        except wave.Error as e:
+            print(f'[split_wav] 非WAV格式或文件损坏: {e}')
+            return []
+
+        with wf:
+            n_channels = wf.getnchannels()
+            sample_width = wf.getsampwidth()
+            framerate = wf.getframerate()
+            n_frames = wf.getnframes()
+            if n_frames == 0:
+                print('[split_wav] WAV文件无音频数据')
+                return []
+            all_data = wf.readframes(n_frames)
+
+        # 如果不是16kHz单声道16bit，需要转换
+        need_convert = (n_channels != 1 or sample_width != 2 or framerate != 16000)
+
+        if need_convert:
+            import struct
+            # 解析原始采样
+            if sample_width == 1:
+                fmt = f'{len(all_data)}B'
+                raw = struct.unpack(fmt, all_data)
+                samples = [(s - 128) * 256 for s in raw]
+            elif sample_width == 2:
+                fmt = f'{len(all_data)//2}h'
+                samples = list(struct.unpack(fmt, all_data))
+            elif sample_width == 4:
+                fmt = f'{len(all_data)//4}i'
+                raw = struct.unpack(fmt, all_data)
+                samples = [s >> 16 for s in raw]
+            else:
+                samples = list(struct.unpack(f'{len(all_data)//2}h', all_data))
+
+            # 多声道转单声道（取平均）
+            if n_channels > 1:
+                mono = []
+                for i in range(0, len(samples), n_channels):
+                    chunk = samples[i:i+n_channels]
+                    mono.append(sum(chunk) // len(chunk))
+                samples = mono
+
+            # 重采样到16kHz
+            if framerate != 16000:
+                ratio = framerate / 16000
+                new_len = int(len(samples) / ratio)
+                resampled = []
+                for i in range(new_len):
+                    src_idx = i * ratio
+                    idx = int(src_idx)
+                    frac = src_idx - idx
+                    if idx + 1 < len(samples):
+                        val = int(samples[idx] * (1 - frac) + samples[idx + 1] * frac)
+                    elif idx < len(samples):
+                        val = samples[idx]
+                    else:
+                        break
+                    resampled.append(max(-32768, min(32767, val)))
+                samples = resampled
+
+            # 重新编码为16bit PCM
+            all_data = struct.pack(f'{len(samples)}h', *samples)
+            framerate = 16000
+            n_channels = 1
+            sample_width = 2
+
+        chunk_frames = int(framerate * segment_seconds)
+        bytes_per_frame = n_channels * sample_width
+        chunk_bytes = chunk_frames * bytes_per_frame
+        min_bytes = bytes_per_frame * framerate  # 最少1秒
+
+        chunks = []
+        for i in range(0, len(all_data), chunk_bytes):
+            chunk_data = all_data[i:i + chunk_bytes]
+            if len(chunk_data) < min_bytes:
+                continue
+            chunk_path = os.path.join(output_dir, f'chunk_{len(chunks):03d}.wav')
+            with wave.open(chunk_path, 'wb') as out_wf:
+                out_wf.setnchannels(1)
+                out_wf.setsampwidth(2)
+                out_wf.setframerate(16000)
+                out_wf.writeframes(chunk_data)
+            chunks.append(chunk_path)
+        return chunks
+    except Exception as e:
+        print(f'[split_wav] 分段异常: {e}')
+        return []
+
+
+def transcribe_groq(filepath, api_key=None, progress_cb=None):
+    """Groq Whisper API转录 - 内置密钥"""
+    if not api_key:
+        api_key = GROQ_BUILTIN_KEY
+    if progress_cb:
+        progress_cb('正在使用Groq Whisper转写...')
+    with open(filepath, 'rb') as f:
+        resp = requests.post('https://api.groq.com/openai/v1/audio/transcriptions',
+            headers={'Authorization': f'Bearer {api_key}'},
+            files={'file': (os.path.basename(filepath), f, 'audio/wav')},
+            data={'model': 'whisper-large-v3', 'language': 'zh', 'response_format': 'verbose_json',
+                  'timestamp_granularities': ['word']},
+            timeout=180)
+    data = resp.json()
+    if 'text' not in data:
+        raise Exception(f'Groq识别失败: {json.dumps(data, ensure_ascii=False)[:200]}')
+
+    text = data['text']
+    words = []
+    if 'words' in data:
+        for w in data['words']:
+            words.append({'word': w['word'], 'start': w['start'], 'end': w['end'], 'confidence': 0.0})
+    return text, words or None
+
+
+def transcribe_sherpa_offline(filepath, model_dir=None, progress_cb=None):
+    """Sherpa-ONNX 纯本地离线语音识别（适合无网络/无VPN的手机）
+    使用FunASR Paraformer模型的ONNX版本，50-80MB，手机可跑。
+    改进：分段识别+VAD优化+重试机制
+    """
+    try:
+        import sherpa_onnx
+    except ImportError:
+        raise Exception('请安装 sherpa-onnx: pip install sherpa-onnx\n'
+                        '模型下载: https://github.com/k2-fsa/sherpa-onnx/releases')
+
+    if model_dir is None:
+        # 优先使用内置模型（打包在APK中）
+        builtin = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), 'models', 'paraformer')
+        if os.path.exists(os.path.join(builtin, 'model.int8.onnx')):
+            model_dir = builtin
+        else:
+            from kivy.utils import platform as kv_platform
+            if kv_platform == 'android':
+                from android.storage import app_storage_path
+                model_dir = os.path.join(app_storage_path(), 'models', 'paraformer')
+            else:
+                model_dir = os.path.join(os.path.expanduser('~'), '.sherpa-onnx', 'paraformer')
+
+    model_path = os.path.join(model_dir, 'model.int8.onnx')
+    tokens_path = os.path.join(model_dir, 'tokens.txt')
+
+    if not os.path.exists(model_path):
+        if progress_cb:
+            progress_cb('首次使用，正在下载离线模型(约80MB)...')
+        from core.model_download import download_model
+        download_model(model_dir, progress_cb)
+
+    if progress_cb:
+        progress_cb('正在加载离线识别模型...')
+
+    recognizer = sherpa_onnx.OfflineRecognizer.from_paraformer(
+        paraformer=model_path,
+        tokens=tokens_path,
+        num_threads=4,
+        sample_rate=16000,
+        decoding_method='greedy_search',
+    )
+
+    if progress_cb:
+        progress_cb('正在识别语音（离线）...')
+
+    # 读取音频
+    import wave
+    with wave.open(filepath, 'rb') as wf:
+        assert wf.getnchannels() == 1 and wf.getsampwidth() == 2
+        framerate = wf.getframerate()
+        samples = wf.readframes(wf.getnframes())
+
+    import struct
+    samples = struct.unpack(f'{len(samples)//2}h', samples)
+    samples = [s / 32768.0 for s in samples]
+
+    # 如果采样率不是16kHz，做重采样
+    if framerate != 16000:
+        if progress_cb:
+            progress_cb(f'重采样 {framerate}Hz -> 16000Hz...')
+        ratio = framerate / 16000
+        new_len = int(len(samples) / ratio)
+        resampled = []
+        for i in range(new_len):
+            src_idx = i * ratio
+            idx = int(src_idx)
+            frac = src_idx - idx
+            if idx + 1 < len(samples):
+                resampled.append(samples[idx] * (1 - frac) + samples[idx + 1] * frac)
+            elif idx < len(samples):
+                resampled.append(samples[idx])
+        samples = resampled
+
+    duration_sec = len(samples) / 16000
+    all_text = ''
+    all_words = []
+
+    # 长音频分段识别（每段30秒，提高准确率）
+    chunk_sec = 30
+    chunk_samples = chunk_sec * 16000
+    total_chunks = max(1, int((len(samples) + chunk_samples - 1) / chunk_samples))
+
+    if total_chunks == 1:
+        # 短音频直接识别
+        stream = recognizer.create_stream()
+        stream.accept_waveform(16000, samples)
+        recognizer.decode_stream(stream)
+        all_text = stream.result.text.strip()
+
+        if hasattr(stream.result, 'timestamps') and stream.result.timestamps:
+            ts_list = stream.result.timestamps
+            chars = list(all_text.replace(' ', ''))
+            for i, ch in enumerate(chars):
+                if i < len(ts_list):
+                    start = ts_list[i]
+                    end = ts_list[i + 1] if i + 1 < len(ts_list) else start + 0.3
+                    all_words.append({'word': ch, 'start': start, 'end': end, 'confidence': 1.0})
+    else:
+        # 长音频分段识别
+        for ci in range(total_chunks):
+            if progress_cb:
+                progress_cb(f'离线识别 {ci+1}/{total_chunks}...')
+
+            start = ci * chunk_samples
+            # 加1秒重叠避免截断词
+            overlap = 16000 if ci > 0 else 0
+            actual_start = max(0, start - overlap)
+            end = min(len(samples), start + chunk_samples)
+            chunk = samples[actual_start:end]
+
+            if len(chunk) < 1600:  # 不足0.1秒跳过
+                continue
+
+            stream = recognizer.create_stream()
+            stream.accept_waveform(16000, chunk)
+            recognizer.decode_stream(stream)
+            text = stream.result.text.strip()
+
+            if text:
+                # 如果有重叠，去除开头可能的重复
+                if ci > 0 and all_text and overlap > 0:
+                    # 简单去重：检查开头是否与上一段结尾重复
+                    for trim_len in range(min(5, len(text)), 0, -1):
+                        if all_text.endswith(text[:trim_len]):
+                            text = text[trim_len:]
+                            break
+
+                # 收集时间戳
+                if hasattr(stream.result, 'timestamps') and stream.result.timestamps:
+                    ts_list = stream.result.timestamps
+                    chars = list(text.replace(' ', ''))
+                    chunk_offset = actual_start / 16000
+                    for i, ch in enumerate(chars):
+                        if i < len(ts_list):
+                            s = ts_list[i] + chunk_offset
+                            e = (ts_list[i + 1] if i + 1 < len(ts_list) else ts_list[i] + 0.3) + chunk_offset
+                            all_words.append({'word': ch, 'start': s, 'end': e, 'confidence': 1.0})
+
+                all_text += text
+
+    return all_text, all_words or None
+
+
+def transcribe_funasr_remote(filepath, server_url, progress_cb=None):
+    """调用局域网内电脑上的FunASR服务
+    手机和电脑在同一WiFi下，手机发送音频文件到电脑的FunASR服务。
+    server_url 格式: http://192.168.x.x:8765
+    """
+    if progress_cb:
+        progress_cb('正在连接FunASR服务...')
+
+    # 先检查服务是否可用
+    try:
+        r = requests.get(f'{server_url}/health', timeout=3)
+        if r.status_code != 200:
+            raise Exception('FunASR服务未响应')
+    except requests.exceptions.ConnectionError:
+        raise Exception(f'无法连接FunASR服务 ({server_url})\n请确认：\n1. 电脑已启动FunASR服务\n2. 手机和电脑在同一WiFi\n3. IP地址正确')
+
+    if progress_cb:
+        progress_cb('正在上传音频到FunASR...')
+
+    # 上传音频文件进行转录
+    with open(filepath, 'rb') as f:
+        resp = requests.post(f'{server_url}/transcribe_file',
+            files={'file': (os.path.basename(filepath), f)},
+            timeout=600)
+
+    # 如果服务端不支持文件上传，回退到路径模式（同机调试用）
+    if resp.status_code == 404:
+        resp = requests.post(f'{server_url}/transcribe',
+            json={'file_path': os.path.abspath(filepath)}, timeout=600)
+
+    data = resp.json()
+    if not data.get('success'):
+        raise Exception(data.get('error', 'FunASR转写失败'))
+
+    text = data.get('text', '')
+    timestamps = data.get('timestamp')
+    words = None
+
+    if timestamps and len(timestamps) > 0:
+        # 将字符级时间戳转为词级（简单按字切分）
+        words = []
+        for i, ch in enumerate(text):
+            if ch.strip() and i < len(timestamps):
+                ts = timestamps[i]
+                words.append({'word': ch, 'start': ts[0] / 1000, 'end': ts[1] / 1000, 'confidence': 1.0})
+
+    return text, words
+
+
+def transcribe_audio(filepath, provider='baidu_builtin', keys=None, progress_cb=None):
+    """统一转录入口"""
+    keys = keys or {}
+    filepath = preprocess_audio(filepath, progress_cb)
+
+    if provider == 'sherpa_offline':
+        model_dir = keys.get('model_dir')
+        return transcribe_sherpa_offline(filepath, model_dir, progress_cb)
+
+    if provider == 'funasr':
+        server_url = keys.get('server_url', 'http://192.168.1.100:8765')
+        return transcribe_funasr_remote(filepath, server_url, progress_cb)
+
+    if provider in ('baidu', 'baidu_builtin'):
+        api_key = keys.get('key', 'WRNGMiXLtsPvIAeh9pFhnM2W')
+        secret = keys.get('secret', 'e6nlIRVT25qSuABjRmx21kRoHha2w4t4')
+        app_id = keys.get('app_id', '122105243')
+        text = transcribe_baidu(filepath, api_key, secret, app_id, progress_cb)
+        return text, None
+
+    elif provider == 'groq_whisper':
+        groq_key = keys.get('key', '') or GROQ_BUILTIN_KEY
+        return transcribe_groq(filepath, groq_key, progress_cb)
+
+    elif provider == 'openai_whisper':
+        if progress_cb:
+            progress_cb('正在使用OpenAI Whisper转写...')
+        with open(filepath, 'rb') as f:
+            resp = requests.post('https://api.openai.com/v1/audio/transcriptions',
+                headers={'Authorization': f'Bearer {keys["key"]}'},
+                files={'file': (os.path.basename(filepath), f, 'audio/wav')},
+                data={'model': 'whisper-1', 'response_format': 'verbose_json',
+                      'timestamp_granularities': ['word']},
+                timeout=120)
+        data = resp.json()
+        text = data.get('text', '')
+        words = [{'word': w['word'], 'start': w['start'], 'end': w['end'], 'confidence': 0.0}
+                 for w in data.get('words', [])] or None
+        return text, words
+
+    raise Exception(f'不支持的ASR服务: {provider}')

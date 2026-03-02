@@ -1,0 +1,222 @@
+package com.courassistant.java.service;
+
+import android.content.Context;
+import android.content.SharedPreferences;
+import android.util.Log;
+
+import androidx.preference.PreferenceManager;
+
+import com.shanfuchun.courtassistant.java.model.CourtCase;
+import com.shanfuchun.courtassistant.java.repository.CaseRepository;
+import com.shanfuchun.courtassistant.java.repository.DocumentRepository;
+
+/**
+ * 同步管理器
+ * 管理日历同步策略和调度
+ *
+ * 宋氏美学，单夫纯律师 制作
+ */
+public class SyncManager {
+
+    private static final String TAG = "SyncManager";
+    private static final String PREF_AUTO_SYNC = "auto_sync_enabled";
+    private static final String PREF_LAST_SYNC = "last_sync_time";
+    private static final String PREF_SYNC_INTERVAL = "sync_interval";
+
+    private static SyncManager instance;
+    private Context context;
+    private SharedPreferences preferences;
+
+    private SyncManager(Context context) {
+        this.context = context.getApplicationContext();
+        this.preferences = PreferenceManager.getDefaultSharedPreferences(context);
+    }
+
+    /**
+     * 获取同步管理器实例
+     */
+    public static synchronized SyncManager getInstance(Context context) {
+        if (instance == null) {
+            instance = new SyncManager(context);
+        }
+        return instance;
+    }
+
+    /**
+     * 启动自动同步
+     */
+    public void startAutoSync() {
+        if (!isAutoSyncEnabled()) {
+            Log.d(TAG, "自动同步未启用");
+            return;
+        }
+
+        long interval = getSyncInterval();
+        CalendarSyncService.scheduleSync(context, interval);
+        Log.d(TAG, "已启动自动同步，间隔: " + interval + "ms");
+    }
+
+    /**
+     * 停止自动同步
+     */
+    public void stopAutoSync() {
+        CalendarSyncService.cancelScheduledSync(context);
+        Log.d(TAG, "已停止自动同步");
+    }
+
+    /**
+     * 执行立即同步
+     */
+    public void syncNow() {
+        Log.d(TAG, "执行立即同步");
+        CalendarSyncService.startSync(context);
+    }
+
+    /**
+     * 同步特定案件
+     * @param courtCase 案件对象
+     */
+    public void syncCase(CourtCase courtCase) {
+        if (courtCase == null || courtCase.getHearingDate() == null) {
+            Log.w(TAG, "案件信息不完整，无法同步");
+            return;
+        }
+
+        // 使用 CalendarUtils 直接添加事件
+        long eventId = com.courassistant.java.utils.CalendarUtils.addCourtEvent(context, courtCase);
+
+        if (eventId > 0) {
+            // 更新案件的日历事件ID
+            CaseRepository.getInstance(context).updateCalendarEventId(
+                courtCase.getId(),
+                eventId,
+                new CaseRepository.OnResultCallback() {
+                    @Override
+                    public void onSuccess(Object result) {
+                        Log.d(TAG, "案件同步成功: " + courtCase.getCaseNo());
+                    }
+
+                    @Override
+                    public void onError(String error) {
+                        Log.e(TAG, "更新案件日历ID失败: " + error);
+                    }
+                }
+            );
+        }
+    }
+
+    /**
+     * 检查并同步所有待处理项目
+     */
+    public void syncPending() {
+        Log.d(TAG, "检查并同步所有待处理项目");
+        CalendarSyncService.syncAllPending(context);
+    }
+
+    /**
+     * 设置自动同步开关
+     * @param enabled 是否启用
+     */
+    public void setAutoSyncEnabled(boolean enabled) {
+        preferences.edit().putBoolean(PREF_AUTO_SYNC, enabled).apply();
+
+        if (enabled) {
+            startAutoSync();
+        } else {
+            stopAutoSync();
+        }
+    }
+
+    /**
+     * 检查自动同步是否启用
+     */
+    public boolean isAutoSyncEnabled() {
+        return preferences.getBoolean(PREF_AUTO_SYNC, true); // 默认启用
+    }
+
+    /**
+     * 设置同步间隔
+     * @param hours 小时数
+     */
+    public void setSyncInterval(int hours) {
+        long interval = hours * 60 * 60 * 1000L;
+        preferences.edit().putLong(PREF_SYNC_INTERVAL, interval).apply();
+
+        // 如果自动同步已启用，重新调度
+        if (isAutoSyncEnabled()) {
+            stopAutoSync();
+            startAutoSync();
+        }
+    }
+
+    /**
+     * 获取同步间隔（毫秒）
+     */
+    public long getSyncInterval() {
+        return preferences.getLong(PREF_SYNC_INTERVAL, 3600000L); // 默认1小时
+    }
+
+    /**
+     * 更新最后同步时间
+     */
+    public void updateLastSyncTime() {
+        preferences.edit().putLong(PREF_LAST_SYNC, System.currentTimeMillis()).apply();
+    }
+
+    /**
+     * 获取最后同步时间
+     */
+    public long getLastSyncTime() {
+        return preferences.getLong(PREF_LAST_SYNC, 0);
+    }
+
+    /**
+     * 获取距离上次同步的时间（毫秒）
+     */
+    public long getTimeSinceLastSync() {
+        long lastSync = getLastSyncTime();
+        if (lastSync == 0) {
+            return Long.MAX_VALUE;
+        }
+        return System.currentTimeMillis() - lastSync;
+    }
+
+    /**
+     * 检查是否需要同步
+     * @param intervalMs 检查间隔（毫秒）
+     */
+    public boolean needsSync(long intervalMs) {
+        return getTimeSinceLastSync() >= intervalMs;
+    }
+
+    /**
+     * 获取同步状态摘要
+     */
+    public String getSyncStatusSummary() {
+        StringBuilder summary = new StringBuilder();
+        summary.append("自动同步: ").append(isAutoSyncEnabled() ? "启用" : "禁用");
+        summary.append("\n同步间隔: ").append(getSyncInterval() / 3600000L).append(" 小时");
+
+        long lastSync = getLastSyncTime();
+        if (lastSync > 0) {
+            summary.append("\n上次同步: ").append(com.courassistant.java.utils.DateUtils.formatTimestamp(lastSync));
+        } else {
+            summary.append("\n上次同步: 从未同步");
+        }
+
+        return summary.toString();
+    }
+
+    /**
+     * 清除所有同步设置
+     */
+    public void clearSettings() {
+        stopAutoSync();
+        preferences.edit()
+            .remove(PREF_AUTO_SYNC)
+            .remove(PREF_LAST_SYNC)
+            .remove(PREF_SYNC_INTERVAL)
+            .apply();
+        Log.d(TAG, "已清除所有同步设置");
+    }
+}

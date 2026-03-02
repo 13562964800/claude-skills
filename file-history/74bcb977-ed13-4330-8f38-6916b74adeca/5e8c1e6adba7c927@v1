@@ -1,0 +1,6 @@
+from app.worker.celery_app import celery_app
+
+
+@celery_app.task(bind=True, max_retries=3)
+def run_workflow_step(self, step_id: int, skill_name: str, payload: dict):
+    return {'step_id': step_id, 'status': 'success'}

@@ -1,0 +1,113 @@
+package com.shanfuchun.courtassistant.ui
+
+import android.content.Context
+import android.content.Intent
+import android.os.Bundle
+import android.text.Editable
+import android.text.TextWatcher
+import android.view.LayoutInflater
+import android.view.View
+import android.view.ViewGroup
+import android.widget.Toast
+import androidx.core.content.FileProvider
+import androidx.fragment.app.Fragment
+import com.shanfuchun.courtassistant.App
+import com.shanfuchun.courtassistant.databinding.FragmentSettingsBinding
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
+import java.io.File
+import java.text.SimpleDateFormat
+import java.util.*
+
+class SettingsFragment : Fragment() {
+    private var _b: FragmentSettingsBinding? = null
+    private val b get() = _b!!
+
+    override fun onCreateView(i: LayoutInflater, c: ViewGroup?, s: Bundle?): View {
+        _b = FragmentSettingsBinding.inflate(i, c, false)
+        return b.root
+    }
+
+    override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
+        b.tvVersion.text = "版本 1.1"
+        b.tvCredit.text = "单夫纯律师开发"
+
+        // AI API Key
+        val prefs = requireContext().getSharedPreferences("settings", Context.MODE_PRIVATE)
+        b.etApiKey.setText(prefs.getString("ai_api_key", ""))
+        b.etApiKey.addTextChangedListener(object : TextWatcher {
+            override fun beforeTextChanged(s: CharSequence?, start: Int, count: Int, after: Int) {}
+            override fun onTextChanged(s: CharSequence?, start: Int, before: Int, count: Int) {}
+            override fun afterTextChanged(s: Editable?) {
+                prefs.edit().putString("ai_api_key", s?.toString() ?: "").apply()
+            }
+        })
+
+        // Clear cache
+        b.btnClearCache.setOnClickListener {
+            val dir = requireContext().filesDir.resolve("pdfs")
+            val size = dir.walkTopDown().filter { it.isFile }.sumOf { it.length() }
+            val mb = String.format("%.1f", size / 1048576.0)
+            androidx.appcompat.app.AlertDialog.Builder(requireContext())
+                .setTitle("清理缓存")
+                .setMessage("当前缓存 ${mb}MB，确认清理？")
+                .setPositiveButton("清理") { _, _ ->
+                    dir.walkTopDown().filter { it.isFile }.forEach { it.delete() }
+                    Toast.makeText(requireContext(), "已清理", Toast.LENGTH_SHORT).show()
+                }
+                .setNegativeButton("取消", null).show()
+        }
+
+        // Export ICS
+        b.btnExportIcs.setOnClickListener { exportIcs() }
+    }
+
+    private fun exportIcs() {
+        val db = (requireContext().applicationContext as App).db
+        CoroutineScope(Dispatchers.IO).launch {
+            val items = db.summonsDao().getAllWithHearing()
+            if (items.isEmpty()) {
+                withContext(Dispatchers.Main) { Toast.makeText(requireContext(), "暂无开庭日程", Toast.LENGTH_SHORT).show() }
+                return@launch
+            }
+            val sdf = SimpleDateFormat("yyyyMMdd'T'HHmmss", Locale.CHINA).apply {
+                timeZone = TimeZone.getTimeZone("Asia/Shanghai")
+            }
+            val sb = StringBuilder()
+            sb.appendLine("BEGIN:VCALENDAR")
+            sb.appendLine("VERSION:2.0")
+            sb.appendLine("PRODID:-//CourtAssistant//CN")
+            for (item in items) {
+                sb.appendLine("BEGIN:VEVENT")
+                sb.appendLine("DTSTART;TZID=Asia/Shanghai:${sdf.format(Date(item.hearingTime))}")
+                sb.appendLine("DTEND;TZID=Asia/Shanghai:${sdf.format(Date(item.hearingTime + 3600_000))}")
+                sb.appendLine("SUMMARY:${item.courtName.ifEmpty { "法院" }} 开庭")
+                if (item.location.isNotEmpty()) sb.appendLine("LOCATION:${item.location}")
+                if (item.caseNo.isNotEmpty()) sb.appendLine("DESCRIPTION:案号 ${item.caseNo}")
+                sb.appendLine("END:VEVENT")
+            }
+            sb.appendLine("END:VCALENDAR")
+
+            val file = File(requireContext().cacheDir, "court_hearings.ics")
+            file.writeText(sb.toString())
+
+            withContext(Dispatchers.Main) {
+                try {
+                    val uri = FileProvider.getUriForFile(requireContext(), "${requireContext().packageName}.fileprovider", file)
+                    val intent = Intent(Intent.ACTION_SEND).apply {
+                        type = "text/calendar"
+                        putExtra(Intent.EXTRA_STREAM, uri)
+                        addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+                    }
+                    startActivity(Intent.createChooser(intent, "导出日历"))
+                } catch (e: Exception) {
+                    Toast.makeText(requireContext(), "导出失败: ${e.message}", Toast.LENGTH_SHORT).show()
+                }
+            }
+        }
+    }
+
+    override fun onDestroyView() { super.onDestroyView(); _b = null }
+}

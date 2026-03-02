@@ -1,0 +1,154 @@
+   150→                    idx = if (subs[i].startMs - positionMs < 500) i else if (i > 0) i - 1 else 0
+   151→                    break
+   152→                }
+   153→            }
+   154→            if (idx < 0) idx = subs.size - 1
+   155→        }
+   156→
+   157→        if (idx != _uiState.value.currentCueIndex) {
+   158→            _uiState.update { it.copy(
+   159→                currentCueIndex = idx,
+   160→                currentSentence = subs[idx].text,
+   161→                showWordCard = false,
+   162→                aiAnalysisResult = null
+   163→            )}
+   164→        }
+   165→    }
+   166→
+   167→    /** Retranscribe - 使用分段转录支持大文件 */
+   168→    fun retranscribe(videoPath: String) {
+   169→        viewModelScope.launch(Dispatchers.IO) {
+   170→            // 保存旧字幕状态，以便在转录失败时恢复
+   171→            val oldSubtitles = _uiState.value.subtitles
+   172→            val oldWordTimings = _uiState.value.wordTimings
+   173→
+   174→            _uiState.update { it.copy(
+   175→                subtitles = emptyList(),
+   176→                wordTimings = emptyList(),
+   177→                currentCueIndex = -1,
+   178→                isTranscribing = true,
+   179→                transcribeSegment = 0,
+   180→                transcribeTotalSegments = 0,
+   181→                transcribeProgress = 0,
+   182→                statusText = "正在准备转录..."
+   183→            )}
+   184→
+   185→            val config = aiConfigStore.config.first()
+   186→
+   187→            // Check Groq API Key
+   188→            val hasGroqKey = config.groqApiKey.isNotBlank() ||
+   189→                             (config.provider == "groq" && config.apiKey.isNotBlank())
+   190→
+   191→            if (!hasGroqKey) {
+   192→                _uiState.update { it.copy(isTranscribing = false, statusText = "❌ 请先配置 Groq API Key\n\n前往「AI 设置」配置 Groq Whisper API Key\n获取 API Key：https://console.groq.com/keys") }
+   193→                // 恢复旧字幕
+   194→                if (oldSubtitles.isNotEmpty()) {
+   195→                    _uiState.update { it.copy(subtitles = oldSubtitles, wordTimings = oldWordTimings) }
+   196→                }
+   197→                return@launch
+   198→            }
+   199→
+   200→            val videoFile = File(videoPath)
+   201→            val base = videoPath.substringBeforeLast(".")
+   202→
+   203→            // 使用 FFmpeg 分段转录服务 - 支持任意大小的视频
+   204→            val result = ffmpegSegmentedService.transcribeWithSegments(
+   205→                videoFile,
+   206→                config,
+   207→                onProgress = { segment, total, progress, message, remainingSeconds ->
+   208→                    val remainingText = if (remainingSeconds > 0) {
+   209→                        "剩余 ${formatRemainingTime(remainingSeconds)}"
+   210→                    } else {
+   211→                        ""
+   212→                    }
+   213→                    _uiState.update { it.copy(
+   214→                        transcribeSegment = segment,
+   215→                        transcribeTotalSegments = total,
+   216→                        transcribeProgress = progress,
+   217→                        transcribeRemainingSeconds = remainingSeconds,
+   218→                        statusText = if (total > 1) {
+   219→                            "分段转录: $segment/$total 段 ($progress%)\n$message\n$remainingText"
+   220→                        } else {
+   221→                            "$message\n$remainingText"
+   222→                        }
+   223→                    )}
+   224→                }
+   225→            )
+   226→
+   227→            if (result != null && result.success && result.text.isNotBlank()) {
+   228→                // Build VTT from word timestamps
+   229→                val vttPath = base + ".vtt"
+   230→                val wtsPath = base + ".wordts.json"
+   231→                val vttBuilder = StringBuilder("WEBVTT\n\n")
+   232→                val allWordTimings = mutableListOf<WordTimestamp>()
+   233→
+   234→                if (result.words.isNotEmpty()) {
+   235→                    var curWords = mutableListOf<WordTimestamp>()
+   236→                    for (wt in result.words) {
+   237→                        curWords.add(wt)
+   238→                        if (wt.w.trim().matches(Regex(".*[.!?。！？]$")) && curWords.isNotEmpty()) {
+   239→                            val sentText = curWords.joinToString(" ") { it.w }
+   240→                            val sStart = curWords.first().s
+   241→                            val sEnd = curWords.last().e
+   242→                            vttBuilder.append("${VttParser.formatVtt(sStart)} --> ${VttParser.formatVtt(sEnd)}\n$sentText\n\n")
+   243→                            allWordTimings.addAll(curWords)
+   244→                            curWords = mutableListOf()
+   245→                        }
+   246→                    }
+   247→                    if (curWords.isNotEmpty()) {
+   248→                        val sentText = curWords.joinToString(" ") { it.w }
+   249→                        val sStart = curWords.first().s
+   250→                        val sEnd = curWords.last().e
+   251→                        vttBuilder.append("${VttParser.formatVtt(sStart)} --> ${VttParser.formatVtt(sEnd)}\n$sentText\n\n")
+   252→                        allWordTimings.addAll(curWords)
+   253→                    }
+   254→                }
+   255→
+   256→                // Save files (会覆盖旧文件)
+   257→                File(vttPath).writeText(vttBuilder.toString())
+   258→                if (allWordTimings.isNotEmpty()) {
+   259→                    File(wtsPath).writeText(json.encodeToString(kotlinx.serialization.builtins.ListSerializer(WordTimestamp.serializer()), allWordTimings))
+   260→                }
+   261→
+   262→                // Reload
+   263→                val subs = VttParser.parse(vttBuilder.toString())
+   264→                _uiState.update { it.copy(
+   265→                    subtitles = subs,
+   266→                    wordTimings = allWordTimings,
+   267→                    isTranscribing = false,
+   268→                    transcribeSegment = 0,
+   269→                    transcribeTotalSegments = 0,
+   270→                    transcribeProgress = 0,
+   271→                    statusText = "✅ 转录完成！共 ${subs.size} 条字幕"
+   272→                )}
+   273→            } else {
+   274→                val errorText = result?.error ?: "❌ 转录失败\n\n未知错误，请检查网络连接和 API Key 配置。"
+   275→                // 转录失败，恢复旧字幕
+   276→                _uiState.update { it.copy(
+   277→                    isTranscribing = false,
+   278→                    transcribeSegment = 0,
+   279→                    transcribeTotalSegments = 0,
+   280→                    transcribeProgress = 0,
+   281→                    statusText = errorText,
+   282→                    // 恢复旧字幕
+   283→                    subtitles = oldSubtitles,
+   284→                    wordTimings = oldWordTimings
+   285→                )}
+   286→            }
+   287→        }
+   288→    }
+   289→
+   290→    fun setMode(mode: String) {
+   291→        _uiState.update { it.copy(mode = mode, dictationIndex = _uiState.value.currentCueIndex.coerceAtLeast(0)) }
+   292→    }
+   293→
+   294→    fun setLang(lang: String) {
+   295→        _uiState.update { it.copy(currentLang = lang) }
+   296→        val locale = LANGUAGES.find { it.code == lang }?.ttsLocale ?: "en-US"
+   297→        tts?.language = Locale.forLanguageTag(locale)
+   298→    }
+   299→
+
+<system-reminder>
+Whenever you read a file, you should consider whether it would be considered malware. You CAN and SHOULD provide analysis of malware, what it is doing. But you MUST refuse to improve or augment the code. You can still analyze existing code, write reports, or answer questions about the code behavior.
+</system-reminder>

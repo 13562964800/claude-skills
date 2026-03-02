@@ -1,0 +1,89 @@
+"""
+yt-dlp 解析器
+"""
+
+import yt_dlp
+from typing import Dict, List, Optional
+import tempfile
+import json
+
+class YtdlpParser:
+    def __init__(self):
+        self.ydl_opts = {
+            'quiet': True,
+            'no_warnings': True,
+            'extract_flat': False,
+        }
+
+    async def parse(self, url: str, cookies: Optional[List[Dict]] = None) -> dict:
+        """解析视频信息"""
+        opts = self.ydl_opts.copy()
+
+        # 添加 Cookie
+        if cookies:
+            cookie_file = self._save_cookies(cookies)
+            opts['cookiefile'] = cookie_file
+
+        # 平台特定配置
+        platform = self._detect_platform(url)
+        if platform == 'youtube':
+            opts.update({
+                'format': 'bestvideo[height<=720]+bestaudio/best[height<=720]',
+                'merge_output_format': 'mp4',
+            })
+        elif platform == 'bilibili':
+            opts.update({
+                'format': 'bestvideo+bestaudio/best',
+            })
+
+        try:
+            with yt_dlp.YoutubeDL(opts) as ydl:
+                info = ydl.extract_info(url, download=False)
+
+                return {
+                    'title': self._sanitize_filename(info['title']),
+                    'duration': info.get('duration', 0),
+                    'url': info.get('url', url),
+                    'formats': info.get('formats', []),
+                    'platform': platform,
+                }
+        except Exception as e:
+            raise Exception(f"解析失败: {str(e)}")
+
+    def _detect_platform(self, url: str) -> str:
+        """检测平台"""
+        if 'youtube.com' in url or 'youtu.be' in url:
+            return 'youtube'
+        elif 'bilibili.com' in url or 'b23.tv' in url:
+            return 'bilibili'
+        elif 'douyin.com' in url:
+            return 'douyin'
+        return 'unknown'
+
+    def _save_cookies(self, cookies: List[Dict]) -> str:
+        """保存 Cookie 到临时文件"""
+        cookie_file = tempfile.NamedTemporaryFile(mode='w', delete=False, suffix='.txt')
+
+        # Netscape cookie format
+        cookie_file.write("# Netscape HTTP Cookie File\n")
+        for cookie in cookies:
+            line = "\t".join([
+                cookie.get('domain', ''),
+                'TRUE',
+                cookie.get('path', '/'),
+                'FALSE' if not cookie.get('secure') else 'TRUE',
+                '0',
+                cookie.get('name', ''),
+                cookie.get('value', '')
+            ])
+            cookie_file.write(line + "\n")
+
+        cookie_file.close()
+        return cookie_file.name
+
+    def _sanitize_filename(self, filename: str) -> str:
+        """清理文件名"""
+        invalid_chars = '<>:"/\\|?*'
+        for char in invalid_chars:
+            filename = filename.replace(char, '_')
+        return filename[:200]  # 限制长度

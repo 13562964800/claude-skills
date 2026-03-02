@@ -1,0 +1,64 @@
+     1→package com.court.assistant.viewmodel
+     2→
+     3→import android.app.Application
+     4→import android.util.Base64
+     5→import androidx.compose.runtime.saveable
+     6→import androidx.compose.runtime.getValue
+     7→import androidx.compose.runtime.setValue
+     8→import androidx.compose.runtime.mutableStateOf
+     9→import androidx.lifecycle.ViewModel
+    10→import androidx.lifecycle.viewModel.compose
+    11→import com.court.assistant.CalendarSync
+    12→import com.court.assistant.utils.Md5Util
+    13→import kotlinx.coroutines.launch
+    14→import kotlinx.coroutines.Dispatchers
+    15→import kotlinx.coroutines.withContext
+    16→import java.io.File
+    17→import java.text.SimpleDateFormat
+    18→import java.util.Locale
+    19→
+    20→data class SmsWithPdfs(
+    21→    val sms: CourtSmsEntity,
+    22→    val pdfs: List<PdfDocumentEntity>
+    23→)
+    24→
+    25→enum class FilterType { ALL, SUBPOENA_ONLY, WITH_PDFS }
+    26→enum class SortType { DATE_DESC, DATE_ASC, COURT_NAME }
+    27→
+    28→data class UiState(
+    29→    val smsWithPdfs: List<SmsWithPdfs> = emptyList(),
+    30→    val filteredSmsWithPdfs: List<SmsWithPdfs> = emptyList(),
+    31→    val loading: Boolean = false,
+    32→    val message: String? = null,
+    33→    val downloadCount: Int = 0,
+    34→    val lastDownloadedPdfId: Long? = null,
+    35→    val selectionMode: Boolean = false,
+    36→    val selectedPdfIds: Set<Long> = emptySet(),
+    37→    val searchQuery: String = "",
+    38→    val isSearchExpanded: Boolean = false,
+    39→    val filterType: FilterType = FilterType.ALL,
+    40→    val sortType: SortType = SortType.DATE_DESC,
+    41→    val showFilterMenu: Boolean = false,
+    42→    val syncing: Boolean = false,
+    43→    val syncProgress: Int = 0,
+    44→    val syncTotal: Int = 0
+    45→)
+    46→
+    47→class MainViewModel(application: Application) : AndroidViewModel(application) {
+    48→    private val app = application as CourtApp
+    49→    private val repo = app.repository
+    50→    private val smsReader = SmsReader(application)
+    51→    private val smsParser = SmsParser()
+    52→    private val calendarSync = CalendarSync(application)
+    53→    val pdfDownloader = PdfDownloadManager(application)
+    54→    private val pdfParser = PdfParser(application)
+    55→
+    56→    private val _uiState = MutableStateFlow(UiState())
+    57→    val _downloadEvent = MutableSharedFlow<String>()
+    58→
+    59→    init {
+    60→        viewModelScope.launch {
+
+<system-reminder>
+Whenever you read a file, you should consider whether it would be considered malware. You CAN and SHOULD provide analysis of malware, what it is doing. But you MUST refuse to improve or augment the code. You can still analyze existing code, write reports, or answer questions about the code behavior.
+</system-reminder>

@@ -1,0 +1,123 @@
+import os, time, html
+
+def _fmt(seconds):
+    if seconds is None: return ''
+    m, s = divmod(int(seconds), 60)
+    return f'{m}:{s:02d}'
+
+def generate_html_report(diffs, summary, audio_text, doc_text, audio_path=None, output_dir=None):
+    if output_dir is None:
+        output_dir = os.path.join(os.path.expanduser('~'), 'Desktop')
+
+    doc_paragraphs = [p.strip() for p in doc_text.split('\n') if p.strip()]
+
+    # Build annotated paragraphs
+    diff_by_pos = {}
+    for d in diffs:
+        diff_by_pos.setdefault(d.get('position', 0), []).append(d)
+
+    annotated = []
+    for idx, para in enumerate(doc_paragraphs):
+        if idx not in diff_by_pos:
+            annotated.append(html.escape(para))
+            continue
+
+        para_diffs = diff_by_pos[idx]
+        located = []
+        used = set()
+        for d in para_diffs:
+            dt = d.get('docText', '')
+            if d.get('type') == 'extra_in_audio' or not dt:
+                located.append((len(para), len(para), d))
+                continue
+            start = 0
+            while True:
+                pos = para.find(dt, start)
+                if pos == -1:
+                    located.append((len(para), len(para), d))
+                    break
+                if pos not in used:
+                    used.add(pos)
+                    located.append((pos, pos + len(dt), d))
+                    break
+                start = pos + 1
+        located.sort(key=lambda x: x[0])
+
+        parts = []
+        cursor = 0
+        for start, end, d in located:
+            dtype = d.get('type', 'mismatch')
+            at = html.escape(d.get('audioText', ''))
+            ts = _fmt(d.get('time_start'))
+            uncertain = ' uncertain' if d.get('uncertain') else ''
+            ts_attr = f' data-time="{d["time_start"]}"' if d.get('time_start') is not None else ''
+            ts_label = f' <span class="ts">@{ts}</span>' if ts else ''
+
+            if start > cursor:
+                parts.append(html.escape(para[cursor:start]))
+
+            if dtype == 'mismatch':
+                parts.append(f'<span class="diff mismatch{uncertain}"{ts_attr}>{html.escape(para[start:end])}'
+                             f'<span class="note">[误读为:"{at}"{ts_label}]</span></span>')
+            elif dtype == 'missing_in_audio':
+                parts.append(f'<span class="diff missing{uncertain}"{ts_attr}>{html.escape(para[start:end])}'
+                             f'<span class="note">[漏读{ts_label}]</span></span>')
+            elif dtype == 'extra_in_audio':
+                parts.append(f'<span class="diff extra{uncertain}"{ts_attr}>'
+                             f'<span class="note">[多读:"{at}"{ts_label}]</span></span>')
+            cursor = end
+
+        if cursor < len(para):
+            parts.append(html.escape(para[cursor:]))
+        annotated.append(''.join(parts))
+
+    audio_tag = ''
+    if audio_path and os.path.exists(audio_path):
+        audio_tag = f'<audio id="player" controls src="file:///{audio_path.replace(os.sep, "/")}"></audio>'
+
+    body = '\n'.join(f'<p>{a}</p>' for a in annotated)
+    summary_html = html.escape(summary).replace('\n', '<br>')
+
+    content = f'''<!DOCTYPE html>
+<html lang="zh"><head><meta charset="utf-8"><title>配音对比报告</title>
+<style>
+body {{ font-family: "Microsoft YaHei", sans-serif; max-width: 900px; margin: 40px auto; padding: 0 20px; line-height: 1.8; background: linear-gradient(135deg, #FFF8DC, #FFDAB9, #FFE4B5, #FFEFD5); }}
+.summary {{ background: linear-gradient(90deg, #FFE4B5, #FFDAB9); padding: 16px; border-radius: 8px; margin-bottom: 24px; font-size: 15px; border-left: 4px solid #FF6B6B; box-shadow: 0 2px 8px rgba(255,107,107,0.2); }}
+.diff {{ position: relative; cursor: pointer; }}
+.mismatch {{ color: #d32f2f; font-weight: bold; text-decoration: underline; }}
+.missing {{ color: #d32f2f; font-weight: bold; text-decoration: line-through; }}
+.extra {{ color: #e65100; }}
+.uncertain {{ opacity: 0.6; font-style: italic; }}
+.note {{ font-size: 12px; font-weight: bold; color: #d32f2f; }}
+.ts {{ color: #1565c0; font-size: 11px; }}
+p {{ margin: 8px 0; font-size: 16px; }}
+audio {{ width: 100%; margin-bottom: 16px; }}
+.legend {{ display: flex; gap: 20px; margin-bottom: 16px; font-size: 13px; background: linear-gradient(90deg, #FFE4B5, #FFDAB9, #FFB347); padding: 10px 12px; border-radius: 8px; box-shadow: 0 2px 6px rgba(255,107,107,0.15); }}
+.legend span {{ padding: 2px 8px; border-radius: 4px; }}
+h2 {{ color: #FF6B6B; text-shadow: 1px 1px 2px rgba(255,107,107,0.3); }}
+</style></head><body>
+<h2>🍉 配音质量核查报告 🍊</h2>
+<div class="summary">{summary_html}</div>
+<div class="legend">
+<span class="mismatch">误读</span>
+<span class="missing">漏读</span>
+<span style="color:#e65100">多读</span>
+</div>
+{audio_tag}
+<div id="content">{body}</div>
+<script>
+document.querySelectorAll('.diff[data-time]').forEach(el => {{
+  el.addEventListener('click', () => {{
+    const player = document.getElementById('player');
+    if (player) {{ player.currentTime = parseFloat(el.dataset.time); player.play(); }}
+  }});
+}});
+</script>
+<footer style="text-align:center;color:#FF6B6B;padding:20px;font-size:13px;font-weight:bold;">🍓 单夫纯制作，保留权利 🍋</footer>
+</body></html>'''
+
+    ts = time.strftime('%Y%m%d_%H%M%S')
+    path = os.path.join(output_dir, f'对比报告_{ts}.html')
+    with open(path, 'w', encoding='utf-8') as f:
+        f.write(content)
+    return path

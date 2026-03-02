@@ -1,0 +1,60 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 800 500">
+  <!-- 背景 -->
+  <rect width="800" height="500" fill="#f8f9fa"/>
+
+  <!-- 标题 -->
+  <text x="400" y="40" font-family="Arial, sans-serif" font-size="24" font-weight="bold" fill="#4A90E2" text-anchor="middle">神经网络的秘密</text>
+
+  <!-- 输入层 -->
+  <text x="100" y="100" font-family="Arial, sans-serif" font-size="16" font-weight="bold" fill="#333" text-anchor="middle">输入层</text>
+  <circle cx="100" cy="150" r="25" fill="#FFD700" stroke="#333" stroke-width="2"/>
+  <text x="100" y="157" font-family="Arial, sans-serif" font-size="12" fill="#333" text-anchor="middle">图片</text>
+  <circle cx="100" cy="250" r="25" fill="#FFD700" stroke="#333" stroke-width="2"/>
+  <text x="100" y="257" font-family="Arial, sans-serif" font-size="12" fill="#333" text-anchor="middle">文字</text>
+  <circle cx="100" cy="350" r="25" fill="#FFD700" stroke="#333" stroke-width="2"/>
+  <text x="100" y="357" font-family="Arial, sans-serif" font-size="12" fill="#333" text-anchor="middle">声音</text>
+
+  <!-- 隐藏层1 -->
+  <text x="300" y="100" font-family="Arial, sans-serif" font-size="16" font-weight="bold" fill="#333" text-anchor="middle">隐藏层1</text>
+  <circle cx="300" cy="150" r="20" fill="#50C878" stroke="#333" stroke-width="2"/>
+  <circle cx="300" cy="220" r="20" fill="#50C878" stroke="#333" stroke-width="2"/>
+  <circle cx="300" cy="290" r="20" fill="#50C878" stroke="#333" stroke-width="2"/>
+  <circle cx="300" cy="360" r="20" fill="#50C878" stroke="#333" stroke-width="2"/>
+
+  <!-- 隐藏层2 -->
+  <text x="500" y="100" font-family="Arial, sans-serif" font-size="16" font-weight="bold" fill="#333" text-anchor="middle">隐藏层2</text>
+  <circle cx="500" cy="150" r="20" fill="#50C878" stroke="#333" stroke-width="2"/>
+  <circle cx="500" cy="220" r="20" fill="#50C878" stroke="#333" stroke-width="2"/>
+  <circle cx="500" cy="290" r="20" fill="#50C878" stroke="#333" stroke-width="2"/>
+  <circle cx="500" cy="360" r="20" fill="#50C878" stroke="#333" stroke-width="2"/>
+
+  <!-- 输出层 -->
+  <text x="700" y="100" font-family="Arial, sans-serif" font-size="16" font-weight="bold" fill="#333" text-anchor="middle">输出层</text>
+  <circle cx="700" cy="200" r="25" fill="#FF6B35" stroke="#333" stroke-width="2"/>
+  <text x="700" y="207" font-family="Arial, sans-serif" font-size="12" fill="#333" text-anchor="middle">结果</text>
+  <circle cx="700" cy="300" r="25" fill="#FF6B35" stroke="#333" stroke-width="2"/>
+  <text x="700" y="307" font-family="Arial, sans-serif" font-size="12" fill="#333" text-anchor="middle">答案</text>
+
+  <!-- 连接线 - 输入层到隐藏层1 -->
+  <line x1="125" y1="150" x2="280" y2="150" stroke="#4A90E2" stroke-width="1.5" opacity="0.6"/>
+  <line x1="125" y1="150" x2="280" y2="220" stroke="#4A90E2" stroke-width="1.5" opacity="0.6"/>
+  <line x1="125" y1="250" x2="280" y2="220" stroke="#4A90E2" stroke-width="1.5" opacity="0.6"/>
+  <line x1="125" y1="250" x2="280" y2="290" stroke="#4A90E2" stroke-width="1.5" opacity="0.6"/>
+  <line x1="125" y1="350" x2="280" y2="290" stroke="#4A90E2" stroke-width="1.5" opacity="0.6"/>
+  <line x1="125" y1="350" x2="280" y2="360" stroke="#4A90E2" stroke-width="1.5" opacity="0.6"/>
+
+  <!-- 连接线 - 隐藏层1到隐藏层2 -->
+  <line x1="320" y1="150" x2="480" y2="150" stroke="#4A90E2" stroke-width="1.5" opacity="0.6"/>
+  <line x1="320" y1="220" x2="480" y2="220" stroke="#4A90E2" stroke-width="1.5" opacity="0.6"/>
+  <line x1="320" y1="290" x2="480" y2="290" stroke="#4A90E2" stroke-width="1.5" opacity="0.6"/>
+  <line x1="320" y1="360" x2="480" y2="360" stroke="#4A90E2" stroke-width="1.5" opacity="0.6"/>
+
+  <!-- 连接线 - 隐藏层2到输出层 -->
+  <line x1="520" y1="150" x2="675" y2="200" stroke="#4A90E2" stroke-width="1.5" opacity="0.6"/>
+  <line x1="520" y1="220" x2="675" y2="200" stroke="#4A90E2" stroke-width="1.5" opacity="0.6"/>
+  <line x1="520" y1="290" x2="675" y2="300" stroke="#4A90E2" stroke-width="1.5" opacity="0.6"/>
+  <line x1="520" y1="360" x2="675" y2="300" stroke="#4A90E2" stroke-width="1.5" opacity="0.6"/>
+
+  <!-- 说明文字 -->
+  <text x="400" y="460" font-family="Arial, sans-serif" font-size="14" fill="#666" text-anchor="middle">信息从左到右流动，每一层都在学习和处理数据</text>
+</svg>

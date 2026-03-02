@@ -1,0 +1,312 @@
+/**
+ * 高性能图片编辑器 - 前端核心逻辑
+ * 方案：前端预览 + 后端处理（性能优化）
+ */
+
+class ImageEditor {
+    constructor() {
+        this.cropper = null;
+        this.currentFile = null;
+        this.originalImage = null;
+        this.filters = {
+            brightness: 100,
+            contrast: 100,
+            saturate: 100,
+            sepia: 0,
+            blur: 0,
+            preset: 'none'
+        };
+        this.canvas = document.getElementById('previewCanvas');
+        this.ctx = this.canvas.getContext('2d');
+        this.init();
+    }
+
+    init() {
+        this.bindEvents();
+    }
+
+    bindEvents() {
+        // 上传区域事件
+        const uploadArea = document.getElementById('uploadArea');
+        const fileInput = document.getElementById('fileInput');
+
+        uploadArea.addEventListener('click', () => fileInput.click());
+
+        uploadArea.addEventListener('dragover', (e) => {
+            e.preventDefault();
+            uploadArea.classList.add('dragover');
+        });
+
+        uploadArea.addEventListener('dragleave', () => {
+            uploadArea.classList.remove('dragover');
+        });
+
+        uploadArea.addEventListener('drop', (e) => {
+            e.preventDefault();
+            uploadArea.classList.remove('dragover');
+            const file = e.dataTransfer.files[0];
+            if (file && file.type.startsWith('image/')) {
+                this.loadImage(file);
+            }
+        });
+
+        fileInput.addEventListener('change', (e) => {
+            const file = e.target.files[0];
+            if (file) {
+                this.loadImage(file);
+            }
+        });
+
+        // 裁剪比例按钮
+        document.querySelectorAll('.ratio-btn').forEach(btn => {
+            btn.addEventListener('click', (e) => {
+                document.querySelectorAll('.ratio-btn').forEach(b => b.classList.remove('active'));
+                e.target.classList.add('active');
+                this.setAspectRatio(e.target.dataset.ratio);
+            });
+        });
+
+        // 滤镜滑块
+        ['brightness', 'contrast', 'saturate', 'sepia', 'blur'].forEach(filter => {
+            const slider = document.getElementById(filter);
+            slider.addEventListener('input', (e) => {
+                this.filters[filter] = parseFloat(e.target.value);
+                this.updateFilterDisplay();
+                this.applyFilters();
+            });
+        });
+
+        // 预设滤镜按钮
+        document.querySelectorAll('.filter-btn').forEach(btn => {
+            btn.addEventListener('click', (e) => {
+                document.querySelectorAll('.filter-btn').forEach(b => b.classList.remove('active'));
+                e.target.classList.add('active');
+                this.applyPresetFilter(e.target.dataset.filter);
+            });
+        });
+
+        // 操作按钮
+        document.getElementById('cropBtn').addEventListener('click', () => this.crop());
+        document.getElementById('resetBtn').addEventListener('click', () => this.reset());
+        document.getElementById('downloadBtn').addEventListener('click', () => this.download());
+    }
+
+    loadImage(file) {
+        this.currentFile = file;
+        const reader = new FileReader();
+
+        reader.onload = (e) => {
+            const img = document.getElementById('cropImage');
+            img.src = e.target.result;
+
+            img.onload = () => {
+                this.originalImage = img;
+                this.initCropper(img);
+
+                document.getElementById('uploadArea').style.display = 'none';
+                document.getElementById('imageContainer').style.display = 'block';
+            };
+        };
+
+        reader.readAsDataURL(file);
+    }
+
+    initCropper(img) {
+        if (this.cropper) {
+            this.cropper.destroy();
+        }
+
+        this.cropper = new Cropper(img, {
+            aspectRatio: NaN,
+            viewMode: 1,
+            dragMode: 'move',
+            autoCropArea: 0.8,
+            restore: false,
+            guides: true,
+            center: true,
+            highlight: false,
+            cropBoxMovable: true,
+            cropBoxResizable: true,
+            toggleDragModeOnDblclick: false,
+        });
+    }
+
+    setAspectRatio(ratio) {
+        if (!this.cropper) return;
+
+        if (ratio === 'free') {
+            this.cropper.setAspectRatio(NaN);
+        } else {
+            this.cropper.setAspectRatio(parseFloat(ratio));
+        }
+    }
+
+    updateFilterDisplay() {
+        document.getElementById('brightnessValue').textContent = `${this.filters.brightness}%`;
+        document.getElementById('contrastValue').textContent = `${this.filters.contrast}%`;
+        document.getElementById('saturateValue').textContent = `${this.filters.saturate}%`;
+        document.getElementById('sepiaValue').textContent = `${this.filters.sepia}%`;
+        document.getElementById('blurValue').textContent = `${this.filters.blur}px`;
+    }
+
+    applyFilters() {
+        if (!this.cropper) return;
+
+        // 使用CSS滤镜实现实时预览（性能最优）
+        const canvas = this.cropper.getImage();
+        const filterString = this.buildFilterString();
+
+        canvas.style.filter = filterString;
+    }
+
+    buildFilterString() {
+        const { brightness, contrast, saturate, sepia, blur } = this.filters;
+        return `brightness(${brightness}%) contrast(${contrast}%) saturate(${saturate}%) sepia(${sepia}%) blur(${blur}px)`;
+    }
+
+    applyPresetFilter(preset) {
+        this.filters.preset = preset;
+
+        // 文字图优化的预设滤镜
+        const presets = {
+            'none': { brightness: 100, contrast: 100, saturate: 100, sepia: 0, blur: 0 },
+            'text-vibrant': { brightness: 110, contrast: 115, saturate: 130, sepia: 0, blur: 0 },
+            'text-sharp': { brightness: 105, contrast: 125, saturate: 110, sepia: 0, blur: 0 },
+            'text-high-contrast': { brightness: 110, contrast: 150, saturate: 100, sepia: 0, blur: 0 },
+            'poster-vintage': { brightness: 95, contrast: 120, saturate: 80, sepia: 40, blur: 0 },
+            'poster-neon': { brightness: 110, contrast: 140, saturate: 180, sepia: 0, blur: 0 },
+            'text-cool': { brightness: 100, contrast: 105, saturate: 90, sepia: 0, blur: 0 },
+            'text-warm': { brightness: 105, contrast: 105, saturate: 110, sepia: 20, blur: 0 }
+        };
+
+        const presetFilter = presets[preset];
+        if (presetFilter) {
+            Object.assign(this.filters, presetFilter);
+
+            // 更新滑块位置
+            Object.keys(presetFilter).forEach(key => {
+                const slider = document.getElementById(key);
+                if (slider) {
+                    slider.value = presetFilter[key];
+                }
+            });
+
+            this.updateFilterDisplay();
+            this.applyFilters();
+        }
+    }
+
+    async crop() {
+        if (!this.cropper) return;
+
+        const canvas = this.cropper.getCroppedCanvas({
+            maxWidth: 4096,
+            maxHeight: 4096,
+            imageSmoothingQuality: 'high',
+        });
+
+        if (!canvas) return;
+
+        // 显示加载状态
+        document.getElementById('loading').style.display = 'block';
+
+        try {
+            // 将canvas转换为blob
+            canvas.toBlob(async (blob) => {
+                const formData = new FormData();
+                formData.append('image', blob, 'cropped.png');
+                formData.append('filters', JSON.stringify(this.filters));
+
+                // 发送到后端处理
+                const response = await fetch('http://localhost:5000/api/process', {
+                    method: 'POST',
+                    body: formData
+                });
+
+                if (!response.ok) {
+                    throw new Error('处理失败');
+                }
+
+                const result = await response.json();
+
+                // 显示处理后的图片
+                this.displayResult(result.image);
+
+                document.getElementById('loading').style.display = 'none';
+            }, 'image/png');
+        } catch (error) {
+            console.error('裁剪失败:', error);
+            alert('处理失败，请重试');
+            document.getElementById('loading').style.display = 'none';
+        }
+    }
+
+    displayResult(base64Image) {
+        document.getElementById('imageContainer').style.display = 'none';
+        const previewContainer = document.getElementById('previewContainer');
+        previewContainer.style.display = 'block';
+
+        const img = new Image();
+        img.onload = () => {
+            this.canvas.width = img.width;
+            this.canvas.height = img.height;
+            this.ctx.drawImage(img, 0, 0);
+        };
+        img.src = base64Image;
+    }
+
+    reset() {
+        if (!this.cropper) return;
+
+        // 重置滤镜
+        this.filters = {
+            brightness: 100,
+            contrast: 100,
+            saturate: 100,
+            sepia: 0,
+            blur: 0,
+            preset: 'none'
+        };
+
+        // 重置滑块
+        ['brightness', 'contrast', 'saturate', 'sepia', 'blur'].forEach(key => {
+            const slider = document.getElementById(key);
+            if (slider) {
+                const defaultValues = { brightness: 100, contrast: 100, saturate: 100, sepia: 0, blur: 0 };
+                slider.value = defaultValues[key];
+            }
+        });
+
+        // 重置预设按钮
+        document.querySelectorAll('.filter-btn').forEach(b => b.classList.remove('active'));
+        document.querySelector('.filter-btn[data-filter="none"]').classList.add('active');
+
+        this.updateFilterDisplay();
+        this.applyFilters();
+
+        // 重置cropper
+        this.cropper.reset();
+
+        // 显示原图
+        document.getElementById('imageContainer').style.display = 'block';
+        document.getElementById('previewContainer').style.display = 'none';
+    }
+
+    download() {
+        const previewContainer = document.getElementById('previewContainer');
+        if (previewContainer.style.display === 'none') {
+            alert('请先裁剪图片');
+            return;
+        }
+
+        const link = document.createElement('a');
+        link.download = `processed_${Date.now()}.png`;
+        link.href = this.canvas.toDataURL('image/png');
+        link.click();
+    }
+}
+
+// 初始化编辑器
+document.addEventListener('DOMContentLoaded', () => {
+    window.imageEditor = new ImageEditor();
+});

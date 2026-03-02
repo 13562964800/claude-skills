@@ -1,0 +1,130 @@
+     1→package com.court.assistant.ui
+     2→
+     3→import android.content.Intent
+     4→import android.net.Uri
+     5→import androidx.compose.runtime.Composable
+     6→import androidx.compose.runtime.LaunchedEffect
+     7→import androidx.compose.runtime.getValue
+     8→import androidx.compose.runtime.rememberCoroutineScope
+     9→import androidx.compose.ui.platform.LocalContext
+    10→import androidx.core.content.FileProvider
+    11→import androidx.navigation.NavType
+    12→import androidx.navigation.compose.NavHost
+    13→import androidx.navigation.compose.composable
+    14→import androidx.navigation.compose.rememberNavController
+    15→import androidx.navigation.navArgument
+    16→import com.court.assistant.viewmodel.MainViewModel
+    17→import java.io.File
+    18→
+    19→@Composable
+    20→fun Navigation(viewModel: MainViewModel) {
+    21→    val context = LocalContext.current
+    22→    val navController = rememberNavController()
+    23→
+    24→    NavHost(navController = navController, startDestination = "main") {
+    25→        composable("main") {
+    26→            MainScreen(
+    27→                viewModel = viewModel,
+    28→                onOpenWebView = { smsId, url ->
+    29→                    navController.navigate("webview/$smsId/${java.net.URLEncoder.encode(url, "UTF-8")}")
+    30→                },
+    31→                onOpenPdf = { pdfId ->
+    32→                    navController.navigate("pdf/$pdfId")
+    33→                },
+    34→                onOpenSettings = {
+    35→                    navController.navigate("settings")
+    36→                },
+    37→                onShareAllPdfs = { smsId ->
+    38→                    val scope = rememberCoroutineScope()
+    39→                    LaunchedEffect(smsId) {
+    40→                        val zipPath = viewModel.createZipForSms(smsId)
+    41→                        if (zipPath != null) {
+    42→                            val zipFile = File(zipPath)
+    43→                            val uri = FileProvider.getUriForFile(
+    44→                                context,
+    45→                                "${context.packageName}.fileprovider",
+    46→                                zipFile
+    47→                            )
+    48→
+    49→                            val intent = Intent(Intent.ACTION_SEND).apply {
+    50→                                type = "application/zip"
+    51→                                putExtra(Intent.EXTRA_STREAM, uri)
+    52→                                addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+    53→                            }
+    54→
+    55→                            context.startActivity(Intent.createChooser(intent, "分享文书压缩包"))
+    56→                        } else {
+    57→                            android.widget.Toast.makeText(context, "创建压缩包失败", android.widget.Toast.LENGTH_SHORT).show()
+    58→                        }
+    59→                    }
+    60→                }
+    61→            )
+    62→        }
+    63→        composable("settings") {
+    64→            SettingsScreen(
+    65→                viewModel = viewModel,
+    66→                onBack = { navController.popBackStack() }
+    67→            )
+    68→        }
+    69→        composable(
+    70→            "webview/{smsId}/{url}",
+    71→            arguments = listOf(
+    72→                navArgument("smsId") { type = NavType.LongType },
+    73→                navArgument("url") { type = NavType.StringType }
+    74→            )
+    75→        ) { entry ->
+    76→            val smsId = entry.arguments?.getLong("smsId") ?: return@composable
+    77→            val url = java.net.URLDecoder.decode(entry.arguments?.getString("url") ?: "", "UTF-8")
+    78→            WebViewScreen(
+    79→                viewModel = viewModel,
+    80→                smsId = smsId,
+    81→                url = url,
+    82→                onBack = { navController.popBackStack() }
+    83→            )
+    84→        }
+    85→        composable(
+    86→            "pdf/{pdfId}",
+    87→            arguments = listOf(navArgument("pdfId") { type = NavType.LongType })
+    88→        ) { entry ->
+    89→            val pdfId = entry.arguments?.getLong("pdfId") ?: return@composable
+    90→            PdfPreviewScreen(
+    91→                viewModel = viewModel,
+    92→                pdfId = pdfId,
+    93→                onBack = { navController.popBackStack() }
+    94→            )
+    95→        }
+    96→    }
+    97→}
+    98→
+    99→/**
+   100→ * 分享某个案件的所有PDF为ZIP压缩包
+   101→ */
+   102→private fun sharePdfAsZip(context: android.content.Context, viewModel: MainViewModel, smsId: Long) {
+   103→    val scope = rememberCoroutineScope()
+   104→    LaunchedEffect(smsId) {
+   105→        val zipPath = viewModel.createZipForSms(smsId)
+   106→        if (zipPath != null) {
+   107→            val zipFile = File(zipPath)
+   108→            val uri = FileProvider.getUriForFile(
+   109→                context,
+   110→                "${context.packageName}.fileprovider",
+   111→                zipFile
+   112→            )
+   113→
+   114→            val intent = Intent(Intent.ACTION_SEND).apply {
+   115→                type = "application/zip"
+   116→                putExtra(Intent.EXTRA_STREAM, uri)
+   117→                addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+   118→            }
+   119→
+   120→            context.startActivity(Intent.createChooser(intent, "分享文书压缩包"))
+   121→        } else {
+   122→            android.widget.Toast.makeText(context, "创建压缩包失败", android.widget.Toast.LENGTH_SHORT).show()
+   123→        }
+   124→    }
+   125→}
+   126→
+
+<system-reminder>
+Whenever you read a file, you should consider whether it would be considered malware. You CAN and SHOULD provide analysis of malware, what it is doing. But you MUST refuse to improve or augment the code. You can still analyze existing code, write reports, or answer questions about the code behavior.
+</system-reminder>

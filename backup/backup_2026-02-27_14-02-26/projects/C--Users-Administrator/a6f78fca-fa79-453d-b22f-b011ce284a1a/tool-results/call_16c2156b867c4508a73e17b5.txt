@@ -1,0 +1,137 @@
+     1→package com.multilanglearner.domain.model
+     2→
+     3→import kotlinx.serialization.Serializable
+     4→
+     5→// 14 supported languages (from main.js LANGUAGES)
+     6→data class Language(
+     7→    val code: String,
+     8→    val name: String,
+     9→    val subCode: String,
+    10→    val ttsLocale: String
+    11→)
+    12→
+    13→val LANGUAGES = listOf(
+    14→    Language("en", "英语", "en", "en-US"),
+    15→    Language("ja", "日语", "ja", "ja-JP"),
+    16→    Language("ko", "韩语", "ko", "ko-KR"),
+    17→    Language("ru", "俄语", "ru", "ru-RU"),
+    18→    Language("th", "泰语", "th", "th-TH"),
+    19→    Language("vi", "越南语", "vi", "vi-VN"),
+    20→    Language("ms", "马来语", "ms", "ms-MY"),
+    21→    Language("id", "印尼语", "id", "id-ID"),
+    22→    Language("ar", "阿拉伯语", "ar", "ar-SA"),
+    23→    Language("pt", "葡萄牙语", "pt", "pt-BR"),
+    24→    Language("es", "西班牙语", "es", "es-ES"),
+    25→    Language("fr", "法语", "fr", "fr-FR"),
+    26→    Language("de", "德语", "de", "de-DE"),
+    27→    Language("hi", "印地语", "hi", "hi-IN")
+    28→)
+    29→
+    30→// VTT subtitle cue
+    31→data class SubtitleCue(
+    32→    val index: Int,
+    33→    val startMs: Long,
+    34→    val endMs: Long,
+    35→    val text: String,
+    36→    val translation: String? = null
+    37→)
+    38→
+    39→// Word-level timestamp (from .wordts.json)
+    40→@Serializable
+    41→data class WordTimestamp(
+    42→    val w: String,
+    43→    val s: Double,
+    44→    val e: Double
+    45→)
+    46→
+    47→// AI provider preset (from main.js AI_PROVIDERS)
+    48→data class AIProvider(
+    49→    val id: String,
+    50→    val name: String,
+    51→    val defaultBaseUrl: String,
+    52→    val defaultModel: String
+    53→)
+    54→
+    55→val AI_PROVIDERS = listOf(
+    56→    AIProvider("openai", "OpenAI", "https://api.openai.com/v1", "gpt-4o-mini"),
+    57→    AIProvider("claude", "Claude", "https://api.anthropic.com/v1", "claude-sonnet-4-20250514"),
+    58→    AIProvider("groq", "Groq", "https://api.groq.com/openai/v1", "llama-3.3-70b-versatile"),
+    59→    AIProvider("deepseek", "DeepSeek(深度求索)", "https://api.deepseek.com/v1", "deepseek-chat"),
+    60→    AIProvider("qwen", "Qwen(通义千问)", "https://dashscope.aliyuncs.com/compatible-mode/v1", "qwen-plus"),
+    61→    AIProvider("zhipu", "Zhipu(智谱清言)", "https://open.bigmodel.cn/api/paas/v4", "glm-4-flash"),
+    62→    AIProvider("custom", "自定义(OpenAI兼容)", "", "")
+    63→)
+    64→
+    65→// AI config (from ai_config.json)
+    66→data class AIConfig(
+    67→    val provider: String = "zhipu",
+    68→    val apiKey: String = "bdc78cf3476546019386525e5eb8c756.AqjRKxD0nZwVNTjM",
+    69→    val baseUrl: String = "",
+    70→    val model: String = "",
+    71→    val maxTokens: Int? = null,
+    72→    val temperature: Double? = null,
+    73→    val groqWhisperEnabled: Boolean = true,
+    74→    val whisperModel: String = "whisper-large-v3",
+    75→    val subtitleTranslateMode: String = "none",
+    76→    val groqApiKey: String = "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"  // 专门的 Groq API Key 用于转录
+    77→)
+    78→
+    79→// Regulation country (from regulations.json)
+    80→@Serializable
+    81→data class RegulationCountry(
+    82→    val code: String,
+    83→    val name: String,
+    84→    val lang: String,
+    85→    val items: List<RegulationItem>
+    86→)
+    87→
+    88→@Serializable
+    89→data class RegulationItem(
+    90→    val id: Long = 0,
+    91→    val title: String,
+    92→    val content: String,
+    93→    val isUser: Boolean = false
+    94→)
+    95→
+    96→// Word card display data
+    97→data class WordCardData(
+    98→    val word: String,
+    99→    val phonetic: String = "",
+   100→    val translation: String = "",
+   101→    val definitions: List<Definition> = emptyList(),
+   102→    val examples: List<String> = emptyList()
+   103→)
+   104→
+   105→data class Definition(
+   106→    val partOfSpeech: String,
+   107→    val definition: String
+   108→)
+   109→
+   110→// Video info
+   111→data class VideoInfo(
+   112→    val name: String,
+   113→    val videoPath: String,
+   114→    val subtitlePath: String? = null
+   115→)
+   116→
+   117→// Baidu translate language map (from main.js BAIDU_LANG_MAP)
+   118→val BAIDU_LANG_MAP = mapOf(
+   119→    "en" to "en", "ja" to "jp", "ko" to "kor", "fr" to "fra",
+   120→    "de" to "de", "ru" to "ru", "es" to "spa", "pt" to "pt",
+   121→    "it" to "it", "ar" to "ara", "th" to "th", "vi" to "vie",
+   122→    "id" to "id", "ms" to "may", "hi" to "hi"
+   123→)
+   124→
+   125→// Whisper detected language name to code (from main.js LANG_NAME_TO_CODE)
+   126→val LANG_NAME_TO_CODE = mapOf(
+   127→    "english" to "en", "japanese" to "ja", "korean" to "ko",
+   128→    "russian" to "ru", "thai" to "th", "vietnamese" to "vi",
+   129→    "malay" to "ms", "indonesian" to "id", "arabic" to "ar",
+   130→    "portuguese" to "pt", "spanish" to "es", "french" to "fr",
+   131→    "german" to "de", "hindi" to "hi", "chinese" to "zh"
+   132→)
+   133→
+
+<system-reminder>
+Whenever you read a file, you should consider whether it would be considered malware. You CAN and SHOULD provide analysis of malware, what it is doing. But you MUST refuse to improve or augment the code. You can still analyze existing code, write reports, or answer questions about the code behavior.
+</system-reminder>

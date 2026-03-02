@@ -1,0 +1,40 @@
+Sub 添加页码()
+    '
+    ' 为文档添加页码
+    ' 封面和扉页不显示，正文显示
+    '
+
+    Dim doc As Document
+    Set doc = ActiveDocument
+
+    ' 删除所有现有页码
+    Dim sec As Section
+    For Each sec In doc.Sections
+        sec.Footers(wdHeaderFooterPrimary).PageNumbers.Delete
+    Next sec
+
+    ' 设置封面不显示页码
+    doc.Sections(1).PageSetup.DifferentFirstPageHeaderFooter = True
+
+    ' 从第3页开始添加页码
+    If doc.Sections.Count >= 3 Then
+        ' 在第3节添加页码
+        With doc.Sections(3).Footers(wdHeaderFooterPrimary)
+            .LinkToPrevious = False
+            .PageNumbers.Add PageNumberAlignment:=wdAlignPageNumberCenter
+        End With
+    Else
+        ' 如果只有1个节，直接添加
+        With doc.Sections(1).Footers(wdHeaderFooterPrimary)
+            .PageNumbers.Add PageNumberAlignment:=wdAlignPageNumberCenter
+        End With
+    End If
+
+    ' 更新所有域
+    doc.Fields.Update
+
+    MsgBox "页码添加完成！" & vbCrLf & _
+           "封面和扉页：无页码" & vbCrLf & _
+           "正文页：页面底部居中", vbInformation, "完成"
+
+End Sub

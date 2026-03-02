@@ -1,0 +1,113 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>极光视频下载器 Pro</title>
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <!-- 极光渐变背景 -->
+    <div class="aurora-bg">
+        <div class="aurora-blob blob-1"></div>
+        <div class="aurora-blob blob-2"></div>
+        <div class="aurora-blob blob-3"></div>
+    </div>
+
+    <!-- 主容器 -->
+    <div class="container">
+        <!-- Logo 区域 -->
+        <div class="header">
+            <div class="logo-container">
+                <div class="logo youtube-logo">
+                    <svg viewBox="0 0 24 24" fill="white">
+                        <polygon points="8,5 8,19 19,12"/>
+                    </svg>
+                </div>
+            </div>
+            <h1 class="title">极光视频下载器</h1>
+            <p class="subtitle">✨ YouTube & 抖音 · AI驱动 · 智能解析 ✨</p>
+        </div>
+
+        <!-- 主内容卡片 -->
+        <div class="main-card glass-card">
+            <!-- URL 输入区域 -->
+            <div class="input-section">
+                <label class="label">🔗 视频链接</label>
+                <div class="input-wrapper">
+                    <input type="text" id="urlInput" placeholder="粘贴 YouTube 或 抖音 视频链接..." class="url-input">
+                    <button class="paste-btn" id="pasteBtn">📋</button>
+                </div>
+                <div class="platform-indicator" id="platformIndicator">📡 等待输入...</div>
+            </div>
+
+            <!-- 下载模式选择 -->
+            <div class="mode-section">
+                <label class="label">⚡ 下载模式</label>
+                <div class="mode-buttons">
+                    <button class="mode-btn active" data-mode="merge">
+                        <span class="mode-icon">🔄</span>
+                        <span class="mode-text">自动合并</span>
+                    </button>
+                    <button class="mode-btn" data-mode="video">
+                        <span class="mode-icon">🎬</span>
+                        <span class="mode-text">最佳视频</span>
+                    </button>
+                    <button class="mode-btn" data-mode="audio">
+                        <span class="mode-icon">🎵</span>
+                        <span class="mode-text">音频提取</span>
+                    </button>
+                </div>
+            </div>
+
+            <!-- 进度区域 -->
+            <div class="progress-section">
+                <div class="progress-bar">
+                    <div class="progress-fill" id="progressFill"></div>
+                </div>
+                <div class="status-text" id="statusText">等待操作...</div>
+            </div>
+
+            <!-- 操作按钮 -->
+            <div class="action-buttons">
+                <button class="btn btn-info" id="extractBtn">
+                    <span class="btn-icon">📊</span>
+                    <span class="btn-text">提取视频信息</span>
+                </button>
+                <button class="btn btn-primary" id="downloadBtn">
+                    <span class="btn-icon">🚀</span>
+                    <span class="btn-text">开始下载</span>
+                </button>
+            </div>
+
+            <!-- 使用说明 -->
+            <div class="info-box">
+                <p>💡 支持平台：YouTube、抖音</p>
+                <p>📋 粘贴链接后自动识别平台</p>
+                <p>🤖 AI 驱动的反爬虫动态策略</p>
+                <p>🎬 支持 4K 超清、1080p、720p 等多种画质</p>
+            </div>
+        </div>
+
+        <!-- 底部信息 -->
+        <div class="footer">
+            💾 保存至桌面 | 支持 MP4/WEBM/MP3 | ✨ AI 智能引擎
+        </div>
+    </div>
+
+    <!-- 视频信息弹窗 -->
+    <div class="modal" id="infoModal">
+        <div class="modal-content glass-card">
+            <div class="modal-header">
+                <h2>📊 视频详细信息</h2>
+                <button class="close-btn" id="closeModal">✕</button>
+            </div>
+            <div class="modal-body" id="modalBody">
+                <!-- 动态内容 -->
+            </div>
+        </div>
+    </div>
+
+    <script src="renderer.js"></script>
+</body>
+</html>

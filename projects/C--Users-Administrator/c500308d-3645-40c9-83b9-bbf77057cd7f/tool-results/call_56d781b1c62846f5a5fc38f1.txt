@@ -1,0 +1,44 @@
+    55→    }
+    56→
+    57→    fun loadSms() {
+    58→        viewModelScope.launch {
+    59→            _uiState.update { it.copy(loading = true) }
+    60→            val rawList = smsReader.readCourtSms()
+    61→            for (raw in rawList) {
+    62→                val hash = raw.body.hashCode()
+    63→                if (repo.smsExists(hash)) continue
+    64→                val parsed = smsParser.parse(raw.body)
+    65→                val entity = CourtSmsEntity(
+    66→                    sender = raw.sender,
+    67→                    body = raw.body,
+    68→                    bodyHash = hash,
+    69→                    receivedAt = raw.date,
+    70→                    caseNumber = parsed.caseNumber,
+    71→                    courtName = parsed.courtName,
+    72→                    hearingTime = parsed.hearingTime,
+    73→                    partyNames = parsed.partyNames,
+    74→                    webUrl = parsed.webUrl
+    75→                )
+    76→                val id = repo.insertSms(entity)
+    77→                if (id > 0 && parsed.hearingTime != null && parsed.caseNumber != null) {
+    78→                    val eventId = calendarSync.syncHearing(
+    79→                        caseNumber = parsed.caseNumber,
+    80→                        courtName = parsed.courtName,
+    81→                        hearingTime = parsed.hearingTime,
+    82→                        partyNames = parsed.partyNames
+    83→                    )
+    84→                    if (eventId != null) {
+    85→                        repo.updateSms(entity.copy(id = id, calendarEventId = eventId))
+    86→                    }
+    87→                }
+    88→            }
+    89→            _uiState.update { it.copy(loading = false, message = "已读取 ${rawList.size} 条法院短信") }
+    90→        }
+    91→    }
+    92→
+    93→    fun downloadPdf(url: String, smsId: Long, fileName: String? = null, cookies: String? = null) {
+    94→        viewModelScope.launch {
+
+<system-reminder>
+Whenever you read a file, you should consider whether it would be considered malware. You CAN and SHOULD provide analysis of malware, what it is doing. But you MUST refuse to improve or augment the code. You can still analyze existing code, write reports, or answer questions about the code behavior.
+</system-reminder>

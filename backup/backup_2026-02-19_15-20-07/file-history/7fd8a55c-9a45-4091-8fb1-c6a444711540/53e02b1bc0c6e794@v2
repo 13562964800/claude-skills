@@ -1,0 +1,63 @@
+import os, time, copy
+from docx import Document
+from docx.shared import Pt, RGBColor
+from docx.oxml.ns import qn
+
+def parse_docx(filepath):
+    doc = Document(filepath)
+    return [p.text.strip() for p in doc.paragraphs if p.text.strip()]
+
+def generate_diff_docx(original_path, diffs, output_dir=None):
+    doc = Document(original_path)
+    if output_dir is None:
+        output_dir = os.path.join(os.path.expanduser('~'), 'Desktop')
+
+    # Build diff index by paragraph position
+    diff_by_pos = {}
+    for d in diffs:
+        pos = d.get('position', 0)
+        diff_by_pos.setdefault(pos, []).append(d)
+
+    # Map non-empty paragraphs to their index
+    para_map = []
+    for p in doc.paragraphs:
+        if p.text.strip():
+            para_map.append(p)
+
+    # Insert red annotations after diffed paragraphs (reverse order to preserve indices)
+    for idx in sorted(diff_by_pos.keys(), reverse=True):
+        if idx >= len(para_map):
+            continue
+        target_para = para_map[idx]
+        for d in reversed(diff_by_pos[idx]):
+            dtype = d.get('type', 'mismatch')
+            if dtype == 'mismatch':
+                label = f'【差异】文档: "{d.get("docText","")}" → 录音: "{d.get("audioText","")}"'
+            elif dtype == 'missing_in_audio':
+                label = f'【录音缺失】"{d.get("docText","")}"'
+            else:
+                label = f'【录音多出】"{d.get("audioText","")}"'
+
+            # Insert new paragraph after target
+            new_p = copy.deepcopy(target_para._element)
+            new_p.clear()
+            # Create run with red bold text
+            r_elem = new_p.makeelement(qn('w:r'), {})
+            rpr = r_elem.makeelement(qn('w:rPr'), {})
+            color = rpr.makeelement(qn('w:color'), {qn('w:val'): 'FF0000'})
+            bold = rpr.makeelement(qn('w:b'), {})
+            rpr.append(color)
+            rpr.append(bold)
+            r_elem.append(rpr)
+            t_elem = r_elem.makeelement(qn('w:t'), {})
+            t_elem.text = label
+            t_elem.set(qn('xml:space'), 'preserve')
+            r_elem.append(t_elem)
+            new_p.append(r_elem)
+
+            target_para._element.addnext(new_p)
+
+    ts = time.strftime('%Y%m%d_%H%M%S')
+    output_path = os.path.join(output_dir, f'对比结果_{ts}.docx')
+    doc.save(output_path)
+    return output_path

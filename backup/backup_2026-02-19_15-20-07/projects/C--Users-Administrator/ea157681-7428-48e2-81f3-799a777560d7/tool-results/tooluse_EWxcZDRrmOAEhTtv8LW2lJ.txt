@@ -1,0 +1,568 @@
+     1→const { app, BrowserWindow, ipcMain, dialog } = require('electron');
+     2→const path = require('path');
+     3→const { spawn } = require('child_process');
+     4→const fs = require('fs');
+     5→const https = require('https');
+     6→const http = require('http');
+     7→
+     8→let mainWindow;
+     9→let db = null;
+    10→let currentLangGlobal = 'en';
+    11→
+    12→const BIN_DIR = app.isPackaged
+    13→  ? path.join(process.resourcesPath, 'bin')
+    14→  : path.join('E:', '视频下载器具', 'bin');
+    15→const YTDLP = path.join(BIN_DIR, 'yt-dlp.exe');
+    16→const FFMPEG_DIR = BIN_DIR;
+    17→const USER_DATA = app.isPackaged ? path.join(app.getPath('userData')) : __dirname;
+    18→const DOWNLOADS = path.join(USER_DATA, 'downloads');
+    19→const AI_CONFIG_FILE = path.join(USER_DATA, 'ai_config.json');
+    20→
+    21→// 6家AI预设: 国外3家 + 国内3家
+    22→const AI_PROVIDERS = {
+    23→  openai:   { name: 'OpenAI',        baseUrl: 'https://api.openai.com/v1',              model: 'gpt-4o-mini' },
+    24→  claude:   { name: 'Claude',        baseUrl: 'https://api.anthropic.com/v1',           model: 'claude-sonnet-4-20250514' },
+    25→  groq:     { name: 'Groq',          baseUrl: 'https://api.groq.com/openai/v1',         model: 'llama-3.3-70b-versatile' },
+    26→  deepseek: { name: 'DeepSeek(深度求索)', baseUrl: 'https://api.deepseek.com/v1',            model: 'deepseek-chat' },
+    27→  qwen:     { name: 'Qwen(通义千问)',    baseUrl: 'https://dashscope.aliyuncs.com/compatible-mode/v1', model: 'qwen-plus' },
+    28→  zhipu:    { name: 'Zhipu(智谱清言)',   baseUrl: 'https://open.bigmodel.cn/api/paas/v4',  model: 'glm-4-flash' }
+    29→};
+    30→
+    31→function loadAIConfig() {
+    32→  try {
+    33→    if (fs.existsSync(AI_CONFIG_FILE)) return JSON.parse(fs.readFileSync(AI_CONFIG_FILE, 'utf-8'));
+    34→  } catch(e) {}
+    35→  return { provider: 'deepseek', apiKey: '', baseUrl: '', model: '' };
+    36→}
+    37→function saveAIConfig(cfg) { fs.writeFileSync(AI_CONFIG_FILE, JSON.stringify(cfg, null, 2)); }
+    38→
+    39→// 通用AI调用 (OpenAI兼容格式, Claude单独处理)
+    40→function callAI(prompt) {
+    41→  return new Promise((resolve) => {
+    42→    const cfg = loadAIConfig();
+    43→    if (!cfg.apiKey) { resolve(null); return; }
+    44→
+    45→    const preset = AI_PROVIDERS[cfg.provider] || {};
+    46→    const baseUrl = cfg.baseUrl || preset.baseUrl || '';
+    47→    const model = cfg.model || preset.model || '';
+    48→    if (!baseUrl) { resolve(null); return; }
+    49→
+    50→    const isClaude = cfg.provider === 'claude';
+    51→    const urlObj = new URL(isClaude ? baseUrl + '/messages' : baseUrl + '/chat/completions');
+    52→    const isHttps = urlObj.protocol === 'https:';
+    53→
+    54→    let body, headers;
+    55→    if (isClaude) {
+    56→      body = JSON.stringify({
+    57→        model, max_tokens: 1024,
+    58→        messages: [{ role: 'user', content: prompt }]
+    59→      });
+    60→      headers = {
+    61→        'Content-Type': 'application/json',
+    62→        'x-api-key': cfg.apiKey,
+    63→        'anthropic-version': '2023-06-01'
+    64→      };
+    65→    } else {
+    66→      body = JSON.stringify({
+    67→        model, max_tokens: 1024,
+    68→        messages: [
+    69→          { role: 'system', content: '你是一个专业的多语言词典和语言学习助手。所有释义、翻译、解释必须使用准确的中文。对英语单词，请给出准确的中文对应词义，不要音译。' },
+    70→          { role: 'user', content: prompt }
+    71→        ]
+    72→      });
+    73→      headers = {
+    74→        'Content-Type': 'application/json',
+    75→        'Authorization': 'Bearer ' + cfg.apiKey
+    76→      };
+    77→    }
+    78→
+    79→    const opts = {
+    80→      hostname: urlObj.hostname, port: urlObj.port || (isHttps ? 443 : 80),
+    81→      path: urlObj.pathname, method: 'POST', headers
+    82→    };
+    83→
+    84→    const client = isHttps ? https : http;
+    85→    const req = client.request(opts, (res) => {
+    86→      let data = '';
+    87→      res.on('data', d => data += d);
+    88→      res.on('end', () => {
+    89→        try {
+    90→          const json = JSON.parse(data);
+    91→          if (isClaude) {
+    92→            resolve(json.content?.[0]?.text || null);
+    93→          } else {
+    94→            resolve(json.choices?.[0]?.message?.content || null);
+    95→          }
+    96→        } catch(e) { resolve(null); }
+    97→      });
+    98→    });
+    99→    req.on('error', () => resolve(null));
+   100→    req.setTimeout(15000, () => { req.destroy(); resolve(null); });
+   101→    req.write(body);
+   102→    req.end();
+   103→  });
+   104→}
+   105→
+   106→const LANGUAGES = {
+   107→  en: { name: '英语', sub: 'en', tts: 'en-US' },
+   108→  ja: { name: '日语', sub: 'ja', tts: 'ja-JP' },
+   109→  ko: { name: '韩语', sub: 'ko', tts: 'ko-KR' },
+   110→  ru: { name: '俄语', sub: 'ru', tts: 'ru-RU' },
+   111→  th: { name: '泰语', sub: 'th', tts: 'th-TH' },
+   112→  vi: { name: '越南语', sub: 'vi', tts: 'vi-VN' },
+   113→  ms: { name: '马来语', sub: 'ms', tts: 'ms-MY' },
+   114→  id: { name: '印尼语', sub: 'id', tts: 'id-ID' },
+   115→  ar: { name: '阿拉伯语', sub: 'ar', tts: 'ar-SA' },
+   116→  pt: { name: '葡萄牙语', sub: 'pt', tts: 'pt-BR' },
+   117→  es: { name: '西班牙语', sub: 'es', tts: 'es-ES' },
+   118→  fr: { name: '法语', sub: 'fr', tts: 'fr-FR' },
+   119→  de: { name: '德语', sub: 'de', tts: 'de-DE' },
+   120→  hi: { name: '印地语', sub: 'hi', tts: 'hi-IN' }
+   121→};
+   122→
+   123→function initDB() {
+   124→  const dbPath = path.join(__dirname, 'stardict.db');
+   125→  if (fs.existsSync(dbPath)) {
+   126→    try {
+   127→      const Database = require('better-sqlite3');
+   128→      db = new Database(dbPath, { readonly: true });
+   129→      db.pragma('journal_mode = WAL');
+   130→    } catch (e) { console.error('ECDICT加载失败:', e.message); }
+   131→  }
+   132→}
+   133→
+   134→function createWindow() {
+   135→  mainWindow = new BrowserWindow({
+   136→    width: 1100, height: 850, minWidth: 900, minHeight: 700,
+   137→    backgroundColor: '#0a0a1a',
+   138→    webPreferences: { nodeIntegration: true, contextIsolation: false, webSecurity: false }
+   139→  });
+   140→  mainWindow.loadFile('index.html');
+   141→}
+   142→
+   143→app.whenReady().then(() => {
+   144→  initDB();
+   145→  if (!fs.existsSync(DOWNLOADS)) fs.mkdirSync(DOWNLOADS, { recursive: true });
+   146→  createWindow();
+   147→});
+   148→app.on('window-all-closed', () => { if (process.platform !== 'darwin') app.quit(); });
+   149→
+   150→// ===== IPC =====
+   151→
+   152→ipcMain.handle('get-languages', () => LANGUAGES);
+   153→ipcMain.handle('get-ai-providers', () => AI_PROVIDERS);
+   154→ipcMain.handle('get-ai-config', () => loadAIConfig());
+   155→ipcMain.handle('save-ai-config', (_, cfg) => { saveAIConfig(cfg); return true; });
+   156→ipcMain.handle('set-current-lang', (_, lang) => { currentLangGlobal = lang; });
+   157→ipcMain.handle('test-ai-connection', async (_, cfg) => {
+   158→  try {
+   159→    // 临时保存配置再测试
+   160→    saveAIConfig(cfg);
+   161→    const result = await callAI('请回复"连接成功"四个字');
+   162→    if (result) return { success: true, message: result.slice(0, 100) };
+   163→    return { success: false, message: 'API 无响应，请检查 Key 和服务商设置' };
+   164→  } catch(e) { return { success: false, message: e.message }; }
+   165→});
+   166→
+   167→// 下载视频+字幕
+   168→ipcMain.handle('download-video', async (_, url, lang) => {
+   169→  const subLang = LANGUAGES[lang]?.sub || 'en';
+   170→  return new Promise((resolve) => {
+   171→    const infoArgs = ['--dump-json', '--no-playlist', url];
+   172→    if (fs.existsSync(path.join(FFMPEG_DIR, 'ffmpeg.exe'))) infoArgs.unshift('--ffmpeg-location', FFMPEG_DIR);
+   173→    const infoProc = spawn(YTDLP, infoArgs);
+   174→    let infoOut = '';
+   175→    infoProc.stdout.on('data', d => infoOut += d);
+   176→    infoProc.on('close', (code) => {
+   177→      let title = 'video_' + Date.now();
+   178→      if (code === 0) { try { title = JSON.parse(infoOut).title || title; } catch(e) {} }
+   179→      const safeName = title.replace(/[<>:"/\\|?*]/g, '_').substring(0, 60);
+   180→      const outTemplate = path.join(DOWNLOADS, safeName + '.%(ext)s');
+   181→      const args = [
+   182→        '--ffmpeg-location', FFMPEG_DIR,
+   183→        '-f', 'bestvideo[height<=720]+bestaudio/best[height<=720]/best',
+   184→        '--merge-output-format', 'mp4',
+   185→        '--write-sub', '--write-auto-sub', '--sub-lang', subLang,
+   186→        '--sub-format', 'vtt', '--convert-subs', 'vtt',
+   187→        '--no-playlist', '-o', outTemplate, url
+   188→      ];
+   189→      const proc = spawn(YTDLP, args);
+   190→      let stderr = '', maxPercent = 0, streamCount = 0;
+   191→      proc.stdout.on('data', (data) => {
+   192→        const output = data.toString();
+   193→        if (output.includes('Destination:')) streamCount++;
+   194→        const matches = output.match(/(\d+\.?\d*)%/g);
+   195→        if (matches) {
+   196→          let percent = parseFloat(matches[matches.length - 1]);
+   197→          if (streamCount >= 2) percent = 50 + percent / 2;
+   198→          else if (streamCount === 1) percent = percent / 2;
+   199→          if (percent > maxPercent) { maxPercent = percent; mainWindow.webContents.send('download-progress', { percent }); }
+   200→        }
+   201→        if (output.includes('Merging')) mainWindow.webContents.send('download-progress', { percent: 99 });
+   202→      });
+   203→      proc.stderr.on('data', d => stderr += d);
+   204→      proc.on('close', (code2) => {
+   205→        if (code2 !== 0) { resolve({ success: false, error: stderr || '下载失败' }); return; }
+   206→        const videoFile = path.join(DOWNLOADS, safeName + '.mp4');
+   207→        let subFile = null;
+   208→        const possibleSubs = [
+   209→          path.join(DOWNLOADS, safeName + '.' + subLang + '.vtt'),
+   210→          path.join(DOWNLOADS, safeName + '.vtt'),
+   211→        ];
+   212→        try {
+   213→          for (const f of fs.readdirSync(DOWNLOADS)) {
+   214→            if (f.startsWith(safeName) && f.endsWith('.vtt')) possibleSubs.push(path.join(DOWNLOADS, f));
+   215→          }
+   216→        } catch(e) {}
+   217→        for (const p of possibleSubs) { if (fs.existsSync(p)) { subFile = p; break; } }
+   218→        resolve({ success: true, videoPath: fs.existsSync(videoFile) ? videoFile : null, subtitlePath: subFile, title: safeName });
+   219→      });
+   220→      proc.on('error', () => resolve({ success: false, error: 'yt-dlp未找到' }));
+   221→    });
+   222→  });
+   223→});
+   224→
+   225→// ECDICT查词
+   226→ipcMain.handle('lookup-word', (_, word) => {
+   227→  if (!db) return null;
+   228→  try {
+   229→    return db.prepare('SELECT word, phonetic, translation, exchange FROM stardict WHERE word = ? COLLATE NOCASE').get(word.toLowerCase().trim()) || null;
+   230→  } catch(e) { return null; }
+   231→});
+   232→
+   233→// 在线翻译
+   234→ipcMain.handle('translate-word', (_, word, fromLang) => {
+   235→  return new Promise((resolve) => {
+   236→    const url = `https://api.mymemory.translated.net/get?q=${encodeURIComponent(word)}&langpair=${fromLang}|zh`;
+   237→    https.get(url, (res) => {
+   238→      let data = '';
+   239→      res.on('data', d => data += d);
+   240→      res.on('end', () => {
+   241→        try {
+   242→          const json = JSON.parse(data);
+   243→          resolve({
+   244→            translation: json.responseData?.translatedText || null,
+   245→            matches: (json.matches || []).slice(0, 3).map(m => ({ segment: m.segment, translation: m.translation }))
+   246→          });
+   247→        } catch(e) { resolve(null); }
+   248→      });
+   249→    }).on('error', () => resolve(null));
+   250→  });
+   251→});
+   252→
+   253→// 在线例句 (多语种)
+   254→ipcMain.handle('fetch-examples', (_, word, lang) => {
+   255→  if (lang === 'ja') {
+   256→    // 日语: jisho.org API
+   257→    return new Promise((resolve) => {
+   258→      const url = `https://jisho.org/api/v1/search/words?keyword=${encodeURIComponent(word)}`;
+   259→      https.get(url, (res) => {
+   260→        let data = '';
+   261→        res.on('data', d => data += d);
+   262→        res.on('end', () => {
+   263→          try {
+   264→            const json = JSON.parse(data);
+   265→            const entry = json.data?.[0];
+   266→            if (!entry) { resolve(null); return; }
+   267→            const reading = entry.japanese?.[0]?.reading || '';
+   268→            const definitions = (entry.senses || []).slice(0, 5).map(s => ({
+   269→              partOfSpeech: (s.parts_of_speech || []).join(', '),
+   270→              definition: (s.english_definitions || []).join('; ')
+   271→            }));
+   272→            resolve({ phonetic: reading, definitions, examples: [] });
+   273→          } catch(e) { resolve(null); }
+   274→        });
+   275→      }).on('error', () => resolve(null));
+   276→    });
+   277→  }
+   278→  // 英语: dictionaryapi.dev
+   279→  return new Promise((resolve) => {
+   280→    const apiLang = lang === 'en' || !lang ? 'en' : lang;
+   281→    const url = `https://api.dictionaryapi.dev/api/v2/entries/${apiLang}/${encodeURIComponent(word)}`;
+   282→    https.get(url, (res) => {
+   283→      let data = '';
+   284→      res.on('data', d => data += d);
+   285→      res.on('end', () => {
+   286→        try {
+   287→          const json = JSON.parse(data);
+   288→          if (!Array.isArray(json)) { resolve(null); return; }
+   289→          const entry = json[0], examples = [], definitions = [];
+   290→          for (const meaning of (entry.meanings || [])) {
+   291→            for (const def of (meaning.definitions || [])) {
+   292→              definitions.push({ partOfSpeech: meaning.partOfSpeech, definition: def.definition });
+   293→              if (def.example) examples.push(def.example);
+   294→            }
+   295→          }
+   296→          resolve({
+   297→            phonetic: entry.phonetic || '',
+   298→            audio: entry.phonetics?.find(p => p.audio)?.audio || '',
+   299→            definitions: definitions.slice(0, 5),
+   300→            examples: examples.slice(0, 5)
+   301→          });
+   302→        } catch(e) { resolve(null); }
+   303→      });
+   304→    }).on('error', () => resolve(null));
+   305→  });
+   306→});
+   307→
+   308→// AI精准翻译单词为中文
+   309→ipcMain.handle('ai-translate-word', async (_, word, context) => {
+   310→  const langName = LANGUAGES[currentLangGlobal]?.name || '英语';
+   311→  const prompt = `将${langName}单词「${word}」翻译为准确的中文含义。${context ? '上下文: "' + context + '"' : ''}只回复中文释义，不要其他内容。多个义项用/分隔。`;
+   312→  return await callAI(prompt);
+   313→});
+   314→
+   315→// AI智能释义 (根据上下文生成释义+例句)
+   316→ipcMain.handle('ai-lookup', async (_, word, lang, context) => {
+   317→  const langName = LANGUAGES[lang]?.name || lang;
+   318→  const prompt = `请解释${langName}单词/词组「${word}」的含义。
+   319→${context ? '该词出现在以下句子中: "' + context + '"' : ''}
+   320→请用以下格式回答:
+   321→【释义】中文释义(如有多个义项用序号标注)
+   322→【发音】用国际音标标注发音
+   323→【例句】给出2个实用例句(附中文翻译)
+   324→【助记】一个简短的记忆技巧`;
+   325→  const result = await callAI(prompt);
+   326→  return result;
+   327→});
+   328→
+   329→// AI智能分析字幕句子
+   330→ipcMain.handle('ai-analyze-sentence', async (_, sentence, lang) => {
+   331→  const langName = LANGUAGES[lang]?.name || lang;
+   332→  const prompt = `请分析以下${langName}句子，帮助学习者理解:
+   333→"${sentence}"
+   334→请用以下格式简洁回答:
+   335→【翻译】中文翻译
+   336→【语法】关键语法点(1-2个)
+   337→【重点词汇】列出2-3个重要词汇及释义`;
+   338→  return await callAI(prompt);
+   339→});
+   340→
+   341→// 列出已下载视频
+   342→ipcMain.handle('list-videos', () => {
+   343→  try {
+   344→    const files = fs.readdirSync(DOWNLOADS);
+   345→    return files.filter(f => f.endsWith('.mp4')).map(f => {
+   346→      const name = f.replace('.mp4', '');
+   347→      const subFile = files.find(s => s.startsWith(name) && s.endsWith('.vtt'));
+   348→      return { name, videoPath: path.join(DOWNLOADS, f), subtitlePath: subFile ? path.join(DOWNLOADS, subFile) : null };
+   349→    });
+   350→  } catch(e) { return []; }
+   351→});
+   352→
+   353→ipcMain.handle('read-subtitle', (_, filePath) => {
+   354→  try { return fs.readFileSync(filePath, 'utf-8'); } catch(e) { return null; }
+   355→});
+   356→
+   357→ipcMain.handle('import-video', async () => {
+   358→  const result = await dialog.showOpenDialog(mainWindow, {
+   359→    title: '选择视频文件',
+   360→    filters: [{ name: '视频文件', extensions: ['mp4', 'mkv', 'avi', 'mov', 'webm', 'wmv'] }],
+   361→    properties: ['openFile']
+   362→  });
+   363→  if (result.canceled || !result.filePaths.length) return null;
+   364→  const src = result.filePaths[0];
+   365→  const dest = path.join(DOWNLOADS, path.basename(src));
+   366→  sendSubtitleStatus('文件导入中...');
+   367→  if (src !== dest && !fs.existsSync(dest)) fs.copyFileSync(src, dest);
+   368→  sendSubtitleStatus('字幕文件检测中...');
+   369→  // 检查同名字幕文件
+   370→  for (const ext of ['.vtt', '.srt']) {
+   371→    const subSrc = src.replace(/\.[^.]+$/, ext);
+   372→    const subDest = path.join(DOWNLOADS, path.basename(subSrc));
+   373→    if (fs.existsSync(subSrc) && !fs.existsSync(subDest)) fs.copyFileSync(subSrc, subDest);
+   374→  }
+   375→  const subFile = ['.vtt', '.srt'].map(e => dest.replace(/\.[^.]+$/, e)).find(f => fs.existsSync(f));
+   376→  sendSubtitleStatus(subFile ? '已找到字幕文件，加载中...' : '未找到字幕文件，稍后将自动识别');
+   377→  return { videoPath: dest, subtitlePath: subFile || null, name: path.basename(dest, path.extname(dest)) };
+   378→});
+   379→
+   380→// 语音识别生成字幕 (调用本地 funasr 服务)
+   381→const FUNASR_PYTHON = path.join(require('os').homedir(), 'funasr-venv', 'Scripts', 'python.exe');
+   382→const FUNASR_SERVER = path.join(require('os').homedir(), '.clawdbot', 'skills', 'funasr-transcribe', 'scripts', 'server.py');
+   383→let funasrProcess = null;
+   384→
+   385→function checkFunasr() {
+   386→  return new Promise((resolve) => {
+   387→    const req = http.request({ hostname: '127.0.0.1', port: 8765, path: '/health', method: 'GET', timeout: 3000 }, (res) => {
+   388→      let d = ''; res.on('data', c => d += c);
+   389→      res.on('end', () => resolve(true));
+   390→    });
+   391→    req.on('error', () => resolve(false));
+   392→    req.on('timeout', () => { req.destroy(); resolve(false); });
+   393→    req.end();
+   394→  });
+   395→}
+   396→
+   397→function sendSubtitleStatus(msg) {
+   398→  if (mainWindow && !mainWindow.isDestroyed()) mainWindow.webContents.send('subtitle-status', msg);
+   399→}
+   400→
+   401→async function ensureFunasr() {
+   402→  if (await checkFunasr()) return true;
+   403→  sendSubtitleStatus('正在启动语音识别服务...');
+   404→  // 启动服务
+   405→  if (fs.existsSync(FUNASR_PYTHON) && fs.existsSync(FUNASR_SERVER)) {
+   406→    funasrProcess = spawn(FUNASR_PYTHON, [FUNASR_SERVER], { stdio: 'ignore', detached: true });
+   407→    funasrProcess.unref();
+   408→    // 等待服务就绪，最多60秒
+   409→    for (let i = 0; i < 60; i++) {
+   410→      await new Promise(r => setTimeout(r, 1000));
+   411→      if (await checkFunasr()) {
+   412→        sendSubtitleStatus('语音识别服务已就绪');
+   413→        return true;
+   414→      }
+   415→      sendSubtitleStatus(`正在启动语音识别服务... (${i + 1}s)`);
+   416→    }
+   417→  }
+   418→  sendSubtitleStatus('语音识别服务启动失败');
+   419→  return false;
+   420→}
+   421→
+   422→function transcribeFile(filePath) {
+   423→  return new Promise((resolve) => {
+   424→    const data = JSON.stringify({ file_path: filePath });
+   425→    const req = http.request({
+   426→      hostname: '127.0.0.1', port: 8765, path: '/transcribe',
+   427→      method: 'POST', headers: { 'Content-Type': 'application/json' }
+   428→    }, (res) => {
+   429→      let body = '';
+   430→      res.on('data', d => body += d);
+   431→      res.on('end', () => {
+   432→        try { resolve(JSON.parse(body)); } catch(e) { resolve(null); }
+   433→      });
+   434→    });
+   435→    req.on('error', () => resolve(null));
+   436→    req.setTimeout(600000, () => { req.destroy(); resolve(null); });
+   437→    req.write(data);
+   438→    req.end();
+   439→  });
+   440→}
+   441→
+   442→const SEGMENT_DURATION = 600; // 10分钟一段
+   443→
+   444→ipcMain.handle('generate-subtitle', async (_, videoPath) => {
+   445→  const ready = await ensureFunasr();
+   446→  if (!ready) return null;
+   447→
+   448→  sendSubtitleStatus('正在分析视频...');
+   449→  const ffprobe = path.join(FFMPEG_DIR, 'ffprobe.exe');
+   450→  const ffmpeg = path.join(FFMPEG_DIR, 'ffmpeg.exe');
+   451→
+   452→  const duration = await new Promise((resolve) => {
+   453→    const p = spawn(ffprobe, ['-v', 'quiet', '-print_format', 'json', '-show_format', videoPath]);
+   454→    let out = '';
+   455→    p.stdout.on('data', d => out += d);
+   456→    p.on('close', () => {
+   457→      try { resolve(parseFloat(JSON.parse(out).format.duration) || 0); } catch(e) { resolve(0); }
+   458→    });
+   459→    p.on('error', () => resolve(0));
+   460→  });
+   461→  if (!duration) return null;
+   462→
+   463→  const durationMin = Math.ceil(duration / 60);
+   464→  const segCount = Math.ceil(duration / SEGMENT_DURATION);
+   465→  const tmpDir = path.join(DOWNLOADS, '_tmp_segments');
+   466→  if (!fs.existsSync(tmpDir)) fs.mkdirSync(tmpDir, { recursive: true });
+   467→
+   468→  let allText = '';
+   469→  let vtt = 'WEBVTT\n\n';
+   470→
+   471→  for (let i = 0; i < segCount; i++) {
+   472→    const startSec = i * SEGMENT_DURATION;
+   473→    const segFile = path.join(tmpDir, `seg_${i}.wav`);
+   474→
+   475→    sendSubtitleStatus(`正在提取音频片段 ${i + 1}/${segCount}（视频 ${durationMin} 分钟）`);
+   476→    const extractOk = await new Promise((resolve) => {
+   477→      const p = spawn(ffmpeg, ['-y', '-ss', String(startSec), '-t', String(SEGMENT_DURATION), '-i', videoPath, '-vn', '-ar', '16000', '-ac', '1', '-f', 'wav', segFile]);
+   478→      p.on('close', code => resolve(code === 0));
+   479→      p.on('error', () => resolve(false));
+   480→    });
+   481→    if (!extractOk) continue;
+   482→
+   483→    sendSubtitleStatus(`正在转录片段 ${i + 1}/${segCount}（视频 ${durationMin} 分钟）`);
+   484→
+   485→    // 确保服务还在（可能被上一段OOM杀了）
+   486→    const ok = await ensureFunasr();
+   487→    if (!ok) { try { fs.unlinkSync(segFile); } catch(e) {} continue; }
+   488→
+   489→    const result = await transcribeFile(segFile);
+   490→    try { fs.unlinkSync(segFile); } catch(e) {}
+   491→
+   492→    if (!result || !result.success || !result.text) continue;
+   493→
+   494→    // 使用 funasr 返回的真实时间戳
+   495→    const text = result.text;
+   496→    const timestamps = result.timestamp || [];
+   497→
+   498→    if (timestamps.length > 0) {
+   499→      // 按标点分句，用时间戳精确定位每句的起止时间
+   500→      const noSpace = text.replace(/\s/g, '');
+   501→      const sentenceEnds = /[.!?。！？]/g;
+   502→      // 在原文中按标点分句，保留空格
+   503→      let sentences = [];
+   504→      let lastPos = 0;
+   505→      let charCount = 0;
+   506→      for (let i = 0; i < text.length; i++) {
+   507→        if (/\s/.test(text[i])) continue;
+   508→        charCount++;
+   509→        if (/[.!?。！？]/.test(text[i])) {
+   510→          const s = text.slice(lastPos, i + 1).trim();
+   511→          const charEnd = charCount;
+   512→          const charStart = charEnd - s.replace(/\s/g, '').length;
+   513→          if (s) sentences.push({ text: s, charStart, charEnd });
+   514→          lastPos = i + 1;
+   515→        }
+   516→      }
+   517→      if (lastPos < text.length) {
+   518→        const s = text.slice(lastPos).trim();
+   519→        if (s) sentences.push({ text: s, charStart: charCount - s.replace(/\s/g, '').length, charEnd: charCount });
+   520→      }
+   521→      if (!sentences.length) sentences.push({ text, charStart: 0, charEnd: noSpace.length });
+   522→
+   523→      const totalChars = noSpace.length;
+   524→      const totalTs = timestamps.length;
+   525→
+   526→      for (const sent of sentences) {
+   527→        const tsStart = Math.floor(sent.charStart / totalChars * totalTs);
+   528→        const tsEnd = Math.min(Math.floor(sent.charEnd / totalChars * totalTs), totalTs - 1);
+   529→        const startMs = timestamps[tsStart] ? timestamps[tsStart][0] : 0;
+   530→        const endMs = timestamps[tsEnd] ? timestamps[tsEnd][1] : startMs + 1000;
+   531→        const start = fmtVTT(startSec + startMs / 1000);
+   532→        const end = fmtVTT(startSec + endMs / 1000);
+   533→        vtt += `${start} --> ${end}\n${sent.text}\n\n`;
+   534→      }
+   535→    } else {
+   536→      // 无时间戳回退：按文本长度估算
+   537→      const sentences = (text.match(/[^.!?。！？]+[.!?。！？]+/g) || [text]).map(s => s.trim()).filter(s => s.length > 0);
+   538→      if (!sentences.length) { allText += text; continue; }
+   539→      const segDur = Math.min(SEGMENT_DURATION, duration - startSec);
+   540→      const totalLen = sentences.reduce((a, s) => a + s.length, 0);
+   541→      let t = startSec;
+   542→      for (const s of sentences) {
+   543→        const seg = (s.length / totalLen) * segDur;
+   544→        const start = fmtVTT(t);
+   545→        t += seg;
+   546→        const end = fmtVTT(t);
+   547→        vtt += `${start} --> ${end}\n${s}\n\n`;
+   548→      }
+   549→    }
+   550→    allText += text;
+   551→  }
+   552→
+   553→  // 清理临时目录
+   554→  try { fs.rmSync(tmpDir, { recursive: true }); } catch(e) {}
+   555→
+   556→  if (!allText) { sendSubtitleStatus('语音识别失败'); return null; }
+   557→
+   558→  const vttPath = videoPath.replace(/\.[^.]+$/, '.vtt');
+   559→  fs.writeFileSync(vttPath, vtt, 'utf-8');
+   560→  sendSubtitleStatus(`转录完成，共 ${segCount} 段`);
+   561→  return vttPath;
+   562→});
+   563→
+   564→function fmtVTT(sec) {
+   565→  const h = Math.floor(sec / 3600), m = Math.floor((sec % 3600) / 60), s = sec % 60;
+   566→  return String(h).padStart(2,'0') + ':' + String(m).padStart(2,'0') + ':' + s.toFixed(3).padStart(6,'0');
+   567→}
+   568→

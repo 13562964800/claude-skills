@@ -1,0 +1,244 @@
+"""
+高性能图片处理服务 - Python后端
+使用 Pillow 进行图像处理，优化文字图处理效果
+"""
+
+from flask import Flask, request, jsonify
+from flask_cors import CORS
+from PIL import Image, ImageFilter, ImageEnhance, ImageOps
+import io
+import base64
+import json
+import numpy as np
+
+app = Flask(__name__)
+CORS(app)
+
+
+class TextImageProcessor:
+    """专门优化文字图的图像处理器"""
+
+    def __init__(self, image):
+        self.image = image
+        self.original = image.copy()
+
+    def apply_filters(self, filters):
+        """应用滤镜组合"""
+        # 解析滤镜参数
+        brightness = filters.get('brightness', 100)
+        contrast = filters.get('contrast', 100)
+        saturate = filters.get('saturate', 100)
+        sepia = filters.get('sepia', 0)
+        blur = filters.get('blur', 0)
+        preset = filters.get('preset', 'none')
+
+        # 应用预设滤镜（文字图优化）
+        self._apply_preset(preset)
+
+        # 应用基础调整
+        if brightness != 100:
+            self._adjust_brightness(brightness)
+
+        if contrast != 100:
+            self._adjust_contrast(contrast)
+
+        if saturate != 100:
+            self._adjust_saturation(saturate)
+
+        if sepia > 0:
+            self._apply_sepia(sepia)
+
+        if blur > 0:
+            self._apply_blur(blur)
+
+        return self.image
+
+    def _apply_preset(self, preset):
+        """应用预设滤镜 - 专门优化文字图"""
+        presets = {
+            'none': lambda: None,
+            'text-vibrant': self._preset_text_vibrant,
+            'text-sharp': self._preset_text_sharp,
+            'text-high-contrast': self._preset_high_contrast,
+            'poster-vintage': self._preset_poster_vintage,
+            'poster-neon': self._preset_poster_neon,
+            'text-cool': self._preset_text_cool,
+            'text-warm': self._preset_text_warm,
+        }
+
+        if preset in presets:
+            presets[preset]()
+
+    def _preset_text_vibrant(self):
+        """文字鲜艳 - 增强文字清晰度和色彩"""
+        # 锐化增强文字边缘
+        self.image = self.image.filter(ImageFilter.UnsharpMask(radius=1, percent=150, threshold=3))
+        # 增强饱和度和对比度
+        enhancer = ImageEnhance.Color(self.image)
+        self.image = enhancer.enhance(1.3)
+        enhancer = ImageEnhance.Contrast(self.image)
+        self.image = enhancer.enhance(1.15)
+
+    def _preset_text_sharp(self):
+        """文字锐化 - 强化文字边缘"""
+        # 多次锐化处理
+        self.image = self.image.filter(ImageFilter.UnsharpMask(radius=1, percent=200, threshold=2))
+        self.image = self.image.filter(ImageFilter.EDGE_ENHANCE)
+
+    def _preset_high_contrast(self):
+        """高对比度 - 适合文字海报"""
+        # 增强对比度
+        enhancer = ImageEnhance.Contrast(self.image)
+        self.image = enhancer.enhance(1.5)
+        # 稍微增加亮度
+        enhancer = ImageEnhance.Brightness(self.image)
+        self.image = enhancer.enhance(1.1)
+
+    def _preset_poster_vintage(self):
+        """海报复古 - 怀旧风格"""
+        # 降低饱和度
+        enhancer = ImageEnhance.Color(self.image)
+        self.image = enhancer.enhance(0.8)
+        # 增加对比度
+        enhancer = ImageEnhance.Contrast(self.image)
+        self.image = enhancer.enhance(1.2)
+        # 应用褐色调
+        self._apply_sepia_tone(40)
+
+    def _preset_poster_neon(self):
+        """霓虹效果 - 高饱和度"""
+        # 大幅增强饱和度
+        enhancer = ImageEnhance.Color(self.image)
+        self.image = enhancer.enhance(1.8)
+        # 增加对比度
+        enhancer = ImageEnhance.Contrast(self.image)
+        self.image = enhancer.enhance(1.4)
+        # 增加亮度
+        enhancer = ImageEnhance.Brightness(self.image)
+        self.image = enhancer.enhance(1.1)
+
+    def _preset_text_cool(self):
+        """冷色调 - 适合商务文字"""
+        # 降低红色通道，增加蓝色通道
+        r, g, b = self.image.split()
+        r = r.point(lambda x: x * 0.9)
+        b = b.point(lambda x: min(255, x * 1.1))
+        self.image = Image.merge('RGB', (r, g, b))
+
+    def _preset_text_warm(self):
+        """暖色调 - 适合温馨文字"""
+        # 增加红色通道，降低蓝色通道
+        r, g, b = self.image.split()
+        r = r.point(lambda x: min(255, x * 1.1))
+        b = b.point(lambda x: x * 0.9)
+        self.image = Image.merge('RGB', (r, g, b))
+
+    def _adjust_brightness(self, value):
+        """调整亮度"""
+        enhancer = ImageEnhance.Brightness(self.image)
+        self.image = enhancer.enhance(value / 100)
+
+    def _adjust_contrast(self, value):
+        """调整对比度"""
+        enhancer = ImageEnhance.Contrast(self.image)
+        self.image = enhancer.enhance(value / 100)
+
+    def _adjust_saturation(self, value):
+        """调整饱和度"""
+        enhancer = ImageEnhance.Color(self.image)
+        self.image = enhancer.enhance(value / 100)
+
+    def _apply_sepia(self, value):
+        """应用褐色调"""
+        self._apply_sepia_tone(value)
+
+    def _apply_sepia_tone(self, intensity):
+        """褐色调实现"""
+        if self.image.mode != 'RGB':
+            self.image = self.image.convert('RGB')
+
+        # 转换为numpy数组以加速处理
+        img_array = np.array(self.image)
+
+        # 褐色调矩阵
+        sepia_matrix = np.array([
+            [0.393, 0.769, 0.189],
+            [0.349, 0.686, 0.168],
+            [0.272, 0.534, 0.131]
+        ])
+
+        # 应用褐色调
+        sepia_img = img_array.dot(sepia_matrix.T)
+        sepia_img = np.clip(sepia_img, 0, 255).astype(np.uint8)
+
+        # 混合原图和褐色调
+        alpha = intensity / 100
+        result = (img_array * (1 - alpha) + sepia_img * alpha).astype(np.uint8)
+
+        self.image = Image.fromarray(result)
+
+    def _apply_blur(self, value):
+        """应用模糊"""
+        radius = int(value)
+        if radius > 0:
+            self.image = self.image.filter(ImageFilter.GaussianBlur(radius=radius))
+
+
+def image_to_base64(image, format='PNG'):
+    """将PIL图像转换为base64字符串"""
+    buffer = io.BytesIO()
+    image.save(buffer, format=format)
+    buffer.seek(0)
+    img_str = base64.b64encode(buffer.read()).decode()
+    return f'data:image/{format.lower()};base64,{img_str}'
+
+
+@app.route('/api/process', methods=['POST'])
+def process_image():
+    """处理图片的主接口"""
+    try:
+        # 获取上传的图片
+        if 'image' not in request.files:
+            return jsonify({'error': '未上传图片'}), 400
+
+        image_file = request.files['image']
+
+        # 读取图片
+        image = Image.open(image_file.stream)
+
+        # 转换为RGB模式（处理RGBA等模式）
+        if image.mode != 'RGB':
+            image = image.convert('RGB')
+
+        # 获取滤镜参数
+        filters_data = request.form.get('filters', '{}')
+        filters = json.loads(filters_data)
+
+        # 使用文字图优化处理器
+        processor = TextImageProcessor(image)
+        processed_image = processor.apply_filters(filters)
+
+        # 转换为base64返回
+        result_image = image_to_base64(processed_image)
+
+        return jsonify({
+            'success': True,
+            'image': result_image
+        })
+
+    except Exception as e:
+        print(f'处理错误: {str(e)}')
+        return jsonify({
+            'success': False,
+            'error': str(e)
+        }), 500
+
+
+@app.route('/api/health', methods=['GET'])
+def health():
+    """健康检查接口"""
+    return jsonify({'status': 'ok'})
+
+
+if __name__ == '__main__':
+    app.run(host='0.0.0.0', port=5000, debug=True)

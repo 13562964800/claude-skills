@@ -1,0 +1,3488 @@
+2026-02-14T05:49:07.833Z [DEBUG] [init] configureGlobalMTLS starting
+2026-02-14T05:49:07.833Z [DEBUG] [init] configureGlobalMTLS complete
+2026-02-14T05:49:07.833Z [DEBUG] [init] configureGlobalAgents starting
+2026-02-14T05:49:07.833Z [DEBUG] [init] configureGlobalAgents complete
+2026-02-14T05:49:07.882Z [DEBUG] Using bash path: "C:\Program Files\Git\bin\bash.exe"
+2026-02-14T05:49:07.893Z [DEBUG] [STARTUP] Loading MCP configs...
+2026-02-14T05:49:07.900Z [DEBUG] [ToolSearch:optimistic] mode=tst-auto, ENABLE_TOOL_SEARCH=undefined, result=true
+2026-02-14T05:49:07.901Z [DEBUG] [STARTUP] Running setup()...
+2026-02-14T05:49:07.901Z [DEBUG] Found 0 plugins (0 enabled, 0 disabled)
+2026-02-14T05:49:07.911Z [DEBUG] Loading skills from: managed=C:\ProgramData\ClaudeCode\.claude\skills, user=C:\Users\Administrator\.claude\skills, project=[]
+2026-02-14T05:49:07.912Z [DEBUG] Error log sink initialized
+2026-02-14T05:49:07.913Z [DEBUG] getPluginSkills: Processing 0 enabled plugins
+2026-02-14T05:49:07.913Z [DEBUG] Total plugin skills loaded: 0
+2026-02-14T05:49:07.913Z [DEBUG] Total plugin commands loaded: 0
+2026-02-14T05:49:07.913Z [DEBUG] [STARTUP] setup() completed in 12ms
+2026-02-14T05:49:07.913Z [DEBUG] [STARTUP] Loading commands and agents...
+2026-02-14T05:49:07.915Z [DEBUG] Registered 0 hooks from 0 plugins
+2026-02-14T05:49:07.916Z [DEBUG] Total plugin agents loaded: 0
+2026-02-14T05:49:07.917Z [DEBUG] Loaded 0 unique skills (0 unconditional, 0 conditional, managed: 0, user: 0, project: 0, additional: 0, legacy commands: 0)
+2026-02-14T05:49:07.921Z [DEBUG] Writing to temp file: C:\Users\Administrator\.claude.json.tmp.18600.1771048147921
+2026-02-14T05:49:07.921Z [DEBUG] Preserving file permissions: 100666
+2026-02-14T05:49:07.922Z [DEBUG] Temp file written successfully, size: 2862 bytes
+2026-02-14T05:49:07.922Z [DEBUG] Applied original permissions to temp file
+2026-02-14T05:49:07.922Z [DEBUG] Renaming C:\Users\Administrator\.claude.json.tmp.18600.1771048147921 to C:\Users\Administrator\.claude.json
+2026-02-14T05:49:07.922Z [DEBUG] File C:\Users\Administrator\.claude.json written atomically
+2026-02-14T05:49:07.923Z [DEBUG] getSkills returning: 0 skill dir commands, 0 plugin skills, 2 bundled skills
+2026-02-14T05:49:07.924Z [DEBUG] [STARTUP] Commands and agents loaded in 11ms
+2026-02-14T05:49:07.932Z [DEBUG] [STARTUP] Running showSetupScreens()...
+2026-02-14T05:49:07.940Z [DEBUG] [keybindings] KeybindingSetup initialized with 102 bindings, 0 warnings
+2026-02-14T05:49:07.984Z [DEBUG] [keybindings] Skipping file watcher - user customization disabled
+2026-02-14T05:49:07.987Z [DEBUG] [Claude in Chrome] Found edge profiles: Default
+2026-02-14T05:49:07.988Z [DEBUG] [Claude in Chrome] Extension not found in any browser
+2026-02-14T05:49:13.098Z [DEBUG] [Perfetto] initializePerfettoTracing called, env value: undefined
+2026-02-14T05:49:13.118Z [DEBUG] [STARTUP] showSetupScreens() completed in 5186ms
+2026-02-14T05:49:13.118Z [DEBUG] [LSP MANAGER] initializeLspServerManager() called
+2026-02-14T05:49:13.118Z [DEBUG] [LSP MANAGER] Created manager instance, state=pending
+2026-02-14T05:49:13.118Z [DEBUG] [LSP MANAGER] Starting async initialization (generation 1)
+2026-02-14T05:49:13.136Z [DEBUG] Total LSP servers loaded: 0
+2026-02-14T05:49:13.146Z [DEBUG] [LSP SERVER MANAGER] getAllLspServers returned 0 server(s)
+2026-02-14T05:49:13.146Z [DEBUG] LSP manager initialized with 0 servers
+2026-02-14T05:49:13.146Z [DEBUG] LSP server manager initialized successfully
+2026-02-14T05:49:13.147Z [DEBUG] LSP notification handlers registered successfully for all 0 server(s)
+2026-02-14T05:49:13.147Z [DEBUG] Git remote URL: null
+2026-02-14T05:49:13.147Z [DEBUG] No git remote URL found
+2026-02-14T05:49:13.147Z [DEBUG] Not in a GitHub repository, skipping path mapping update
+2026-02-14T05:49:15.461Z [DEBUG] [STARTUP] MCP configs loaded in 7567ms
+2026-02-14T05:49:15.477Z [DEBUG] MCP server "zai-mcp-server": Starting connection with timeout of 30000ms
+2026-02-14T05:49:15.517Z [DEBUG] MCP server "web-search-prime": Initializing HTTP transport to https://api.z.ai/api/mcp/web_search_prime/mcp
+2026-02-14T05:49:15.518Z [DEBUG] MCP server "web-search-prime": Node version: v25.5.0, Platform: win32
+2026-02-14T05:49:15.518Z [DEBUG] MCP server "web-search-prime": Environment: {"NODE_OPTIONS":"not set","UV_THREADPOOL_SIZE":"default","HTTP_PROXY":"not set","HTTPS_PROXY":"not set","NO_PROXY":"not set"}
+2026-02-14T05:49:15.519Z [DEBUG] MCP server "web-reader": Initializing HTTP transport to https://api.z.ai/api/mcp/web_reader/mcp
+2026-02-14T05:49:15.520Z [DEBUG] MCP server "web-reader": Node version: v25.5.0, Platform: win32
+2026-02-14T05:49:15.520Z [DEBUG] MCP server "web-reader": Environment: {"NODE_OPTIONS":"not set","UV_THREADPOOL_SIZE":"default","HTTP_PROXY":"not set","HTTPS_PROXY":"not set","NO_PROXY":"not set"}
+2026-02-14T05:49:15.520Z [DEBUG] MCP server "zread": Initializing HTTP transport to https://api.z.ai/api/mcp/zread/mcp
+2026-02-14T05:49:15.521Z [DEBUG] MCP server "zread": Node version: v25.5.0, Platform: win32
+2026-02-14T05:49:15.521Z [DEBUG] MCP server "zread": Environment: {"NODE_OPTIONS":"not set","UV_THREADPOOL_SIZE":"default","HTTP_PROXY":"not set","HTTPS_PROXY":"not set","NO_PROXY":"not set"}
+2026-02-14T05:49:15.530Z [DEBUG] [Reconnection] computeInitialTeamContext: No teammate context set (not a teammate)
+2026-02-14T05:49:15.534Z [DEBUG] Writing to temp file: C:\Users\Administrator\.claude.json.tmp.18600.1771048155534
+2026-02-14T05:49:15.534Z [DEBUG] Preserving file permissions: 100666
+2026-02-14T05:49:15.535Z [DEBUG] Temp file written successfully, size: 2862 bytes
+2026-02-14T05:49:15.535Z [DEBUG] Applied original permissions to temp file
+2026-02-14T05:49:15.535Z [DEBUG] Renaming C:\Users\Administrator\.claude.json.tmp.18600.1771048155534 to C:\Users\Administrator\.claude.json
+2026-02-14T05:49:15.535Z [DEBUG] File C:\Users\Administrator\.claude.json written atomically
+2026-02-14T05:49:15.540Z [DEBUG] Getting matching hook commands for SessionStart with query: startup
+2026-02-14T05:49:15.540Z [DEBUG] Found 0 hook matchers in settings
+2026-02-14T05:49:15.540Z [DEBUG] Matched 0 unique hooks for query "startup" (0 before deduplication)
+2026-02-14T05:49:15.542Z [DEBUG] Loaded 3 installed plugins from C:\Users\Administrator\.claude\plugins\installed_plugins.json
+2026-02-14T05:49:15.542Z [DEBUG] Initialized versioned plugins system with 3 plugins
+2026-02-14T05:49:15.557Z [DEBUG] MCP server "web-search-prime": Proxy options: default
+2026-02-14T05:49:15.557Z [DEBUG] MCP server "web-search-prime": HTTP transport options: {"url":"https://api.z.ai/api/mcp/web_search_prime/mcp","headers":{"User-Agent":"claude-code/2.1.41 (cli)","Authorization":"[REDACTED]"},"hasAuthProvider":true,"timeoutMs":60000}
+2026-02-14T05:49:15.557Z [DEBUG] MCP server "web-search-prime": HTTP transport created successfully
+2026-02-14T05:49:15.558Z [DEBUG] MCP server "web-search-prime": Client created, setting up request handler
+2026-02-14T05:49:15.558Z [DEBUG] MCP server "web-search-prime": Starting connection with timeout of 30000ms
+2026-02-14T05:49:15.558Z [DEBUG] MCP server "web-search-prime": Testing basic HTTP connectivity to https://api.z.ai/api/mcp/web_search_prime/mcp
+2026-02-14T05:49:15.558Z [DEBUG] MCP server "web-search-prime": Parsed URL: host=api.z.ai, port=default, protocol=https:
+2026-02-14T05:49:15.558Z [DEBUG] MCP server "web-reader": Proxy options: default
+2026-02-14T05:49:15.558Z [DEBUG] MCP server "web-reader": HTTP transport options: {"url":"https://api.z.ai/api/mcp/web_reader/mcp","headers":{"User-Agent":"claude-code/2.1.41 (cli)","Authorization":"[REDACTED]"},"hasAuthProvider":true,"timeoutMs":60000}
+2026-02-14T05:49:15.558Z [DEBUG] MCP server "web-reader": HTTP transport created successfully
+2026-02-14T05:49:15.559Z [DEBUG] MCP server "web-reader": Client created, setting up request handler
+2026-02-14T05:49:15.559Z [DEBUG] MCP server "web-reader": Starting connection with timeout of 30000ms
+2026-02-14T05:49:15.559Z [DEBUG] MCP server "web-reader": Testing basic HTTP connectivity to https://api.z.ai/api/mcp/web_reader/mcp
+2026-02-14T05:49:15.559Z [DEBUG] MCP server "web-reader": Parsed URL: host=api.z.ai, port=default, protocol=https:
+2026-02-14T05:49:15.559Z [DEBUG] MCP server "zread": Proxy options: default
+2026-02-14T05:49:15.559Z [DEBUG] MCP server "zread": HTTP transport options: {"url":"https://api.z.ai/api/mcp/zread/mcp","headers":{"User-Agent":"claude-code/2.1.41 (cli)","Authorization":"[REDACTED]"},"hasAuthProvider":true,"timeoutMs":60000}
+2026-02-14T05:49:15.559Z [DEBUG] MCP server "zread": HTTP transport created successfully
+2026-02-14T05:49:15.559Z [DEBUG] MCP server "zread": Client created, setting up request handler
+2026-02-14T05:49:15.559Z [DEBUG] MCP server "zread": Starting connection with timeout of 30000ms
+2026-02-14T05:49:15.559Z [DEBUG] MCP server "zread": Testing basic HTTP connectivity to https://api.z.ai/api/mcp/zread/mcp
+2026-02-14T05:49:15.560Z [DEBUG] MCP server "zread": Parsed URL: host=api.z.ai, port=default, protocol=https:
+2026-02-14T05:49:15.565Z [DEBUG] MCP server "web-search-prime": No token data found
+2026-02-14T05:49:15.565Z [DEBUG] MCP server "web-reader": No token data found
+2026-02-14T05:49:15.565Z [DEBUG] MCP server "zread": No token data found
+2026-02-14T05:49:15.578Z [DEBUG] [keybindings] KeybindingSetup initialized with 102 bindings, 0 warnings
+2026-02-14T05:49:15.616Z [DEBUG] [keybindings] Skipping file watcher - user customization disabled
+2026-02-14T05:49:15.616Z [DEBUG] [REPL:mount] REPL mounted, disabled=false
+2026-02-14T05:49:15.619Z [DEBUG] Official marketplace auto-install skipped: already_attempted
+2026-02-14T05:49:15.620Z [DEBUG] performStartupChecks called
+2026-02-14T05:49:15.622Z [DEBUG] Starting background plugin installations
+2026-02-14T05:49:15.622Z [DEBUG] performBackgroundPluginInstallations called
+2026-02-14T05:49:15.626Z [DEBUG] No CLAUDE.md/rules files found
+2026-02-14T05:49:15.652Z [DEBUG] Watching for changes in setting files C:\Users\Administrator\.claude\settings.json, C:\Users\Administrator\.claude\settings.local.json...
+2026-02-14T05:49:15.655Z [DEBUG] AutoUpdaterWrapper: Installation type: npm-global
+2026-02-14T05:49:15.667Z [DEBUG] [claudeai-mcp] Checking gate (cached)...
+2026-02-14T05:49:15.667Z [DEBUG] [claudeai-mcp] Gate returned: false
+2026-02-14T05:49:15.667Z [DEBUG] [claudeai-mcp] Disabled via gate
+2026-02-14T05:49:15.678Z [DEBUG] Setting installation status: 0 marketplaces, 0 installable plugins, 0 uninstallable plugins
+2026-02-14T05:49:15.679Z [DEBUG] Loaded plugins - Enabled: 0, Disabled: 0, Commands: 0, Agents: 0, Errors: 0
+2026-02-14T05:49:16.625Z [DEBUG] MCP server "web-search-prime": HTTP Connection failed after 1108ms: [
+  {
+    "code": "invalid_union",
+    "errors": [
+      [
+        {
+          "code": "invalid_value",
+          "values": [
+            "2.0"
+          ],
+          "path": [
+            "jsonrpc"
+          ],
+          "message": "Invalid input: expected \"2.0\""
+        },
+        {
+          "code": "invalid_union",
+          "errors": [
+            [
+              {
+                "expected": "string",
+                "code": "invalid_type",
+                "path": [],
+                "message": "Invalid input: expected string, received undefined"
+              }
+            ],
+            [
+              {
+                "expected": "number",
+                "code": "invalid_type",
+                "path": [],
+                "message": "Invalid input: expected number, received undefined"
+              }
+            ]
+          ],
+          "path": [
+            "id"
+          ],
+          "message": "Invalid input"
+        },
+        {
+          "expected": "string",
+          "code": "invalid_type",
+          "path": [
+            "method"
+          ],
+          "message": "Invalid input: expected string, received undefined"
+        },
+        {
+          "code": "unrecognized_keys",
+          "keys": [
+            "code",
+            "msg",
+            "success"
+          ],
+          "path": [],
+          "message": "Unrecognized keys: \"code\", \"msg\", \"success\""
+        }
+      ],
+      [
+        {
+          "code": "invalid_value",
+          "values": [
+            "2.0"
+          ],
+          "path": [
+            "jsonrpc"
+          ],
+          "message": "Invalid input: expected \"2.0\""
+        },
+        {
+          "expected": "string",
+          "code": "invalid_type",
+          "path": [
+            "method"
+          ],
+          "message": "Invalid input: expected string, received undefined"
+        },
+        {
+          "code": "unrecognized_keys",
+          "keys": [
+            "code",
+            "msg",
+            "success"
+          ],
+          "path": [],
+          "message": "Unrecognized keys: \"code\", \"msg\", \"success\""
+        }
+      ],
+      [
+        {
+          "code": "invalid_value",
+          "values": [
+            "2.0"
+          ],
+          "path": [
+            "jsonrpc"
+          ],
+          "message": "Invalid input: expected \"2.0\""
+        },
+        {
+          "code": "invalid_union",
+          "errors": [
+            [
+              {
+                "expected": "string",
+                "code": "invalid_type",
+                "path": [],
+                "message": "Invalid input: expected string, received undefined"
+              }
+            ],
+            [
+              {
+                "expected": "number",
+                "code": "invalid_type",
+                "path": [],
+                "message": "Invalid input: expected number, received undefined"
+              }
+            ]
+          ],
+          "path": [
+            "id"
+          ],
+          "message": "Invalid input"
+        },
+        {
+          "expected": "object",
+          "code": "invalid_type",
+          "path": [
+            "result"
+          ],
+          "message": "Invalid input: expected object, received undefined"
+        },
+        {
+          "code": "unrecognized_keys",
+          "keys": [
+            "code",
+            "msg",
+            "success"
+          ],
+          "path": [],
+          "message": "Unrecognized keys: \"code\", \"msg\", \"success\""
+        }
+      ],
+      [
+        {
+          "code": "invalid_value",
+          "values": [
+            "2.0"
+          ],
+          "path": [
+            "jsonrpc"
+          ],
+          "message": "Invalid input: expected \"2.0\""
+        },
+        {
+          "code": "invalid_union",
+          "errors": [
+            [
+              {
+                "expected": "string",
+                "code": "invalid_type",
+                "path": [],
+                "message": "Invalid input: expected string, received undefined"
+              }
+            ],
+            [
+              {
+                "expected": "number",
+                "code": "invalid_type",
+                "path": [],
+                "message": "Invalid input: expected number, received undefined"
+              }
+            ]
+          ],
+          "path": [
+            "id"
+          ],
+          "message": "Invalid input"
+        },
+        {
+          "expected": "object",
+          "code": "invalid_type",
+          "path": [
+            "error"
+          ],
+          "message": "Invalid input: expected object, received undefined"
+        },
+        {
+          "code": "unrecognized_keys",
+          "keys": [
+            "code",
+            "msg",
+            "success"
+          ],
+          "path": [],
+          "message": "Unrecognized keys: \"code\", \"msg\", \"success\""
+        }
+      ]
+    ],
+    "path": [],
+    "message": "Invalid input"
+  }
+] (code: none, errno: none)
+2026-02-14T05:49:16.625Z [ERROR] MCP server "web-search-prime" ZodError: [
+  {
+    "code": "invalid_union",
+    "errors": [
+      [
+        {
+          "code": "invalid_value",
+          "values": [
+            "2.0"
+          ],
+          "path": [
+            "jsonrpc"
+          ],
+          "message": "Invalid input: expected \"2.0\""
+        },
+        {
+          "code": "invalid_union",
+          "errors": [
+            [
+              {
+                "expected": "string",
+                "code": "invalid_type",
+                "path": [],
+                "message": "Invalid input: expected string, received undefined"
+              }
+            ],
+            [
+              {
+                "expected": "number",
+                "code": "invalid_type",
+                "path": [],
+                "message": "Invalid input: expected number, received undefined"
+              }
+            ]
+          ],
+          "path": [
+            "id"
+          ],
+          "message": "Invalid input"
+        },
+        {
+          "expected": "string",
+          "code": "invalid_type",
+          "path": [
+            "method"
+          ],
+          "message": "Invalid input: expected string, received undefined"
+        },
+        {
+          "code": "unrecognized_keys",
+          "keys": [
+            "code",
+            "msg",
+            "success"
+          ],
+          "path": [],
+          "message": "Unrecognized keys: \"code\", \"msg\", \"success\""
+        }
+      ],
+      [
+        {
+          "code": "invalid_value",
+          "values": [
+            "2.0"
+          ],
+          "path": [
+            "jsonrpc"
+          ],
+          "message": "Invalid input: expected \"2.0\""
+        },
+        {
+          "expected": "string",
+          "code": "invalid_type",
+          "path": [
+            "method"
+          ],
+          "message": "Invalid input: expected string, received undefined"
+        },
+        {
+          "code": "unrecognized_keys",
+          "keys": [
+            "code",
+            "msg",
+            "success"
+          ],
+          "path": [],
+          "message": "Unrecognized keys: \"code\", \"msg\", \"success\""
+        }
+      ],
+      [
+        {
+          "code": "invalid_value",
+          "values": [
+            "2.0"
+          ],
+          "path": [
+            "jsonrpc"
+          ],
+          "message": "Invalid input: expected \"2.0\""
+        },
+        {
+          "code": "invalid_union",
+          "errors": [
+            [
+              {
+                "expected": "string",
+                "code": "invalid_type",
+                "path": [],
+                "message": "Invalid input: expected string, received undefined"
+              }
+            ],
+            [
+              {
+                "expected": "number",
+                "code": "invalid_type",
+                "path": [],
+                "message": "Invalid input: expected number, received undefined"
+              }
+            ]
+          ],
+          "path": [
+            "id"
+          ],
+          "message": "Invalid input"
+        },
+        {
+          "expected": "object",
+          "code": "invalid_type",
+          "path": [
+            "result"
+          ],
+          "message": "Invalid input: expected object, received undefined"
+        },
+        {
+          "code": "unrecognized_keys",
+          "keys": [
+            "code",
+            "msg",
+            "success"
+          ],
+          "path": [],
+          "message": "Unrecognized keys: \"code\", \"msg\", \"success\""
+        }
+      ],
+      [
+        {
+          "code": "invalid_value",
+          "values": [
+            "2.0"
+          ],
+          "path": [
+            "jsonrpc"
+          ],
+          "message": "Invalid input: expected \"2.0\""
+        },
+        {
+          "code": "invalid_union",
+          "errors": [
+            [
+              {
+                "expected": "string",
+                "code": "invalid_type",
+                "path": [],
+                "message": "Invalid input: expected string, received undefined"
+              }
+            ],
+            [
+              {
+                "expected": "number",
+                "code": "invalid_type",
+                "path": [],
+                "message": "Invalid input: expected number, received undefined"
+              }
+            ]
+          ],
+          "path": [
+            "id"
+          ],
+          "message": "Invalid input"
+        },
+        {
+          "expected": "object",
+          "code": "invalid_type",
+          "path": [
+            "error"
+          ],
+          "message": "Invalid input: expected object, received undefined"
+        },
+        {
+          "code": "unrecognized_keys",
+          "keys": [
+            "code",
+            "msg",
+            "success"
+          ],
+          "path": [],
+          "message": "Unrecognized keys: \"code\", \"msg\", \"success\""
+        }
+      ]
+    ],
+    "path": [],
+    "message": "Invalid input"
+  }
+]
+2026-02-14T05:49:16.642Z [DEBUG] MCP server "web-search-prime": Connection failed after 1125ms: [
+  {
+    "code": "invalid_union",
+    "errors": [
+      [
+        {
+          "code": "invalid_value",
+          "values": [
+            "2.0"
+          ],
+          "path": [
+            "jsonrpc"
+          ],
+          "message": "Invalid input: expected \"2.0\""
+        },
+        {
+          "code": "invalid_union",
+          "errors": [
+            [
+              {
+                "expected": "string",
+                "code": "invalid_type",
+                "path": [],
+                "message": "Invalid input: expected string, received undefined"
+              }
+            ],
+            [
+              {
+                "expected": "number",
+                "code": "invalid_type",
+                "path": [],
+                "message": "Invalid input: expected number, received undefined"
+              }
+            ]
+          ],
+          "path": [
+            "id"
+          ],
+          "message": "Invalid input"
+        },
+        {
+          "expected": "string",
+          "code": "invalid_type",
+          "path": [
+            "method"
+          ],
+          "message": "Invalid input: expected string, received undefined"
+        },
+        {
+          "code": "unrecognized_keys",
+          "keys": [
+            "code",
+            "msg",
+            "success"
+          ],
+          "path": [],
+          "message": "Unrecognized keys: \"code\", \"msg\", \"success\""
+        }
+      ],
+      [
+        {
+          "code": "invalid_value",
+          "values": [
+            "2.0"
+          ],
+          "path": [
+            "jsonrpc"
+          ],
+          "message": "Invalid input: expected \"2.0\""
+        },
+        {
+          "expected": "string",
+          "code": "invalid_type",
+          "path": [
+            "method"
+          ],
+          "message": "Invalid input: expected string, received undefined"
+        },
+        {
+          "code": "unrecognized_keys",
+          "keys": [
+            "code",
+            "msg",
+            "success"
+          ],
+          "path": [],
+          "message": "Unrecognized keys: \"code\", \"msg\", \"success\""
+        }
+      ],
+      [
+        {
+          "code": "invalid_value",
+          "values": [
+            "2.0"
+          ],
+          "path": [
+            "jsonrpc"
+          ],
+          "message": "Invalid input: expected \"2.0\""
+        },
+        {
+          "code": "invalid_union",
+          "errors": [
+            [
+              {
+                "expected": "string",
+                "code": "invalid_type",
+                "path": [],
+                "message": "Invalid input: expected string, received undefined"
+              }
+            ],
+            [
+              {
+                "expected": "number",
+                "code": "invalid_type",
+                "path": [],
+                "message": "Invalid input: expected number, received undefined"
+              }
+            ]
+          ],
+          "path": [
+            "id"
+          ],
+          "message": "Invalid input"
+        },
+        {
+          "expected": "object",
+          "code": "invalid_type",
+          "path": [
+            "result"
+          ],
+          "message": "Invalid input: expected object, received undefined"
+        },
+        {
+          "code": "unrecognized_keys",
+          "keys": [
+            "code",
+            "msg",
+            "success"
+          ],
+          "path": [],
+          "message": "Unrecognized keys: \"code\", \"msg\", \"success\""
+        }
+      ],
+      [
+        {
+          "code": "invalid_value",
+          "values": [
+            "2.0"
+          ],
+          "path": [
+            "jsonrpc"
+          ],
+          "message": "Invalid input: expected \"2.0\""
+        },
+        {
+          "code": "invalid_union",
+          "errors": [
+            [
+              {
+                "expected": "string",
+                "code": "invalid_type",
+                "path": [],
+                "message": "Invalid input: expected string, received undefined"
+              }
+            ],
+            [
+              {
+                "expected": "number",
+                "code": "invalid_type",
+                "path": [],
+                "message": "Invalid input: expected number, received undefined"
+              }
+            ]
+          ],
+          "path": [
+            "id"
+          ],
+          "message": "Invalid input"
+        },
+        {
+          "expected": "object",
+          "code": "invalid_type",
+          "path": [
+            "error"
+          ],
+          "message": "Invalid input: expected object, received undefined"
+        },
+        {
+          "code": "unrecognized_keys",
+          "keys": [
+            "code",
+            "msg",
+            "success"
+          ],
+          "path": [],
+          "message": "Unrecognized keys: \"code\", \"msg\", \"success\""
+        }
+      ]
+    ],
+    "path": [],
+    "message": "Invalid input"
+  }
+]
+2026-02-14T05:49:16.642Z [ERROR] MCP server "web-search-prime" Connection failed: [
+  {
+    "code": "invalid_union",
+    "errors": [
+      [
+        {
+          "code": "invalid_value",
+          "values": [
+            "2.0"
+          ],
+          "path": [
+            "jsonrpc"
+          ],
+          "message": "Invalid input: expected \"2.0\""
+        },
+        {
+          "code": "invalid_union",
+          "errors": [
+            [
+              {
+                "expected": "string",
+                "code": "invalid_type",
+                "path": [],
+                "message": "Invalid input: expected string, received undefined"
+              }
+            ],
+            [
+              {
+                "expected": "number",
+                "code": "invalid_type",
+                "path": [],
+                "message": "Invalid input: expected number, received undefined"
+              }
+            ]
+          ],
+          "path": [
+            "id"
+          ],
+          "message": "Invalid input"
+        },
+        {
+          "expected": "string",
+          "code": "invalid_type",
+          "path": [
+            "method"
+          ],
+          "message": "Invalid input: expected string, received undefined"
+        },
+        {
+          "code": "unrecognized_keys",
+          "keys": [
+            "code",
+            "msg",
+            "success"
+          ],
+          "path": [],
+          "message": "Unrecognized keys: \"code\", \"msg\", \"success\""
+        }
+      ],
+      [
+        {
+          "code": "invalid_value",
+          "values": [
+            "2.0"
+          ],
+          "path": [
+            "jsonrpc"
+          ],
+          "message": "Invalid input: expected \"2.0\""
+        },
+        {
+          "expected": "string",
+          "code": "invalid_type",
+          "path": [
+            "method"
+          ],
+          "message": "Invalid input: expected string, received undefined"
+        },
+        {
+          "code": "unrecognized_keys",
+          "keys": [
+            "code",
+            "msg",
+            "success"
+          ],
+          "path": [],
+          "message": "Unrecognized keys: \"code\", \"msg\", \"success\""
+        }
+      ],
+      [
+        {
+          "code": "invalid_value",
+          "values": [
+            "2.0"
+          ],
+          "path": [
+            "jsonrpc"
+          ],
+          "message": "Invalid input: expected \"2.0\""
+        },
+        {
+          "code": "invalid_union",
+          "errors": [
+            [
+              {
+                "expected": "string",
+                "code": "invalid_type",
+                "path": [],
+                "message": "Invalid input: expected string, received undefined"
+              }
+            ],
+            [
+              {
+                "expected": "number",
+                "code": "invalid_type",
+                "path": [],
+                "message": "Invalid input: expected number, received undefined"
+              }
+            ]
+          ],
+          "path": [
+            "id"
+          ],
+          "message": "Invalid input"
+        },
+        {
+          "expected": "object",
+          "code": "invalid_type",
+          "path": [
+            "result"
+          ],
+          "message": "Invalid input: expected object, received undefined"
+        },
+        {
+          "code": "unrecognized_keys",
+          "keys": [
+            "code",
+            "msg",
+            "success"
+          ],
+          "path": [],
+          "message": "Unrecognized keys: \"code\", \"msg\", \"success\""
+        }
+      ],
+      [
+        {
+          "code": "invalid_value",
+          "values": [
+            "2.0"
+          ],
+          "path": [
+            "jsonrpc"
+          ],
+          "message": "Invalid input: expected \"2.0\""
+        },
+        {
+          "code": "invalid_union",
+          "errors": [
+            [
+              {
+                "expected": "string",
+                "code": "invalid_type",
+                "path": [],
+                "message": "Invalid input: expected string, received undefined"
+              }
+            ],
+            [
+              {
+                "expected": "number",
+                "code": "invalid_type",
+                "path": [],
+                "message": "Invalid input: expected number, received undefined"
+              }
+            ]
+          ],
+          "path": [
+            "id"
+          ],
+          "message": "Invalid input"
+        },
+        {
+          "expected": "object",
+          "code": "invalid_type",
+          "path": [
+            "error"
+          ],
+          "message": "Invalid input: expected object, received undefined"
+        },
+        {
+          "code": "unrecognized_keys",
+          "keys": [
+            "code",
+            "msg",
+            "success"
+          ],
+          "path": [],
+          "message": "Unrecognized keys: \"code\", \"msg\", \"success\""
+        }
+      ]
+    ],
+    "path": [],
+    "message": "Invalid input"
+  }
+]
+2026-02-14T05:49:16.913Z [DEBUG] MCP server "zread": HTTP Connection failed after 1393ms: [
+  {
+    "code": "invalid_union",
+    "errors": [
+      [
+        {
+          "code": "invalid_value",
+          "values": [
+            "2.0"
+          ],
+          "path": [
+            "jsonrpc"
+          ],
+          "message": "Invalid input: expected \"2.0\""
+        },
+        {
+          "code": "invalid_union",
+          "errors": [
+            [
+              {
+                "expected": "string",
+                "code": "invalid_type",
+                "path": [],
+                "message": "Invalid input: expected string, received undefined"
+              }
+            ],
+            [
+              {
+                "expected": "number",
+                "code": "invalid_type",
+                "path": [],
+                "message": "Invalid input: expected number, received undefined"
+              }
+            ]
+          ],
+          "path": [
+            "id"
+          ],
+          "message": "Invalid input"
+        },
+        {
+          "expected": "string",
+          "code": "invalid_type",
+          "path": [
+            "method"
+          ],
+          "message": "Invalid input: expected string, received undefined"
+        },
+        {
+          "code": "unrecognized_keys",
+          "keys": [
+            "code",
+            "msg",
+            "success"
+          ],
+          "path": [],
+          "message": "Unrecognized keys: \"code\", \"msg\", \"success\""
+        }
+      ],
+      [
+        {
+          "code": "invalid_value",
+          "values": [
+            "2.0"
+          ],
+          "path": [
+            "jsonrpc"
+          ],
+          "message": "Invalid input: expected \"2.0\""
+        },
+        {
+          "expected": "string",
+          "code": "invalid_type",
+          "path": [
+            "method"
+          ],
+          "message": "Invalid input: expected string, received undefined"
+        },
+        {
+          "code": "unrecognized_keys",
+          "keys": [
+            "code",
+            "msg",
+            "success"
+          ],
+          "path": [],
+          "message": "Unrecognized keys: \"code\", \"msg\", \"success\""
+        }
+      ],
+      [
+        {
+          "code": "invalid_value",
+          "values": [
+            "2.0"
+          ],
+          "path": [
+            "jsonrpc"
+          ],
+          "message": "Invalid input: expected \"2.0\""
+        },
+        {
+          "code": "invalid_union",
+          "errors": [
+            [
+              {
+                "expected": "string",
+                "code": "invalid_type",
+                "path": [],
+                "message": "Invalid input: expected string, received undefined"
+              }
+            ],
+            [
+              {
+                "expected": "number",
+                "code": "invalid_type",
+                "path": [],
+                "message": "Invalid input: expected number, received undefined"
+              }
+            ]
+          ],
+          "path": [
+            "id"
+          ],
+          "message": "Invalid input"
+        },
+        {
+          "expected": "object",
+          "code": "invalid_type",
+          "path": [
+            "result"
+          ],
+          "message": "Invalid input: expected object, received undefined"
+        },
+        {
+          "code": "unrecognized_keys",
+          "keys": [
+            "code",
+            "msg",
+            "success"
+          ],
+          "path": [],
+          "message": "Unrecognized keys: \"code\", \"msg\", \"success\""
+        }
+      ],
+      [
+        {
+          "code": "invalid_value",
+          "values": [
+            "2.0"
+          ],
+          "path": [
+            "jsonrpc"
+          ],
+          "message": "Invalid input: expected \"2.0\""
+        },
+        {
+          "code": "invalid_union",
+          "errors": [
+            [
+              {
+                "expected": "string",
+                "code": "invalid_type",
+                "path": [],
+                "message": "Invalid input: expected string, received undefined"
+              }
+            ],
+            [
+              {
+                "expected": "number",
+                "code": "invalid_type",
+                "path": [],
+                "message": "Invalid input: expected number, received undefined"
+              }
+            ]
+          ],
+          "path": [
+            "id"
+          ],
+          "message": "Invalid input"
+        },
+        {
+          "expected": "object",
+          "code": "invalid_type",
+          "path": [
+            "error"
+          ],
+          "message": "Invalid input: expected object, received undefined"
+        },
+        {
+          "code": "unrecognized_keys",
+          "keys": [
+            "code",
+            "msg",
+            "success"
+          ],
+          "path": [],
+          "message": "Unrecognized keys: \"code\", \"msg\", \"success\""
+        }
+      ]
+    ],
+    "path": [],
+    "message": "Invalid input"
+  }
+] (code: none, errno: none)
+2026-02-14T05:49:16.913Z [ERROR] MCP server "zread" ZodError: [
+  {
+    "code": "invalid_union",
+    "errors": [
+      [
+        {
+          "code": "invalid_value",
+          "values": [
+            "2.0"
+          ],
+          "path": [
+            "jsonrpc"
+          ],
+          "message": "Invalid input: expected \"2.0\""
+        },
+        {
+          "code": "invalid_union",
+          "errors": [
+            [
+              {
+                "expected": "string",
+                "code": "invalid_type",
+                "path": [],
+                "message": "Invalid input: expected string, received undefined"
+              }
+            ],
+            [
+              {
+                "expected": "number",
+                "code": "invalid_type",
+                "path": [],
+                "message": "Invalid input: expected number, received undefined"
+              }
+            ]
+          ],
+          "path": [
+            "id"
+          ],
+          "message": "Invalid input"
+        },
+        {
+          "expected": "string",
+          "code": "invalid_type",
+          "path": [
+            "method"
+          ],
+          "message": "Invalid input: expected string, received undefined"
+        },
+        {
+          "code": "unrecognized_keys",
+          "keys": [
+            "code",
+            "msg",
+            "success"
+          ],
+          "path": [],
+          "message": "Unrecognized keys: \"code\", \"msg\", \"success\""
+        }
+      ],
+      [
+        {
+          "code": "invalid_value",
+          "values": [
+            "2.0"
+          ],
+          "path": [
+            "jsonrpc"
+          ],
+          "message": "Invalid input: expected \"2.0\""
+        },
+        {
+          "expected": "string",
+          "code": "invalid_type",
+          "path": [
+            "method"
+          ],
+          "message": "Invalid input: expected string, received undefined"
+        },
+        {
+          "code": "unrecognized_keys",
+          "keys": [
+            "code",
+            "msg",
+            "success"
+          ],
+          "path": [],
+          "message": "Unrecognized keys: \"code\", \"msg\", \"success\""
+        }
+      ],
+      [
+        {
+          "code": "invalid_value",
+          "values": [
+            "2.0"
+          ],
+          "path": [
+            "jsonrpc"
+          ],
+          "message": "Invalid input: expected \"2.0\""
+        },
+        {
+          "code": "invalid_union",
+          "errors": [
+            [
+              {
+                "expected": "string",
+                "code": "invalid_type",
+                "path": [],
+                "message": "Invalid input: expected string, received undefined"
+              }
+            ],
+            [
+              {
+                "expected": "number",
+                "code": "invalid_type",
+                "path": [],
+                "message": "Invalid input: expected number, received undefined"
+              }
+            ]
+          ],
+          "path": [
+            "id"
+          ],
+          "message": "Invalid input"
+        },
+        {
+          "expected": "object",
+          "code": "invalid_type",
+          "path": [
+            "result"
+          ],
+          "message": "Invalid input: expected object, received undefined"
+        },
+        {
+          "code": "unrecognized_keys",
+          "keys": [
+            "code",
+            "msg",
+            "success"
+          ],
+          "path": [],
+          "message": "Unrecognized keys: \"code\", \"msg\", \"success\""
+        }
+      ],
+      [
+        {
+          "code": "invalid_value",
+          "values": [
+            "2.0"
+          ],
+          "path": [
+            "jsonrpc"
+          ],
+          "message": "Invalid input: expected \"2.0\""
+        },
+        {
+          "code": "invalid_union",
+          "errors": [
+            [
+              {
+                "expected": "string",
+                "code": "invalid_type",
+                "path": [],
+                "message": "Invalid input: expected string, received undefined"
+              }
+            ],
+            [
+              {
+                "expected": "number",
+                "code": "invalid_type",
+                "path": [],
+                "message": "Invalid input: expected number, received undefined"
+              }
+            ]
+          ],
+          "path": [
+            "id"
+          ],
+          "message": "Invalid input"
+        },
+        {
+          "expected": "object",
+          "code": "invalid_type",
+          "path": [
+            "error"
+          ],
+          "message": "Invalid input: expected object, received undefined"
+        },
+        {
+          "code": "unrecognized_keys",
+          "keys": [
+            "code",
+            "msg",
+            "success"
+          ],
+          "path": [],
+          "message": "Unrecognized keys: \"code\", \"msg\", \"success\""
+        }
+      ]
+    ],
+    "path": [],
+    "message": "Invalid input"
+  }
+]
+2026-02-14T05:49:16.914Z [DEBUG] MCP server "zread": Connection failed after 1393ms: [
+  {
+    "code": "invalid_union",
+    "errors": [
+      [
+        {
+          "code": "invalid_value",
+          "values": [
+            "2.0"
+          ],
+          "path": [
+            "jsonrpc"
+          ],
+          "message": "Invalid input: expected \"2.0\""
+        },
+        {
+          "code": "invalid_union",
+          "errors": [
+            [
+              {
+                "expected": "string",
+                "code": "invalid_type",
+                "path": [],
+                "message": "Invalid input: expected string, received undefined"
+              }
+            ],
+            [
+              {
+                "expected": "number",
+                "code": "invalid_type",
+                "path": [],
+                "message": "Invalid input: expected number, received undefined"
+              }
+            ]
+          ],
+          "path": [
+            "id"
+          ],
+          "message": "Invalid input"
+        },
+        {
+          "expected": "string",
+          "code": "invalid_type",
+          "path": [
+            "method"
+          ],
+          "message": "Invalid input: expected string, received undefined"
+        },
+        {
+          "code": "unrecognized_keys",
+          "keys": [
+            "code",
+            "msg",
+            "success"
+          ],
+          "path": [],
+          "message": "Unrecognized keys: \"code\", \"msg\", \"success\""
+        }
+      ],
+      [
+        {
+          "code": "invalid_value",
+          "values": [
+            "2.0"
+          ],
+          "path": [
+            "jsonrpc"
+          ],
+          "message": "Invalid input: expected \"2.0\""
+        },
+        {
+          "expected": "string",
+          "code": "invalid_type",
+          "path": [
+            "method"
+          ],
+          "message": "Invalid input: expected string, received undefined"
+        },
+        {
+          "code": "unrecognized_keys",
+          "keys": [
+            "code",
+            "msg",
+            "success"
+          ],
+          "path": [],
+          "message": "Unrecognized keys: \"code\", \"msg\", \"success\""
+        }
+      ],
+      [
+        {
+          "code": "invalid_value",
+          "values": [
+            "2.0"
+          ],
+          "path": [
+            "jsonrpc"
+          ],
+          "message": "Invalid input: expected \"2.0\""
+        },
+        {
+          "code": "invalid_union",
+          "errors": [
+            [
+              {
+                "expected": "string",
+                "code": "invalid_type",
+                "path": [],
+                "message": "Invalid input: expected string, received undefined"
+              }
+            ],
+            [
+              {
+                "expected": "number",
+                "code": "invalid_type",
+                "path": [],
+                "message": "Invalid input: expected number, received undefined"
+              }
+            ]
+          ],
+          "path": [
+            "id"
+          ],
+          "message": "Invalid input"
+        },
+        {
+          "expected": "object",
+          "code": "invalid_type",
+          "path": [
+            "result"
+          ],
+          "message": "Invalid input: expected object, received undefined"
+        },
+        {
+          "code": "unrecognized_keys",
+          "keys": [
+            "code",
+            "msg",
+            "success"
+          ],
+          "path": [],
+          "message": "Unrecognized keys: \"code\", \"msg\", \"success\""
+        }
+      ],
+      [
+        {
+          "code": "invalid_value",
+          "values": [
+            "2.0"
+          ],
+          "path": [
+            "jsonrpc"
+          ],
+          "message": "Invalid input: expected \"2.0\""
+        },
+        {
+          "code": "invalid_union",
+          "errors": [
+            [
+              {
+                "expected": "string",
+                "code": "invalid_type",
+                "path": [],
+                "message": "Invalid input: expected string, received undefined"
+              }
+            ],
+            [
+              {
+                "expected": "number",
+                "code": "invalid_type",
+                "path": [],
+                "message": "Invalid input: expected number, received undefined"
+              }
+            ]
+          ],
+          "path": [
+            "id"
+          ],
+          "message": "Invalid input"
+        },
+        {
+          "expected": "object",
+          "code": "invalid_type",
+          "path": [
+            "error"
+          ],
+          "message": "Invalid input: expected object, received undefined"
+        },
+        {
+          "code": "unrecognized_keys",
+          "keys": [
+            "code",
+            "msg",
+            "success"
+          ],
+          "path": [],
+          "message": "Unrecognized keys: \"code\", \"msg\", \"success\""
+        }
+      ]
+    ],
+    "path": [],
+    "message": "Invalid input"
+  }
+]
+2026-02-14T05:49:16.914Z [ERROR] MCP server "zread" Connection failed: [
+  {
+    "code": "invalid_union",
+    "errors": [
+      [
+        {
+          "code": "invalid_value",
+          "values": [
+            "2.0"
+          ],
+          "path": [
+            "jsonrpc"
+          ],
+          "message": "Invalid input: expected \"2.0\""
+        },
+        {
+          "code": "invalid_union",
+          "errors": [
+            [
+              {
+                "expected": "string",
+                "code": "invalid_type",
+                "path": [],
+                "message": "Invalid input: expected string, received undefined"
+              }
+            ],
+            [
+              {
+                "expected": "number",
+                "code": "invalid_type",
+                "path": [],
+                "message": "Invalid input: expected number, received undefined"
+              }
+            ]
+          ],
+          "path": [
+            "id"
+          ],
+          "message": "Invalid input"
+        },
+        {
+          "expected": "string",
+          "code": "invalid_type",
+          "path": [
+            "method"
+          ],
+          "message": "Invalid input: expected string, received undefined"
+        },
+        {
+          "code": "unrecognized_keys",
+          "keys": [
+            "code",
+            "msg",
+            "success"
+          ],
+          "path": [],
+          "message": "Unrecognized keys: \"code\", \"msg\", \"success\""
+        }
+      ],
+      [
+        {
+          "code": "invalid_value",
+          "values": [
+            "2.0"
+          ],
+          "path": [
+            "jsonrpc"
+          ],
+          "message": "Invalid input: expected \"2.0\""
+        },
+        {
+          "expected": "string",
+          "code": "invalid_type",
+          "path": [
+            "method"
+          ],
+          "message": "Invalid input: expected string, received undefined"
+        },
+        {
+          "code": "unrecognized_keys",
+          "keys": [
+            "code",
+            "msg",
+            "success"
+          ],
+          "path": [],
+          "message": "Unrecognized keys: \"code\", \"msg\", \"success\""
+        }
+      ],
+      [
+        {
+          "code": "invalid_value",
+          "values": [
+            "2.0"
+          ],
+          "path": [
+            "jsonrpc"
+          ],
+          "message": "Invalid input: expected \"2.0\""
+        },
+        {
+          "code": "invalid_union",
+          "errors": [
+            [
+              {
+                "expected": "string",
+                "code": "invalid_type",
+                "path": [],
+                "message": "Invalid input: expected string, received undefined"
+              }
+            ],
+            [
+              {
+                "expected": "number",
+                "code": "invalid_type",
+                "path": [],
+                "message": "Invalid input: expected number, received undefined"
+              }
+            ]
+          ],
+          "path": [
+            "id"
+          ],
+          "message": "Invalid input"
+        },
+        {
+          "expected": "object",
+          "code": "invalid_type",
+          "path": [
+            "result"
+          ],
+          "message": "Invalid input: expected object, received undefined"
+        },
+        {
+          "code": "unrecognized_keys",
+          "keys": [
+            "code",
+            "msg",
+            "success"
+          ],
+          "path": [],
+          "message": "Unrecognized keys: \"code\", \"msg\", \"success\""
+        }
+      ],
+      [
+        {
+          "code": "invalid_value",
+          "values": [
+            "2.0"
+          ],
+          "path": [
+            "jsonrpc"
+          ],
+          "message": "Invalid input: expected \"2.0\""
+        },
+        {
+          "code": "invalid_union",
+          "errors": [
+            [
+              {
+                "expected": "string",
+                "code": "invalid_type",
+                "path": [],
+                "message": "Invalid input: expected string, received undefined"
+              }
+            ],
+            [
+              {
+                "expected": "number",
+                "code": "invalid_type",
+                "path": [],
+                "message": "Invalid input: expected number, received undefined"
+              }
+            ]
+          ],
+          "path": [
+            "id"
+          ],
+          "message": "Invalid input"
+        },
+        {
+          "expected": "object",
+          "code": "invalid_type",
+          "path": [
+            "error"
+          ],
+          "message": "Invalid input: expected object, received undefined"
+        },
+        {
+          "code": "unrecognized_keys",
+          "keys": [
+            "code",
+            "msg",
+            "success"
+          ],
+          "path": [],
+          "message": "Unrecognized keys: \"code\", \"msg\", \"success\""
+        }
+      ]
+    ],
+    "path": [],
+    "message": "Invalid input"
+  }
+]
+2026-02-14T05:49:16.928Z [DEBUG] MCP server "web-reader": HTTP Connection failed after 1409ms: [
+  {
+    "code": "invalid_union",
+    "errors": [
+      [
+        {
+          "code": "invalid_value",
+          "values": [
+            "2.0"
+          ],
+          "path": [
+            "jsonrpc"
+          ],
+          "message": "Invalid input: expected \"2.0\""
+        },
+        {
+          "code": "invalid_union",
+          "errors": [
+            [
+              {
+                "expected": "string",
+                "code": "invalid_type",
+                "path": [],
+                "message": "Invalid input: expected string, received undefined"
+              }
+            ],
+            [
+              {
+                "expected": "number",
+                "code": "invalid_type",
+                "path": [],
+                "message": "Invalid input: expected number, received undefined"
+              }
+            ]
+          ],
+          "path": [
+            "id"
+          ],
+          "message": "Invalid input"
+        },
+        {
+          "expected": "string",
+          "code": "invalid_type",
+          "path": [
+            "method"
+          ],
+          "message": "Invalid input: expected string, received undefined"
+        },
+        {
+          "code": "unrecognized_keys",
+          "keys": [
+            "code",
+            "msg",
+            "success"
+          ],
+          "path": [],
+          "message": "Unrecognized keys: \"code\", \"msg\", \"success\""
+        }
+      ],
+      [
+        {
+          "code": "invalid_value",
+          "values": [
+            "2.0"
+          ],
+          "path": [
+            "jsonrpc"
+          ],
+          "message": "Invalid input: expected \"2.0\""
+        },
+        {
+          "expected": "string",
+          "code": "invalid_type",
+          "path": [
+            "method"
+          ],
+          "message": "Invalid input: expected string, received undefined"
+        },
+        {
+          "code": "unrecognized_keys",
+          "keys": [
+            "code",
+            "msg",
+            "success"
+          ],
+          "path": [],
+          "message": "Unrecognized keys: \"code\", \"msg\", \"success\""
+        }
+      ],
+      [
+        {
+          "code": "invalid_value",
+          "values": [
+            "2.0"
+          ],
+          "path": [
+            "jsonrpc"
+          ],
+          "message": "Invalid input: expected \"2.0\""
+        },
+        {
+          "code": "invalid_union",
+          "errors": [
+            [
+              {
+                "expected": "string",
+                "code": "invalid_type",
+                "path": [],
+                "message": "Invalid input: expected string, received undefined"
+              }
+            ],
+            [
+              {
+                "expected": "number",
+                "code": "invalid_type",
+                "path": [],
+                "message": "Invalid input: expected number, received undefined"
+              }
+            ]
+          ],
+          "path": [
+            "id"
+          ],
+          "message": "Invalid input"
+        },
+        {
+          "expected": "object",
+          "code": "invalid_type",
+          "path": [
+            "result"
+          ],
+          "message": "Invalid input: expected object, received undefined"
+        },
+        {
+          "code": "unrecognized_keys",
+          "keys": [
+            "code",
+            "msg",
+            "success"
+          ],
+          "path": [],
+          "message": "Unrecognized keys: \"code\", \"msg\", \"success\""
+        }
+      ],
+      [
+        {
+          "code": "invalid_value",
+          "values": [
+            "2.0"
+          ],
+          "path": [
+            "jsonrpc"
+          ],
+          "message": "Invalid input: expected \"2.0\""
+        },
+        {
+          "code": "invalid_union",
+          "errors": [
+            [
+              {
+                "expected": "string",
+                "code": "invalid_type",
+                "path": [],
+                "message": "Invalid input: expected string, received undefined"
+              }
+            ],
+            [
+              {
+                "expected": "number",
+                "code": "invalid_type",
+                "path": [],
+                "message": "Invalid input: expected number, received undefined"
+              }
+            ]
+          ],
+          "path": [
+            "id"
+          ],
+          "message": "Invalid input"
+        },
+        {
+          "expected": "object",
+          "code": "invalid_type",
+          "path": [
+            "error"
+          ],
+          "message": "Invalid input: expected object, received undefined"
+        },
+        {
+          "code": "unrecognized_keys",
+          "keys": [
+            "code",
+            "msg",
+            "success"
+          ],
+          "path": [],
+          "message": "Unrecognized keys: \"code\", \"msg\", \"success\""
+        }
+      ]
+    ],
+    "path": [],
+    "message": "Invalid input"
+  }
+] (code: none, errno: none)
+2026-02-14T05:49:16.928Z [ERROR] MCP server "web-reader" ZodError: [
+  {
+    "code": "invalid_union",
+    "errors": [
+      [
+        {
+          "code": "invalid_value",
+          "values": [
+            "2.0"
+          ],
+          "path": [
+            "jsonrpc"
+          ],
+          "message": "Invalid input: expected \"2.0\""
+        },
+        {
+          "code": "invalid_union",
+          "errors": [
+            [
+              {
+                "expected": "string",
+                "code": "invalid_type",
+                "path": [],
+                "message": "Invalid input: expected string, received undefined"
+              }
+            ],
+            [
+              {
+                "expected": "number",
+                "code": "invalid_type",
+                "path": [],
+                "message": "Invalid input: expected number, received undefined"
+              }
+            ]
+          ],
+          "path": [
+            "id"
+          ],
+          "message": "Invalid input"
+        },
+        {
+          "expected": "string",
+          "code": "invalid_type",
+          "path": [
+            "method"
+          ],
+          "message": "Invalid input: expected string, received undefined"
+        },
+        {
+          "code": "unrecognized_keys",
+          "keys": [
+            "code",
+            "msg",
+            "success"
+          ],
+          "path": [],
+          "message": "Unrecognized keys: \"code\", \"msg\", \"success\""
+        }
+      ],
+      [
+        {
+          "code": "invalid_value",
+          "values": [
+            "2.0"
+          ],
+          "path": [
+            "jsonrpc"
+          ],
+          "message": "Invalid input: expected \"2.0\""
+        },
+        {
+          "expected": "string",
+          "code": "invalid_type",
+          "path": [
+            "method"
+          ],
+          "message": "Invalid input: expected string, received undefined"
+        },
+        {
+          "code": "unrecognized_keys",
+          "keys": [
+            "code",
+            "msg",
+            "success"
+          ],
+          "path": [],
+          "message": "Unrecognized keys: \"code\", \"msg\", \"success\""
+        }
+      ],
+      [
+        {
+          "code": "invalid_value",
+          "values": [
+            "2.0"
+          ],
+          "path": [
+            "jsonrpc"
+          ],
+          "message": "Invalid input: expected \"2.0\""
+        },
+        {
+          "code": "invalid_union",
+          "errors": [
+            [
+              {
+                "expected": "string",
+                "code": "invalid_type",
+                "path": [],
+                "message": "Invalid input: expected string, received undefined"
+              }
+            ],
+            [
+              {
+                "expected": "number",
+                "code": "invalid_type",
+                "path": [],
+                "message": "Invalid input: expected number, received undefined"
+              }
+            ]
+          ],
+          "path": [
+            "id"
+          ],
+          "message": "Invalid input"
+        },
+        {
+          "expected": "object",
+          "code": "invalid_type",
+          "path": [
+            "result"
+          ],
+          "message": "Invalid input: expected object, received undefined"
+        },
+        {
+          "code": "unrecognized_keys",
+          "keys": [
+            "code",
+            "msg",
+            "success"
+          ],
+          "path": [],
+          "message": "Unrecognized keys: \"code\", \"msg\", \"success\""
+        }
+      ],
+      [
+        {
+          "code": "invalid_value",
+          "values": [
+            "2.0"
+          ],
+          "path": [
+            "jsonrpc"
+          ],
+          "message": "Invalid input: expected \"2.0\""
+        },
+        {
+          "code": "invalid_union",
+          "errors": [
+            [
+              {
+                "expected": "string",
+                "code": "invalid_type",
+                "path": [],
+                "message": "Invalid input: expected string, received undefined"
+              }
+            ],
+            [
+              {
+                "expected": "number",
+                "code": "invalid_type",
+                "path": [],
+                "message": "Invalid input: expected number, received undefined"
+              }
+            ]
+          ],
+          "path": [
+            "id"
+          ],
+          "message": "Invalid input"
+        },
+        {
+          "expected": "object",
+          "code": "invalid_type",
+          "path": [
+            "error"
+          ],
+          "message": "Invalid input: expected object, received undefined"
+        },
+        {
+          "code": "unrecognized_keys",
+          "keys": [
+            "code",
+            "msg",
+            "success"
+          ],
+          "path": [],
+          "message": "Unrecognized keys: \"code\", \"msg\", \"success\""
+        }
+      ]
+    ],
+    "path": [],
+    "message": "Invalid input"
+  }
+]
+2026-02-14T05:49:16.929Z [DEBUG] MCP server "web-reader": Connection failed after 1410ms: [
+  {
+    "code": "invalid_union",
+    "errors": [
+      [
+        {
+          "code": "invalid_value",
+          "values": [
+            "2.0"
+          ],
+          "path": [
+            "jsonrpc"
+          ],
+          "message": "Invalid input: expected \"2.0\""
+        },
+        {
+          "code": "invalid_union",
+          "errors": [
+            [
+              {
+                "expected": "string",
+                "code": "invalid_type",
+                "path": [],
+                "message": "Invalid input: expected string, received undefined"
+              }
+            ],
+            [
+              {
+                "expected": "number",
+                "code": "invalid_type",
+                "path": [],
+                "message": "Invalid input: expected number, received undefined"
+              }
+            ]
+          ],
+          "path": [
+            "id"
+          ],
+          "message": "Invalid input"
+        },
+        {
+          "expected": "string",
+          "code": "invalid_type",
+          "path": [
+            "method"
+          ],
+          "message": "Invalid input: expected string, received undefined"
+        },
+        {
+          "code": "unrecognized_keys",
+          "keys": [
+            "code",
+            "msg",
+            "success"
+          ],
+          "path": [],
+          "message": "Unrecognized keys: \"code\", \"msg\", \"success\""
+        }
+      ],
+      [
+        {
+          "code": "invalid_value",
+          "values": [
+            "2.0"
+          ],
+          "path": [
+            "jsonrpc"
+          ],
+          "message": "Invalid input: expected \"2.0\""
+        },
+        {
+          "expected": "string",
+          "code": "invalid_type",
+          "path": [
+            "method"
+          ],
+          "message": "Invalid input: expected string, received undefined"
+        },
+        {
+          "code": "unrecognized_keys",
+          "keys": [
+            "code",
+            "msg",
+            "success"
+          ],
+          "path": [],
+          "message": "Unrecognized keys: \"code\", \"msg\", \"success\""
+        }
+      ],
+      [
+        {
+          "code": "invalid_value",
+          "values": [
+            "2.0"
+          ],
+          "path": [
+            "jsonrpc"
+          ],
+          "message": "Invalid input: expected \"2.0\""
+        },
+        {
+          "code": "invalid_union",
+          "errors": [
+            [
+              {
+                "expected": "string",
+                "code": "invalid_type",
+                "path": [],
+                "message": "Invalid input: expected string, received undefined"
+              }
+            ],
+            [
+              {
+                "expected": "number",
+                "code": "invalid_type",
+                "path": [],
+                "message": "Invalid input: expected number, received undefined"
+              }
+            ]
+          ],
+          "path": [
+            "id"
+          ],
+          "message": "Invalid input"
+        },
+        {
+          "expected": "object",
+          "code": "invalid_type",
+          "path": [
+            "result"
+          ],
+          "message": "Invalid input: expected object, received undefined"
+        },
+        {
+          "code": "unrecognized_keys",
+          "keys": [
+            "code",
+            "msg",
+            "success"
+          ],
+          "path": [],
+          "message": "Unrecognized keys: \"code\", \"msg\", \"success\""
+        }
+      ],
+      [
+        {
+          "code": "invalid_value",
+          "values": [
+            "2.0"
+          ],
+          "path": [
+            "jsonrpc"
+          ],
+          "message": "Invalid input: expected \"2.0\""
+        },
+        {
+          "code": "invalid_union",
+          "errors": [
+            [
+              {
+                "expected": "string",
+                "code": "invalid_type",
+                "path": [],
+                "message": "Invalid input: expected string, received undefined"
+              }
+            ],
+            [
+              {
+                "expected": "number",
+                "code": "invalid_type",
+                "path": [],
+                "message": "Invalid input: expected number, received undefined"
+              }
+            ]
+          ],
+          "path": [
+            "id"
+          ],
+          "message": "Invalid input"
+        },
+        {
+          "expected": "object",
+          "code": "invalid_type",
+          "path": [
+            "error"
+          ],
+          "message": "Invalid input: expected object, received undefined"
+        },
+        {
+          "code": "unrecognized_keys",
+          "keys": [
+            "code",
+            "msg",
+            "success"
+          ],
+          "path": [],
+          "message": "Unrecognized keys: \"code\", \"msg\", \"success\""
+        }
+      ]
+    ],
+    "path": [],
+    "message": "Invalid input"
+  }
+]
+2026-02-14T05:49:16.929Z [ERROR] MCP server "web-reader" Connection failed: [
+  {
+    "code": "invalid_union",
+    "errors": [
+      [
+        {
+          "code": "invalid_value",
+          "values": [
+            "2.0"
+          ],
+          "path": [
+            "jsonrpc"
+          ],
+          "message": "Invalid input: expected \"2.0\""
+        },
+        {
+          "code": "invalid_union",
+          "errors": [
+            [
+              {
+                "expected": "string",
+                "code": "invalid_type",
+                "path": [],
+                "message": "Invalid input: expected string, received undefined"
+              }
+            ],
+            [
+              {
+                "expected": "number",
+                "code": "invalid_type",
+                "path": [],
+                "message": "Invalid input: expected number, received undefined"
+              }
+            ]
+          ],
+          "path": [
+            "id"
+          ],
+          "message": "Invalid input"
+        },
+        {
+          "expected": "string",
+          "code": "invalid_type",
+          "path": [
+            "method"
+          ],
+          "message": "Invalid input: expected string, received undefined"
+        },
+        {
+          "code": "unrecognized_keys",
+          "keys": [
+            "code",
+            "msg",
+            "success"
+          ],
+          "path": [],
+          "message": "Unrecognized keys: \"code\", \"msg\", \"success\""
+        }
+      ],
+      [
+        {
+          "code": "invalid_value",
+          "values": [
+            "2.0"
+          ],
+          "path": [
+            "jsonrpc"
+          ],
+          "message": "Invalid input: expected \"2.0\""
+        },
+        {
+          "expected": "string",
+          "code": "invalid_type",
+          "path": [
+            "method"
+          ],
+          "message": "Invalid input: expected string, received undefined"
+        },
+        {
+          "code": "unrecognized_keys",
+          "keys": [
+            "code",
+            "msg",
+            "success"
+          ],
+          "path": [],
+          "message": "Unrecognized keys: \"code\", \"msg\", \"success\""
+        }
+      ],
+      [
+        {
+          "code": "invalid_value",
+          "values": [
+            "2.0"
+          ],
+          "path": [
+            "jsonrpc"
+          ],
+          "message": "Invalid input: expected \"2.0\""
+        },
+        {
+          "code": "invalid_union",
+          "errors": [
+            [
+              {
+                "expected": "string",
+                "code": "invalid_type",
+                "path": [],
+                "message": "Invalid input: expected string, received undefined"
+              }
+            ],
+            [
+              {
+                "expected": "number",
+                "code": "invalid_type",
+                "path": [],
+                "message": "Invalid input: expected number, received undefined"
+              }
+            ]
+          ],
+          "path": [
+            "id"
+          ],
+          "message": "Invalid input"
+        },
+        {
+          "expected": "object",
+          "code": "invalid_type",
+          "path": [
+            "result"
+          ],
+          "message": "Invalid input: expected object, received undefined"
+        },
+        {
+          "code": "unrecognized_keys",
+          "keys": [
+            "code",
+            "msg",
+            "success"
+          ],
+          "path": [],
+          "message": "Unrecognized keys: \"code\", \"msg\", \"success\""
+        }
+      ],
+      [
+        {
+          "code": "invalid_value",
+          "values": [
+            "2.0"
+          ],
+          "path": [
+            "jsonrpc"
+          ],
+          "message": "Invalid input: expected \"2.0\""
+        },
+        {
+          "code": "invalid_union",
+          "errors": [
+            [
+              {
+                "expected": "string",
+                "code": "invalid_type",
+                "path": [],
+                "message": "Invalid input: expected string, received undefined"
+              }
+            ],
+            [
+              {
+                "expected": "number",
+                "code": "invalid_type",
+                "path": [],
+                "message": "Invalid input: expected number, received undefined"
+              }
+            ]
+          ],
+          "path": [
+            "id"
+          ],
+          "message": "Invalid input"
+        },
+        {
+          "expected": "object",
+          "code": "invalid_type",
+          "path": [
+            "error"
+          ],
+          "message": "Invalid input: expected object, received undefined"
+        },
+        {
+          "code": "unrecognized_keys",
+          "keys": [
+            "code",
+            "msg",
+            "success"
+          ],
+          "path": [],
+          "message": "Unrecognized keys: \"code\", \"msg\", \"success\""
+        }
+      ]
+    ],
+    "path": [],
+    "message": "Invalid input"
+  }
+]
+2026-02-14T05:49:19.148Z [ERROR] MCP server "zai-mcp-server" Server stderr: [2026-02-14T05:49:19.139Z] INFO: MCP Server Application initialized
+[2026-02-14T05:49:19.140Z] INFO: Starting MCP server...
+[2026-02-14T05:49:19.140Z] INFO: UI to Artifact tool registered successfully
+[2026-02-14T05:49:19.141Z] INFO: Text Extraction tool registered successfully
+[2026-02-14T05:49:19.141Z] INFO: Error Diagnosis tool registered successfully
+[2026-02-14T05:49:19.141Z] INFO: Diagram Analysis tool registered successfully
+[2026-02-14T05:49:19.141Z] INFO: Data Visualization Analysis tool registered successfully
+[2026-02-14T05:49:19.142Z] INFO: UI Diff Check tool registered successfully
+[2026-02-14T05:49:19.142Z] INFO: General Image Analysis tool registered successfully
+[2026-02-14T05:49:19.142Z] INFO: Video analysis tool registered successfully
+[2026-02-14T05:49:19.142Z] INFO: Successfully registered all tools
+[2026-02-14T05:49:19.142Z] INFO: MCP Server started successfully [{"mode":"ZHIPU","name":"zai-mcp-server","version":"0.1.2"}]
+2026-02-14T05:49:19.148Z [DEBUG] MCP server "zai-mcp-server": Successfully connected to stdio server in 3683ms
+2026-02-14T05:49:19.148Z [DEBUG] MCP server "zai-mcp-server": Connection established with capabilities: {"hasTools":true,"hasPrompts":false,"hasResources":false,"serverVersion":{"name":"zai-mcp-server","version":"0.1.2"}}
+2026-02-14T05:54:13.147Z [DEBUG] Metrics opt-out check failed: No API key available
+2026-02-14T05:54:13.147Z [DEBUG] Metrics check failed, defaulting to disabled
+2026-02-14T05:54:13.147Z [DEBUG] Metrics export disabled by organization setting
+2026-02-14T06:07:02.108Z [DEBUG] LSP Diagnostics: getLSPDiagnosticAttachments called
+2026-02-14T06:07:02.108Z [DEBUG] LSP Diagnostics: Checking registry - 0 pending
+2026-02-14T06:07:02.109Z [DEBUG] Hooks: Found 0 total hooks in registry
+2026-02-14T06:07:02.109Z [DEBUG] Hooks: checkForNewResponses returning 0 responses
+2026-02-14T06:07:02.324Z [DEBUG] Getting matching hook commands for UserPromptSubmit with query: undefined
+2026-02-14T06:07:02.324Z [DEBUG] Found 0 hook matchers in settings
+2026-02-14T06:07:02.324Z [DEBUG] Matched 0 unique hooks for query "no match query" (0 before deduplication)
+2026-02-14T06:07:02.325Z [DEBUG] FileHistory: Added snapshot for c814eccc-c411-4f55-bcbf-5699ade13fa0, tracking 0 files
+2026-02-14T06:07:02.326Z [DEBUG] [useDeferredValue] Messages deferred by 1 (0→1)
+2026-02-14T06:07:02.341Z [DEBUG] Plugin autoupdate: skipped (auto-updater disabled)
+2026-02-14T06:07:02.366Z [DEBUG] Writing to temp file: C:\Users\Administrator\.claude.json.tmp.18600.1771049222366
+2026-02-14T06:07:02.366Z [DEBUG] Preserving file permissions: 100666
+2026-02-14T06:07:02.366Z [DEBUG] Temp file written successfully, size: 2862 bytes
+2026-02-14T06:07:02.366Z [DEBUG] Applied original permissions to temp file
+2026-02-14T06:07:02.366Z [DEBUG] Renaming C:\Users\Administrator\.claude.json.tmp.18600.1771049222366 to C:\Users\Administrator\.claude.json
+2026-02-14T06:07:02.367Z [DEBUG] File C:\Users\Administrator\.claude.json written atomically
+2026-02-14T06:07:02.368Z [DEBUG] Tool search disabled for model 'claude-haiku-4-5-20251001': model does not support tool_reference blocks. This feature is only available on Claude Sonnet 4+, Opus 4+, and newer models.
+2026-02-14T06:07:02.370Z [DEBUG] attribution header x-anthropic-billing-header: cc_version=2.1.41.527; cc_entrypoint=cli; cch=00000;
+2026-02-14T06:07:02.371Z [DEBUG] [API:request] Creating client, ANTHROPIC_CUSTOM_HEADERS present: false, has Authorization header: false
+2026-02-14T06:07:02.371Z [DEBUG] [API:auth] OAuth token check starting
+2026-02-14T06:07:02.373Z [DEBUG] Total plugin output styles loaded: 0
+2026-02-14T06:07:02.373Z [DEBUG] [API:auth] OAuth token check complete
+2026-02-14T06:07:02.393Z [DEBUG] Writing to temp file: C:\Users\Administrator\.claude.json.tmp.18600.1771049222393
+2026-02-14T06:07:02.393Z [DEBUG] Preserving file permissions: 100666
+2026-02-14T06:07:02.394Z [DEBUG] Temp file written successfully, size: 2862 bytes
+2026-02-14T06:07:02.394Z [DEBUG] Applied original permissions to temp file
+2026-02-14T06:07:02.394Z [DEBUG] Renaming C:\Users\Administrator\.claude.json.tmp.18600.1771049222393 to C:\Users\Administrator\.claude.json
+2026-02-14T06:07:02.394Z [DEBUG] File C:\Users\Administrator\.claude.json written atomically
+2026-02-14T06:07:02.396Z [DEBUG] autocompact: tokens=12 threshold=167000 effectiveWindow=180000
+2026-02-14T06:07:02.398Z [DEBUG] [API:request] Creating client, ANTHROPIC_CUSTOM_HEADERS present: false, has Authorization header: false
+2026-02-14T06:07:02.398Z [DEBUG] [API:auth] OAuth token check starting
+2026-02-14T06:07:02.398Z [DEBUG] [API:auth] OAuth token check complete
+2026-02-14T06:07:02.400Z [DEBUG] [useDeferredValue] Messages deferred by 1 (0→1)
+2026-02-14T06:07:02.411Z [DEBUG] Stats cache stale (2026-02-12), processing 2026-02-13 to 2026-02-13 in background
+2026-02-14T06:07:02.766Z [DEBUG] Stats cache saved successfully (lastComputedDate: 2026-02-13)
+2026-02-14T06:07:02.767Z [DEBUG] Stats cache updated with 25 new sessions
+2026-02-14T06:07:03.931Z [DEBUG] countTokensWithFallback: API returned null, trying haiku fallback (8 tools)
+2026-02-14T06:07:03.931Z [DEBUG] [API:request] Creating client, ANTHROPIC_CUSTOM_HEADERS present: false, has Authorization header: false
+2026-02-14T06:07:03.931Z [DEBUG] [API:auth] OAuth token check starting
+2026-02-14T06:07:03.931Z [DEBUG] [API:auth] OAuth token check complete
+2026-02-14T06:07:05.046Z [DEBUG] Stream started - received first chunk
+2026-02-14T06:07:05.720Z [DEBUG] Auto tool search disabled: 2874 tokens (threshold: 20000, 10% of context) [source: query]
+2026-02-14T06:07:05.737Z [DEBUG] Writing to temp file: C:\Users\Administrator\.claude.json.tmp.18600.1771049225737
+2026-02-14T06:07:05.737Z [DEBUG] Preserving file permissions: 100666
+2026-02-14T06:07:05.737Z [DEBUG] Temp file written successfully, size: 2862 bytes
+2026-02-14T06:07:05.737Z [DEBUG] Applied original permissions to temp file
+2026-02-14T06:07:05.737Z [DEBUG] Renaming C:\Users\Administrator\.claude.json.tmp.18600.1771049225737 to C:\Users\Administrator\.claude.json
+2026-02-14T06:07:05.737Z [DEBUG] File C:\Users\Administrator\.claude.json written atomically
+2026-02-14T06:07:05.738Z [DEBUG] attribution header x-anthropic-billing-header: cc_version=2.1.41.527; cc_entrypoint=cli; cch=00000;
+2026-02-14T06:07:05.740Z [DEBUG] [API:request] Creating client, ANTHROPIC_CUSTOM_HEADERS present: false, has Authorization header: false
+2026-02-14T06:07:05.740Z [DEBUG] [API:auth] OAuth token check starting
+2026-02-14T06:07:05.741Z [DEBUG] [API:auth] OAuth token check complete
+2026-02-14T06:07:06.436Z [ERROR] API error (attempt 1/11): 503 503 {"error":{"code":"model_not_found","message":"分组 aggregation 下模型 GLM-4.7 无可用渠道（distributor） (request id: 20260214060707398474721RYfx0top)","type":"new_api_error"}}
+2026-02-14T06:07:06.439Z [DEBUG] [useDeferredValue] Messages deferred by 1 (1→2)
+2026-02-14T06:07:07.707Z [ERROR] API error (attempt 2/11): 503 503 {"error":{"code":"model_not_found","message":"分组 aggregation 下模型 GLM-4.7 无可用渠道（distributor） (request id: 20260214060708679050756YJVRnHXx)","type":"new_api_error"}}
+2026-02-14T06:07:07.708Z [DEBUG] [useDeferredValue] Messages deferred by 1 (2→3)
+2026-02-14T06:07:09.494Z [ERROR] API error (attempt 3/11): 503 503 {"error":{"code":"model_not_found","message":"分组 aggregation 下模型 GLM-4.7 无可用渠道（distributor） (request id: 20260214060710466713684ObguFrGN)","type":"new_api_error"}}
+2026-02-14T06:07:09.495Z [DEBUG] [useDeferredValue] Messages deferred by 1 (3→4)
+2026-02-14T06:07:12.258Z [ERROR] API error (attempt 4/11): 503 503 {"error":{"code":"model_not_found","message":"分组 aggregation 下模型 GLM-4.7 无可用渠道（distributor） (request id: 202602140607132234218237wbVOZDn)","type":"new_api_error"}}
+2026-02-14T06:07:12.259Z [DEBUG] [useDeferredValue] Messages deferred by 1 (4→5)
+2026-02-14T06:07:16.488Z [DEBUG] Writing to temp file: C:\Users\Administrator\.claude.json.tmp.18600.1771049236488
+2026-02-14T06:07:16.488Z [DEBUG] Preserving file permissions: 100666
+2026-02-14T06:07:16.488Z [DEBUG] Temp file written successfully, size: 2862 bytes
+2026-02-14T06:07:16.488Z [DEBUG] Applied original permissions to temp file
+2026-02-14T06:07:16.488Z [DEBUG] Renaming C:\Users\Administrator\.claude.json.tmp.18600.1771049236488 to C:\Users\Administrator\.claude.json
+2026-02-14T06:07:16.488Z [DEBUG] File C:\Users\Administrator\.claude.json written atomically
+2026-02-14T06:07:17.700Z [ERROR] API error (attempt 5/11): 503 503 {"error":{"code":"model_not_found","message":"分组 aggregation 下模型 GLM-4.7 无可用渠道（distributor） (request id: 20260214060718656257402ezcred8l)","type":"new_api_error"}}
+2026-02-14T06:07:17.701Z [DEBUG] [useDeferredValue] Messages deferred by 1 (5→6)
+2026-02-14T06:07:25.079Z [DEBUG] Full reset (shrink->below): prevHeight=26, nextHeight=25, viewport=26
+2026-02-14T06:07:25.236Z [DEBUG] Full reset (shrink->below): prevHeight=26, nextHeight=25, viewport=26
+2026-02-14T06:07:25.596Z [DEBUG] Writing to temp file: C:\Users\Administrator\.claude.json.tmp.18600.1771049245596
+2026-02-14T06:07:25.596Z [DEBUG] Preserving file permissions: 100666
+2026-02-14T06:07:25.596Z [DEBUG] Temp file written successfully, size: 2862 bytes
+2026-02-14T06:07:25.597Z [DEBUG] Applied original permissions to temp file
+2026-02-14T06:07:25.597Z [DEBUG] Renaming C:\Users\Administrator\.claude.json.tmp.18600.1771049245596 to C:\Users\Administrator\.claude.json
+2026-02-14T06:07:25.597Z [DEBUG] File C:\Users\Administrator\.claude.json written atomically
+2026-02-14T06:07:25.599Z [DEBUG] AutoUpdaterWrapper: Installation type: npm-global
+2026-02-14T06:07:27.434Z [DEBUG] [onCancel] focusedInputDialog=undefined streamMode=requesting
+2026-02-14T06:07:27.440Z [ERROR] Error in API request: Request was aborted.
+2026-02-14T06:07:27.455Z [DEBUG] Writing to temp file: C:\Users\Administrator\.claude.json.tmp.18600.1771049247455
+2026-02-14T06:07:27.455Z [DEBUG] Preserving file permissions: 100666
+2026-02-14T06:07:27.455Z [DEBUG] Temp file written successfully, size: 2862 bytes
+2026-02-14T06:07:27.456Z [DEBUG] Applied original permissions to temp file
+2026-02-14T06:07:27.456Z [DEBUG] Renaming C:\Users\Administrator\.claude.json.tmp.18600.1771049247455 to C:\Users\Administrator\.claude.json
+2026-02-14T06:07:27.456Z [DEBUG] File C:\Users\Administrator\.claude.json written atomically
+2026-02-14T06:07:27.475Z [DEBUG] [useDeferredValue] Messages deferred by 1 (6→7)
+2026-02-14T06:07:27.482Z [DEBUG] LSP Diagnostics: getLSPDiagnosticAttachments called
+2026-02-14T06:07:27.482Z [DEBUG] LSP Diagnostics: Checking registry - 0 pending
+2026-02-14T06:07:27.482Z [DEBUG] Hooks: Found 0 total hooks in registry
+2026-02-14T06:07:27.482Z [DEBUG] Hooks: checkForNewResponses returning 0 responses
+2026-02-14T06:07:27.503Z [DEBUG] [useDeferredValue] Messages deferred by 1 (6→7)
+2026-02-14T06:07:27.519Z [DEBUG] Writing to temp file: C:\Users\Administrator\.claude.json.tmp.18600.1771049247519
+2026-02-14T06:07:27.519Z [DEBUG] Preserving file permissions: 100666
+2026-02-14T06:07:27.519Z [DEBUG] Temp file written successfully, size: 2862 bytes
+2026-02-14T06:07:27.519Z [DEBUG] Applied original permissions to temp file
+2026-02-14T06:07:27.519Z [DEBUG] Renaming C:\Users\Administrator\.claude.json.tmp.18600.1771049247519 to C:\Users\Administrator\.claude.json
+2026-02-14T06:07:27.520Z [DEBUG] File C:\Users\Administrator\.claude.json written atomically
+2026-02-14T06:07:27.528Z [DEBUG] Getting matching hook commands for UserPromptSubmit with query: undefined
+2026-02-14T06:07:27.528Z [DEBUG] Found 0 hook matchers in settings
+2026-02-14T06:07:27.528Z [DEBUG] Matched 0 unique hooks for query "no match query" (0 before deduplication)
+2026-02-14T06:07:27.528Z [DEBUG] FileHistory: Making snapshot for message 133a467d-57a7-43ec-bf20-5234ee1bdcb3
+2026-02-14T06:07:27.528Z [DEBUG] FileHistory: Added snapshot for 133a467d-57a7-43ec-bf20-5234ee1bdcb3, tracking 0 files
+2026-02-14T06:07:27.529Z [DEBUG] [useDeferredValue] Messages deferred by 1 (7→8)
+2026-02-14T06:07:27.534Z [DEBUG] Writing to temp file: C:\Users\Administrator\.claude.json.tmp.18600.1771049247534
+2026-02-14T06:07:27.534Z [DEBUG] Preserving file permissions: 100666
+2026-02-14T06:07:27.534Z [DEBUG] Temp file written successfully, size: 2862 bytes
+2026-02-14T06:07:27.534Z [DEBUG] Applied original permissions to temp file
+2026-02-14T06:07:27.534Z [DEBUG] Renaming C:\Users\Administrator\.claude.json.tmp.18600.1771049247534 to C:\Users\Administrator\.claude.json
+2026-02-14T06:07:27.534Z [DEBUG] File C:\Users\Administrator\.claude.json written atomically
+2026-02-14T06:07:27.535Z [DEBUG] Tool search disabled for model 'claude-haiku-4-5-20251001': model does not support tool_reference blocks. This feature is only available on Claude Sonnet 4+, Opus 4+, and newer models.
+2026-02-14T06:07:27.535Z [DEBUG] attribution header x-anthropic-billing-header: cc_version=2.1.41.3c9; cc_entrypoint=cli; cch=00000;
+2026-02-14T06:07:27.535Z [DEBUG] [API:request] Creating client, ANTHROPIC_CUSTOM_HEADERS present: false, has Authorization header: false
+2026-02-14T06:07:27.535Z [DEBUG] [API:auth] OAuth token check starting
+2026-02-14T06:07:27.536Z [DEBUG] [API:auth] OAuth token check complete
+2026-02-14T06:07:27.537Z [DEBUG] Writing to temp file: C:\Users\Administrator\.claude.json.tmp.18600.1771049247537
+2026-02-14T06:07:27.537Z [DEBUG] Preserving file permissions: 100666
+2026-02-14T06:07:27.538Z [DEBUG] Temp file written successfully, size: 2862 bytes
+2026-02-14T06:07:27.538Z [DEBUG] Applied original permissions to temp file
+2026-02-14T06:07:27.538Z [DEBUG] Renaming C:\Users\Administrator\.claude.json.tmp.18600.1771049247537 to C:\Users\Administrator\.claude.json
+2026-02-14T06:07:27.538Z [DEBUG] File C:\Users\Administrator\.claude.json written atomically
+2026-02-14T06:07:27.539Z [DEBUG] autocompact: tokens=21 threshold=167000 effectiveWindow=180000
+2026-02-14T06:07:27.541Z [DEBUG] Auto tool search disabled: 2874 tokens (threshold: 20000, 10% of context) [source: query]
+2026-02-14T06:07:27.545Z [DEBUG] Writing to temp file: C:\Users\Administrator\.claude.json.tmp.18600.1771049247545
+2026-02-14T06:07:27.545Z [DEBUG] Preserving file permissions: 100666
+2026-02-14T06:07:27.546Z [DEBUG] Temp file written successfully, size: 2862 bytes
+2026-02-14T06:07:27.546Z [DEBUG] Applied original permissions to temp file
+2026-02-14T06:07:27.546Z [DEBUG] Renaming C:\Users\Administrator\.claude.json.tmp.18600.1771049247545 to C:\Users\Administrator\.claude.json
+2026-02-14T06:07:27.546Z [DEBUG] File C:\Users\Administrator\.claude.json written atomically
+2026-02-14T06:07:27.547Z [DEBUG] attribution header x-anthropic-billing-header: cc_version=2.1.41.527; cc_entrypoint=cli; cch=00000;
+2026-02-14T06:07:27.548Z [DEBUG] [API:request] Creating client, ANTHROPIC_CUSTOM_HEADERS present: false, has Authorization header: false
+2026-02-14T06:07:27.548Z [DEBUG] [API:auth] OAuth token check starting
+2026-02-14T06:07:27.549Z [DEBUG] [API:auth] OAuth token check complete
+2026-02-14T06:07:27.554Z [DEBUG] [useDeferredValue] Messages deferred by 1 (7→8)
+2026-02-14T06:07:28.919Z [ERROR] API error (attempt 1/11): 503 503 {"error":{"code":"model_not_found","message":"分组 aggregation 下模型 GLM-4.7 无可用渠道（distributor） (request id: 20260214060729890044091oF6bDD4O)","type":"new_api_error"}}
+2026-02-14T06:07:28.920Z [DEBUG] [useDeferredValue] Messages deferred by 1 (8→9)
+2026-02-14T06:07:29.505Z [DEBUG] Stream started - received first chunk
+2026-02-14T06:07:30.187Z [ERROR] API error (attempt 2/11): 503 503 {"error":{"code":"model_not_found","message":"分组 aggregation 下模型 GLM-4.7 无可用渠道（distributor） (request id: 202602140607311510499358BBrhKRG)","type":"new_api_error"}}
+2026-02-14T06:07:30.188Z [DEBUG] [useDeferredValue] Messages deferred by 1 (9→10)
+2026-02-14T06:07:31.877Z [ERROR] API error (attempt 3/11): 503 503 {"error":{"code":"model_not_found","message":"分组 aggregation 下模型 GLM-4.7 无可用渠道（distributor） (request id: 20260214060732826010192qLRS0nFA)","type":"new_api_error"}}
+2026-02-14T06:07:31.878Z [DEBUG] [useDeferredValue] Messages deferred by 1 (10→11)
+2026-02-14T06:07:34.920Z [ERROR] API error (attempt 4/11): 503 503 {"error":{"code":"model_not_found","message":"分组 aggregation 下模型 GLM-4.7 无可用渠道（distributor） (request id: 20260214060735882344852ohpL6Pvi)","type":"new_api_error"}}
+2026-02-14T06:07:34.921Z [DEBUG] [useDeferredValue] Messages deferred by 1 (11→12)
+2026-02-14T06:07:40.368Z [ERROR] API error (attempt 5/11): 503 503 {"error":{"code":"model_not_found","message":"分组 aggregation 下模型 GLM-4.7 无可用渠道（distributor） (request id: 2026021406074131890373794wopyIm)","type":"new_api_error"}}
+2026-02-14T06:07:40.369Z [DEBUG] [useDeferredValue] Messages deferred by 1 (12→13)
+2026-02-14T06:07:49.920Z [DEBUG] [onCancel] focusedInputDialog=undefined streamMode=requesting
+2026-02-14T06:07:49.933Z [ERROR] API error (attempt 6/11): undefined Request was aborted.
+2026-02-14T06:07:49.933Z [ERROR] Error in API request: Request was aborted.
+2026-02-14T06:07:49.950Z [DEBUG] [useDeferredValue] Messages deferred by 1 (13→14)
+2026-02-14T06:07:49.961Z [DEBUG] [useDeferredValue] Messages deferred by 1 (13→14)
+2026-02-14T06:07:49.974Z [DEBUG] [useDeferredValue] Messages deferred by 1 (13→14)
+2026-02-14T06:07:54.855Z [DEBUG] Writing to temp file: C:\Users\Administrator\.claude\settings.json.tmp.18600.1771049274855
+2026-02-14T06:07:54.855Z [DEBUG] Preserving file permissions: 100666
+2026-02-14T06:07:54.856Z [DEBUG] Temp file written successfully, size: 306 bytes
+2026-02-14T06:07:54.856Z [DEBUG] Applied original permissions to temp file
+2026-02-14T06:07:54.856Z [DEBUG] Renaming C:\Users\Administrator\.claude\settings.json.tmp.18600.1771049274855 to C:\Users\Administrator\.claude\settings.json
+2026-02-14T06:07:54.856Z [DEBUG] File C:\Users\Administrator\.claude\settings.json written atomically
+2026-02-14T06:07:54.858Z [DEBUG] Writing to temp file: C:\Users\Administrator\.claude\settings.json.tmp.18600.1771049274858
+2026-02-14T06:07:54.858Z [DEBUG] Preserving file permissions: 100666
+2026-02-14T06:07:54.858Z [DEBUG] Temp file written successfully, size: 306 bytes
+2026-02-14T06:07:54.858Z [DEBUG] Applied original permissions to temp file
+2026-02-14T06:07:54.858Z [DEBUG] Renaming C:\Users\Administrator\.claude\settings.json.tmp.18600.1771049274858 to C:\Users\Administrator\.claude\settings.json
+2026-02-14T06:07:54.859Z [DEBUG] File C:\Users\Administrator\.claude\settings.json written atomically
+2026-02-14T06:07:54.859Z [DEBUG] FileHistory: Making snapshot for message 058d59a8-8a26-490e-b508-a7e8b0ca75e6
+2026-02-14T06:07:54.862Z [DEBUG] FileHistory: Added snapshot for 058d59a8-8a26-490e-b508-a7e8b0ca75e6, tracking 0 files
+2026-02-14T06:07:54.863Z [DEBUG] [useDeferredValue] Messages deferred by 3 (14→17)
+2026-02-14T06:07:54.868Z [DEBUG] Full reset (shrink->below): prevHeight=30, nextHeight=19, viewport=26
+2026-02-14T06:07:54.870Z [DEBUG] [useDeferredValue] Messages deferred by 3 (14→17)
+2026-02-14T06:07:54.874Z [DEBUG] AutoUpdaterWrapper: Installation type: npm-global
+2026-02-14T06:07:54.880Z [DEBUG] [useDeferredValue] Messages deferred by 3 (14→17)
+2026-02-14T06:08:05.225Z [DEBUG] LSP Diagnostics: getLSPDiagnosticAttachments called
+2026-02-14T06:08:05.225Z [DEBUG] LSP Diagnostics: Checking registry - 0 pending
+2026-02-14T06:08:05.225Z [DEBUG] Hooks: Found 0 total hooks in registry
+2026-02-14T06:08:05.225Z [DEBUG] Hooks: checkForNewResponses returning 0 responses
+2026-02-14T06:08:05.228Z [DEBUG] Getting matching hook commands for UserPromptSubmit with query: undefined
+2026-02-14T06:08:05.228Z [DEBUG] Found 0 hook matchers in settings
+2026-02-14T06:08:05.228Z [DEBUG] Matched 0 unique hooks for query "no match query" (0 before deduplication)
+2026-02-14T06:08:05.228Z [DEBUG] FileHistory: Making snapshot for message 1291a153-8846-4ded-8809-3d525d782f50
+2026-02-14T06:08:05.228Z [DEBUG] FileHistory: Added snapshot for 1291a153-8846-4ded-8809-3d525d782f50, tracking 0 files
+2026-02-14T06:08:05.228Z [DEBUG] [useDeferredValue] Messages deferred by 1 (17→18)
+2026-02-14T06:08:05.237Z [DEBUG] Writing to temp file: C:\Users\Administrator\.claude.json.tmp.18600.1771049285237
+2026-02-14T06:08:05.237Z [DEBUG] Preserving file permissions: 100666
+2026-02-14T06:08:05.237Z [DEBUG] Temp file written successfully, size: 2862 bytes
+2026-02-14T06:08:05.237Z [DEBUG] Applied original permissions to temp file
+2026-02-14T06:08:05.237Z [DEBUG] Renaming C:\Users\Administrator\.claude.json.tmp.18600.1771049285237 to C:\Users\Administrator\.claude.json
+2026-02-14T06:08:05.237Z [DEBUG] File C:\Users\Administrator\.claude.json written atomically
+2026-02-14T06:08:05.238Z [DEBUG] Tool search disabled for model 'claude-haiku-4-5-20251001': model does not support tool_reference blocks. This feature is only available on Claude Sonnet 4+, Opus 4+, and newer models.
+2026-02-14T06:08:05.238Z [DEBUG] attribution header x-anthropic-billing-header: cc_version=2.1.41.447; cc_entrypoint=cli; cch=00000;
+2026-02-14T06:08:05.238Z [DEBUG] [API:request] Creating client, ANTHROPIC_CUSTOM_HEADERS present: false, has Authorization header: false
+2026-02-14T06:08:05.238Z [DEBUG] [API:auth] OAuth token check starting
+2026-02-14T06:08:05.239Z [DEBUG] [API:auth] OAuth token check complete
+2026-02-14T06:08:05.241Z [DEBUG] Writing to temp file: C:\Users\Administrator\.claude.json.tmp.18600.1771049285241
+2026-02-14T06:08:05.241Z [DEBUG] Preserving file permissions: 100666
+2026-02-14T06:08:05.242Z [DEBUG] Temp file written successfully, size: 2862 bytes
+2026-02-14T06:08:05.242Z [DEBUG] Applied original permissions to temp file
+2026-02-14T06:08:05.242Z [DEBUG] Renaming C:\Users\Administrator\.claude.json.tmp.18600.1771049285241 to C:\Users\Administrator\.claude.json
+2026-02-14T06:08:05.242Z [DEBUG] File C:\Users\Administrator\.claude.json written atomically
+2026-02-14T06:08:05.244Z [DEBUG] autocompact: tokens=147 threshold=967000 effectiveWindow=980000
+2026-02-14T06:08:05.245Z [DEBUG] Auto tool search disabled: 2874 tokens (threshold: 100000, 10% of context) [source: query]
+2026-02-14T06:08:05.266Z [DEBUG] Writing to temp file: C:\Users\Administrator\.claude.json.tmp.18600.1771049285266
+2026-02-14T06:08:05.266Z [DEBUG] Preserving file permissions: 100666
+2026-02-14T06:08:05.267Z [DEBUG] Temp file written successfully, size: 2862 bytes
+2026-02-14T06:08:05.267Z [DEBUG] Applied original permissions to temp file
+2026-02-14T06:08:05.267Z [DEBUG] Renaming C:\Users\Administrator\.claude.json.tmp.18600.1771049285266 to C:\Users\Administrator\.claude.json
+2026-02-14T06:08:05.267Z [DEBUG] File C:\Users\Administrator\.claude.json written atomically
+2026-02-14T06:08:05.268Z [DEBUG] attribution header x-anthropic-billing-header: cc_version=2.1.41.527; cc_entrypoint=cli; cch=00000;
+2026-02-14T06:08:05.269Z [DEBUG] [API:request] Creating client, ANTHROPIC_CUSTOM_HEADERS present: false, has Authorization header: false
+2026-02-14T06:08:05.270Z [DEBUG] [API:auth] OAuth token check starting
+2026-02-14T06:08:05.271Z [DEBUG] [API:auth] OAuth token check complete
+2026-02-14T06:08:05.278Z [DEBUG] [useDeferredValue] Messages deferred by 1 (17→18)
+2026-02-14T06:08:06.942Z [DEBUG] Writing to temp file: C:\Users\Administrator\.claude.json.tmp.18600.1771049286942
+2026-02-14T06:08:06.942Z [DEBUG] Preserving file permissions: 100666
+2026-02-14T06:08:06.942Z [DEBUG] Temp file written successfully, size: 2862 bytes
+2026-02-14T06:08:06.942Z [DEBUG] Applied original permissions to temp file
+2026-02-14T06:08:06.942Z [DEBUG] Renaming C:\Users\Administrator\.claude.json.tmp.18600.1771049286942 to C:\Users\Administrator\.claude.json
+2026-02-14T06:08:06.943Z [DEBUG] File C:\Users\Administrator\.claude.json written atomically
+2026-02-14T06:08:06.980Z [DEBUG] Stream started - received first chunk
+2026-02-14T06:08:08.787Z [DEBUG] Stream started - received first chunk
+2026-02-14T06:08:09.572Z [DEBUG] [useDeferredValue] Messages deferred by 1 (18→19)
+2026-02-14T06:08:09.924Z [DEBUG] [useDeferredValue] Messages deferred by 1 (19→20)
+2026-02-14T06:08:10.088Z [DEBUG] executePreToolHooks called for tool: Read
+2026-02-14T06:08:10.092Z [DEBUG] Getting matching hook commands for PreToolUse with query: Read
+2026-02-14T06:08:10.092Z [DEBUG] Found 0 hook matchers in settings
+2026-02-14T06:08:10.092Z [DEBUG] Matched 0 unique hooks for query "Read" (0 before deduplication)
+2026-02-14T06:08:10.602Z [DEBUG] [useDeferredValue] Messages deferred by 1 (19→20)
+2026-02-14T06:08:10.620Z [DEBUG] Getting matching hook commands for PostToolUse with query: Read
+2026-02-14T06:08:10.620Z [DEBUG] Found 5 hook matchers in settings
+2026-02-14T06:08:10.620Z [DEBUG] Matched 1 unique hooks for query "Read" (1 before deduplication)
+2026-02-14T06:08:10.624Z [DEBUG] LSP Diagnostics: getLSPDiagnosticAttachments called
+2026-02-14T06:08:10.624Z [DEBUG] LSP Diagnostics: Checking registry - 0 pending
+2026-02-14T06:08:10.624Z [DEBUG] Hooks: Found 0 total hooks in registry
+2026-02-14T06:08:10.624Z [DEBUG] Hooks: checkForNewResponses returning 0 responses
+2026-02-14T06:08:10.626Z [DEBUG] autocompact: tokens=29783 threshold=967000 effectiveWindow=980000
+2026-02-14T06:08:10.627Z [DEBUG] Auto tool search disabled: 2874 tokens (threshold: 100000, 10% of context) [source: query]
+2026-02-14T06:08:10.630Z [DEBUG] Writing to temp file: C:\Users\Administrator\.claude.json.tmp.18600.1771049290630
+2026-02-14T06:08:10.630Z [DEBUG] Preserving file permissions: 100666
+2026-02-14T06:08:10.631Z [DEBUG] Temp file written successfully, size: 2862 bytes
+2026-02-14T06:08:10.631Z [DEBUG] Applied original permissions to temp file
+2026-02-14T06:08:10.631Z [DEBUG] Renaming C:\Users\Administrator\.claude.json.tmp.18600.1771049290630 to C:\Users\Administrator\.claude.json
+2026-02-14T06:08:10.631Z [DEBUG] File C:\Users\Administrator\.claude.json written atomically
+2026-02-14T06:08:10.632Z [DEBUG] attribution header x-anthropic-billing-header: cc_version=2.1.41.527; cc_entrypoint=cli; cch=00000;
+2026-02-14T06:08:10.633Z [DEBUG] [API:request] Creating client, ANTHROPIC_CUSTOM_HEADERS present: false, has Authorization header: false
+2026-02-14T06:08:10.633Z [DEBUG] [API:auth] OAuth token check starting
+2026-02-14T06:08:10.634Z [DEBUG] [API:auth] OAuth token check complete
+2026-02-14T06:08:10.637Z [DEBUG] [useDeferredValue] Messages deferred by 4 (20→24)
+2026-02-14T06:08:13.774Z [DEBUG] Stream started - received first chunk
+2026-02-14T06:08:15.652Z [DEBUG] [useDeferredValue] Messages deferred by 1 (24→25)
+2026-02-14T06:09:13.165Z [DEBUG] Metrics opt-out check failed: No API key available
+2026-02-14T06:09:13.166Z [DEBUG] Metrics check failed, defaulting to disabled
+2026-02-14T06:09:13.166Z [DEBUG] Metrics export disabled by organization setting
+2026-02-14T06:10:07.151Z [WARN] Streaming stall detected: 111.1s gap between events (stall #1)
+2026-02-14T06:10:07.154Z [DEBUG] [useDeferredValue] Messages deferred by 1 (25→26)
+2026-02-14T06:10:07.163Z [WARN] Streaming completed with 1 stall(s), total stall time: 111.1s
+2026-02-14T06:10:07.167Z [DEBUG] Write tool input error: Write failed due to the following issues:
+The required parameter `file_path` is missing
+The required parameter `content` is missing
+2026-02-14T06:10:07.168Z [DEBUG] LSP Diagnostics: getLSPDiagnosticAttachments called
+2026-02-14T06:10:07.168Z [DEBUG] LSP Diagnostics: Checking registry - 0 pending
+2026-02-14T06:10:07.168Z [DEBUG] Hooks: Found 0 total hooks in registry
+2026-02-14T06:10:07.168Z [DEBUG] Hooks: checkForNewResponses returning 0 responses
+2026-02-14T06:10:07.169Z [DEBUG] autocompact: tokens=33427 threshold=967000 effectiveWindow=980000
+2026-02-14T06:10:07.171Z [DEBUG] Auto tool search disabled: 2874 tokens (threshold: 100000, 10% of context) [source: query]
+2026-02-14T06:10:07.186Z [DEBUG] Writing to temp file: C:\Users\Administrator\.claude.json.tmp.18600.1771049407186
+2026-02-14T06:10:07.186Z [DEBUG] Preserving file permissions: 100666
+2026-02-14T06:10:07.187Z [DEBUG] Temp file written successfully, size: 2862 bytes
+2026-02-14T06:10:07.187Z [DEBUG] Applied original permissions to temp file
+2026-02-14T06:10:07.187Z [DEBUG] Renaming C:\Users\Administrator\.claude.json.tmp.18600.1771049407186 to C:\Users\Administrator\.claude.json
+2026-02-14T06:10:07.188Z [DEBUG] File C:\Users\Administrator\.claude.json written atomically
+2026-02-14T06:10:07.190Z [DEBUG] attribution header x-anthropic-billing-header: cc_version=2.1.41.527; cc_entrypoint=cli; cch=00000;
+2026-02-14T06:10:07.194Z [DEBUG] [API:request] Creating client, ANTHROPIC_CUSTOM_HEADERS present: false, has Authorization header: false
+2026-02-14T06:10:07.194Z [DEBUG] [API:auth] OAuth token check starting
+2026-02-14T06:10:07.196Z [DEBUG] [API:auth] OAuth token check complete
+2026-02-14T06:10:07.209Z [DEBUG] [useDeferredValue] Messages deferred by 2 (25→27)
+2026-02-14T06:10:11.366Z [DEBUG] Stream started - received first chunk
+2026-02-14T06:10:11.766Z [DEBUG] [useDeferredValue] Messages deferred by 1 (27→28)
+2026-02-14T06:12:00.213Z [WARN] Streaming stall detected: 108.0s gap between events (stall #1)
+2026-02-14T06:12:00.214Z [DEBUG] [useDeferredValue] Messages deferred by 1 (28→29)
+2026-02-14T06:12:00.221Z [DEBUG] [useDeferredValue] Messages deferred by 1 (28→29)
+2026-02-14T06:12:00.227Z [WARN] Streaming completed with 1 stall(s), total stall time: 108.0s
+2026-02-14T06:12:00.229Z [DEBUG] Write tool input error: Write failed due to the following issues:
+The required parameter `file_path` is missing
+The required parameter `content` is missing
+2026-02-14T06:12:00.230Z [DEBUG] LSP Diagnostics: getLSPDiagnosticAttachments called
+2026-02-14T06:12:00.230Z [DEBUG] LSP Diagnostics: Checking registry - 0 pending
+2026-02-14T06:12:00.230Z [DEBUG] Hooks: Found 0 total hooks in registry
+2026-02-14T06:12:00.230Z [DEBUG] Hooks: checkForNewResponses returning 0 responses
+2026-02-14T06:12:00.231Z [DEBUG] autocompact: tokens=33512 threshold=967000 effectiveWindow=980000
+2026-02-14T06:12:00.232Z [DEBUG] Auto tool search disabled: 2874 tokens (threshold: 100000, 10% of context) [source: query]
+2026-02-14T06:12:00.239Z [DEBUG] Writing to temp file: C:\Users\Administrator\.claude.json.tmp.18600.1771049520239
+2026-02-14T06:12:00.239Z [DEBUG] Preserving file permissions: 100666
+2026-02-14T06:12:00.240Z [DEBUG] Temp file written successfully, size: 2862 bytes
+2026-02-14T06:12:00.240Z [DEBUG] Applied original permissions to temp file
+2026-02-14T06:12:00.240Z [DEBUG] Renaming C:\Users\Administrator\.claude.json.tmp.18600.1771049520239 to C:\Users\Administrator\.claude.json
+2026-02-14T06:12:00.241Z [DEBUG] File C:\Users\Administrator\.claude.json written atomically
+2026-02-14T06:12:00.242Z [DEBUG] attribution header x-anthropic-billing-header: cc_version=2.1.41.527; cc_entrypoint=cli; cch=00000;
+2026-02-14T06:12:00.244Z [DEBUG] [API:request] Creating client, ANTHROPIC_CUSTOM_HEADERS present: false, has Authorization header: false
+2026-02-14T06:12:00.244Z [DEBUG] [API:auth] OAuth token check starting
+2026-02-14T06:12:00.246Z [DEBUG] [API:auth] OAuth token check complete
+2026-02-14T06:12:00.253Z [DEBUG] [useDeferredValue] Messages deferred by 2 (28→30)
+2026-02-14T06:12:03.863Z [DEBUG] Stream started - received first chunk
+2026-02-14T06:12:04.245Z [DEBUG] [useDeferredValue] Messages deferred by 1 (30→31)
+2026-02-14T06:13:56.742Z [WARN] Streaming stall detected: 112.2s gap between events (stall #1)
+2026-02-14T06:13:56.746Z [DEBUG] [useDeferredValue] Messages deferred by 1 (31→32)
+2026-02-14T06:14:00.856Z [WARN] Streaming completed with 1 stall(s), total stall time: 112.2s
+2026-02-14T06:14:00.859Z [DEBUG] Write tool input error: Write failed due to the following issues:
+The required parameter `file_path` is missing
+The required parameter `content` is missing
+2026-02-14T06:14:00.860Z [DEBUG] LSP Diagnostics: getLSPDiagnosticAttachments called
+2026-02-14T06:14:00.860Z [DEBUG] LSP Diagnostics: Checking registry - 0 pending
+2026-02-14T06:14:00.860Z [DEBUG] Hooks: Found 0 total hooks in registry
+2026-02-14T06:14:00.860Z [DEBUG] Hooks: checkForNewResponses returning 0 responses
+2026-02-14T06:14:00.861Z [DEBUG] autocompact: tokens=33606 threshold=967000 effectiveWindow=980000
+2026-02-14T06:14:00.862Z [DEBUG] Auto tool search disabled: 2874 tokens (threshold: 100000, 10% of context) [source: query]
+2026-02-14T06:14:00.875Z [DEBUG] Writing to temp file: C:\Users\Administrator\.claude.json.tmp.18600.1771049640874
+2026-02-14T06:14:00.875Z [DEBUG] Preserving file permissions: 100666
+2026-02-14T06:14:00.875Z [DEBUG] Temp file written successfully, size: 2862 bytes
+2026-02-14T06:14:00.876Z [DEBUG] Applied original permissions to temp file
+2026-02-14T06:14:00.876Z [DEBUG] Renaming C:\Users\Administrator\.claude.json.tmp.18600.1771049640874 to C:\Users\Administrator\.claude.json
+2026-02-14T06:14:00.876Z [DEBUG] File C:\Users\Administrator\.claude.json written atomically
+2026-02-14T06:14:00.878Z [DEBUG] attribution header x-anthropic-billing-header: cc_version=2.1.41.527; cc_entrypoint=cli; cch=00000;
+2026-02-14T06:14:00.880Z [DEBUG] [API:request] Creating client, ANTHROPIC_CUSTOM_HEADERS present: false, has Authorization header: false
+2026-02-14T06:14:00.880Z [DEBUG] [API:auth] OAuth token check starting
+2026-02-14T06:14:00.882Z [DEBUG] [API:auth] OAuth token check complete
+2026-02-14T06:14:00.891Z [DEBUG] [useDeferredValue] Messages deferred by 1 (32→33)
+2026-02-14T06:14:05.041Z [DEBUG] Stream started - received first chunk
+2026-02-14T06:14:05.430Z [DEBUG] [useDeferredValue] Messages deferred by 1 (33→34)
+2026-02-14T06:14:13.174Z [DEBUG] Metrics opt-out check failed: No API key available
+2026-02-14T06:14:13.174Z [DEBUG] Metrics check failed, defaulting to disabled
+2026-02-14T06:14:13.174Z [DEBUG] Metrics export disabled by organization setting
+2026-02-14T06:15:56.492Z [WARN] Streaming stall detected: 110.7s gap between events (stall #1)
+2026-02-14T06:15:59.471Z [WARN] Streaming completed with 1 stall(s), total stall time: 110.7s
+2026-02-14T06:15:59.665Z [DEBUG] executePreToolHooks called for tool: Write
+2026-02-14T06:15:59.675Z [DEBUG] Getting matching hook commands for PreToolUse with query: Write
+2026-02-14T06:15:59.675Z [DEBUG] Found 0 hook matchers in settings
+2026-02-14T06:15:59.675Z [DEBUG] Matched 0 unique hooks for query "Write" (0 before deduplication)
+2026-02-14T06:15:59.855Z [DEBUG] Permission suggestions for Write: [
+  {
+    "type": "setMode",
+    "mode": "acceptEdits",
+    "destination": "session"
+  }
+]
+2026-02-14T06:15:59.857Z [DEBUG] executePermissionRequestHooks called for tool: Write
+2026-02-14T06:15:59.864Z [DEBUG] Getting matching hook commands for PermissionRequest with query: Write
+2026-02-14T06:15:59.864Z [DEBUG] Found 0 hook matchers in settings
+2026-02-14T06:15:59.864Z [DEBUG] Matched 0 unique hooks for query "Write" (0 before deduplication)
+2026-02-14T06:15:59.868Z [DEBUG] [useDeferredValue] Messages deferred by 1 (34→35)
+2026-02-14T06:16:00.417Z [DEBUG] High write ratio: blit=0, write=17670 (100.0% writes), screen=530x84
+2026-02-14T06:16:00.443Z [DEBUG] [useDeferredValue] Messages deferred by 1 (34→35)
+2026-02-14T06:16:00.579Z [DEBUG] High write ratio: blit=3024, write=17057 (84.9% writes), screen=532x84
+2026-02-14T06:16:06.462Z [DEBUG] Getting matching hook commands for Notification with query: permission_prompt
+2026-02-14T06:16:06.463Z [DEBUG] Found 0 hook matchers in settings
+2026-02-14T06:16:06.463Z [DEBUG] Matched 0 unique hooks for query "permission_prompt" (0 before deduplication)
+2026-02-14T06:19:13.182Z [DEBUG] Metrics opt-out check failed: No API key available
+2026-02-14T06:19:13.182Z [DEBUG] Metrics check failed, defaulting to disabled
+2026-02-14T06:19:13.182Z [DEBUG] Metrics export disabled by organization setting
+2026-02-14T06:33:43.431Z [DEBUG] Applying permission update: Setting mode to 'acceptEdits'
+2026-02-14T06:33:43.434Z [DEBUG] FileHistory: Tracked file modification for C:\Users\Administrator\Desktop\法律期限速查系统.html
+2026-02-14T06:33:43.910Z [DEBUG] Full reset (scrollback changes): scrollbackRows=507, firstChangeY=39
+  prev: "────────────────────────────────────────────────────────────────────────────────────"
+  next: "* Billowing… (7m 55s · ↓ 4.6k tokens)                                               "
+2026-02-14T06:33:43.917Z [DEBUG] [lspRecommendation] Looking for LSP plugins for .html
+2026-02-14T06:33:43.921Z [DEBUG] AutoUpdaterWrapper: Installation type: npm-global
+2026-02-14T06:33:43.934Z [DEBUG] Ripgrep first use test: PASSED (mode=builtin, path=C:\Users\Administrator\AppData\Roaming\npm\node_modules\@anthropic-ai\claude-code\vendor\ripgrep\x64-win32\rg.exe)
+2026-02-14T06:33:44.447Z [DEBUG] rg error (signal=undefined, code=ABORT_ERR, stderr: ), 51 results
+2026-02-14T06:33:44.454Z [DEBUG] Writing to temp file: C:\Users\Administrator\Desktop\法律期限速查系统.html.tmp.18600.1771050824454
+2026-02-14T06:33:44.454Z [DEBUG] Temp file written successfully, size: 17020 bytes
+2026-02-14T06:33:44.454Z [DEBUG] Renaming C:\Users\Administrator\Desktop\法律期限速查系统.html.tmp.18600.1771050824454 to C:\Users\Administrator\Desktop\法律期限速查系统.html
+2026-02-14T06:33:44.458Z [DEBUG] File C:\Users\Administrator\Desktop\法律期限速查系统.html written atomically
+2026-02-14T06:33:44.468Z [DEBUG] Getting matching hook commands for PostToolUse with query: Write
+2026-02-14T06:33:44.468Z [DEBUG] Found 5 hook matchers in settings
+2026-02-14T06:33:44.468Z [DEBUG] Matched 1 unique hooks for query "Write" (1 before deduplication)
+2026-02-14T06:33:44.469Z [DEBUG] LSP Diagnostics: getLSPDiagnosticAttachments called
+2026-02-14T06:33:44.469Z [DEBUG] LSP Diagnostics: Checking registry - 0 pending
+2026-02-14T06:33:44.469Z [DEBUG] Hooks: Found 0 total hooks in registry
+2026-02-14T06:33:44.469Z [DEBUG] Hooks: checkForNewResponses returning 0 responses
+2026-02-14T06:33:44.470Z [DEBUG] autocompact: tokens=43298 threshold=967000 effectiveWindow=980000
+2026-02-14T06:33:44.471Z [DEBUG] Auto tool search disabled: 2874 tokens (threshold: 100000, 10% of context) [source: query]
+2026-02-14T06:33:44.475Z [DEBUG] Writing to temp file: C:\Users\Administrator\.claude.json.tmp.18600.1771050824475
+2026-02-14T06:33:44.475Z [DEBUG] Preserving file permissions: 100666
+2026-02-14T06:33:44.475Z [DEBUG] Temp file written successfully, size: 2862 bytes
+2026-02-14T06:33:44.475Z [DEBUG] Applied original permissions to temp file
+2026-02-14T06:33:44.475Z [DEBUG] Renaming C:\Users\Administrator\.claude.json.tmp.18600.1771050824475 to C:\Users\Administrator\.claude.json
+2026-02-14T06:33:44.475Z [DEBUG] File C:\Users\Administrator\.claude.json written atomically
+2026-02-14T06:33:44.476Z [DEBUG] attribution header x-anthropic-billing-header: cc_version=2.1.41.527; cc_entrypoint=cli; cch=00000;
+2026-02-14T06:33:44.477Z [DEBUG] [API:request] Creating client, ANTHROPIC_CUSTOM_HEADERS present: false, has Authorization header: false
+2026-02-14T06:33:44.477Z [DEBUG] [API:auth] OAuth token check starting
+2026-02-14T06:33:44.477Z [DEBUG] [API:auth] OAuth token check complete
+2026-02-14T06:33:44.481Z [DEBUG] [useDeferredValue] Messages deferred by 4 (35→39)
+2026-02-14T06:33:48.306Z [DEBUG] Writing to temp file: C:\Users\Administrator\.claude.json.tmp.18600.1771050828306
+2026-02-14T06:33:48.306Z [DEBUG] Preserving file permissions: 100666
+2026-02-14T06:33:48.306Z [DEBUG] Temp file written successfully, size: 2862 bytes
+2026-02-14T06:33:48.306Z [DEBUG] Applied original permissions to temp file
+2026-02-14T06:33:48.306Z [DEBUG] Renaming C:\Users\Administrator\.claude.json.tmp.18600.1771050828306 to C:\Users\Administrator\.claude.json
+2026-02-14T06:33:48.306Z [DEBUG] File C:\Users\Administrator\.claude.json written atomically
+2026-02-14T06:33:49.557Z [DEBUG] Stream started - received first chunk
+2026-02-14T06:33:56.293Z [DEBUG] Getting matching hook commands for Stop with query: undefined
+2026-02-14T06:33:56.293Z [DEBUG] Found 0 hook matchers in settings
+2026-02-14T06:33:56.293Z [DEBUG] Matched 0 unique hooks for query "no match query" (0 before deduplication)
+2026-02-14T06:33:56.294Z [DEBUG] autocompact: tokens=40502 threshold=967000 effectiveWindow=980000
+2026-02-14T06:33:56.310Z [DEBUG] Auto tool search disabled: 2874 tokens (threshold: 100000, 10% of context) [source: query]
+2026-02-14T06:33:56.324Z [DEBUG] Writing to temp file: C:\Users\Administrator\.claude.json.tmp.18600.1771050836324
+2026-02-14T06:33:56.324Z [DEBUG] Preserving file permissions: 100666
+2026-02-14T06:33:56.325Z [DEBUG] Temp file written successfully, size: 2862 bytes
+2026-02-14T06:33:56.325Z [DEBUG] Applied original permissions to temp file
+2026-02-14T06:33:56.325Z [DEBUG] Renaming C:\Users\Administrator\.claude.json.tmp.18600.1771050836324 to C:\Users\Administrator\.claude.json
+2026-02-14T06:33:56.325Z [DEBUG] File C:\Users\Administrator\.claude.json written atomically
+2026-02-14T06:33:56.327Z [DEBUG] Writing to temp file: C:\Users\Administrator\.claude.json.tmp.18600.1771050836327
+2026-02-14T06:33:56.327Z [DEBUG] Preserving file permissions: 100666
+2026-02-14T06:33:56.327Z [DEBUG] Temp file written successfully, size: 2862 bytes
+2026-02-14T06:33:56.328Z [DEBUG] Applied original permissions to temp file
+2026-02-14T06:33:56.328Z [DEBUG] Renaming C:\Users\Administrator\.claude.json.tmp.18600.1771050836327 to C:\Users\Administrator\.claude.json
+2026-02-14T06:33:56.328Z [DEBUG] File C:\Users\Administrator\.claude.json written atomically
+2026-02-14T06:33:56.331Z [DEBUG] Writing to temp file: C:\Users\Administrator\.claude.json.tmp.18600.1771050836331
+2026-02-14T06:33:56.331Z [DEBUG] Preserving file permissions: 100666
+2026-02-14T06:33:56.331Z [DEBUG] Temp file written successfully, size: 2862 bytes
+2026-02-14T06:33:56.331Z [DEBUG] Applied original permissions to temp file
+2026-02-14T06:33:56.331Z [DEBUG] Renaming C:\Users\Administrator\.claude.json.tmp.18600.1771050836331 to C:\Users\Administrator\.claude.json
+2026-02-14T06:33:56.332Z [DEBUG] File C:\Users\Administrator\.claude.json written atomically
+2026-02-14T06:33:56.333Z [DEBUG] attribution header x-anthropic-billing-header: cc_version=2.1.41.527; cc_entrypoint=cli; cch=00000;
+2026-02-14T06:33:56.333Z [DEBUG] [API:request] Creating client, ANTHROPIC_CUSTOM_HEADERS present: false, has Authorization header: false
+2026-02-14T06:33:56.333Z [DEBUG] [API:auth] OAuth token check starting
+2026-02-14T06:33:56.334Z [DEBUG] [API:auth] OAuth token check complete
+2026-02-14T06:33:56.355Z [DEBUG] [useDeferredValue] Messages deferred by 2 (39→41)
+2026-02-14T06:33:56.371Z [DEBUG] LSP Diagnostics: getLSPDiagnosticAttachments called
+2026-02-14T06:33:56.371Z [DEBUG] LSP Diagnostics: Checking registry - 0 pending
+2026-02-14T06:33:56.371Z [DEBUG] Hooks: Found 0 total hooks in registry
+2026-02-14T06:33:56.371Z [DEBUG] Hooks: checkForNewResponses returning 0 responses
+2026-02-14T06:33:56.377Z [DEBUG] Getting matching hook commands for UserPromptSubmit with query: undefined
+2026-02-14T06:33:56.377Z [DEBUG] Found 0 hook matchers in settings
+2026-02-14T06:33:56.377Z [DEBUG] Matched 0 unique hooks for query "no match query" (0 before deduplication)
+2026-02-14T06:33:56.378Z [DEBUG] FileHistory: Making snapshot for message 153f2b3a-228f-4dee-9f46-b418d9e5361d
+2026-02-14T06:33:56.384Z [DEBUG] FileHistory: Added snapshot for 153f2b3a-228f-4dee-9f46-b418d9e5361d, tracking 1 files
+2026-02-14T06:33:56.386Z [DEBUG] [useDeferredValue] Messages deferred by 3 (39→42)
+2026-02-14T06:33:56.397Z [DEBUG] Writing to temp file: C:\Users\Administrator\.claude.json.tmp.18600.1771050836397
+2026-02-14T06:33:56.397Z [DEBUG] Preserving file permissions: 100666
+2026-02-14T06:33:56.398Z [DEBUG] Temp file written successfully, size: 2862 bytes
+2026-02-14T06:33:56.398Z [DEBUG] Applied original permissions to temp file
+2026-02-14T06:33:56.398Z [DEBUG] Renaming C:\Users\Administrator\.claude.json.tmp.18600.1771050836397 to C:\Users\Administrator\.claude.json
+2026-02-14T06:33:56.398Z [DEBUG] File C:\Users\Administrator\.claude.json written atomically
+2026-02-14T06:33:56.399Z [DEBUG] Tool search disabled for model 'claude-haiku-4-5-20251001': model does not support tool_reference blocks. This feature is only available on Claude Sonnet 4+, Opus 4+, and newer models.
+2026-02-14T06:33:56.399Z [DEBUG] attribution header x-anthropic-billing-header: cc_version=2.1.41.1f1; cc_entrypoint=cli; cch=00000;
+2026-02-14T06:33:56.399Z [DEBUG] [API:request] Creating client, ANTHROPIC_CUSTOM_HEADERS present: false, has Authorization header: false
+2026-02-14T06:33:56.399Z [DEBUG] [API:auth] OAuth token check starting
+2026-02-14T06:33:56.400Z [DEBUG] [API:auth] OAuth token check complete
+2026-02-14T06:33:56.402Z [DEBUG] Writing to temp file: C:\Users\Administrator\.claude.json.tmp.18600.1771050836402
+2026-02-14T06:33:56.402Z [DEBUG] Preserving file permissions: 100666
+2026-02-14T06:33:56.403Z [DEBUG] Temp file written successfully, size: 2862 bytes
+2026-02-14T06:33:56.403Z [DEBUG] Applied original permissions to temp file
+2026-02-14T06:33:56.403Z [DEBUG] Renaming C:\Users\Administrator\.claude.json.tmp.18600.1771050836402 to C:\Users\Administrator\.claude.json
+2026-02-14T06:33:56.403Z [DEBUG] File C:\Users\Administrator\.claude.json written atomically
+2026-02-14T06:33:56.404Z [DEBUG] autocompact: tokens=40250 threshold=967000 effectiveWindow=980000
+2026-02-14T06:33:56.405Z [DEBUG] Auto tool search disabled: 2874 tokens (threshold: 100000, 10% of context) [source: query]
+2026-02-14T06:33:56.409Z [DEBUG] Writing to temp file: C:\Users\Administrator\.claude.json.tmp.18600.1771050836409
+2026-02-14T06:33:56.409Z [DEBUG] Preserving file permissions: 100666
+2026-02-14T06:33:56.409Z [DEBUG] Temp file written successfully, size: 2862 bytes
+2026-02-14T06:33:56.409Z [DEBUG] Applied original permissions to temp file
+2026-02-14T06:33:56.409Z [DEBUG] Renaming C:\Users\Administrator\.claude.json.tmp.18600.1771050836409 to C:\Users\Administrator\.claude.json
+2026-02-14T06:33:56.409Z [DEBUG] File C:\Users\Administrator\.claude.json written atomically
+2026-02-14T06:33:56.410Z [DEBUG] attribution header x-anthropic-billing-header: cc_version=2.1.41.527; cc_entrypoint=cli; cch=00000;
+2026-02-14T06:33:56.411Z [DEBUG] [API:request] Creating client, ANTHROPIC_CUSTOM_HEADERS present: false, has Authorization header: false
+2026-02-14T06:33:56.411Z [DEBUG] [API:auth] OAuth token check starting
+2026-02-14T06:33:56.412Z [DEBUG] [API:auth] OAuth token check complete
+2026-02-14T06:33:56.417Z [DEBUG] [useDeferredValue] Messages deferred by 3 (39→42)
+2026-02-14T06:33:57.448Z [ERROR] API error (attempt 1/11): undefined Request was aborted.
+2026-02-14T06:33:57.449Z [ERROR] Error in API request: Request was aborted.
+2026-02-14T06:33:57.451Z [DEBUG] Forked agent [prompt_suggestion] received message: type=user
+2026-02-14T06:33:57.451Z [DEBUG] Forked agent [prompt_suggestion] finished: 1 messages, types=[user], totalUsage: input=0 output=0 cacheRead=0 cacheCreate=0
+2026-02-14T06:33:57.931Z [DEBUG] Stream started - received first chunk
+2026-02-14T06:33:58.398Z [DEBUG] Writing to temp file: C:\Users\Administrator\.claude.json.tmp.18600.1771050838398
+2026-02-14T06:33:58.398Z [DEBUG] Preserving file permissions: 100666
+2026-02-14T06:33:58.398Z [DEBUG] Temp file written successfully, size: 2862 bytes
+2026-02-14T06:33:58.398Z [DEBUG] Applied original permissions to temp file
+2026-02-14T06:33:58.398Z [DEBUG] Renaming C:\Users\Administrator\.claude.json.tmp.18600.1771050838398 to C:\Users\Administrator\.claude.json
+2026-02-14T06:33:58.398Z [DEBUG] File C:\Users\Administrator\.claude.json written atomically
+2026-02-14T06:34:00.239Z [DEBUG] Stream started - received first chunk
+2026-02-14T06:34:02.303Z [DEBUG] Writing to temp file: C:\Users\Administrator\.claude.json.tmp.18600.1771050842303
+2026-02-14T06:34:02.303Z [DEBUG] Preserving file permissions: 100666
+2026-02-14T06:34:02.303Z [DEBUG] Temp file written successfully, size: 2862 bytes
+2026-02-14T06:34:02.303Z [DEBUG] Applied original permissions to temp file
+2026-02-14T06:34:02.303Z [DEBUG] Renaming C:\Users\Administrator\.claude.json.tmp.18600.1771050842303 to C:\Users\Administrator\.claude.json
+2026-02-14T06:34:02.304Z [DEBUG] File C:\Users\Administrator\.claude.json written atomically
+2026-02-14T06:34:02.346Z [DEBUG] [useDeferredValue] Messages deferred by 1 (42→43)
+2026-02-14T06:34:02.352Z [DEBUG] [useDeferredValue] Messages deferred by 1 (42→43)
+2026-02-14T06:34:02.380Z [DEBUG] Getting matching hook commands for Stop with query: undefined
+2026-02-14T06:34:02.380Z [DEBUG] Found 0 hook matchers in settings
+2026-02-14T06:34:02.380Z [DEBUG] Matched 0 unique hooks for query "no match query" (0 before deduplication)
+2026-02-14T06:34:02.381Z [DEBUG] autocompact: tokens=40608 threshold=967000 effectiveWindow=980000
+2026-02-14T06:34:02.394Z [DEBUG] Auto tool search disabled: 2874 tokens (threshold: 100000, 10% of context) [source: query]
+2026-02-14T06:34:02.410Z [DEBUG] Writing to temp file: C:\Users\Administrator\.claude.json.tmp.18600.1771050842410
+2026-02-14T06:34:02.410Z [DEBUG] Preserving file permissions: 100666
+2026-02-14T06:34:02.411Z [DEBUG] Temp file written successfully, size: 2862 bytes
+2026-02-14T06:34:02.411Z [DEBUG] Applied original permissions to temp file
+2026-02-14T06:34:02.411Z [DEBUG] Renaming C:\Users\Administrator\.claude.json.tmp.18600.1771050842410 to C:\Users\Administrator\.claude.json
+2026-02-14T06:34:02.412Z [DEBUG] File C:\Users\Administrator\.claude.json written atomically
+2026-02-14T06:34:02.413Z [DEBUG] attribution header x-anthropic-billing-header: cc_version=2.1.41.527; cc_entrypoint=cli; cch=00000;
+2026-02-14T06:34:02.414Z [DEBUG] [API:request] Creating client, ANTHROPIC_CUSTOM_HEADERS present: false, has Authorization header: false
+2026-02-14T06:34:02.414Z [DEBUG] [API:auth] OAuth token check starting
+2026-02-14T06:34:02.415Z [DEBUG] [API:auth] OAuth token check complete
+2026-02-14T06:34:02.426Z [DEBUG] LSP Diagnostics: getLSPDiagnosticAttachments called
+2026-02-14T06:34:02.426Z [DEBUG] LSP Diagnostics: Checking registry - 0 pending
+2026-02-14T06:34:02.426Z [DEBUG] Hooks: Found 0 total hooks in registry
+2026-02-14T06:34:02.426Z [DEBUG] Hooks: checkForNewResponses returning 0 responses
+2026-02-14T06:34:02.431Z [DEBUG] Getting matching hook commands for UserPromptSubmit with query: undefined
+2026-02-14T06:34:02.431Z [DEBUG] Found 0 hook matchers in settings
+2026-02-14T06:34:02.431Z [DEBUG] Matched 0 unique hooks for query "no match query" (0 before deduplication)
+2026-02-14T06:34:02.431Z [DEBUG] FileHistory: Making snapshot for message 090b5593-0802-490c-ae09-8293f800862b
+2026-02-14T06:34:02.432Z [DEBUG] FileHistory: Added snapshot for 090b5593-0802-490c-ae09-8293f800862b, tracking 1 files
+2026-02-14T06:34:02.434Z [DEBUG] [useDeferredValue] Messages deferred by 1 (43→44)
+2026-02-14T06:34:02.441Z [DEBUG] Writing to temp file: C:\Users\Administrator\.claude.json.tmp.18600.1771050842441
+2026-02-14T06:34:02.442Z [DEBUG] Preserving file permissions: 100666
+2026-02-14T06:34:02.442Z [DEBUG] Temp file written successfully, size: 2862 bytes
+2026-02-14T06:34:02.442Z [DEBUG] Applied original permissions to temp file
+2026-02-14T06:34:02.442Z [DEBUG] Renaming C:\Users\Administrator\.claude.json.tmp.18600.1771050842441 to C:\Users\Administrator\.claude.json
+2026-02-14T06:34:02.442Z [DEBUG] File C:\Users\Administrator\.claude.json written atomically
+2026-02-14T06:34:02.445Z [DEBUG] Writing to temp file: C:\Users\Administrator\.claude.json.tmp.18600.1771050842445
+2026-02-14T06:34:02.445Z [DEBUG] Preserving file permissions: 100666
+2026-02-14T06:34:02.445Z [DEBUG] Temp file written successfully, size: 2862 bytes
+2026-02-14T06:34:02.445Z [DEBUG] Applied original permissions to temp file
+2026-02-14T06:34:02.445Z [DEBUG] Renaming C:\Users\Administrator\.claude.json.tmp.18600.1771050842445 to C:\Users\Administrator\.claude.json
+2026-02-14T06:34:02.445Z [DEBUG] File C:\Users\Administrator\.claude.json written atomically
+2026-02-14T06:34:02.446Z [DEBUG] Tool search disabled for model 'claude-haiku-4-5-20251001': model does not support tool_reference blocks. This feature is only available on Claude Sonnet 4+, Opus 4+, and newer models.
+2026-02-14T06:34:02.446Z [DEBUG] attribution header x-anthropic-billing-header: cc_version=2.1.41.b25; cc_entrypoint=cli; cch=00000;
+2026-02-14T06:34:02.446Z [DEBUG] [API:request] Creating client, ANTHROPIC_CUSTOM_HEADERS present: false, has Authorization header: false
+2026-02-14T06:34:02.446Z [DEBUG] [API:auth] OAuth token check starting
+2026-02-14T06:34:02.447Z [DEBUG] [API:auth] OAuth token check complete
+2026-02-14T06:34:02.449Z [DEBUG] Writing to temp file: C:\Users\Administrator\.claude.json.tmp.18600.1771050842449
+2026-02-14T06:34:02.449Z [DEBUG] Preserving file permissions: 100666
+2026-02-14T06:34:02.449Z [DEBUG] Temp file written successfully, size: 2862 bytes
+2026-02-14T06:34:02.450Z [DEBUG] Applied original permissions to temp file
+2026-02-14T06:34:02.450Z [DEBUG] Renaming C:\Users\Administrator\.claude.json.tmp.18600.1771050842449 to C:\Users\Administrator\.claude.json
+2026-02-14T06:34:02.450Z [DEBUG] File C:\Users\Administrator\.claude.json written atomically
+2026-02-14T06:34:02.451Z [DEBUG] autocompact: tokens=40335 threshold=967000 effectiveWindow=980000
+2026-02-14T06:34:02.452Z [DEBUG] Auto tool search disabled: 2874 tokens (threshold: 100000, 10% of context) [source: query]
+2026-02-14T06:34:02.456Z [DEBUG] Writing to temp file: C:\Users\Administrator\.claude.json.tmp.18600.1771050842456
+2026-02-14T06:34:02.456Z [DEBUG] Preserving file permissions: 100666
+2026-02-14T06:34:02.456Z [DEBUG] Temp file written successfully, size: 2862 bytes
+2026-02-14T06:34:02.456Z [DEBUG] Applied original permissions to temp file
+2026-02-14T06:34:02.456Z [DEBUG] Renaming C:\Users\Administrator\.claude.json.tmp.18600.1771050842456 to C:\Users\Administrator\.claude.json
+2026-02-14T06:34:02.456Z [DEBUG] File C:\Users\Administrator\.claude.json written atomically
+2026-02-14T06:34:02.457Z [DEBUG] attribution header x-anthropic-billing-header: cc_version=2.1.41.527; cc_entrypoint=cli; cch=00000;
+2026-02-14T06:34:02.457Z [DEBUG] [API:request] Creating client, ANTHROPIC_CUSTOM_HEADERS present: false, has Authorization header: false
+2026-02-14T06:34:02.457Z [DEBUG] [API:auth] OAuth token check starting
+2026-02-14T06:34:02.458Z [DEBUG] [API:auth] OAuth token check complete
+2026-02-14T06:34:02.462Z [DEBUG] [useDeferredValue] Messages deferred by 1 (43→44)
+2026-02-14T06:34:08.086Z [DEBUG] Stream started - received first chunk
+2026-02-14T06:34:10.317Z [DEBUG] [useDeferredValue] Messages deferred by 1 (44→45)
+2026-02-14T06:34:10.335Z [DEBUG] Getting matching hook commands for Stop with query: undefined
+2026-02-14T06:34:10.335Z [DEBUG] Found 0 hook matchers in settings
+2026-02-14T06:34:10.335Z [DEBUG] Matched 0 unique hooks for query "no match query" (0 before deduplication)
+2026-02-14T06:34:10.336Z [DEBUG] autocompact: tokens=40711 threshold=967000 effectiveWindow=980000
+2026-02-14T06:34:10.354Z [DEBUG] Auto tool search disabled: 2874 tokens (threshold: 100000, 10% of context) [source: query]
+2026-02-14T06:34:10.382Z [DEBUG] Writing to temp file: C:\Users\Administrator\.claude.json.tmp.18600.1771050850382
+2026-02-14T06:34:10.382Z [DEBUG] Preserving file permissions: 100666
+2026-02-14T06:34:10.383Z [DEBUG] Temp file written successfully, size: 2862 bytes
+2026-02-14T06:34:10.384Z [DEBUG] Applied original permissions to temp file
+2026-02-14T06:34:10.384Z [DEBUG] Renaming C:\Users\Administrator\.claude.json.tmp.18600.1771050850382 to C:\Users\Administrator\.claude.json
+2026-02-14T06:34:10.384Z [DEBUG] File C:\Users\Administrator\.claude.json written atomically
+2026-02-14T06:34:10.386Z [DEBUG] attribution header x-anthropic-billing-header: cc_version=2.1.41.527; cc_entrypoint=cli; cch=00000;
+2026-02-14T06:34:10.386Z [DEBUG] [API:request] Creating client, ANTHROPIC_CUSTOM_HEADERS present: false, has Authorization header: false
+2026-02-14T06:34:10.386Z [DEBUG] [API:auth] OAuth token check starting
+2026-02-14T06:34:10.388Z [DEBUG] [API:auth] OAuth token check complete
+2026-02-14T06:34:10.398Z [DEBUG] [useDeferredValue] Messages deferred by 1 (44→45)
+2026-02-14T06:34:10.417Z [DEBUG] LSP Diagnostics: getLSPDiagnosticAttachments called
+2026-02-14T06:34:10.417Z [DEBUG] LSP Diagnostics: Checking registry - 0 pending
+2026-02-14T06:34:10.417Z [DEBUG] Hooks: Found 0 total hooks in registry
+2026-02-14T06:34:10.417Z [DEBUG] Hooks: checkForNewResponses returning 0 responses
+2026-02-14T06:34:10.427Z [DEBUG] Getting matching hook commands for UserPromptSubmit with query: undefined
+2026-02-14T06:34:10.427Z [DEBUG] Found 0 hook matchers in settings
+2026-02-14T06:34:10.428Z [DEBUG] Matched 0 unique hooks for query "no match query" (0 before deduplication)
+2026-02-14T06:34:10.428Z [DEBUG] FileHistory: Making snapshot for message 2eef2869-b200-49c9-ad37-d978213e405a
+2026-02-14T06:34:10.429Z [DEBUG] FileHistory: Added snapshot for 2eef2869-b200-49c9-ad37-d978213e405a, tracking 1 files
+2026-02-14T06:34:10.433Z [DEBUG] [useDeferredValue] Messages deferred by 2 (44→46)
+2026-02-14T06:34:10.457Z [DEBUG] Writing to temp file: C:\Users\Administrator\.claude.json.tmp.18600.1771050850457
+2026-02-14T06:34:10.458Z [DEBUG] Preserving file permissions: 100666
+2026-02-14T06:34:10.458Z [DEBUG] Temp file written successfully, size: 2862 bytes
+2026-02-14T06:34:10.459Z [DEBUG] Applied original permissions to temp file
+2026-02-14T06:34:10.459Z [DEBUG] Renaming C:\Users\Administrator\.claude.json.tmp.18600.1771050850457 to C:\Users\Administrator\.claude.json
+2026-02-14T06:34:10.460Z [DEBUG] File C:\Users\Administrator\.claude.json written atomically
+2026-02-14T06:34:10.461Z [DEBUG] Tool search disabled for model 'claude-haiku-4-5-20251001': model does not support tool_reference blocks. This feature is only available on Claude Sonnet 4+, Opus 4+, and newer models.
+2026-02-14T06:34:10.461Z [DEBUG] attribution header x-anthropic-billing-header: cc_version=2.1.41.ca8; cc_entrypoint=cli; cch=00000;
+2026-02-14T06:34:10.462Z [DEBUG] [API:request] Creating client, ANTHROPIC_CUSTOM_HEADERS present: false, has Authorization header: false
+2026-02-14T06:34:10.462Z [DEBUG] [API:auth] OAuth token check starting
+2026-02-14T06:34:10.463Z [DEBUG] [API:auth] OAuth token check complete
+2026-02-14T06:34:10.471Z [DEBUG] Writing to temp file: C:\Users\Administrator\.claude.json.tmp.18600.1771050850471
+2026-02-14T06:34:10.471Z [DEBUG] Preserving file permissions: 100666
+2026-02-14T06:34:10.472Z [DEBUG] Temp file written successfully, size: 2862 bytes
+2026-02-14T06:34:10.472Z [DEBUG] Applied original permissions to temp file
+2026-02-14T06:34:10.472Z [DEBUG] Renaming C:\Users\Administrator\.claude.json.tmp.18600.1771050850471 to C:\Users\Administrator\.claude.json
+2026-02-14T06:34:10.474Z [DEBUG] File C:\Users\Administrator\.claude.json written atomically
+2026-02-14T06:34:10.477Z [DEBUG] autocompact: tokens=40437 threshold=967000 effectiveWindow=980000
+2026-02-14T06:34:10.480Z [DEBUG] Auto tool search disabled: 2874 tokens (threshold: 100000, 10% of context) [source: query]
+2026-02-14T06:34:10.493Z [DEBUG] Writing to temp file: C:\Users\Administrator\.claude.json.tmp.18600.1771050850493
+2026-02-14T06:34:10.493Z [DEBUG] Preserving file permissions: 100666
+2026-02-14T06:34:10.494Z [DEBUG] Temp file written successfully, size: 2862 bytes
+2026-02-14T06:34:10.494Z [DEBUG] Applied original permissions to temp file
+2026-02-14T06:34:10.494Z [DEBUG] Renaming C:\Users\Administrator\.claude.json.tmp.18600.1771050850493 to C:\Users\Administrator\.claude.json
+2026-02-14T06:34:10.495Z [DEBUG] File C:\Users\Administrator\.claude.json written atomically
+2026-02-14T06:34:10.499Z [DEBUG] attribution header x-anthropic-billing-header: cc_version=2.1.41.527; cc_entrypoint=cli; cch=00000;
+2026-02-14T06:34:10.502Z [DEBUG] [API:request] Creating client, ANTHROPIC_CUSTOM_HEADERS present: false, has Authorization header: false
+2026-02-14T06:34:10.502Z [DEBUG] [API:auth] OAuth token check starting
+2026-02-14T06:34:10.503Z [DEBUG] [API:auth] OAuth token check complete
+2026-02-14T06:34:10.516Z [DEBUG] [useDeferredValue] Messages deferred by 2 (44→46)
+2026-02-14T06:34:12.197Z [DEBUG] Stream started - received first chunk
+2026-02-14T06:34:13.212Z [DEBUG] Metrics opt-out check failed: No API key available
+2026-02-14T06:34:13.212Z [DEBUG] Metrics check failed, defaulting to disabled
+2026-02-14T06:34:13.212Z [DEBUG] Metrics export disabled by organization setting
+2026-02-14T06:34:13.427Z [DEBUG] Stream started - received first chunk
+2026-02-14T06:34:14.030Z [DEBUG] Stream started - received first chunk
+2026-02-14T06:34:14.098Z [DEBUG] Stream started - received first chunk
+2026-02-14T06:34:14.264Z [DEBUG] Stream started - received first chunk
+2026-02-14T06:34:14.671Z [DEBUG] Forked agent [prompt_suggestion] received message: type=assistant
+2026-02-14T06:34:14.695Z [DEBUG] Getting matching hook commands for SubagentStop with query:
+2026-02-14T06:34:14.695Z [DEBUG] Found 0 hook matchers in settings
+2026-02-14T06:34:14.695Z [DEBUG] Matched 0 unique hooks for query "no match query" (0 before deduplication)
+2026-02-14T06:34:14.695Z [DEBUG] Forked agent [prompt_suggestion] finished: 1 messages, types=[assistant], totalUsage: input=300 output=22 cacheRead=40321 cacheCreate=0
+2026-02-14T06:34:15.170Z [DEBUG] Forked agent [prompt_suggestion] received message: type=assistant
+2026-02-14T06:34:15.177Z [DEBUG] Getting matching hook commands for SubagentStop with query:
+2026-02-14T06:34:15.177Z [DEBUG] Found 0 hook matchers in settings
+2026-02-14T06:34:15.177Z [DEBUG] Matched 0 unique hooks for query "no match query" (0 before deduplication)
+2026-02-14T06:34:15.177Z [DEBUG] Forked agent [prompt_suggestion] finished: 1 messages, types=[assistant], totalUsage: input=300 output=21 cacheRead=40426 cacheCreate=0
+2026-02-14T06:34:17.159Z [DEBUG] [useDeferredValue] Messages deferred by 1 (46→47)
+2026-02-14T06:34:17.167Z [DEBUG] Getting matching hook commands for Stop with query: undefined
+2026-02-14T06:34:17.167Z [DEBUG] Found 0 hook matchers in settings
+2026-02-14T06:34:17.167Z [DEBUG] Matched 0 unique hooks for query "no match query" (0 before deduplication)
+2026-02-14T06:34:17.168Z [DEBUG] autocompact: tokens=40854 threshold=967000 effectiveWindow=980000
+2026-02-14T06:34:17.177Z [DEBUG] Auto tool search disabled: 2874 tokens (threshold: 100000, 10% of context) [source: query]
+2026-02-14T06:34:17.196Z [DEBUG] Writing to temp file: C:\Users\Administrator\.claude.json.tmp.18600.1771050857196
+2026-02-14T06:34:17.196Z [DEBUG] Preserving file permissions: 100666
+2026-02-14T06:34:17.197Z [DEBUG] Temp file written successfully, size: 2862 bytes
+2026-02-14T06:34:17.198Z [DEBUG] Applied original permissions to temp file
+2026-02-14T06:34:17.198Z [DEBUG] Renaming C:\Users\Administrator\.claude.json.tmp.18600.1771050857196 to C:\Users\Administrator\.claude.json
+2026-02-14T06:34:17.199Z [DEBUG] File C:\Users\Administrator\.claude.json written atomically
+2026-02-14T06:34:17.201Z [DEBUG] attribution header x-anthropic-billing-header: cc_version=2.1.41.527; cc_entrypoint=cli; cch=00000;
+2026-02-14T06:34:17.201Z [DEBUG] [API:request] Creating client, ANTHROPIC_CUSTOM_HEADERS present: false, has Authorization header: false
+2026-02-14T06:34:17.201Z [DEBUG] [API:auth] OAuth token check starting
+2026-02-14T06:34:17.203Z [DEBUG] [API:auth] OAuth token check complete
+2026-02-14T06:34:17.216Z [DEBUG] [useDeferredValue] Messages deferred by 1 (46→47)
+2026-02-14T06:34:20.109Z [DEBUG] Stream started - received first chunk
+2026-02-14T06:34:20.379Z [DEBUG] Forked agent [prompt_suggestion] received message: type=assistant
+2026-02-14T06:34:20.409Z [DEBUG] Getting matching hook commands for SubagentStop with query:
+2026-02-14T06:34:20.409Z [DEBUG] Found 0 hook matchers in settings
+2026-02-14T06:34:20.409Z [DEBUG] Matched 0 unique hooks for query "no match query" (0 before deduplication)
+2026-02-14T06:34:20.409Z [DEBUG] Forked agent [prompt_suggestion] finished: 1 messages, types=[assistant], totalUsage: input=300 output=10 cacheRead=40563 cacheCreate=0
+2026-02-14T06:34:20.772Z [DEBUG] LSP Diagnostics: getLSPDiagnosticAttachments called
+2026-02-14T06:34:20.772Z [DEBUG] LSP Diagnostics: Checking registry - 0 pending
+2026-02-14T06:34:20.772Z [DEBUG] Hooks: Found 0 total hooks in registry
+2026-02-14T06:34:20.772Z [DEBUG] Hooks: checkForNewResponses returning 0 responses
+2026-02-14T06:34:20.775Z [DEBUG] Getting matching hook commands for UserPromptSubmit with query: undefined
+2026-02-14T06:34:20.775Z [DEBUG] Found 0 hook matchers in settings
+2026-02-14T06:34:20.775Z [DEBUG] Matched 0 unique hooks for query "no match query" (0 before deduplication)
+2026-02-14T06:34:20.775Z [DEBUG] FileHistory: Making snapshot for message becbf96a-53fc-46de-a175-b0278fbdd4f8
+2026-02-14T06:34:20.775Z [DEBUG] FileHistory: Added snapshot for becbf96a-53fc-46de-a175-b0278fbdd4f8, tracking 1 files
+2026-02-14T06:34:20.776Z [DEBUG] [useDeferredValue] Messages deferred by 1 (47→48)
+2026-02-14T06:34:20.783Z [DEBUG] Writing to temp file: C:\Users\Administrator\.claude.json.tmp.18600.1771050860783
+2026-02-14T06:34:20.783Z [DEBUG] Preserving file permissions: 100666
+2026-02-14T06:34:20.783Z [DEBUG] Temp file written successfully, size: 2862 bytes
+2026-02-14T06:34:20.783Z [DEBUG] Applied original permissions to temp file
+2026-02-14T06:34:20.783Z [DEBUG] Renaming C:\Users\Administrator\.claude.json.tmp.18600.1771050860783 to C:\Users\Administrator\.claude.json
+2026-02-14T06:34:20.783Z [DEBUG] File C:\Users\Administrator\.claude.json written atomically
+2026-02-14T06:34:20.784Z [DEBUG] Tool search disabled for model 'claude-haiku-4-5-20251001': model does not support tool_reference blocks. This feature is only available on Claude Sonnet 4+, Opus 4+, and newer models.
+2026-02-14T06:34:20.784Z [DEBUG] attribution header x-anthropic-billing-header: cc_version=2.1.41.c02; cc_entrypoint=cli; cch=00000;
+2026-02-14T06:34:20.784Z [DEBUG] [API:request] Creating client, ANTHROPIC_CUSTOM_HEADERS present: false, has Authorization header: false
+2026-02-14T06:34:20.784Z [DEBUG] [API:auth] OAuth token check starting
+2026-02-14T06:34:20.784Z [DEBUG] [API:auth] OAuth token check complete
+2026-02-14T06:34:20.786Z [DEBUG] Writing to temp file: C:\Users\Administrator\.claude.json.tmp.18600.1771050860786
+2026-02-14T06:34:20.787Z [DEBUG] Preserving file permissions: 100666
+2026-02-14T06:34:20.787Z [DEBUG] Temp file written successfully, size: 2862 bytes
+2026-02-14T06:34:20.787Z [DEBUG] Applied original permissions to temp file
+2026-02-14T06:34:20.787Z [DEBUG] Renaming C:\Users\Administrator\.claude.json.tmp.18600.1771050860786 to C:\Users\Administrator\.claude.json
+2026-02-14T06:34:20.787Z [DEBUG] File C:\Users\Administrator\.claude.json written atomically
+2026-02-14T06:34:20.788Z [DEBUG] autocompact: tokens=41109 threshold=967000 effectiveWindow=980000
+2026-02-14T06:34:20.789Z [DEBUG] Auto tool search disabled: 2874 tokens (threshold: 100000, 10% of context) [source: query]
+2026-02-14T06:34:20.793Z [DEBUG] Writing to temp file: C:\Users\Administrator\.claude.json.tmp.18600.1771050860793
+2026-02-14T06:34:20.793Z [DEBUG] Preserving file permissions: 100666
+2026-02-14T06:34:20.793Z [DEBUG] Temp file written successfully, size: 2862 bytes
+2026-02-14T06:34:20.793Z [DEBUG] Applied original permissions to temp file
+2026-02-14T06:34:20.793Z [DEBUG] Renaming C:\Users\Administrator\.claude.json.tmp.18600.1771050860793 to C:\Users\Administrator\.claude.json
+2026-02-14T06:34:20.794Z [DEBUG] File C:\Users\Administrator\.claude.json written atomically
+2026-02-14T06:34:20.794Z [DEBUG] attribution header x-anthropic-billing-header: cc_version=2.1.41.527; cc_entrypoint=cli; cch=00000;
+2026-02-14T06:34:20.795Z [DEBUG] [API:request] Creating client, ANTHROPIC_CUSTOM_HEADERS present: false, has Authorization header: false
+2026-02-14T06:34:20.795Z [DEBUG] [API:auth] OAuth token check starting
+2026-02-14T06:34:20.795Z [DEBUG] [API:auth] OAuth token check complete
+2026-02-14T06:34:20.801Z [DEBUG] [useDeferredValue] Messages deferred by 1 (47→48)
+2026-02-14T06:34:20.817Z [DEBUG] Stored paste 7743aa67ddb00cb5 to C:\Users\Administrator\.claude\paste-cache\7743aa67ddb00cb5.txt
+2026-02-14T06:34:22.539Z [DEBUG] Stream started - received first chunk
+2026-02-14T06:34:25.048Z [DEBUG] Stream started - received first chunk
+2026-02-14T06:34:26.063Z [DEBUG] [useDeferredValue] Messages deferred by 1 (48→49)
+2026-02-14T06:34:26.068Z [DEBUG] [useDeferredValue] Messages deferred by 1 (48→49)
+2026-02-14T06:34:26.488Z [DEBUG] [useDeferredValue] Messages deferred by 1 (49→50)
+2026-02-14T06:34:26.504Z [DEBUG] High write ratio: blit=0, write=5009 (100.0% writes), screen=166x84
+2026-02-14T06:34:26.507Z [DEBUG] executePreToolHooks called for tool: Read
+2026-02-14T06:34:26.509Z [DEBUG] Getting matching hook commands for PreToolUse with query: Read
+2026-02-14T06:34:26.509Z [DEBUG] Found 0 hook matchers in settings
+2026-02-14T06:34:26.509Z [DEBUG] Matched 0 unique hooks for query "Read" (0 before deduplication)
+2026-02-14T06:34:26.515Z [DEBUG] [useDeferredValue] Messages deferred by 1 (49→50)
+2026-02-14T06:34:26.525Z [DEBUG] Getting matching hook commands for PostToolUse with query: Read
+2026-02-14T06:34:26.525Z [DEBUG] Found 5 hook matchers in settings
+2026-02-14T06:34:26.525Z [DEBUG] Matched 1 unique hooks for query "Read" (1 before deduplication)
+2026-02-14T06:34:26.527Z [DEBUG] LSP Diagnostics: getLSPDiagnosticAttachments called
+2026-02-14T06:34:26.527Z [DEBUG] LSP Diagnostics: Checking registry - 0 pending
+2026-02-14T06:34:26.527Z [DEBUG] Hooks: Found 0 total hooks in registry
+2026-02-14T06:34:26.527Z [DEBUG] Hooks: checkForNewResponses returning 0 responses
+2026-02-14T06:34:26.529Z [DEBUG] autocompact: tokens=47890 threshold=967000 effectiveWindow=980000
+2026-02-14T06:34:26.530Z [DEBUG] Auto tool search disabled: 2874 tokens (threshold: 100000, 10% of context) [source: query]
+2026-02-14T06:34:26.534Z [DEBUG] Writing to temp file: C:\Users\Administrator\.claude.json.tmp.18600.1771050866534
+2026-02-14T06:34:26.534Z [DEBUG] Preserving file permissions: 100666
+2026-02-14T06:34:26.534Z [DEBUG] Temp file written successfully, size: 2862 bytes
+2026-02-14T06:34:26.534Z [DEBUG] Applied original permissions to temp file
+2026-02-14T06:34:26.534Z [DEBUG] Renaming C:\Users\Administrator\.claude.json.tmp.18600.1771050866534 to C:\Users\Administrator\.claude.json
+2026-02-14T06:34:26.534Z [DEBUG] File C:\Users\Administrator\.claude.json written atomically
+2026-02-14T06:34:26.535Z [DEBUG] attribution header x-anthropic-billing-header: cc_version=2.1.41.527; cc_entrypoint=cli; cch=00000;
+2026-02-14T06:34:26.536Z [DEBUG] [API:request] Creating client, ANTHROPIC_CUSTOM_HEADERS present: false, has Authorization header: false
+2026-02-14T06:34:26.536Z [DEBUG] [API:auth] OAuth token check starting
+2026-02-14T06:34:26.536Z [DEBUG] [API:auth] OAuth token check complete
+2026-02-14T06:34:26.541Z [DEBUG] [useDeferredValue] Messages deferred by 3 (50→53)
+2026-02-14T06:34:29.479Z [DEBUG] Stream started - received first chunk
+2026-02-14T06:34:33.218Z [DEBUG] [useDeferredValue] Messages deferred by 1 (53→54)
+2026-02-14T06:34:33.274Z [DEBUG] High write ratio: blit=0, write=5169 (100.0% writes), screen=173x84
+2026-02-14T06:34:35.849Z [DEBUG] executePreToolHooks called for tool: Edit
+2026-02-14T06:34:35.855Z [DEBUG] Getting matching hook commands for PreToolUse with query: Edit
+2026-02-14T06:34:35.855Z [DEBUG] Found 0 hook matchers in settings
+2026-02-14T06:34:35.855Z [DEBUG] Matched 0 unique hooks for query "Edit" (0 before deduplication)
+2026-02-14T06:34:35.868Z [DEBUG] Writing to temp file: C:\Users\Administrator\Desktop\法律期限速查系统.html.tmp.18600.1771050875868
+2026-02-14T06:34:35.868Z [DEBUG] Preserving file permissions: 100666
+2026-02-14T06:34:35.868Z [DEBUG] Temp file written successfully, size: 17034 bytes
+2026-02-14T06:34:35.868Z [DEBUG] Applied original permissions to temp file
+2026-02-14T06:34:35.868Z [DEBUG] Renaming C:\Users\Administrator\Desktop\法律期限速查系统.html.tmp.18600.1771050875868 to C:\Users\Administrator\Desktop\法律期限速查系统.html
+2026-02-14T06:34:35.873Z [DEBUG] File C:\Users\Administrator\Desktop\法律期限速查系统.html written atomically
+2026-02-14T06:34:35.879Z [DEBUG] Getting matching hook commands for PostToolUse with query: Edit
+2026-02-14T06:34:35.879Z [DEBUG] Found 5 hook matchers in settings
+2026-02-14T06:34:35.879Z [DEBUG] Matched 1 unique hooks for query "Edit" (1 before deduplication)
+2026-02-14T06:34:35.880Z [DEBUG] LSP Diagnostics: getLSPDiagnosticAttachments called
+2026-02-14T06:34:35.880Z [DEBUG] LSP Diagnostics: Checking registry - 0 pending
+2026-02-14T06:34:35.880Z [DEBUG] Hooks: Found 0 total hooks in registry
+2026-02-14T06:34:35.880Z [DEBUG] Hooks: checkForNewResponses returning 0 responses
+2026-02-14T06:34:35.881Z [DEBUG] autocompact: tokens=51799 threshold=967000 effectiveWindow=980000
+2026-02-14T06:34:35.881Z [DEBUG] Auto tool search disabled: 2874 tokens (threshold: 100000, 10% of context) [source: query]
+2026-02-14T06:34:35.887Z [DEBUG] Writing to temp file: C:\Users\Administrator\.claude.json.tmp.18600.1771050875887
+2026-02-14T06:34:35.887Z [DEBUG] Preserving file permissions: 100666
+2026-02-14T06:34:35.887Z [DEBUG] Temp file written successfully, size: 2862 bytes
+2026-02-14T06:34:35.888Z [DEBUG] Applied original permissions to temp file
+2026-02-14T06:34:35.888Z [DEBUG] Renaming C:\Users\Administrator\.claude.json.tmp.18600.1771050875887 to C:\Users\Administrator\.claude.json
+2026-02-14T06:34:35.888Z [DEBUG] File C:\Users\Administrator\.claude.json written atomically
+2026-02-14T06:34:35.889Z [DEBUG] attribution header x-anthropic-billing-header: cc_version=2.1.41.527; cc_entrypoint=cli; cch=00000;
+2026-02-14T06:34:35.889Z [DEBUG] [API:request] Creating client, ANTHROPIC_CUSTOM_HEADERS present: false, has Authorization header: false
+2026-02-14T06:34:35.890Z [DEBUG] [API:auth] OAuth token check starting
+2026-02-14T06:34:35.891Z [DEBUG] [API:auth] OAuth token check complete
+2026-02-14T06:34:35.898Z [DEBUG] [useDeferredValue] Messages deferred by 4 (54→58)
+2026-02-14T06:34:35.941Z [DEBUG] High write ratio: blit=0, write=5881 (100.0% writes), screen=186x84
+2026-02-14T06:34:39.109Z [DEBUG] Stream started - received first chunk
+2026-02-14T06:34:39.728Z [DEBUG] [useDeferredValue] Messages deferred by 1 (58→59)
+2026-02-14T06:34:42.896Z [DEBUG] [useDeferredValue] Messages deferred by 1 (59→60)
+2026-02-14T06:34:42.946Z [DEBUG] High write ratio: blit=0, write=5930 (100.0% writes), screen=190x84
+2026-02-14T06:34:43.045Z [DEBUG] executePreToolHooks called for tool: Edit
+2026-02-14T06:34:43.051Z [DEBUG] Getting matching hook commands for PreToolUse with query: Edit
+2026-02-14T06:34:43.051Z [DEBUG] Found 0 hook matchers in settings
+2026-02-14T06:34:43.051Z [DEBUG] Matched 0 unique hooks for query "Edit" (0 before deduplication)
+2026-02-14T06:34:43.060Z [DEBUG] Writing to temp file: C:\Users\Administrator\Desktop\法律期限速查系统.html.tmp.18600.1771050883060
+2026-02-14T06:34:43.060Z [DEBUG] Preserving file permissions: 100666
+2026-02-14T06:34:43.061Z [DEBUG] Temp file written successfully, size: 17156 bytes
+2026-02-14T06:34:43.062Z [DEBUG] Applied original permissions to temp file
+2026-02-14T06:34:43.062Z [DEBUG] Renaming C:\Users\Administrator\Desktop\法律期限速查系统.html.tmp.18600.1771050883060 to C:\Users\Administrator\Desktop\法律期限速查系统.html
+2026-02-14T06:34:43.080Z [DEBUG] File C:\Users\Administrator\Desktop\法律期限速查系统.html written atomically
+2026-02-14T06:34:43.089Z [DEBUG] Getting matching hook commands for PostToolUse with query: Edit
+2026-02-14T06:34:43.089Z [DEBUG] Found 5 hook matchers in settings
+2026-02-14T06:34:43.089Z [DEBUG] Matched 1 unique hooks for query "Edit" (1 before deduplication)
+2026-02-14T06:34:43.091Z [DEBUG] LSP Diagnostics: getLSPDiagnosticAttachments called
+2026-02-14T06:34:43.091Z [DEBUG] LSP Diagnostics: Checking registry - 0 pending
+2026-02-14T06:34:43.091Z [DEBUG] Hooks: Found 0 total hooks in registry
+2026-02-14T06:34:43.091Z [DEBUG] Hooks: checkForNewResponses returning 0 responses
+2026-02-14T06:34:43.092Z [DEBUG] autocompact: tokens=52288 threshold=967000 effectiveWindow=980000
+2026-02-14T06:34:43.093Z [DEBUG] Auto tool search disabled: 2874 tokens (threshold: 100000, 10% of context) [source: query]
+2026-02-14T06:34:43.100Z [DEBUG] Writing to temp file: C:\Users\Administrator\.claude.json.tmp.18600.1771050883100
+2026-02-14T06:34:43.100Z [DEBUG] Preserving file permissions: 100666
+2026-02-14T06:34:43.101Z [DEBUG] Temp file written successfully, size: 2862 bytes
+2026-02-14T06:34:43.102Z [DEBUG] Applied original permissions to temp file
+2026-02-14T06:34:43.102Z [DEBUG] Renaming C:\Users\Administrator\.claude.json.tmp.18600.1771050883100 to C:\Users\Administrator\.claude.json
+2026-02-14T06:34:43.103Z [DEBUG] File C:\Users\Administrator\.claude.json written atomically
+2026-02-14T06:34:43.104Z [DEBUG] attribution header x-anthropic-billing-header: cc_version=2.1.41.527; cc_entrypoint=cli; cch=00000;
+2026-02-14T06:34:43.105Z [DEBUG] [API:request] Creating client, ANTHROPIC_CUSTOM_HEADERS present: false, has Authorization header: false
+2026-02-14T06:34:43.105Z [DEBUG] [API:auth] OAuth token check starting
+2026-02-14T06:34:43.105Z [DEBUG] [API:auth] OAuth token check complete
+2026-02-14T06:34:43.108Z [DEBUG] [useDeferredValue] Messages deferred by 4 (60→64)
+2026-02-14T06:34:47.153Z [DEBUG] Stream started - received first chunk
+2026-02-14T06:34:47.784Z [DEBUG] [useDeferredValue] Messages deferred by 1 (64→65)
+2026-02-14T06:34:47.851Z [DEBUG] High write ratio: blit=0, write=7316 (100.0% writes), screen=212x84
+2026-02-14T06:34:50.221Z [DEBUG] executePreToolHooks called for tool: Edit
+2026-02-14T06:34:50.225Z [DEBUG] Getting matching hook commands for PreToolUse with query: Edit
+2026-02-14T06:34:50.225Z [DEBUG] Found 0 hook matchers in settings
+2026-02-14T06:34:50.225Z [DEBUG] Matched 0 unique hooks for query "Edit" (0 before deduplication)
+2026-02-14T06:34:50.229Z [DEBUG] Writing to temp file: C:\Users\Administrator\Desktop\法律期限速查系统.html.tmp.18600.1771050890229
+2026-02-14T06:34:50.229Z [DEBUG] Preserving file permissions: 100666
+2026-02-14T06:34:50.230Z [DEBUG] Temp file written successfully, size: 17297 bytes
+2026-02-14T06:34:50.230Z [DEBUG] Applied original permissions to temp file
+2026-02-14T06:34:50.230Z [DEBUG] Renaming C:\Users\Administrator\Desktop\法律期限速查系统.html.tmp.18600.1771050890229 to C:\Users\Administrator\Desktop\法律期限速查系统.html
+2026-02-14T06:34:50.247Z [DEBUG] File C:\Users\Administrator\Desktop\法律期限速查系统.html written atomically
+2026-02-14T06:34:50.252Z [DEBUG] Getting matching hook commands for PostToolUse with query: Edit
+2026-02-14T06:34:50.252Z [DEBUG] Found 5 hook matchers in settings
+2026-02-14T06:34:50.252Z [DEBUG] Matched 1 unique hooks for query "Edit" (1 before deduplication)
+2026-02-14T06:34:50.253Z [DEBUG] LSP Diagnostics: getLSPDiagnosticAttachments called
+2026-02-14T06:34:50.253Z [DEBUG] LSP Diagnostics: Checking registry - 0 pending
+2026-02-14T06:34:50.253Z [DEBUG] Hooks: Found 0 total hooks in registry
+2026-02-14T06:34:50.253Z [DEBUG] Hooks: checkForNewResponses returning 0 responses
+2026-02-14T06:34:50.254Z [DEBUG] autocompact: tokens=52531 threshold=967000 effectiveWindow=980000
+2026-02-14T06:34:50.255Z [DEBUG] Auto tool search disabled: 2874 tokens (threshold: 100000, 10% of context) [source: query]
+2026-02-14T06:34:50.260Z [DEBUG] Writing to temp file: C:\Users\Administrator\.claude.json.tmp.18600.1771050890260
+2026-02-14T06:34:50.260Z [DEBUG] Preserving file permissions: 100666
+2026-02-14T06:34:50.260Z [DEBUG] Temp file written successfully, size: 2862 bytes
+2026-02-14T06:34:50.260Z [DEBUG] Applied original permissions to temp file
+2026-02-14T06:34:50.260Z [DEBUG] Renaming C:\Users\Administrator\.claude.json.tmp.18600.1771050890260 to C:\Users\Administrator\.claude.json
+2026-02-14T06:34:50.261Z [DEBUG] File C:\Users\Administrator\.claude.json written atomically
+2026-02-14T06:34:50.261Z [DEBUG] attribution header x-anthropic-billing-header: cc_version=2.1.41.527; cc_entrypoint=cli; cch=00000;
+2026-02-14T06:34:50.262Z [DEBUG] [API:request] Creating client, ANTHROPIC_CUSTOM_HEADERS present: false, has Authorization header: false
+2026-02-14T06:34:50.262Z [DEBUG] [API:auth] OAuth token check starting
+2026-02-14T06:34:50.262Z [DEBUG] [API:auth] OAuth token check complete
+2026-02-14T06:34:50.266Z [DEBUG] [useDeferredValue] Messages deferred by 4 (65→69)
+2026-02-14T06:34:50.279Z [DEBUG] High write ratio: blit=0, write=7316 (100.0% writes), screen=212x84
+2026-02-14T06:34:53.335Z [DEBUG] Stream started - received first chunk
+2026-02-14T06:34:54.019Z [DEBUG] [useDeferredValue] Messages deferred by 1 (69→70)
+2026-02-14T06:35:51.023Z [WARN] Streaming stall detected: 56.5s gap between events (stall #1)
+2026-02-14T06:36:45.073Z [WARN] Streaming stall detected: 53.3s gap between events (stall #2)
+2026-02-14T06:36:45.076Z [DEBUG] [useDeferredValue] Messages deferred by 1 (70→71)
+2026-02-14T06:36:45.083Z [WARN] Streaming completed with 2 stall(s), total stall time: 109.8s
+2026-02-14T06:36:45.086Z [DEBUG] Edit tool input error: Edit failed due to the following issues:
+The required parameter `file_path` is missing
+The required parameter `old_string` is missing
+The required parameter `new_string` is missing
+2026-02-14T06:36:45.087Z [DEBUG] LSP Diagnostics: getLSPDiagnosticAttachments called
+2026-02-14T06:36:45.087Z [DEBUG] LSP Diagnostics: Checking registry - 0 pending
+2026-02-14T06:36:45.087Z [DEBUG] Hooks: Found 0 total hooks in registry
+2026-02-14T06:36:45.087Z [DEBUG] Hooks: checkForNewResponses returning 0 responses
+2026-02-14T06:36:45.088Z [DEBUG] autocompact: tokens=56602 threshold=967000 effectiveWindow=980000
+2026-02-14T06:36:45.089Z [DEBUG] Auto tool search disabled: 2874 tokens (threshold: 100000, 10% of context) [source: query]
+2026-02-14T06:36:45.099Z [DEBUG] Writing to temp file: C:\Users\Administrator\.claude.json.tmp.18600.1771051005099
+2026-02-14T06:36:45.099Z [DEBUG] Preserving file permissions: 100666
+2026-02-14T06:36:45.100Z [DEBUG] Temp file written successfully, size: 2862 bytes
+2026-02-14T06:36:45.100Z [DEBUG] Applied original permissions to temp file
+2026-02-14T06:36:45.100Z [DEBUG] Renaming C:\Users\Administrator\.claude.json.tmp.18600.1771051005099 to C:\Users\Administrator\.claude.json
+2026-02-14T06:36:45.101Z [DEBUG] File C:\Users\Administrator\.claude.json written atomically
+2026-02-14T06:36:45.102Z [DEBUG] attribution header x-anthropic-billing-header: cc_version=2.1.41.527; cc_entrypoint=cli; cch=00000;
+2026-02-14T06:36:45.103Z [DEBUG] [API:request] Creating client, ANTHROPIC_CUSTOM_HEADERS present: false, has Authorization header: false
+2026-02-14T06:36:45.104Z [DEBUG] [API:auth] OAuth token check starting
+2026-02-14T06:36:45.105Z [DEBUG] [API:auth] OAuth token check complete
+2026-02-14T06:36:45.114Z [DEBUG] [useDeferredValue] Messages deferred by 2 (70→72)
+2026-02-14T06:36:45.135Z [DEBUG] High write ratio: blit=0, write=8416 (100.0% writes), screen=231x84
+2026-02-14T06:36:49.114Z [DEBUG] Stream started - received first chunk
+2026-02-14T06:36:49.578Z [DEBUG] [useDeferredValue] Messages deferred by 1 (72→73)
+2026-02-14T06:37:47.596Z [WARN] Streaming stall detected: 57.6s gap between events (stall #1)
+2026-02-14T06:38:39.748Z [WARN] Streaming stall detected: 51.2s gap between events (stall #2)
+2026-02-14T06:38:39.752Z [DEBUG] [useDeferredValue] Messages deferred by 1 (73→74)
+2026-02-14T06:38:39.780Z [DEBUG] High write ratio: blit=0, write=8452 (100.0% writes), screen=234x84
+2026-02-14T06:38:39.781Z [WARN] Streaming completed with 2 stall(s), total stall time: 108.8s
+2026-02-14T06:38:39.782Z [DEBUG] Edit tool input error: Edit failed due to the following issues:
+The required parameter `file_path` is missing
+The required parameter `old_string` is missing
+The required parameter `new_string` is missing
+2026-02-14T06:38:39.782Z [DEBUG] LSP Diagnostics: getLSPDiagnosticAttachments called
+2026-02-14T06:38:39.782Z [DEBUG] LSP Diagnostics: Checking registry - 0 pending
+2026-02-14T06:38:39.782Z [DEBUG] Hooks: Found 0 total hooks in registry
+2026-02-14T06:38:39.782Z [DEBUG] Hooks: checkForNewResponses returning 0 responses
+2026-02-14T06:38:39.783Z [DEBUG] autocompact: tokens=56741 threshold=967000 effectiveWindow=980000
+2026-02-14T06:38:39.783Z [DEBUG] Auto tool search disabled: 2874 tokens (threshold: 100000, 10% of context) [source: query]
+2026-02-14T06:38:39.787Z [DEBUG] Writing to temp file: C:\Users\Administrator\.claude.json.tmp.18600.1771051119787
+2026-02-14T06:38:39.787Z [DEBUG] Preserving file permissions: 100666
+2026-02-14T06:38:39.787Z [DEBUG] Temp file written successfully, size: 2862 bytes
+2026-02-14T06:38:39.787Z [DEBUG] Applied original permissions to temp file
+2026-02-14T06:38:39.787Z [DEBUG] Renaming C:\Users\Administrator\.claude.json.tmp.18600.1771051119787 to C:\Users\Administrator\.claude.json
+2026-02-14T06:38:39.787Z [DEBUG] File C:\Users\Administrator\.claude.json written atomically
+2026-02-14T06:38:39.788Z [DEBUG] attribution header x-anthropic-billing-header: cc_version=2.1.41.527; cc_entrypoint=cli; cch=00000;
+2026-02-14T06:38:39.788Z [DEBUG] [API:request] Creating client, ANTHROPIC_CUSTOM_HEADERS present: false, has Authorization header: false
+2026-02-14T06:38:39.788Z [DEBUG] [API:auth] OAuth token check starting
+2026-02-14T06:38:39.789Z [DEBUG] [API:auth] OAuth token check complete
+2026-02-14T06:38:39.792Z [DEBUG] [useDeferredValue] Messages deferred by 2 (73→75)
+2026-02-14T06:38:43.704Z [DEBUG] Stream started - received first chunk
+2026-02-14T06:38:44.074Z [DEBUG] [useDeferredValue] Messages deferred by 1 (75→76)
+2026-02-14T06:39:13.214Z [DEBUG] Metrics opt-out check failed: No API key available
+2026-02-14T06:39:13.214Z [DEBUG] Metrics check failed, defaulting to disabled
+2026-02-14T06:39:13.214Z [DEBUG] Metrics export disabled by organization setting
+2026-02-14T06:39:34.573Z [DEBUG] Writing to temp file: C:\Users\Administrator\.claude.json.tmp.18600.1771051174573
+2026-02-14T06:39:34.574Z [DEBUG] Preserving file permissions: 100666
+2026-02-14T06:39:34.574Z [DEBUG] Temp file written successfully, size: 2862 bytes
+2026-02-14T06:39:34.574Z [DEBUG] Applied original permissions to temp file
+2026-02-14T06:39:34.574Z [DEBUG] Renaming C:\Users\Administrator\.claude.json.tmp.18600.1771051174573 to C:\Users\Administrator\.claude.json
+2026-02-14T06:39:34.574Z [DEBUG] File C:\Users\Administrator\.claude.json written atomically
+2026-02-14T06:39:34.576Z [DEBUG] Stored paste aebd2d7dfe5f28be to C:\Users\Administrator\.claude\paste-cache\aebd2d7dfe5f28be.txt
+2026-02-14T06:39:34.630Z [DEBUG] Full reset (scrollback changes): scrollbackRows=328, firstChangeY=231
+  prev: "✶ Boogieing… (5m 14s · ↓ 3.3k tokens)                                               "
+  next: "* Boogieing… (5m 14s · ↓ 3.3k tokens)                                               "
+2026-02-14T06:39:44.071Z [WARN] Streaming stall detected: 59.6s gap between events (stall #1)
+2026-02-14T06:39:44.093Z [DEBUG] Full reset (scrollback changes): scrollbackRows=328, firstChangeY=231
+  prev: "* Boogieing… (5m 14s · ↓ 3.3k tokens)                                               "
+  next: "* Boogieing… (5m 23s · ↓ 3.3k tokens)                                               "
+2026-02-14T06:39:44.296Z [DEBUG] Full reset (scrollback changes): scrollbackRows=328, firstChangeY=231
+  prev: "* Boogieing… (5m 23s · ↓ 3.3k tokens)                                               "
+  next: "* Boogieing… (5m 24s · ↓ 3.3k tokens)                                               "
+2026-02-14T06:39:44.312Z [DEBUG] Full reset (scrollback changes): scrollbackRows=328, firstChangeY=231
+  prev: "* Boogieing… (5m 24s · ↓ 3.3k tokens)                                               "
+  next: "* Boogieing… (5m 24s · ↓ 3.4k tokens)                                               "
+2026-02-14T06:39:44.646Z [DEBUG] Full reset (scrollback changes): scrollbackRows=328, firstChangeY=231
+  prev: "* Boogieing… (5m 24s · ↓ 3.4k tokens)                                               "
+  next: "* Boogieing… (5m 24s · ↓ 3.5k tokens)                                               "
+2026-02-14T06:39:44.729Z [DEBUG] Full reset (scrollback changes): scrollbackRows=328, firstChangeY=231
+  prev: "* Boogieing… (5m 24s · ↓ 3.5k tokens)                                               "
+  next: "* Boogieing… (5m 24s · ↓ 3.6k tokens)                                               "
+2026-02-14T06:39:44.855Z [DEBUG] Full reset (scrollback changes): scrollbackRows=328, firstChangeY=231
+  prev: "* Boogieing… (5m 24s · ↓ 3.6k tokens)                                               "
+  next: "* Boogieing… (5m 24s · ↓ 3.7k tokens)                                               "
+2026-02-14T06:39:44.935Z [DEBUG] Full reset (scrollback changes): scrollbackRows=328, firstChangeY=231
+  prev: "* Boogieing… (5m 24s · ↓ 3.7k tokens)                                               "
+  next: "* Boogieing… (5m 24s · ↓ 3.8k tokens)                                               "
+2026-02-14T06:39:48.911Z [DEBUG] Full reset (scrollback changes): scrollbackRows=328, firstChangeY=231
+  prev: "* Boogieing… (5m 24s · ↓ 3.8k tokens)                                               "
+  next: "* Boogieing… (5m 28s · ↓ 3.8k tokens)                                               "
+2026-02-14T06:40:18.211Z [DEBUG] Full reset (scrollback changes): scrollbackRows=328, firstChangeY=231
+  prev: "* Boogieing… (5m 28s · ↓ 3.8k tokens)                                               "
+  next: "* Boogieing… (5m 57s · ↓ 3.8k tokens)                                               "

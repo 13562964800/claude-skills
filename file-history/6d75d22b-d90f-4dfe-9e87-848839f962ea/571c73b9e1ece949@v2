@@ -1,0 +1,111 @@
+# ============================================================
+# VoiceDocCompare - Maximum Obfuscation ProGuard/R8 Rules
+# Copyright (c) 单夫纯律师制作，保留全部权利 All Rights Reserved.
+# ============================================================
+
+# ==================== 最高级混淆设置 ====================
+
+# 混淆字典：使用极短单字符命名
+-repackageclasses ''
+-allowaccessmodification
+-overloadaggressively
+-flattenpackagehierarchy ''
+
+# 移除所有日志输出（安全+性能）
+-assumenosideeffects class android.util.Log {
+    public static boolean isLoggable(java.lang.String, int);
+    public static int v(...);
+    public static int d(...);
+    public static int i(...);
+    public static int w(...);
+    public static int e(...);
+    public static int wtf(...);
+}
+
+# 移除 System.out/err 输出
+-assumenosideeffects class java.io.PrintStream {
+    public void println(...);
+    public void print(...);
+}
+
+# 移除断言
+-assumenosideeffects class java.lang.Class {
+    public boolean desiredAssertionStatus();
+}
+
+# 激进优化
+-optimizationpasses 10
+-optimizations !code/simplification/arithmetic,!code/simplification/cast,!field/*,!class/merging/*,!code/allocation/variable
+
+# 移除未使用代码
+-dontnote **
+-dontwarn **
+
+# ==================== 必须保留的类 ====================
+
+# 保持 Chaquopy Python 桥接
+-keep class com.chaquo.python.** { *; }
+-keep class com.chaquo.** { *; }
+-keep @com.chaquo.python.annotations.* class * { *; }
+
+# 保持 Python 核心接口
+-keep class com.chaquo.python.PyObject { *; }
+-keep class com.chaquo.python.PyException { *; }
+-keep class com.chaquo.python.Kwarg { *; }
+-keep class com.chaquo.python.android.AndroidPlatform { *; }
+
+# 保持 Sherpa-ONNX 本地库
+-keep class com.k2fsa.sherpa.onnx.** { *; }
+
+# 保持 Activity（AndroidManifest 引用）
+-keep public class com.voicedoc.app.MainActivity { *; }
+-keep public class com.voicedoc.app.SettingsActivity { *; }
+
+# 保持 native 方法
+-keepclasseswithmembernames class * {
+    native <methods>;
+}
+
+# 保持序列化
+-keepclassmembers class * implements java.io.Serializable {
+    static final long serialVersionUID;
+    private static final java.io.ObjectStreamField[] serialPersistentFields;
+    !static !transient <fields>;
+    private void writeObject(java.io.ObjectOutputStream);
+    private void readObject(java.io.ObjectInputStream);
+    java.lang.Object writeReplace();
+    java.lang.Object readResolve();
+}
+
+# 保持 Parcelable
+-keep class * implements android.os.Parcelable {
+    public static final android.os.Parcelable$Creator *;
+}
+
+# 保持 enum
+-keepclassmembers enum * {
+    public static **[] values();
+    public static ** valueOf(java.lang.String);
+}
+
+# 保持 R 文件
+-keepclassmembers class **.R$* {
+    public static <fields>;
+}
+
+# 保持 ContentProvider
+-keep public class * extends android.content.ContentProvider { *; }
+-keep class androidx.core.content.FileProvider { *; }
+
+# 保持 AndroidX
+-keep class androidx.appcompat.** { *; }
+-keep class com.google.android.material.** { *; }
+-keep class androidx.constraintlayout.** { *; }
+
+# ==================== 资源混淆 ====================
+# 移除 SourceFile 和 LineNumberTable（反编译无法看到源码信息）
+-renamesourcefileattribute ''
+-keepattributes Exceptions,InnerClasses,Signature,Deprecated,EnclosingMethod
+
+# 移除 Annotation（减少反编译信息）
+-keepattributes *Annotation*

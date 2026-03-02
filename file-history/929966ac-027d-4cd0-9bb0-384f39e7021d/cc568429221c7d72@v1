@@ -1,0 +1,139 @@
+# ============================================
+# 最高级代码混淆配置
+# 单夫纯律师制作，保留权利
+# ============================================
+
+# 最大优化遍数
+-optimizationpasses 5
+
+# 混合大小写类名
+-dontusemixedcaseclassnames
+
+# 不跳过非公共库类
+-dontskipnonpubliclibraryclasses
+-dontskipnonpubliclibraryclassmembers
+
+# 全部优化开启
+-optimizations !code/simplification/arithmetic,!code/simplification/cast,!field/*,!class/merging/*
+
+# 移除日志
+-assumenosideeffects class android.util.Log {
+    public static boolean isLoggable(java.lang.String, int);
+    public static int v(...);
+    public static int i(...);
+    public static int w(...);
+    public static int d(...);
+    public static int e(...);
+}
+
+# 重新打包到空包名（最大混淆）
+-repackageclasses ''
+-allowaccessmodification
+-mergeinterfacesaggressively
+
+# 移除未使用的代码
+-dontnote **
+-dontwarn **
+
+# ============================================
+# 保留规则
+# ============================================
+
+# Hilt / Dagger
+-keep class dagger.hilt.** { *; }
+-keep class javax.inject.** { *; }
+-keep class * extends dagger.hilt.android.internal.managers.ViewComponentManager$FragmentContextWrapper { *; }
+-keepclasseswithmembers class * {
+    @dagger.* <methods>;
+}
+-keepclasseswithmembers class * {
+    @javax.inject.* <fields>;
+}
+-keepclasseswithmembers class * {
+    @javax.inject.* <init>(...);
+}
+
+# Room
+-keep class * extends androidx.room.RoomDatabase { *; }
+-keep @androidx.room.Entity class * { *; }
+-keep @androidx.room.Dao interface * { *; }
+
+# Kotlin Serialization
+-keepattributes *Annotation*
+-keep class kotlinx.serialization.** { *; }
+-keepclassmembers class * {
+    @kotlinx.serialization.* <fields>;
+}
+-keep,includedescriptorclasses class com.multilanglearner.**$$serializer { *; }
+-keepclassmembers class com.multilanglearner.** {
+    *** Companion;
+}
+-keepclasseswithmembers class com.multilanglearner.** {
+    kotlinx.serialization.KSerializer serializer(...);
+}
+
+# Retrofit / OkHttp
+-keep class retrofit2.** { *; }
+-keep class okhttp3.** { *; }
+-keepattributes Signature
+-keepattributes Exceptions
+
+# Compose
+-keep class androidx.compose.** { *; }
+
+# FFmpeg
+-keep class com.arthenica.ffmpegkit.** { *; }
+
+# Data classes used in API
+-keep class com.multilanglearner.data.model.** { *; }
+-keep class com.multilanglearner.data.network.WhisperResult { *; }
+-keep class com.multilanglearner.data.network.WordTimestamp { *; }
+-keep class com.multilanglearner.domain.model.** { *; }
+
+# JSON parsing - 保留所有用于 JSON 解析的类
+-keepclassmembers class * {
+    @com.google.gson.annotations.SerializedName <fields>;
+}
+-keep class org.json.** { *; }
+-keepclassmembers class * {
+    public <init>(org.json.JSONObject);
+}
+
+# 视频解析服务 - 保留所有网络响应数据类
+-keep class com.multilanglearner.data.network.VideoDownloadService { *; }
+-keep class com.multilanglearner.data.network.VideoDownloadService$** { *; }
+-keepclassmembers class com.multilanglearner.data.network.VideoDownloadService$** { *; }
+
+# NewPipe Extractor - YouTube 解析
+-keep class org.schabi.newpipe.** { *; }
+-dontwarn org.schabi.newpipe.**
+
+# OkHttp 响应体解析
+-keepclassmembers class * {
+    @retrofit2.http.* <methods>;
+}
+-keep class okhttp3.ResponseBody { *; }
+-keep class okhttp3.Response { *; }
+-keep class okhttp3.Request { *; }
+-keep class okhttp3.Call { *; }
+
+# Hilt generated
+-keep class com.multilanglearner.Hilt_* { *; }
+-keep class * extends android.app.Application { *; }
+-keep class * extends android.app.Service { *; }
+-keep class * extends android.content.BroadcastReceiver { *; }
+
+# Enum
+-keepclassmembers enum * {
+    public static **[] values();
+    public static ** valueOf(java.lang.String);
+}
+
+# Parcelable
+-keep class * implements android.os.Parcelable {
+    public static final android.os.Parcelable$Creator *;
+}
+
+# R8 full mode
+-keepattributes SourceFile,LineNumberTable
+-renamesourcefileattribute SourceFile

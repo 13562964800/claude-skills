@@ -1,0 +1,89 @@
+#!/usr/bin/env python
+# -*- coding: utf-8 -*-
+"""
+测试时间戳功能
+验证 FunASR 转写是否返回时间戳
+"""
+
+import sys
+import os
+import json
+import requests
+
+# 设置 UTF-8 编码输出（Windows 兼容）
+if sys.platform == 'win32':
+    import io
+    sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding='utf-8', errors='replace')
+
+# 测试 FunASR 健康状态
+def test_funasr_health():
+    """测试 FunASR 服务是否运行"""
+    try:
+        r = requests.get('http://localhost:8765/health', timeout=2)
+        if r.status_code == 200:
+            data = r.json()
+            print("[OK] FunASR 服务运行正常")
+            print(f"  - 服务: {data.get('service')}")
+            print(f"  - 运行时间: {data.get('uptime')} 秒")
+            return True
+    except Exception as e:
+        print(f"[FAIL] FunASR 服务未运行: {e}")
+    return False
+
+# 测试时间戳提取
+def test_timestamp_extraction():
+    """测试 transcribe.py 中的时间戳提取功能"""
+    try:
+        # 导入 transcribe 模块
+        sys.path.insert(0, os.path.dirname(__file__))
+        import transcribe
+
+        # 检查是否有时间戳支持
+        print("\n检查时间戳支持:")
+        print(f"  - FunASR 时间戳函数: {hasattr(transcribe, '_transcribe_funasr')}")
+
+        # 检查函数签名
+        import inspect
+        sig = inspect.signature(transcribe._transcribe_funasr)
+        has_return_timestamps = 'return_timestamps' in sig.parameters
+        print(f"  - return_timestamps 参数: {has_return_timestamps}")
+
+        return has_return_timestamps
+    except Exception as e:
+        print(f"[FAIL] 导入失败: {e}")
+        return False
+
+# 主函数
+def main():
+    print("=" * 50)
+    print("时间戳功能测试")
+    print("=" * 50)
+
+    # 1. 检查 FunASR 服务
+    funasr_ok = test_funasr_health()
+
+    # 2. 检查时间戳提取功能
+    timestamp_ok = test_timestamp_extraction()
+
+    # 总结
+    print("\n" + "=" * 50)
+    print("测试结果:")
+    print(f"  FunASR 服务: {'[OK] 正常' if funasr_ok else '[FAIL] 未运行'}")
+    print(f"  时间戳功能: {'[OK] 已启用' if timestamp_ok else '[FAIL] 未启用'}")
+
+    if funasr_ok and timestamp_ok:
+        print("\n[SUCCESS] 时间戳功能已就绪！")
+        print("\n使用说明:")
+        print("  1. 运行主程序进行配音对比")
+        print("  2. 生成的 HTML 报告和 Word 文档中的差异点会显示:")
+        print("     - 🕐 @m:ss.ms - 录音时间点")
+        print("     - 点击 HTML 报告中的差异点可跳转到对应音频位置")
+    else:
+        print("\n[INFO] 请检查:")
+        if not funasr_ok:
+            print("  - FunASR 服务是否运行")
+        if not timestamp_ok:
+            print("  - transcribe.py 是否正确更新")
+
+if __name__ == '__main__':
+    main()

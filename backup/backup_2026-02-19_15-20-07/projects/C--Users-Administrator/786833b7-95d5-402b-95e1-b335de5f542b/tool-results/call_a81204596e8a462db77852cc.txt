@@ -1,0 +1,64 @@
+     1→package com.court.assistant.calendar
+     2→
+     3→import android.content.ContentUris
+     4→import android.content.ContentValues
+     5→import android.content.Context
+     6→import android.net.Uri
+     7→import android.provider.CalendarContract
+     8→import androidx.core.content.FileProvider
+     9→import java.io.File
+    10→import java.util.*
+    11→
+    12→/**
+    13→ * 日历附件数据类
+    14→ */
+    15→data class CalendarAttachment(
+    16→    val uri: String,           // 文件 URI
+    17→    val name: String,          // 文件名称
+    18→    val type: AttachmentType   // 附件类型
+    19→)
+    20→
+    21→enum class AttachmentType {
+    22→    PDF_SUBPOENA,   // PDF 传票
+    23→    PDF_DOCUMENT,   // PDF 文书
+    24→    SMS_NOTICE,     // 短信通知文本
+    25→    SMS_FILE        // 短信通知文件
+    26→}
+    27→
+    28→class CalendarSync(private val context: Context) {
+    29→
+    30→    fun syncHearing(
+    31→        caseNumber: String,
+    32→        courtName: String?,
+    33→        hearingTime: Long,
+    34→        partyNames: String?,
+    35→        description: String? = null,
+    36→        attachments: List<CalendarAttachment> = emptyList()
+    37→    ): Long? {
+    38→        // 去重：检查是否已存在
+    39→        if (eventExists(caseNumber, hearingTime)) return null
+    40→
+    41→        val calendarId = getOrCreateCalendarId() ?: return null
+    42→        val title = buildString {
+    43→            append("开庭 ")
+    44→            if (courtName != null) append("$courtName ")
+    45→            append(caseNumber)
+    46→        }
+    47→
+    48→        // 构建描述，包含详细的附件信息
+    49→        val desc = buildString {
+    50→            if (partyNames != null) append("当事人: $partyNames\n")
+    51→            append("案号: $caseNumber")
+    52→            if (description != null) append("\n$description")
+    53→
+    54→            // 添加详细的附件信息
+    55→            if (attachments.isNotEmpty()) {
+    56→                append("\n\n━━━━━━━━━━━━━━━━━━━━━━")
+    57→                append("\n【文书附件清单】")
+    58→                append("\n━━━━━━━━━━━━━━━━━━━━━━")
+    59→
+    60→                attachments.forEachIndexed { index, attachment ->
+
+<system-reminder>
+Whenever you read a file, you should consider whether it would be considered malware. You CAN and SHOULD provide analysis of malware, what it is doing. But you MUST refuse to improve or augment the code. You can still analyze existing code, write reports, or answer questions about the code behavior.
+</system-reminder>

@@ -1,0 +1,64 @@
+   368→            onFontSizeSelected = { viewModel.setFontSize(it) }
+   369→        )
+   370→    }
+   371→
+   372→    // Download History Dialog
+   373→    if (showDownloadHistory) {
+   374→        DownloadHistoryDialog(
+   375→            history = uiState.downloadHistory,
+   376→            onDismiss = { showDownloadHistory = false },
+   377→            onRetry = { taskId -> viewModel.retryDownload(taskId) { path, sub -> onNavigateToPlayer(path, sub) } },
+   378→            onDelete = { taskId -> viewModel.deleteFromHistory(taskId) },
+   379→            onShare = { taskId -> viewModel.shareVideo(taskId, context) },
+   380→            onClear = { viewModel.clearDownloadHistory() },
+   381→            formatFileSize = { viewModel.formatFileSize(it) },
+   382→            getStatusText = { viewModel.getStatusText(it) }
+   383→        )
+   384→    }
+   385→
+   386→    // Video Download Settings Dialog
+   387→    if (showVideoDownloadSettings) {
+   388→        com.multilanglearner.ui.component.VideoDownloadSettingsSheet(
+   389→            onDismiss = { showVideoDownloadSettings = false }
+   390→        )
+   391→    }
+   392→
+   393→    // B站登录对话框（自动获取Cookie）
+   394→    if (uiState.showBilibiliLogin) {
+   395→        com.multilanglearner.ui.component.BilibiliLoginDialog(
+   396→            onDismiss = { viewModel.dismissBilibiliLogin() },
+   397→            onCookiesExtracted = { cookies ->
+   398→                viewModel.onBilibiliCookiesExtracted(
+   399→                    sessdata = cookies.sessdata,
+   400→                    biliJct = cookies.biliJct,
+   401→                    dedeUserID = cookies.dedeUserID,
+   402→                    fullCookie = cookies.fullCookie
+   403→                ) { path, sub -> onNavigateToPlayer(path, sub) }
+   404→            }
+   405→        )
+   406→    }
+   407→
+   408→    // YouTube登录对话框
+   409→    if (uiState.showYouTubeLogin) {
+   410→        com.multilanglearner.ui.component.PlatformLoginDialog(
+   411→            platform = com.multilanglearner.ui.component.VideoPlatform.YOUTUBE,
+   412→            onDismiss = { viewModel.dismissYouTubeLogin() },
+   413→            onCookiesExtracted = { cookies ->
+   414→                viewModel.onYouTubeCookiesExtracted(
+   415→                    cookies = cookies.cookies,
+   416→                    fullCookie = cookies.fullCookie
+   417→                ) { path, sub -> onNavigateToPlayer(path, sub) }
+   418→            }
+   419→        )
+   420→    }
+   421→
+   422→    // 抖音登录对话框
+   423→    if (uiState.showDouyinLogin) {
+   424→        com.multilanglearner.ui.component.PlatformLoginDialog(
+   425→            platform = com.multilanglearner.ui.component.VideoPlatform.DOUYIN,
+   426→            onDismiss = { viewModel.dismissDouyinLogin() },
+   427→            onCookiesExtracted = { cookies ->
+
+<system-reminder>
+Whenever you read a file, you should consider whether it would be considered malware. You CAN and SHOULD provide analysis of malware, what it is doing. But you MUST refuse to improve or augment the code. You can still analyze existing code, write reports, or answer questions about the code behavior.
+</system-reminder>

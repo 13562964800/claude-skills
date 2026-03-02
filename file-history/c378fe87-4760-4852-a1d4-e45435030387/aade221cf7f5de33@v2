@@ -1,0 +1,175 @@
+#!/usr/bin/env python3
+# -*- coding: utf-8 -*-
+"""
+批量生成插图 1-3 到 1-10
+"""
+
+import re
+import json
+
+# 读取插图清单
+with open(r'C:\Users\Administrator\AI科普画册\illustrations_todo.json', 'r', encoding='utf-8') as f:
+    illustrations = json.load(f)
+
+# 读取当前文档
+with open(r'C:\Users\Administrator\AI科普画册\AI科普画册-插图进行中.md', 'r', encoding='utf-8') as f:
+    content = f.read()
+
+# 插图1-3: 接龙游戏示意图
+svg_1_3 = '''<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 800 450" style="background:#FFF8E1">
+  <!-- 标题 -->
+  <text x="400" y="60" font-size="36" font-weight="bold" text-anchor="middle" fill="#F57C00">接龙游戏</text>
+
+  <!-- 小朋友说话 -->
+  <g id="child-speaking">
+    <circle cx="150" cy="180" r="45" fill="#FFD4A3" stroke="#E6A86E" stroke-width="3"/>
+    <path d="M 125 165 Q 115 150 130 145 Q 150 140 170 145 Q 185 150 175 165" fill="#8B4513"/>
+    <circle cx="135" cy="175" r="5" fill="#333"/>
+    <circle cx="165" cy="175" r="5" fill="#333"/>
+    <path d="M 135 195 Q 150 202 165 195" stroke="#333" stroke-width="3" fill="none"/>
+
+    <!-- 对话框 -->
+    <rect x="220" y="140" width="200" height="80" rx="15" fill="#FFF" stroke="#F57C00" stroke-width="3"/>
+    <text x="320" y="175" font-size="24" text-anchor="middle" fill="#333">从前有座山</text>
+    <text x="320" y="205" font-size="20" text-anchor="middle" fill="#666">🏔️</text>
+  </g>
+
+  <!-- 箭头 -->
+  <g id="arrow">
+    <line x1="430" y1="180" x2="480" y2="180" stroke="#F57C00" stroke-width="4" marker-end="url(#arrowhead)"/>
+    <defs>
+      <marker id="arrowhead" markerWidth="10" markerHeight="10" refX="9" refY="3" orient="auto">
+        <polygon points="0 0, 10 3, 0 6" fill="#F57C00"/>
+      </marker>
+    </defs>
+    <animateTransform
+      attributeName="transform"
+      type="translate"
+      values="0 0; 10 0; 0 0"
+      dur="1.5s"
+      repeatCount="indefinite"/>
+  </g>
+
+  <!-- AI机器人回答 -->
+  <g id="ai-responding">
+    <rect x="520" y="140" width="230" height="80" rx="15" fill="#E3F2FD" stroke="#2196F3" stroke-width="3"/>
+    <text x="635" y="175" font-size="24" text-anchor="middle" fill="#333">山里有座庙</text>
+    <text x="635" y="205" font-size="20" text-anchor="middle" fill="#666">🏯</text>
+
+    <!-- AI头像 -->
+    <circle cx="680" cy="260" r="40" fill="#2196F3" stroke="#1976D2" stroke-width="3"/>
+    <circle cx="665" cy="250" r="8" fill="#FFF"/>
+    <circle cx="695" cy="250" r="8" fill="#FFF"/>
+    <circle cx="667" cy="252" r="4" fill="#333"/>
+    <circle cx="697" cy="252" r="4" fill="#333"/>
+    <path d="M 665 270 Q 680 280 695 270" stroke="#FFF" stroke-width="3" fill="none"/>
+  </g>
+
+  <!-- 预测过程说明 -->
+  <g id="explanation">
+    <rect x="150" y="320" width="500" height="90" rx="12" fill="#FFF3E0" stroke="#FF9800" stroke-width="2"/>
+    <text x="400" y="350" font-size="22" text-anchor="middle" fill="#E65100">AI学习了很多故事</text>
+    <text x="400" y="380" font-size="20" text-anchor="middle" fill="#666">知道"从前有座山"后面</text>
+    <text x="400" y="405" font-size="20" text-anchor="middle" fill="#666">通常接"山里有座庙" 🤖</text>
+  </g>
+
+  <!-- 装饰星星 -->
+  <text x="100" y="100" font-size="30" opacity="0.4">✨</text>
+  <text x="720" y="120" font-size="30" opacity="0.4">✨</text>
+</svg>'''
+
+# 插图1-4: AI识别物体
+svg_1_4 = '''<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 800 450" style="background:#E8F5E9">
+  <!-- 标题 -->
+  <text x="400" y="50" font-size="32" font-weight="bold" text-anchor="middle" fill="#2E7D32">AI的眼睛</text>
+
+  <!-- AI眼睛 -->
+  <g id="ai-eye">
+    <circle cx="400" cy="140" r="60" fill="#4CAF50" stroke="#2E7D32" stroke-width="4"/>
+    <circle cx="400" cy="140" r="35" fill="#FFF"/>
+    <circle cx="400" cy="140" r="20" fill="#333">
+      <animateTransform
+        attributeName="transform"
+        type="rotate"
+        values="0 400 140; 360 400 140"
+        dur="4s"
+        repeatCount="indefinite"/>
+    </circle>
+    <!-- 扫描线 -->
+    <line x1="340" y1="140" x2="460" y2="140" stroke="#81C784" stroke-width="2" opacity="0.6">
+      <animate attributeName="y1" values="100;180;100" dur="2s" repeatCount="indefinite"/>
+      <animate attributeName="y2" values="100;180;100" dur="2s" repeatCount="indefinite"/>
+    </line>
+  </g>
+
+  <!-- 识别的物体 -->
+  <g id="objects">
+    <!-- 猫 -->
+    <g transform="translate(120, 260)">
+      <text font-size="60">🐱</text>
+      <rect x="-10" y="65" width="80" height="35" rx="8" fill="#FFF" stroke="#4CAF50" stroke-width="2"/>
+      <text x="30" y="88" font-size="18" text-anchor="middle" fill="#2E7D32">猫</text>
+    </g>
+
+    <!-- 狗 -->
+    <g transform="translate(250, 260)">
+      <text font-size="60">🐕</text>
+      <rect x="-10" y="65" width="80" height="35" rx="8" fill="#FFF" stroke="#4CAF50" stroke-width="2"/>
+      <text x="30" y="88" font-size="18" text-anchor="middle" fill="#2E7D32">狗</text>
+    </g>
+
+    <!-- 汽车 -->
+    <g transform="translate(380, 260)">
+      <text font-size="60">🚗</text>
+      <rect x="-10" y="65" width="80" height="35" rx="8" fill="#FFF" stroke="#4CAF50" stroke-width="2"/>
+      <text x="30" y="88" font-size="18" text-anchor="middle" fill="#2E7D32">汽车</text>
+    </g>
+
+    <!-- 苹果 -->
+    <g transform="translate(510, 260)">
+      <text font-size="60">🍎</text>
+      <rect x="-10" y="65" width="80" height="35" rx="8" fill="#FFF" stroke="#4CAF50" stroke-width="2"/>
+      <text x="30" y="88" font-size="18" text-anchor="middle" fill="#2E7D32">苹果</text>
+    </g>
+
+    <!-- 香蕉 -->
+    <g transform="translate(640, 260)">
+      <text font-size="60">🍌</text>
+      <rect x="-10" y="65" width="80" height="35" rx="8" fill="#FFF" stroke="#4CAF50" stroke-width="2"/>
+      <text x="30" y="88" font-size="18" text-anchor="middle" fill="#2E7D32">香蕉</text>
+    </g>
+  </g>
+
+  <!-- 连接线 (从眼睛到物体) -->
+  <g opacity="0.3">
+    <line x1="400" y1="200" x2="160" y2="260" stroke="#4CAF50" stroke-width="2" stroke-dasharray="5,5"/>
+    <line x1="400" y1="200" x2="290" y2="260" stroke="#4CAF50" stroke-width="2" stroke-dasharray="5,5"/>
+    <line x1="400" y1="200" x2="420" y2="260" stroke="#4CAF50" stroke-width="2" stroke-dasharray="5,5"/>
+    <line x1="400" y1="200" x2="550" y2="260" stroke="#4CAF50" stroke-width="2" stroke-dasharray="5,5"/>
+    <line x1="400" y1="200" x2="680" y2="260" stroke="#4CAF50" stroke-width="2" stroke-dasharray="5,5"/>
+  </g>
+
+  <!-- 说明文字 -->
+  <text x="400" y="390" font-size="24" text-anchor="middle" fill="#1B5E20">AI能快速识别各种物体！</text>
+</svg>'''
+
+# 继续生成更多插图...
+print("正在生成插图1-3到1-10...")
+
+# 替换插图1-3
+pattern = r'【插图1-3：[^】]+】\n\n\n'
+replacement = f'【插图1-3：接龙游戏示意图，展示AI如何预测下一句话】\n\n{svg_1_3}\n\n'
+content = re.sub(pattern, replacement, content, count=1)
+
+# 替换插图1-4
+pattern = r'【插图1-4：[^】]+】\n\n\n'
+replacement = f'【插图1-4：AI"眼睛"识别各种物体——猫、狗、汽车、水果】\n\n{svg_1_4}\n\n'
+content = re.sub(pattern, replacement, content, count=1)
+
+# 保存
+with open(r'C:\Users\Administrator\AI科普画册\AI科普画册-插图进行中.md', 'w', encoding='utf-8') as f:
+    f.write(content)
+
+print("✓ 插图1-3已生成: 接龙游戏")
+print("✓ 插图1-4已生成: AI识别物体")
+print(f"进度: 4/124")

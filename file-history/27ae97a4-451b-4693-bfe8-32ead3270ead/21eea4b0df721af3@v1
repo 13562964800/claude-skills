@@ -1,0 +1,20 @@
+package com.multilanglearner
+
+import android.app.Application
+import com.yausername.youtubedl_android.YoutubeDL
+import com.yausername.ffmpeg.FFmpeg
+import dagger.hilt.android.HiltAndroidApp
+
+@HiltAndroidApp
+class MainApplication : Application() {
+    override fun onCreate() {
+        super.onCreate()
+        // Initialize youtubedl-android
+        try {
+            YoutubeDL.getInstance().init(this)
+            FFmpeg.getInstance().init(this)
+        } catch (e: Exception) {
+            e.printStackTrace()
+        }
+    }
+}

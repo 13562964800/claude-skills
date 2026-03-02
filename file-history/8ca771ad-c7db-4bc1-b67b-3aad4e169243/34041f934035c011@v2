@@ -1,0 +1,39 @@
+package com.videodownload.app.data
+
+import androidx.room.TypeConverter
+import com.google.gson.Gson
+import com.google.gson.reflect.TypeToken
+import com.videodownload.app.data.model.Segment
+import com.videodownload.app.data.model.Word
+
+/**
+ * Room 类型转换器
+ */
+class Converters {
+
+    private val gson = Gson()
+
+    @TypeConverter
+    fun fromWordList(value: List<Word>?): String? {
+        return gson.toJson(value)
+    }
+
+    @TypeConverter
+    fun toWordList(value: String?): List<Word>? {
+        if (value == null) return null
+        val type = object : TypeToken<List<Word>>() {}.type
+        return gson.fromJson(value, type)
+    }
+
+    @TypeConverter
+    fun fromSegmentList(value: List<Segment>?): String? {
+        return gson.toJson(value)
+    }
+
+    @TypeConverter
+    fun toSegmentList(value: String?): List<Segment>? {
+        if (value == null) return null
+        val type = object : TypeToken<List<Segment>>() {}.type
+        return gson.fromJson(value, type)
+    }
+}

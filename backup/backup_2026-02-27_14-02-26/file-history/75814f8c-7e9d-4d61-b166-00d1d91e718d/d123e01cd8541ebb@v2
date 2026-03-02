@@ -1,0 +1,146 @@
+package com.courassistant.java.model;
+
+/**
+ * 法院案件信息模型
+ * 包含案号、法院名称、开庭时间等核心信息
+ */
+public class CourtCase {
+    private long id;
+    private String caseNo;              // 案号，如 (2024)京01民初123号
+    private String courtFullName;        // 法院全称
+    private String courtShortName;      // 法院简称
+    private String partyName;           // 当事人名称
+    private long hearingDate;           // 开庭时间（时间戳）
+    private String location;             // 开庭地点
+    private long smsId;                 // 关联的短信ID
+    private long calendarEventId;        // 关联的日历事件ID
+    private long createdAt;             // 创建时间
+    private long updatedAt;             // 更新时间
+
+    public CourtCase() {
+        this.createdAt = System.currentTimeMillis();
+        this.updatedAt = System.currentTimeMillis();
+    }
+
+    public CourtCase(String caseNo) {
+        this();
+        this.caseNo = caseNo;
+    }
+
+    // Getters and Setters
+    public long getId() {
+        return id;
+    }
+
+    public void setId(long id) {
+        this.id = id;
+    }
+
+    public String getCaseNo() {
+        return caseNo;
+    }
+
+    public void setCaseNo(String caseNo) {
+        this.caseNo = caseNo;
+        this.updatedAt = System.currentTimeMillis();
+    }
+
+    public String getCourtFullName() {
+        return courtFullName;
+    }
+
+    public void setCourtFullName(String courtFullName) {
+        this.courtFullName = courtFullName;
+        this.updatedAt = System.currentTimeMillis();
+    }
+
+    public String getCourtShortName() {
+        return courtShortName;
+    }
+
+    public void setCourtShortName(String courtShortName) {
+        this.courtShortName = courtShortName;
+        this.updatedAt = System.currentTimeMillis();
+    }
+
+    public String getPartyName() {
+        return partyName;
+    }
+
+    public void setPartyName(String partyName) {
+        this.partyName = partyName;
+        this.updatedAt = System.currentTimeMillis();
+    }
+
+    public long getHearingDate() {
+        return hearingDate;
+    }
+
+    public void setHearingDate(long hearingDate) {
+        this.hearingDate = hearingDate;
+        this.updatedAt = System.currentTimeMillis();
+    }
+
+    public String getLocation() {
+        return location;
+    }
+
+    public void setLocation(String location) {
+        this.location = location;
+        this.updatedAt = System.currentTimeMillis();
+    }
+
+    public long getSmsId() {
+        return smsId;
+    }
+
+    public void setSmsId(long smsId) {
+        this.smsId = smsId;
+    }
+
+    public long getCalendarEventId() {
+        return calendarEventId;
+    }
+
+    public void setCalendarEventId(long calendarEventId) {
+        this.calendarEventId = calendarEventId;
+        this.updatedAt = System.currentTimeMillis();
+    }
+
+    public long getCreatedAt() {
+        return createdAt;
+    }
+
+    public void setCreatedAt(long createdAt) {
+        this.createdAt = createdAt;
+    }
+
+    public long getUpdatedAt() {
+        return updatedAt;
+    }
+
+    public void setUpdatedAt(long updatedAt) {
+        this.updatedAt = updatedAt;
+    }
+
+    /**
+     * 生成去重键
+     * 用于判断案件是否重复
+     */
+    public String getDedupKey() {
+        return caseNo + "_" + hearingDate;
+    }
+
+    @Override
+    public boolean equals(Object o) {
+        if (this == o) return true;
+        if (o == null || getClass() != o.getClass()) return false;
+        CourtCase courtCase = (CourtCase) o;
+        return caseNo != null && caseNo.equals(courtCase.caseNo);
+    }
+
+    @Override
+    public int hashCode() {
+        return caseNo != null ? caseNo.hashCode() : 0;
+    }
+}

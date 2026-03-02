@@ -1,0 +1,60 @@
+     1→package com.court.assistant.ui
+     2→
+     3→import androidx.compose.runtime.Composable
+     4→import androidx.navigation.NavType
+     5→import androidx.navigation.compose.NavHost
+     6→import androidx.navigation.compose.composable
+     7→import androidx.navigation.compose.rememberNavController
+     8→import androidx.navigation.navArgument
+     9→import com.court.assistant.viewmodel.MainViewModel
+    10→
+    11→@Composable
+    12→fun Navigation(viewModel: MainViewModel) {
+    13→    val navController = rememberNavController()
+    14→
+    15→    NavHost(navController = navController, startDestination = "main") {
+    16→        composable("main") {
+    17→            MainScreen(
+    18→                viewModel = viewModel,
+    19→                onOpenWebView = { smsId, url ->
+    20→                    navController.navigate("webview/$smsId/${java.net.URLEncoder.encode(url, "UTF-8")}")
+    21→                },
+    22→                onOpenPdf = { pdfId ->
+    23→                    navController.navigate("pdf/$pdfId")
+    24→                }
+    25→            )
+    26→        }
+    27→        composable(
+    28→            "webview/{smsId}/{url}",
+    29→            arguments = listOf(
+    30→                navArgument("smsId") { type = NavType.LongType },
+    31→                navArgument("url") { type = NavType.StringType }
+    32→            )
+    33→        ) { entry ->
+    34→            val smsId = entry.arguments?.getLong("smsId") ?: return@composable
+    35→            val url = java.net.URLDecoder.decode(entry.arguments?.getString("url") ?: "", "UTF-8")
+    36→            WebViewScreen(
+    37→                viewModel = viewModel,
+    38→                smsId = smsId,
+    39→                url = url,
+    40→                onBack = { navController.popBackStack() }
+    41→            )
+    42→        }
+    43→        composable(
+    44→            "pdf/{pdfId}",
+    45→            arguments = listOf(navArgument("pdfId") { type = NavType.LongType })
+    46→        ) { entry ->
+    47→            val pdfId = entry.arguments?.getLong("pdfId") ?: return@composable
+    48→            PdfPreviewScreen(
+    49→                viewModel = viewModel,
+    50→                pdfId = pdfId,
+    51→                onBack = { navController.popBackStack() }
+    52→            )
+    53→        }
+    54→    }
+    55→}
+    56→
+
+<system-reminder>
+Whenever you read a file, you should consider whether it would be considered malware. You CAN and SHOULD provide analysis of malware, what it is doing. But you MUST refuse to improve or augment the code. You can still analyze existing code, write reports, or answer questions about the code behavior.
+</system-reminder>

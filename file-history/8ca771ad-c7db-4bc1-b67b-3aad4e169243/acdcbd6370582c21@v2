@@ -1,0 +1,42 @@
+package com.videodownload.app.data.dao
+
+import androidx.room.*
+import com.videodownload.app.data.model.TranscriptionEntity
+import com.videodownload.app.data.model.TranscriptionStatus
+import kotlinx.coroutines.flow.Flow
+
+/**
+ * 转录 DAO
+ */
+@Dao
+interface TranscriptionDao {
+
+    @Query("SELECT * FROM transcriptions WHERE videoId = :videoId")
+    suspend fun getTranscription(videoId: String): TranscriptionEntity?
+
+    @Query("SELECT * FROM transcriptions WHERE videoId = :videoId")
+    fun getTranscriptionFlow(videoId: String): Flow<TranscriptionEntity?>
+
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun insertTranscription(transcription: TranscriptionEntity)
+
+    @Update
+    suspend fun updateTranscription(transcription: TranscriptionEntity)
+
+    @Query("UPDATE transcriptions SET status = :status, errorMessage = :errorMessage, updatedAt = :updatedAt WHERE videoId = :videoId")
+    suspend fun updateStatus(
+        videoId: String,
+        status: TranscriptionStatus,
+        errorMessage: String?,
+        updatedAt: Long = System.currentTimeMillis()
+    )
+
+    @Query("DELETE FROM transcriptions WHERE videoId = :videoId")
+    suspend fun deleteTranscription(videoId: String)
+
+    @Query("SELECT * FROM transcriptions ORDER BY updatedAt DESC")
+    fun getAllTranscriptions(): Flow<List<TranscriptionEntity>>
+
+    @Query("SELECT * FROM transcriptions WHERE status = :status")
+    fun getTranscriptionsByStatus(status: TranscriptionStatus): Flow<List<TranscriptionEntity>>
+}

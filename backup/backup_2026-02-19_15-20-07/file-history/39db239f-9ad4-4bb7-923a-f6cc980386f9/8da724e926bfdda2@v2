@@ -1,0 +1,233 @@
+package com.shanfuchun.courtassistant.ai.orchestrator
+
+import com.shanfuchun.courtassistant.ai.model.LLMProvider
+import com.shanfuchun.courtassistant.ai.model.LLMResult
+import com.shanfuchun.courtassistant.ai.model.SummonsExtraction
+import com.shanfuchun.courtassistant.ai.provider.BaseLLMProvider
+import com.shanfuchun.courtassistant.ai.provider.ClaudeProvider
+import com.shanfuchun.courtassistant.ai.provider.GeminiProvider
+import com.shanfuchun.courtassistant.ai.provider.MistralProvider
+import com.shanfuchun.courtassistant.ai.provider.OpenAIProvider
+import com.shanfuchun.courtassistant.ai.provider.QwenProvider
+import com.shanfuchun.courtassistant.ai.provider.WenxinProvider
+import com.shanfuchun.courtassistant.ai.provider.ZhipuProvider
+import com.shanfuchun.courtassistant.ai.repository.LLMConfigRepository
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.async
+import kotlinx.coroutines.awaitAll
+import kotlinx.coroutines.coroutineScope
+import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.withContext
+import kotlinx.coroutines.withTimeout
+import kotlin.time.Duration.Companion.seconds
+import kotlin.time.toDuration
+
+/**
+ * LLM 并行调用编排器
+ *
+ * 负责同时调用多个已配置的 LLM 提供商，并从返回结果中选择最优的
+ */
+class LLMOrchestrator(
+    private val configRepository: LLMConfigRepository
+) {
+    private val comparator = ResultComparator()
+
+    /**
+     * 并行抽取传票信息
+     * @param pdfText PDF 提取的文本
+     * @param ocrText OCR 识别的文本（可选）
+     * @param timeout 超时时间（秒）
+     * @return 最优抽取结果
+     */
+    suspend fun extractSummonsParallel(
+        pdfText: String,
+        ocrText: String? = null,
+        timeout: Long = 30
+    ): LLMResult? = coroutineScope {
+        val providers = createProviders()
+        if (providers.isEmpty()) return@coroutineScope null
+
+        val results = providers.map { provider ->
+            async(Dispatchers.IO) {
+                val startTime = System.currentTimeMillis()
+                try {
+                    withTimeout(timeout.seconds) {
+                        val extraction = provider.extractFromPdf(pdfText, ocrText)
+                        val latency = System.currentTimeMillis() - startTime
+                        LLMResult.success(
+                            provider = provider.getProviderName(),
+                            response = extraction.getOrNull() ?: SummonsExtraction(),
+                            latency = latency
+                        )
+                    }
+                } catch (e: Exception) {
+                    LLMResult.failure(
+                        provider = provider.getProviderName(),
+                        error = e
+                    )
+                }
+            }
+        }.awaitAll()
+
+        comparator.selectBest(results)
+    }
+
+    /**
+     * 并行从短信抽取信息
+     * @param smsBody 短信内容
+     * @param timeout 超时时间（秒）
+     * @return 最优抽取结果
+     */
+    suspend fun extractFromSmsParallel(
+        smsBody: String,
+        timeout: Long = 30
+    ): LLMResult? = coroutineScope {
+        val providers = createProviders()
+        if (providers.isEmpty()) return@coroutineScope null
+
+        val results = providers.map { provider ->
+            async(Dispatchers.IO) {
+                val startTime = System.currentTimeMillis()
+                try {
+                    withTimeout(timeout.seconds) {
+                        val extraction = provider.extractFromSms(smsBody)
+                        val latency = System.currentTimeMillis() - startTime
+                        LLMResult.success(
+                            provider = provider.getProviderName(),
+                            response = extraction.getOrNull() ?: SummonsExtraction(),
+                            latency = latency
+                        )
+                    }
+                } catch (e: Exception) {
+                    LLMResult.failure(
+                        provider = provider.getProviderName(),
+                        error = e
+                    )
+                }
+            }
+        }.awaitAll()
+
+        comparator.selectBest(results)
+    }
+
+    /**
+     * 竞速模式：返回第一个成功的结果
+     * @param pdfText PDF 提取的文本
+     * @param ocrText OCR 识别的文本（可选）
+     * @param timeout 超时时间（秒）
+     * @return 第一个成功的结果
+     */
+    suspend fun extractSummonsRace(
+        pdfText: String,
+        ocrText: String? = null,
+        timeout: Long = 30
+    ): LLMResult? = coroutineScope {
+        val providers = createProviders()
+        if (providers.isEmpty()) return@coroutineScope null
+
+        val deferred = providers.map { provider ->
+            async(Dispatchers.IO) {
+                try {
+                    withTimeout(timeout.seconds) {
+                        provider.extractFromPdf(pdfText, ocrText)
+                    }
+                } catch (e: Exception) {
+                    Result.failure<SummonsExtraction>(e)
+                }
+            }
+        }
+
+        // 等待第一个成功的结果
+        for (d in deferred) {
+            val result = d.await()
+            if (result.isSuccess && result.getOrNull()?.isValid() == true) {
+                return@coroutineScope LLMResult.success(
+                    provider = "Race Winner",
+                    response = result.getOrNull()!!,
+                    latency = 0
+                )
+            }
+        }
+
+        // 如果没有成功的，返回 null
+        null
+    }
+
+    /**
+     * 根据配置创建所有已启用的 Provider
+     */
+    private suspend fun createProviders(): List<BaseLLMProvider> = withContext(Dispatchers.IO) {
+        val providers = mutableListOf<BaseLLMProvider>()
+
+        for (providerType in LLMProvider.getAllProviders()) {
+            val config = configRepository.getConfig(providerType).first()
+            if (!config.enabled || config.apiKey.isBlank()) {
+                continue
+            }
+
+            val provider = when (providerType) {
+                LLMProvider.WENXIN -> {
+                    if (config.secretKey.isNullOrBlank()) continue
+                    WenxinProvider(
+                        apiKey = config.apiKey,
+                        secretKey = config.secretKey,
+                        enabled = config.enabled
+                    )
+                }
+                LLMProvider.QWEN -> QwenProvider(
+                    apiKey = config.apiKey,
+                    enabled = config.enabled
+                )
+                LLMProvider.ZHIPU -> ZhipuProvider(
+                    apiKey = config.apiKey,
+                    enabled = config.enabled
+                )
+                LLMProvider.OPENAI -> OpenAIProvider(
+                    apiKey = config.apiKey,
+                    enabled = config.enabled
+                )
+                LLMProvider.CLAUDE -> ClaudeProvider(
+                    apiKey = config.apiKey,
+                    enabled = config.enabled
+                )
+                LLMProvider.GEMINI -> GeminiProvider(
+                    apiKey = config.apiKey,
+                    enabled = config.enabled
+                )
+                LLMProvider.MISTRAL -> MistralProvider(
+                    apiKey = config.apiKey,
+                    enabled = config.enabled
+                )
+            }
+
+            providers.add(provider)
+        }
+
+        providers
+    }
+
+    /**
+     * 检查是否有任何已配置的提供商
+     */
+    suspend fun hasConfiguredProvider(): Boolean {
+        return configRepository.hasAnyConfiguredProvider().first()
+    }
+
+    /**
+     * 获取已启用的提供商列表
+     */
+    suspend fun getEnabledProviders(): List<LLMProvider> {
+        return configRepository.getEnabledProviders().first()
+    }
+
+    companion object {
+        @Volatile
+        private var INSTANCE: LLMOrchestrator? = null
+
+        fun getInstance(configRepository: LLMConfigRepository): LLMOrchestrator {
+            return INSTANCE ?: synchronized(this) {
+                INSTANCE ?: LLMOrchestrator(configRepository).also { INSTANCE = it }
+            }
+        }
+    }
+}

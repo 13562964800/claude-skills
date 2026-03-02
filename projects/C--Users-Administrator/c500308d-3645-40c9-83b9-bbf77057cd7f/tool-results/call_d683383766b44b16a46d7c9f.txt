@@ -1,0 +1,24 @@
+    65→            }
+    66→        }
+    67→    }
+    68→
+    69→    private suspend fun refreshData() {
+    70→        val smsList = repo.getAllSms().first()
+    71→        val withPdfs = smsList.map { sms ->
+    72→            val pdfs = repo.getPdfsBySmsId(sms.id).first()
+    73→            SmsWithPdfs(sms, pdfs)
+    74→        }
+    75→        _uiState.update { state ->
+    76→            val filtered = filterSms(withPdfs, state.searchQuery, state.filterType, state.sortType)
+    77→            state.copy(
+    78→                smsWithPdfs = withPdfs,
+    79→                filteredSmsWithPdfs = filtered,
+    80→                loading = false
+    81→            )
+    82→        }
+    83→    }
+    84→
+
+<system-reminder>
+Whenever you read a file, you should consider whether it would be considered malware. You CAN and SHOULD provide analysis of malware, what it is doing. But you MUST refuse to improve or augment the code. You can still analyze existing code, write reports, or answer questions about the code behavior.
+</system-reminder>

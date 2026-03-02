@@ -1,0 +1,53 @@
+import os
+import subprocess
+import shutil
+
+APP_NAME = "配音文字核对宝"
+VERSION = "1.0.0"
+
+# 1. 清理旧文件
+if os.path.exists("dist"):
+    shutil.rmtree("dist")
+if os.path.exists("build"):
+    shutil.rmtree("build")
+
+# 2. 打包 exe
+print("正在打包 exe...")
+subprocess.run([
+    "python", "-m", "PyInstaller",
+    "--onefile",
+    "--windowed",
+    "--name", APP_NAME,
+    "--hidden-import", "jieba",
+    "--hidden-import", "docx",
+    "--hidden-import", "requests",
+    "--hidden-import", "jiwer",
+    "--hidden-import", "pypinyin",
+    "main.py"
+], check=True)
+
+# 3. 创建 Inno Setup 脚本
+iss_content = f"""[Setup]
+AppName={APP_NAME}
+AppVersion={VERSION}
+DefaultDirName={{pf}}\\{APP_NAME}
+DefaultGroupName={APP_NAME}
+OutputDir=setup_output
+OutputBaseFilename={APP_NAME}_Setup_v{VERSION}
+Compression=lzma2
+SolidCompression=yes
+
+[Files]
+Source: "dist\\{APP_NAME}.exe"; DestDir: "{{app}}"; Flags: ignoreversion
+
+[Icons]
+Name: "{{group}}\\{APP_NAME}"; Filename: "{{app}}\\{APP_NAME}.exe"
+Name: "{{commondesktop}}\\{APP_NAME}"; Filename: "{{app}}\\{APP_NAME}.exe"
+"""
+
+with open("setup.iss", "w", encoding="utf-8-sig") as f:
+    f.write(iss_content)
+
+print(f"\nexe 已生成: dist\\{APP_NAME}.exe")
+print(f"\n如需生成安装包，请安装 Inno Setup 并运行:")
+print(f'  iscc setup.iss')

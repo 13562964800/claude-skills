@@ -1,0 +1,87 @@
+package com.court.assistant.sms
+
+import java.text.SimpleDateFormat
+import java.util.*
+
+data class ParsedSms(
+    val caseNumber: String?,
+    val courtName: String?,
+    val hearingTime: Long?,
+    val partyNames: String?,
+    val webUrl: String?
+)
+
+class SmsParser {
+    // 案号: （2024）鲁1312民初1324号
+    private val caseNumberPattern = Regex("[（(]\\d{4}[）)][^\\s，。,\\.]+号")
+    // 法院名称: 【xxx法院】
+    private val courtPattern = Regex("【(.+?法院[）】]?)")
+    // 当事人: 】xxx你好 or 】xxx，你好
+    private val partyPattern = Regex("】(\\S+?)(?:你好|，你好|,你好)")
+    // URL
+    private val urlPattern = Regex("https?://[^\\s<>\"]+")
+    // 开庭时间 - 多种格式
+    private val datePatterns = listOf(
+        // 2024年12月5日 上午9时30分 / 下午2时30分
+        Regex("(\\d{4})年(\\d{1,2})月(\\d{1,2})日[\\s]*[（(]?(?:上午|下午|AM|PM)?[）)]?[\\s]*(\\d{1,2})[时点:：](\\d{0,2})[分]?"),
+        Regex("(\\d{4})-(\\d{1,2})-(\\d{1,2})[\\s]+(\\d{1,2}):(\\d{2})"),
+        Regex("(\\d{4})/(\\d{1,2})/(\\d{1,2})[\\s]+(\\d{1,2}):(\\d{2})")
+    )
+    // 用于检测下午时间
+    private val pmPattern = Regex("下午|PM")
+
+    fun parse(body: String): ParsedSms {
+        val caseNumber = caseNumberPattern.find(body)?.value
+        val courtFull = courtPattern.find(body)?.groupValues?.getOrNull(1)
+        val courtName = courtFull?.let { simplifyCourtName(it) }
+        val partyNames = partyPattern.find(body)?.groupValues?.getOrNull(1)
+        val webUrl = urlPattern.find(body)?.value
+        val hearingTime = parseHearingTime(body)
+
+        return ParsedSms(
+            caseNumber = caseNumber,
+            courtName = courtName,
+            hearingTime = hearingTime,
+            partyNames = partyNames,
+            webUrl = webUrl
+        )
+    }
+
+    private fun simplifyCourtName(name: String): String {
+        // 去掉省市前缀，保留区+法院
+        // "临沂市河东区人民法院" -> "河东区法院"
+        val cleaned = name.replace("】", "").replace("【", "")
+        val match = Regex("(\\S+?[区县市旗])人民法院").find(cleaned)
+        if (match != null) {
+            val district = match.groupValues[1]
+            // 取最后一个行政区划
+            val parts = Regex("[省市州盟]").split(district)
+            return "${parts.last()}法院"
+        }
+        return cleaned.replace("人民", "")
+    }
+
+    private fun parseHearingTime(text: String): Long? {
+        for (pattern in datePatterns) {
+            val match = pattern.find(text) ?: continue
+            try {
+                val year = match.groupValues[1].toInt()
+                val month = match.groupValues[2].toInt()
+                val day = match.groupValues[3].toInt()
+                var hour = match.groupValues[4].toInt()
+                val minute = match.groupValues.getOrNull(5)?.takeIf { it.isNotEmpty() }?.toInt() ?: 0
+                // 检查匹配位置前面是否有"下午/PM"，需要+12小时
+                val prefix = text.substring(0, match.range.first + match.value.length)
+                if (hour < 12 && pmPattern.containsMatchIn(prefix)) {
+                    hour += 12
+                }
+                val cal = Calendar.getInstance().apply {
+                    set(year, month - 1, day, hour, minute, 0)
+                    set(Calendar.MILLISECOND, 0)
+                }
+                return cal.timeInMillis
+            } catch (_: Exception) { continue }
+        }
+        return null
+    }
+}

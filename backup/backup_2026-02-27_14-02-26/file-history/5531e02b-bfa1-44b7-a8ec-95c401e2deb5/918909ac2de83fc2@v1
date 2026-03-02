@@ -1,0 +1,148 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <title>多语言视频学习</title>
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <div class="aurora-bg">
+        <div class="aurora-blob blob-1"></div>
+        <div class="aurora-blob blob-2"></div>
+        <div class="aurora-blob blob-3"></div>
+    </div>
+
+    <div class="container">
+        <div class="header">
+            <h1 class="title">多语言视频学习</h1>
+            <p class="subtitle">视频字幕 · 点词翻译 · AI释义 · 听写训练</p>
+        </div>
+
+        <!-- 顶部控制栏 -->
+        <div class="control-bar glass-card">
+            <div class="input-row">
+                <input type="text" id="urlInput" placeholder="粘贴 YouTube 视频链接..." class="url-input">
+                <button class="paste-btn" id="pasteBtn">📋</button>
+                <select id="langSelect" class="lang-select"></select>
+                <button class="btn btn-primary" id="downloadBtn">下载</button>
+                <button class="btn btn-small" id="aiSettingsBtn">⚙ AI</button>
+                <select id="fontSizeSelect" class="lang-select" title="字号">
+                    <option value="small">小字号</option>
+                    <option value="medium" selected>中字号</option>
+                    <option value="large">大字号</option>
+                    <option value="xlarge">特大字号</option>
+                </select>
+            </div>
+            <div class="progress-row" id="progressRow" style="display:none">
+                <div class="progress-bar"><div class="progress-fill" id="progressFill"></div></div>
+                <span class="status-text" id="statusText">准备中...</span>
+            </div>
+            <div class="video-list-row" id="videoListRow">
+                <label class="label">已下载:</label>
+                <select id="videoSelect" class="lang-select video-select"><option value="">-- 选择视频 --</option></select>
+            </div>
+        </div>
+
+        <!-- 视频播放区 -->
+        <div class="player-area glass-card" id="playerArea" style="display:none">
+            <video id="videoPlayer" controls></video>
+
+            <div class="mode-bar">
+                <button class="mode-btn active" data-mode="learn" id="learnModeBtn">学习模式</button>
+                <button class="mode-btn" data-mode="dictation" id="dictationModeBtn">听写模式</button>
+            </div>
+
+            <!-- 字幕显示区 (学习模式) -->
+            <div class="subtitle-area" id="subtitleArea">
+                <div class="subtitle-text" id="subtitleText">等待播放...</div>
+                <button class="btn btn-ai" id="aiAnalyzeBtn" style="display:none">🤖 AI分析此句</button>
+                <!-- 音形义例句四位一体内联显示 -->
+                <div class="word-inline-panel" id="wordInlinePanel" style="display:none">
+                    <div class="word-card">
+                        <div class="word-card-left">
+                            <div class="word-card-word" id="inlineWord"></div>
+                            <div class="word-card-phonetic" id="inlinePhonetic"></div>
+                            <button class="word-card-speak" id="inlineSpeak">🔊 发音</button>
+                        </div>
+                        <div class="word-card-right">
+                            <div class="word-card-trans" id="inlineTranslation"></div>
+                        </div>
+                    </div>
+                    <div class="word-card-sections">
+                        <div class="word-card-section" id="inlineDefsSection" style="display:none">
+                            <div class="word-card-section-title">📖 释义</div>
+                            <div class="word-card-section-body" id="inlineDefs"></div>
+                        </div>
+                        <div class="word-card-section" id="inlineExamplesSection" style="display:none">
+                            <div class="word-card-section-title">💬 例句</div>
+                            <div class="word-card-section-body" id="inlineExamples"></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 字幕滚动列表 -->
+            <div class="subtitle-list" id="subtitleList"></div>
+
+            <!-- AI分析结果 -->
+            <div class="ai-result" id="aiResult" style="display:none"></div>
+
+            <!-- 听写区 -->
+            <div class="dictation-area" id="dictationArea" style="display:none">
+                <div class="dictation-sentence" id="dictationSentence"></div>
+                <div class="dictation-controls">
+                    <button class="btn btn-small" id="speakBtn">🔊 朗读</button>
+                    <button class="btn btn-small" id="checkBtn">✓ 检查</button>
+                    <button class="btn btn-small" id="nextBtn">→ 下一句</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 单词弹窗 -->
+    <div class="word-popup" id="wordPopup" style="display:none">
+        <div class="popup-header">
+            <span class="popup-word" id="popupWord"></span>
+            <span class="popup-phonetic" id="popupPhonetic"></span>
+            <button class="popup-speak" id="popupSpeak">🔊</button>
+            <button class="popup-close" id="popupClose">✕</button>
+        </div>
+        <div class="popup-translation" id="popupTranslation">查询中...</div>
+        <div class="popup-examples" id="popupExamples"></div>
+        <button class="btn btn-ai btn-ai-small" id="popupAiBtn">🤖 AI智能释义</button>
+        <div class="popup-ai-result" id="popupAiResult" style="display:none"></div>
+    </div>
+
+    <!-- AI设置弹窗 -->
+    <div class="modal" id="aiModal">
+        <div class="modal-content glass-card">
+            <div class="modal-header">
+                <h2>⚙ AI 设置</h2>
+                <button class="popup-close" id="aiModalClose">✕</button>
+            </div>
+            <div class="modal-body">
+                <div class="form-group">
+                    <label class="label">AI 服务商</label>
+                    <select id="aiProvider" class="lang-select" style="width:100%"></select>
+                </div>
+                <div class="form-group">
+                    <label class="label">API Key</label>
+                    <input type="password" id="aiApiKey" class="url-input" placeholder="输入你的 API Key" style="width:100%">
+                </div>
+                <div class="form-group">
+                    <label class="label">Base URL (可选，留空用默认)</label>
+                    <input type="text" id="aiBaseUrl" class="url-input" placeholder="自定义 Base URL" style="width:100%">
+                </div>
+                <div class="form-group">
+                    <label class="label">模型名称 (可选，留空用默认)</label>
+                    <input type="text" id="aiModel" class="url-input" placeholder="自定义模型名" style="width:100%">
+                </div>
+                <div class="form-group" id="aiPresetInfo" style="font-size:12px;color:rgba(255,255,255,0.4)"></div>
+                <button class="btn btn-primary" id="aiSaveBtn" style="width:100%;margin-top:10px">保存</button>
+            </div>
+        </div>
+    </div>
+
+    <script src="renderer.js"></script>
+</body>
+</html>

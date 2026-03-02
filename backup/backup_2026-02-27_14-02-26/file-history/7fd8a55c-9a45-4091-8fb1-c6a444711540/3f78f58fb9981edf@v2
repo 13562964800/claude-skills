@@ -1,0 +1,56 @@
+import json, os
+
+CONFIG_DIR = os.path.join(os.path.expanduser('~'), '.voice-doc-compare')
+CONFIG_FILE = os.path.join(CONFIG_DIR, 'config.json')
+
+ASR_PROVIDERS = {
+    'aliyun': {'name': '阿里云语音识别', 'region': 'cn', 'fields': ['key', 'secret', 'appKey']},
+    'xfyun': {'name': '讯飞语音识别', 'region': 'cn', 'fields': ['key', 'secret', 'appKey']},
+    'tencent': {'name': '腾讯云语音识别', 'region': 'cn', 'fields': ['key', 'secret']},
+    'baidu': {'name': '百度语音识别', 'region': 'cn', 'fields': ['key', 'secret']},
+    'funasr': {'name': 'FunASR(本地)', 'region': 'cn', 'fields': []},
+    'openai_whisper': {'name': 'OpenAI Whisper', 'region': 'intl', 'fields': ['key']},
+    'google': {'name': 'Google Speech', 'region': 'intl', 'fields': ['key']},
+    'azure': {'name': 'Azure语音识别', 'region': 'intl', 'fields': ['key', 'region']},
+}
+
+LLM_PROVIDERS = {
+    'zhipu': {'name': '智谱GLM', 'region': 'cn', 'endpoint': 'https://open.bigmodel.cn/api/paas/v4/chat/completions', 'default_model': 'glm-4-flash'},
+    'deepseek': {'name': 'DeepSeek', 'region': 'cn', 'endpoint': 'https://api.deepseek.com/v1/chat/completions', 'default_model': 'deepseek-chat'},
+    'qwen': {'name': '通义千问', 'region': 'cn', 'endpoint': 'https://dashscope.aliyuncs.com/compatible-mode/v1/chat/completions', 'default_model': 'qwen-turbo'},
+    'doubao': {'name': '豆包(字节)', 'region': 'cn', 'endpoint': 'https://ark.cn-beijing.volces.com/api/v3/chat/completions', 'default_model': 'doubao-pro-4k'},
+    'openai': {'name': 'OpenAI', 'region': 'intl', 'endpoint': 'https://api.openai.com/v1/chat/completions', 'default_model': 'gpt-4o-mini'},
+    'claude': {'name': 'Claude', 'region': 'intl', 'endpoint': 'https://api.anthropic.com/v1/messages', 'default_model': 'claude-sonnet-4-20250514'},
+    'gemini': {'name': 'Gemini', 'region': 'intl', 'endpoint': 'https://generativelanguage.googleapis.com/v1beta/chat/completions', 'default_model': 'gemini-2.0-flash'},
+    'mistral': {'name': 'Mistral', 'region': 'intl', 'endpoint': 'https://api.mistral.ai/v1/chat/completions', 'default_model': 'mistral-small-latest'},
+}
+
+DEFAULT_CONFIG = {
+    'asr_provider': 'funasr',
+    'llm_provider': 'zhipu',
+    'asr_keys': {},
+    'llm_keys': {},
+}
+
+def load_config():
+    if os.path.exists(CONFIG_FILE):
+        try:
+            with open(CONFIG_FILE, 'r', encoding='utf-8') as f:
+                return {**DEFAULT_CONFIG, **json.load(f)}
+        except Exception:
+            pass
+    return dict(DEFAULT_CONFIG)
+
+def save_config(config):
+    os.makedirs(CONFIG_DIR, exist_ok=True)
+    with open(CONFIG_FILE, 'w', encoding='utf-8') as f:
+        json.dump(config, f, ensure_ascii=False, indent=2)
+
+def is_valid(config):
+    pid = config['asr_provider']
+    if pid == 'funasr':
+        asr_ok = True
+    else:
+        asr_ok = bool(config.get('asr_keys', {}).get(pid, {}).get('key'))
+    llm_ok = bool(config.get('llm_keys', {}).get(config['llm_provider'], {}).get('key'))
+    return asr_ok and llm_ok

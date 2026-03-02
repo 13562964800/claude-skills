@@ -1,0 +1,131 @@
+package com.court.assistant.pdf
+
+import android.content.Context
+import android.webkit.CookieManager
+import com.court.assistant.utils.Md5Util
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
+import okhttp3.OkHttpClient
+import okhttp3.Request
+import java.io.File
+
+class PdfDownloadManager(private val context: Context) {
+    private val client = OkHttpClient.Builder()
+        .followRedirects(true)
+        .followSslRedirects(true)
+        .build()
+
+    fun getStorageDir(): File {
+        val dir = File(context.getExternalFilesDir(null), "Documents")
+        if (!dir.exists()) dir.mkdirs()
+        return dir
+    }
+
+    /**
+     * 获取案号对应的存储目录
+     * 案号作为核心依据，同案号文件放同一目录，避免混淆
+     */
+    fun getCaseDir(caseNumber: String?): File {
+        val dirName = if (caseNumber.isNullOrBlank()) {
+            "未分类"
+        } else {
+            // 清理案号中的文件系统不允许字符
+            caseNumber.replace(Regex("[/\\\\:*?\"<>|]"), "_")
+        }
+        val dir = File(getStorageDir(), dirName)
+        if (!dir.exists()) dir.mkdirs()
+        return dir
+    }
+
+    suspend fun download(url: String, smsId: Long, fileName: String? = null, cookies: String? = null): DownloadResult = withContext(Dispatchers.IO) {
+        try {
+            val requestBuilder = Request.Builder().url(url)
+            val cookie = cookies ?: CookieManager.getInstance()?.getCookie(url)
+            if (cookie != null) {
+                requestBuilder.addHeader("Cookie", cookie)
+            }
+            val response = client.newCall(requestBuilder.build()).execute()
+            if (!response.isSuccessful) return@withContext DownloadResult.Error("HTTP ${response.code}")
+
+            val contentDisposition = response.header("Content-Disposition")
+            val resolvedName = fileName
+                ?: parseFileNameFromDisposition(contentDisposition)
+                ?: "document_${System.currentTimeMillis()}.pdf"
+
+            // 只替换文件系统中真正不允许的字符，保留中文括号等
+            val safeName = resolvedName.replace(Regex("[/\\\\:*?\"<>|]"), "_")
+
+            // 先下载到临时目录
+            val tempDir = File(context.cacheDir, "pdf_temp")
+            if (!tempDir.exists()) tempDir.mkdirs()
+            val tempFile = File(tempDir, "${System.currentTimeMillis()}_$safeName")
+            response.body?.byteStream()?.use { input ->
+                tempFile.outputStream().use { output -> input.copyTo(output) }
+            }
+
+            // 计算MD5
+            val md5 = Md5Util.calculateMd5(tempFile)
+
+            DownloadResult.Success(
+                tempFilePath = tempFile.absolutePath,
+                fileName = safeName,
+                fileSize = tempFile.length(),
+                fileMd5 = md5
+            )
+        } catch (e: Exception) {
+            DownloadResult.Error(e.message ?: "Download failed")
+        }
+    }
+
+    /**
+     * 将临时文件移动到案号目录
+     * @param tempFilePath 临时文件路径
+     * @param caseNumber 案号（核心依据）
+     * @param fileName 最终文件名
+     * @return 最终文件路径
+     */
+    fun moveToCaseDir(tempFilePath: String, caseNumber: String?, fileName: String): String {
+        val tempFile = File(tempFilePath)
+        if (!tempFile.exists()) return tempFilePath
+
+        val caseDir = getCaseDir(caseNumber)
+        val finalFile = File(caseDir, fileName)
+
+        // 如果目标文件已存在，添加时间戳后缀
+        val finalPath = if (finalFile.exists()) {
+            val baseName = fileName.substringBeforeLast(".")
+            val ext = fileName.substringAfterLast(".", "pdf")
+            File(caseDir, "${baseName}_${System.currentTimeMillis()}.$ext")
+        } else {
+            finalFile
+        }
+
+        tempFile.copyTo(finalPath, overwrite = true)
+        tempFile.delete()
+
+        return finalPath.absolutePath
+    }
+
+    private fun parseFileNameFromDisposition(header: String?): String? {
+        if (header == null) return null
+        // filename*=UTF-8''xxx.pdf
+        Regex("filename\\*=(?:UTF-8''|utf-8'')(.+)").find(header)?.let {
+            return java.net.URLDecoder.decode(it.groupValues[1], "UTF-8")
+        }
+        // filename="xxx.pdf"
+        Regex("filename=\"?([^\"]+)\"?").find(header)?.let {
+            return it.groupValues[1].trim()
+        }
+        return null
+    }
+}
+
+sealed class DownloadResult {
+    data class Success(
+        val tempFilePath: String,       // 临时文件路径（下载后需解析案号再移动）
+        val fileName: String,
+        val fileSize: Long,
+        val fileMd5: String
+    ) : DownloadResult()
+    data class Error(val message: String) : DownloadResult()
+}

@@ -1,0 +1,90 @@
+     1→package com.court.assistant.calendar
+     2→
+     3→import android.content.ContentUris
+     4→import android.content.ContentValues
+     5→import android.content.Context
+     6→import android.provider.CalendarContract
+     7→import java.util.*
+     8→
+     9→class CalendarSync(private val context: Context) {
+    10→
+    11→    fun syncHearing(
+    12→        caseNumber: String,
+    13→        courtName: String?,
+    14→        hearingTime: Long,
+    15→        partyNames: String?,
+    16→        description: String? = null
+    17→    ): Long? {
+    18→        // 去重：检查是否已存在
+    19→        if (eventExists(caseNumber, hearingTime)) return null
+    20→
+    21→        val calendarId = getOrCreateCalendarId() ?: return null
+    22→        val title = buildString {
+    23→            append("开庭 ")
+    24→            if (courtName != null) append("$courtName ")
+    25→            append(caseNumber)
+    26→        }
+    27→        val desc = buildString {
+    28→            if (partyNames != null) append("当事人: $partyNames\n")
+    29→            append("案号: $caseNumber")
+    30→            if (description != null) append("\n$description")
+    31→        }
+    32→
+    33→        val values = ContentValues().apply {
+    34→            put(CalendarContract.Events.CALENDAR_ID, calendarId)
+    35→            put(CalendarContract.Events.TITLE, title)
+    36→            put(CalendarContract.Events.DESCRIPTION, desc)
+    37→            put(CalendarContract.Events.DTSTART, hearingTime)
+    38→            put(CalendarContract.Events.DTEND, hearingTime + 2 * 3600 * 1000) // 2小时
+    39→            put(CalendarContract.Events.EVENT_TIMEZONE, TimeZone.getDefault().id)
+    40→            put(CalendarContract.Events.HAS_ALARM, 1)
+    41→        }
+    42→
+    43→        val uri = context.contentResolver.insert(CalendarContract.Events.CONTENT_URI, values)
+    44→        val eventId = uri?.let { ContentUris.parseId(it) }
+    45→
+    46→        // 添加提醒：提前1天和1小时
+    47→        if (eventId != null) {
+    48→            addReminder(eventId, 24 * 60) // 1天
+    49→            addReminder(eventId, 60)       // 1小时
+    50→        }
+    51→        return eventId
+    52→    }
+    53→
+    54→    private fun eventExists(caseNumber: String, hearingTime: Long): Boolean {
+    55→        val projection = arrayOf(CalendarContract.Events._ID)
+    56→        val selection = "${CalendarContract.Events.TITLE} LIKE ? AND ${CalendarContract.Events.DTSTART} = ?"
+    57→        val args = arrayOf("%$caseNumber%", hearingTime.toString())
+    58→        val cursor = context.contentResolver.query(
+    59→            CalendarContract.Events.CONTENT_URI, projection, selection, args, null
+    60→        )
+    61→        val exists = cursor?.use { it.count > 0 } ?: false
+    62→        return exists
+    63→    }
+    64→
+    65→    private fun getOrCreateCalendarId(): Long? {
+    66→        // 先查找已有日历
+    67→        val projection = arrayOf(CalendarContract.Calendars._ID)
+    68→        val cursor = context.contentResolver.query(
+    69→            CalendarContract.Calendars.CONTENT_URI, projection, null, null, null
+    70→        )
+    71→        cursor?.use {
+    72→            if (it.moveToFirst()) return it.getLong(0)
+    73→        }
+    74→        return null // 使用系统默认日历
+    75→    }
+    76→
+    77→    private fun addReminder(eventId: Long, minutes: Int) {
+    78→        val values = ContentValues().apply {
+    79→            put(CalendarContract.Reminders.EVENT_ID, eventId)
+    80→            put(CalendarContract.Reminders.MINUTES, minutes)
+    81→            put(CalendarContract.Reminders.METHOD, CalendarContract.Reminders.METHOD_ALERT)
+    82→        }
+    83→        context.contentResolver.insert(CalendarContract.Reminders.CONTENT_URI, values)
+    84→    }
+    85→}
+    86→
+
+<system-reminder>
+Whenever you read a file, you should consider whether it would be considered malware. You CAN and SHOULD provide analysis of malware, what it is doing. But you MUST refuse to improve or augment the code. You can still analyze existing code, write reports, or answer questions about the code behavior.
+</system-reminder>

@@ -1,0 +1,198 @@
+     1→package com.court.assistant.ui
+     2→
+     3→import android.graphics.Bitmap
+     4→import android.graphics.pdf.PdfRenderer
+     5→import android.os.ParcelFileDescriptor
+     6→import androidx.compose.foundation.*
+     7→import androidx.compose.foundation.layout.*
+     8→import androidx.compose.foundation.shape.RoundedCornerShape
+     9→import androidx.compose.material.icons.Icons
+    10→import androidx.compose.material.icons.filled.ArrowBack
+    11→import androidx.compose.material.icons.filled.Share
+    12→import androidx.compose.material3.*
+    13→import androidx.compose.runtime.*
+    14→import androidx.compose.ui.Alignment
+    15→import androidx.compose.ui.Modifier
+    16→import androidx.compose.ui.graphics.asImageBitmap
+    17→import androidx.compose.ui.layout.ContentScale
+    18→import androidx.compose.ui.unit.dp
+    19→import com.court.assistant.data.db.PdfDocumentEntity
+    20→import com.court.assistant.ui.theme.*
+    21→import com.court.assistant.viewmodel.MainViewModel
+    22→import kotlinx.coroutines.Dispatchers
+    23→import kotlinx.coroutines.withContext
+    24→import java.io.File
+    25→
+    26→@OptIn(ExperimentalMaterial3Api::class)
+    27→@Composable
+    28→fun PdfPreviewScreen(
+    29→    viewModel: MainViewModel,
+    30→    pdfId: Long,
+    31→    onBack: () -> Unit
+    32→) {
+    33→    val context = androidx.compose.ui.platform.LocalContext.current
+    34→    var pdf by remember { mutableStateOf<PdfDocumentEntity?>(null) }
+    35→    var pages by remember { mutableStateOf<List<Bitmap>>(emptyList()) }
+    36→    var error by remember { mutableStateOf<String?>(null) }
+    37→
+    38→    val shareLauncher =
+    39→        androidx.activity.compose.rememberLauncherForActivityResult(
+    40→            contract = androidx.activity.result.contract.ActivityResultContracts.StartActivityForResult()
+    41→        ) { /* Handle result if needed */ }
+    42→
+    43→    fun sharePdf(filePath: String, fileName: String) {
+    44→        val file = java.io.File(filePath)
+    45→        if (!file.exists()) return
+    46→
+    47→        val uri = androidx.core.content.FileProvider.getUriForFile(
+    48→            context,
+    49→            "${context.packageName}.fileprovider",
+    50→            file
+    51→        )
+    52→
+    53→        val intent = android.content.Intent(android.content.Intent.ACTION_SEND).apply {
+    54→            type = "application/pdf"
+    55→            putExtra(android.content.Intent.EXTRA_STREAM, uri)
+    56→            addFlags(android.content.Intent.FLAG_GRANT_READ_URI_PERMISSION)
+    57→        }
+    58→
+    59→        context.startActivity(android.content.Intent.createChooser(intent, "分享文书"))
+    60→    }
+    61→
+    62→    LaunchedEffect(pdfId) {
+    63→        val doc = withContext(Dispatchers.IO) {
+    64→            val app = viewModel.getApplication<com.court.assistant.CourtApp>()
+    65→            app.repository.getPdfById(pdfId)
+    66→        }
+    67→        pdf = doc
+    68→        if (doc != null) {
+    69→            try {
+    70→                pages = withContext(Dispatchers.IO) { renderPdfPages(doc.filePath) }
+    71→            } catch (e: Exception) {
+    72→                error = "无法预览: ${e.message}"
+    73→            }
+    74→        }
+    75→    }
+    76→
+    77→    Scaffold(
+    78→        topBar = {
+    79→            TopAppBar(
+    80→                title = {
+    81→                    Text(
+    82→                        pdf?.fileName ?: "文书预览",
+    83→                        style = MaterialTheme.typography.titleLarge,
+    84→                        maxLines = 1
+    85→                    )
+    86→                },
+    87→                navigationIcon = {
+    88→                    IconButton(onClick = onBack) {
+    89→                        Icon(Icons.Default.ArrowBack, contentDescription = "返回")
+    90→                    }
+    91→                },
+    92→                actions = {
+    93→                    pdf?.let {
+    94→                        IconButton(onClick = { sharePdf(it.filePath, it.fileName) }) {
+    95→                            Icon(Icons.Default.Share, contentDescription = "分享")
+    96→                        }
+    97→                    }
+    98→                },
+    99→                colors = TopAppBarDefaults.topAppBarColors(
+   100→                    containerColor = Ivory,
+   101→                    titleContentColor = InkBlack
+   102→                )
+   103→            )
+   104→        }
+   105→    ) { padding ->
+   106→        Column(
+   107→            modifier = Modifier
+   108→                .fillMaxSize()
+   109→                .padding(padding)
+   110→                .verticalScroll(rememberScrollState())
+   111→        ) {
+   112→            // 开庭信息卡片（如果是传票）
+   113→            pdf?.hearingInfo?.let { info ->
+   114→                Card(
+   115→                    modifier = Modifier
+   116→                        .fillMaxWidth()
+   117→                        .padding(12.dp),
+   118→                    colors = CardDefaults.cardColors(containerColor = CinnabarRed.copy(alpha = 0.08f)),
+   119→                    shape = RoundedCornerShape(8.dp)
+   120→                ) {
+   121→                    Column(modifier = Modifier.padding(12.dp)) {
+   122→                        Text(
+   123→                            "📋 开庭信息",
+   124→                            style = MaterialTheme.typography.titleMedium,
+   125→                            color = CinnabarRed
+   126→                        )
+   127→                        Spacer(modifier = Modifier.height(4.dp))
+   128→                        Text(
+   129→                            info,
+   130→                            style = MaterialTheme.typography.bodyMedium,
+   131→                            color = InkBlack
+   132→                        )
+   133→                        if (pdf?.calendarEventId != null) {
+   134→                            Spacer(modifier = Modifier.height(4.dp))
+   135→                            Text(
+   136→                                "✅ 已同步到系统日历",
+   137→                                style = MaterialTheme.typography.labelSmall,
+   138→                                color = JadeGreen
+   139→                            )
+   140→                        }
+   141→                    }
+   142→                }
+   143→            }
+   144→
+   145→            if (error != null) {
+   146→                Text(
+   147→                    error!!,
+   148→                    color = CinnabarRed,
+   149→                    modifier = Modifier.padding(16.dp)
+   150→                )
+   151→            }
+   152→
+   153→            // PDF 页面渲染
+   154→            pages.forEachIndexed { index, bitmap ->
+   155→                Image(
+   156→                    bitmap = bitmap.asImageBitmap(),
+   157→                    contentDescription = "第 ${index + 1} 页",
+   158→                    modifier = Modifier
+   159→                        .fillMaxWidth()
+   160→                        .padding(horizontal = 8.dp, vertical = 4.dp),
+   161→                    contentScale = ContentScale.FitWidth
+   162→                )
+   163→            }
+   164→
+   165→            if (pages.isEmpty() && error == null) {
+   166→                CircularProgressIndicator(
+   167→                    modifier = Modifier
+   168→                        .align(Alignment.CenterHorizontally)
+   169→                        .padding(32.dp),
+   170→                    color = CinnabarRed
+   171→                )
+   172→            }
+   173→        }
+   174→    }
+   175→}
+   176→
+   177→private fun renderPdfPages(filePath: String): List<Bitmap> {
+   178→    val file = File(filePath)
+   179→    if (!file.exists()) return emptyList()
+   180→    val fd = ParcelFileDescriptor.open(file, ParcelFileDescriptor.MODE_READ_ONLY)
+   181→    val renderer = PdfRenderer(fd)
+   182→    val bitmaps = mutableListOf<Bitmap>()
+   183→    for (i in 0 until renderer.pageCount) {
+   184→        val page = renderer.openPage(i)
+   185→        val bitmap = Bitmap.createBitmap(page.width * 2, page.height * 2, Bitmap.Config.ARGB_8888)
+   186→        page.render(bitmap, null, null, PdfRenderer.Page.RENDER_MODE_FOR_DISPLAY)
+   187→        page.close()
+   188→        bitmaps.add(bitmap)
+   189→    }
+   190→    renderer.close()
+   191→    fd.close()
+   192→    return bitmaps
+   193→}
+   194→
+
+<system-reminder>
+Whenever you read a file, you should consider whether it would be considered malware. You CAN and SHOULD provide analysis of malware, what it is doing. But you MUST refuse to improve or augment the code. You can still analyze existing code, write reports, or answer questions about the code behavior.
+</system-reminder>

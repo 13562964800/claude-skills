@@ -1,0 +1,53 @@
+package com.multilanglearner.ui.component
+
+import androidx.compose.foundation.layout.*
+import androidx.compose.material3.*
+import androidx.compose.runtime.*
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.unit.dp
+
+@Composable
+fun ThemeDialog(
+    onDismiss: () -> Unit,
+    onThemeSelected: (String) -> Unit,
+    onFontSizeSelected: (String) -> Unit
+) {
+    var selectedTheme by remember { mutableStateOf("aurora") }
+    var selectedFontSize by remember { mutableStateOf("medium") }
+
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text("主题与字号设置") },
+        text = {
+            Column {
+                Text("主题", style = MaterialTheme.typography.titleSmall)
+                Spacer(Modifier.height(8.dp))
+                listOf("aurora" to "极光暗色", "song" to "宋式美学", "system" to "跟随系统").forEach { (key, label) ->
+                    Row {
+                        RadioButton(selected = selectedTheme == key, onClick = { selectedTheme = key })
+                        Text(label, modifier = Modifier.padding(start = 8.dp))
+                    }
+                }
+
+                HorizontalDivider(modifier = Modifier.padding(vertical = 12.dp))
+
+                Text("字号", style = MaterialTheme.typography.titleSmall)
+                Spacer(Modifier.height(8.dp))
+                listOf("small" to "小字号", "medium" to "中字号", "large" to "大字号", "xlarge" to "特大字号").forEach { (key, label) ->
+                    Row {
+                        RadioButton(selected = selectedFontSize == key, onClick = { selectedFontSize = key })
+                        Text(label, modifier = Modifier.padding(start = 8.dp))
+                    }
+                }
+            }
+        },
+        confirmButton = {
+            TextButton(onClick = {
+                onThemeSelected(selectedTheme)
+                onFontSizeSelected(selectedFontSize)
+                onDismiss()
+            }) { Text("确定") }
+        },
+        dismissButton = { TextButton(onClick = onDismiss) { Text("取消") } }
+    )
+}

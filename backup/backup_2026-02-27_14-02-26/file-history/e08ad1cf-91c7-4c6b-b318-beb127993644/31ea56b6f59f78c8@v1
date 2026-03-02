@@ -1,0 +1,18 @@
+from rapidocr import RapidOCR
+
+
+class LocalOCR:
+    def __init__(self):
+        self._engine = None
+
+    def _get_engine(self):
+        if self._engine is None:
+            self._engine = RapidOCR()
+        return self._engine
+
+    def recognize(self, image_path):
+        engine = self._get_engine()
+        result = engine(image_path)
+        if not result or not result[0]:
+            return ""
+        return "\n".join(item[1] for item in result[0])

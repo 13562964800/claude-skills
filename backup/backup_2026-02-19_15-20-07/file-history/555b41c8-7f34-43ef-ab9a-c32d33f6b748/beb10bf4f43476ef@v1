@@ -1,0 +1,383 @@
+package com.shanfuchun.courtassistant.ui
+
+import android.annotation.SuppressLint
+import android.content.Context
+import android.os.Bundle
+import android.util.Log
+import android.webkit.*
+import android.widget.Toast
+import androidx.appcompat.app.AppCompatActivity
+import androidx.core.content.FileProvider
+import androidx.lifecycle.lifecycleScope
+import com.shanfuchun.courtassistant.App
+import com.shanfuchun.courtassistant.data.AppDatabase
+import com.shanfuchun.courtassistant.data.DocumentRecord
+import com.shanfuchun.courtassistant.service.PdfParser
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
+import okhttp3.OkHttpClient
+import okhttp3.Request
+import java.io.File
+import java.util.concurrent.TimeUnit
+
+/**
+ * PDF文档列表Activity
+ * 显示从网页发现的PDF文档，用户可以逐个下载
+ */
+class PdfListActivity : AppCompatActivity() {
+    private lateinit var webView: WebView
+    private val TAG = "CourtAssistant"
+    private val scope = lifecycleScope
+    private var smsId: Long = 0
+    private var sourceUrl: String = ""
+    private val db by lazy { (application as App).db }
+
+    // PDF文档列表
+    private val pdfList = mutableListOf<PdfItem>()
+    private var processedCount = 0
+
+    data class PdfItem(
+        val url: String,
+        val name: String,
+        var downloaded: Boolean = false,
+        var filePath: String = "",
+        var docId: Long = 0
+    )
+
+    private val client = OkHttpClient.Builder()
+        .followRedirects(true)
+        .connectTimeout(30, TimeUnit.SECONDS)
+        .readTimeout(60, TimeUnit.SECONDS)
+        .build()
+
+    @SuppressLint("SetJavaScriptEnabled")
+    override fun onCreate(savedInstanceState: Bundle?) {
+        super.onCreate(savedInstanceState)
+        setContentView(R.layout.activity_pdf_list)
+
+        webView = findViewById<WebView>(R.id.webView)
+        smsId = intent.getLongExtra("smsId", 0)
+        sourceUrl = intent.getStringExtra("url") ?: ""
+
+        Log.d(TAG, "PdfListActivity: smsId=$smsId url=$sourceUrl")
+
+        setupWebView()
+        loadPage()
+    }
+
+    private fun setupWebView() {
+        webView.settings.apply {
+            javaScriptEnabled = true
+            domStorageEnabled = true
+            allowFileAccess = true
+            mixedContentMode = WebSettings.MIXED_CONTENT_ALWAYS_ALLOW
+            userAgentString = "Mozilla/5.0 (Linux; Android 12) AppleWebKit/537.36 Chrome/120.0 Mobile Safari/537.36"
+        }
+
+        webView.addJavascriptInterface(PdfJsBridge(), "PdfBridge")
+
+        // 拦截PDF下载
+        webView.setDownloadListener { downloadUrl, _, _, _, _ ->
+            Log.d(TAG, "PDF download detected: $downloadUrl")
+            handlePdfDownload(downloadUrl)
+        }
+
+        webView.webViewClient = object : WebViewClient() {
+            override fun shouldOverrideUrlLoading(view: WebView, request: WebResourceRequest): Boolean {
+                val url = request.url.toString()
+                // 检测PDF URL
+                if (url.contains(".pdf", ignoreCase = true) ||
+                    url.contains("pdf", ignoreCase = true) && url.contains("download")) {
+                    Log.d(TAG, "PDF URL detected: $url")
+                    handlePdfDownload(url)
+                    return true
+                }
+                return false
+            }
+
+            override fun onPageFinished(view: WebView, url: String) {
+                Log.d(TAG, "Page loaded: $url")
+
+                // 页面加载完成后，延迟扫描PDF
+                view.postDelayed({
+                    scanForPdfs(view)
+                }, 2000)
+
+                // 多次扫描以捕获动态加载的PDF
+                view.postDelayed({
+                    scanForPdfs(view)
+                }, 5000)
+
+                view.postDelayed({
+                    scanForPdfs(view)
+                }, 10000)
+
+                view.postDelayed({
+                    finishScanning()
+                }, 15000)
+            }
+        }
+
+        webView.loadUrl(sourceUrl)
+    }
+
+    private fun loadPage() {
+        Log.d(TAG, "Loading page: $sourceUrl")
+        webView.loadUrl(sourceUrl)
+
+        // 超时处理
+        scope.launch {
+            delay(60000)
+            if (!isFinishing) {
+                Log.d(TAG, "Page load timeout, finishing scan")
+                finishScanning()
+            }
+        }
+    }
+
+    private fun scanForPdfs(view: WebView) {
+        val js = """
+            (function() {
+                var results = [];
+
+                // 法院文档关键词
+                var keywords = ['传票', '通知书', '举证', '受理', '判决', '裁定',
+                                '送达', '应诉', '起诉', '答辩', '告知', '决定',
+                                '文书', '下载', '查看', '打印'];
+
+                // 多种选择器组合
+                var selectors = [
+                    'a[href]',
+                    'a[onclick]',
+                    '[class*="file"]',
+                    '[class*="doc"]',
+                    '[class*="document"]',
+                    '[class*="item"]',
+                    '[class*="card"]',
+                    '[onclick]'
+                ];
+
+                for (var s = 0; s < selectors.length; s++) {
+                    var elements = document.querySelectorAll(selectors[s]);
+                    for (var i = 0; i < elements.length; i++) {
+                        var el = elements[i];
+                        var href = el.href || el.getAttribute('data-href') ||
+                                      el.getAttribute('onclick') || '';
+                        var text = (el.innerText || el.textContent || '').trim();
+                        var className = el.className || '';
+                        var lowerHref = href.toLowerCase();
+                        var lowerText = text.toLowerCase();
+                        var lowerClass = className.toLowerCase();
+
+                        // 检查是否是PDF
+                        var isPdf = lowerHref.indexOf('.pdf') >= 0 ||
+                                       lowerHref.indexOf('pdf') >= 0 ||
+                                       lowerText.indexOf('.pdf') >= 0 ||
+                                       lowerText.indexOf('PDF') >= 0;
+
+                        // 检查是否包含文档关键词
+                        var hasKeyword = keywords.some(function(kw) {
+                            return lowerText.indexOf(kw) >= 0 || lowerClass.indexOf(kw) >= 0;
+                        });
+
+                        // 检查是否是文件项
+                        var isFileItem = lowerClass.indexOf('file') >= 0 ||
+                                       lowerClass.indexOf('doc') >= 0 ||
+                                       lowerClass.indexOf('item') >= 0 ||
+                                       lowerClass.indexOf('card') >= 0;
+
+                        if ((isPdf || hasKeyword || isFileItem) &&
+                            href && href !== '#' && href !== 'javascript:;') {
+                            results.push({
+                                url: href,
+                                name: text || '文档'
+                            });
+                        }
+                    }
+                }
+
+                // 去重
+                var unique = [];
+                var seen = new Set();
+                for (var j = 0; j < results.length; j++) {
+                    if (!seen.has(results[j].url)) {
+                        seen.add(results[j].url);
+                        unique.push(results[j]);
+                    }
+                }
+
+                return unique;
+            })()
+        """.trimIndent()
+
+        view.evaluateJavascript(js) { result ->
+            try {
+                val json = result?.trim()?.removeSurrounding("\"")
+                    ?.replace("\\\"", "\"")?.replace("\\\\", "\\")
+                if (json.isNullOrBlank() || json == "null" || json == "[]") return@evaluateJavascript
+
+                Log.d(TAG, "Scan result: $json")
+
+                // 解析JSON
+                val items = parsePdfList(json)
+                val newCount = items.size
+
+                Log.d(TAG, "Found $newCount PDFs")
+                updatePdfList(items)
+            } catch (e: Exception) {
+                Log.e(TAG, "Parse error", e)
+            }
+        }
+    }
+
+    private fun parsePdfList(json: String): List<PdfItem> {
+        val items = mutableListOf<PdfItem>()
+        try {
+            val jsonArray = org.json.JSONArray(json)
+            for (i in 0 until jsonArray.length()) {
+                val obj = jsonArray.getJSONObject(i)
+                val url = obj.getString("url")
+                val name = obj.getString("name")
+
+                // 检查是否已下载
+                val existing = db.documentDao().findDownloadedByUrlAndSms(url, smsId)
+                val item = PdfItem(
+                    url = url,
+                    name = name,
+                    downloaded = existing != null,
+                    filePath = existing?.filePath ?: "",
+                    docId = existing?.id ?: 0
+                )
+                items.add(item)
+            }
+        } catch (e: Exception) {
+            Log.e(TAG, "JSON parse error", e)
+        }
+        return items
+    }
+
+    private fun updatePdfList(items: List<PdfItem>) {
+        pdfList.clear()
+        pdfList.addAll(items)
+        processedCount = items.count { it.downloaded }
+
+        // 通知JavaScript更新UI
+        webView.evaluateJavascript("""
+            (function() {
+                if (window.PdfBridge && window.PdfBridge.updatePdfList) {
+                    window.PdfBridge.updatePdfList(${org.json.JSONArray(items.map {
+                        mapOf("url" to it.url, "name" to it.name,
+                               "downloaded" to it.downloaded) })});
+                }
+            })()
+        """.trimIndent())
+    }
+
+    private fun handlePdfDownload(url: String) {
+        scope.launch(Dispatchers.IO) {
+            // 检查是否已处理
+            if (pdfList.any { it.url == url && it.downloaded }) {
+                Log.d(TAG, "Already downloaded: $url")
+                return@launch
+            }
+
+            // 下载PDF
+            try {
+                val guessName = android.webkit.URLUtil.guessFileName(url, "", "application/pdf")
+                val file = File(filesDir, "pdfs/${System.currentTimeMillis()}_$guessName")
+                file.parentFile?.mkdirs()
+
+                val request = Request.Builder().url(url).build()
+                val response = client.newCall(request).execute()
+
+                if (!response.isSuccessful) {
+                    Log.e(TAG, "Download failed: HTTP ${response.code}")
+                    withContext(Dispatchers.Main) {
+                        Toast.makeText(this@PdfListActivity, "下载失败", Toast.LENGTH_SHORT).show()
+                    }
+                    return@launch
+                }
+
+                response.body?.byteStream()?.use { input ->
+                    file.outputStream().use { output -> input.copyTo(output) }
+                }
+
+                if (file.length() == 0L) {
+                    file.delete()
+                    Log.e(TAG, "Downloaded file is empty")
+                    return@launch
+                }
+
+                Log.d(TAG, "Downloaded: ${file.name} (${file.length()} bytes)")
+
+                // 保存到数据库
+                val item = pdfList.find { it.url == url }
+                if (item != null) {
+                    item.downloaded = true
+                    item.filePath = file.absolutePath
+
+                    val docId = db.documentDao().insert(
+                        DocumentRecord(
+                            smsId = smsId,
+                            fileName = guessName,
+                            filePath = file.absolutePath,
+                            fileSize = file.length(),
+                            sourceUrl = url,
+                            downloadTime = System.currentTimeMillis(),
+                            displayName = item.name
+                        )
+                    )
+
+                    item.docId = docId
+
+                    // 解析传票信息
+                    PdfParser.parseAndSync(this@PdfListActivity, db, docId)
+                }
+
+                // 更新UI
+                withContext(Dispatchers.Main) {
+                    updatePdfList(pdfList)
+                    Toast.makeText(this@PdfListActivity, "已下载: ${file.name}", Toast.LENGTH_SHORT).show()
+                }
+
+            } catch (e: Exception) {
+                Log.e(TAG, "Download error", e)
+                withContext(Dispatchers.Main) {
+                    Toast.makeText(this@PdfListActivity, "下载失败: ${e.message}", Toast.LENGTH_SHORT).show()
+                }
+            }
+        }
+    }
+
+    private fun finishScanning() {
+        Log.d(TAG, "Scanning finished, total PDFs: ${pdfList.size}")
+        // 等待一段时间后自动关闭
+        scope.launch {
+            delay(5000)
+            if (!isFinishing) {
+                finish()
+            }
+        }
+    }
+
+    inner class PdfJsBridge {
+        @JavascriptInterface
+        fun updatePdfList(json: String) {
+            // JavaScript可以调用这个方法更新列表
+            Log.d(TAG, "updatePdfList called: $json")
+        }
+
+        @JavascriptInterface
+        fun downloadPdf(url: String, name: String) {
+            Log.d(TAG, "Manual download request: $url - $name")
+            handlePdfDownload(url)
+        }
+    }
+
+    override fun onDestroy() {
+        super.onDestroy()
+        webView.destroy()
+    }
+}

@@ -1,0 +1,292 @@
+package com.courassistant;
+
+import com.courassistant.java.utils.DateUtils;
+
+import org.junit.Test;
+import static org.junit.Assert.*;
+
+/**
+ * DateUtils 单元测试
+ * 测试日期解析和格式化功能
+ */
+public class DateUtilsTest {
+
+    /**
+     * 测试标准中文日期格式解析
+     */
+    @Test
+    public void testParseChineseDate_StandardFormat() {
+        // 2024年3月15日上午9:30
+        long timestamp = DateUtils.parseChineseDate("2024年3月15日上午9:30");
+        assertTrue("应成功解析标准中文日期", timestamp > 0);
+
+        String formatted = DateUtils.formatTimestamp(timestamp);
+        assertTrue("格式化结果应包含年月日", formatted.contains("2024"));
+        assertTrue("格式化结果应包含月日", formatted.contains("03"));
+        assertTrue("格式化结果应包含月日", formatted.contains("15"));
+    }
+
+    /**
+     * 测试下午时间解析
+     */
+    @Test
+    public void testParseChineseDate_Afternoon() {
+        // 2024年3月15日下午3:30
+        long timestamp = DateUtils.parseChineseDate("2024年3月15日下午3:30");
+        assertTrue("应成功解析下午时间", timestamp > 0);
+
+        // 下午3点应该是15点
+        String time = DateUtils.formatTimestamp(timestamp, "HH");
+        assertTrue("下午时间应转换为24小时制", Integer.parseInt(time) >= 15);
+    }
+
+    /**
+     * 测试短日期格式解析
+     */
+    @Test
+    public void testParseChineseDate_ShortFormat() {
+        // 2024年3月15日 (无时间)
+        long timestamp = DateUtils.parseChineseDate("2024年3月15日");
+        assertTrue("应成功解析短日期格式", timestamp > 0);
+
+        String formatted = DateUtils.formatShortDate(timestamp);
+        assertEquals("短日期格式化", "2024-03-15", formatted);
+    }
+
+    /**
+     * 测试数字日期格式解析
+     */
+    @Test
+    public void testParseChineseDate_DigitalFormat() {
+        // 2024-03-15 09:30
+        long timestamp = DateUtils.parseChineseDate("2024-03-15 09:30");
+        assertTrue("应成功解析数字日期格式", timestamp > 0);
+
+        String formatted = DateUtils.formatShortDate(timestamp);
+        assertEquals("数字日期格式化", "2024-03-15", formatted);
+    }
+
+    /**
+     * 测试斜杠日期格式解析
+     */
+    @Test
+    public void testParseChineseDate_SlashFormat() {
+        // 2024/03/15 09:30
+        long timestamp = DateUtils.parseChineseDate("2024/03/15 09:30");
+        assertTrue("应成功解析斜杠日期格式", timestamp > 0);
+    }
+
+    /**
+     * 测试无效日期解析
+     */
+    @Test
+    public void testParseChineseDate_InvalidInput() {
+        // 空字符串
+        long result1 = DateUtils.parseChineseDate("");
+        assertEquals("空字符串应返回-1", -1, result1);
+
+        // null
+        long result2 = DateUtils.parseChineseDate(null);
+        assertEquals("null应返回-1", -1, result2);
+
+        // 无效格式
+        long result3 = DateUtils.parseChineseDate("invalid date");
+        assertEquals("无效日期应返回-1", -1, result3);
+    }
+
+    /**
+     * 测试时间戳格式化
+     */
+    @Test
+    public void testFormatTimestamp() {
+        long timestamp = 1710465000000L; // 2024-03-15 09:30:00
+
+        String defaultFormat = DateUtils.formatTimestamp(timestamp);
+        assertNotNull("默认格式不应为null", defaultFormat);
+        assertTrue("默认格式应包含年份", defaultFormat.contains("2024"));
+
+        String shortFormat = DateUtils.formatShortDate(timestamp);
+        assertEquals("短日期格式", "2024-03-15", shortFormat);
+
+        String longFormat = DateUtils.formatLongDate(timestamp);
+        assertNotNull("长日期格式不应为null", longFormat);
+        assertTrue("长日期格式应包含星期", longFormat.contains("星期"));
+    }
+
+    /**
+     * 测试日期差计算
+     */
+    @Test
+    public void testDaysBetween() {
+        long date1 = 1710465000000L; // 2024-03-15 09:30:00
+        long date2 = 1710551400000L; // 2024-03-16 09:30:00 (次日)
+
+        int days = DateUtils.daysBetween(date1, date2);
+        assertEquals("相差1天", 1, days);
+
+        // 测试绝对值
+        int daysReverse = DateUtils.daysBetween(date2, date1);
+        assertEquals("反向计算也应为1天", 1, daysReverse);
+    }
+
+    /**
+     * 测试小时差计算
+     */
+    @Test
+    public void testHoursBetween() {
+        long date1 = 1710465000000L; // 2024-03-15 09:30:00
+        long date2 = 1710475800000L; // 2024-03-15 13:30:00 (4小时后)
+
+        int hours = DateUtils.hoursBetween(date1, date2);
+        assertEquals("相差4小时", 4, hours);
+    }
+
+    /**
+     * 测试分钟差计算
+     */
+    @Test
+    public void testMinutesBetween() {
+        long date1 = 1710465000000L; // 2024-03-15 09:30:00
+        long date2 = 1710465600000L; // 2024-03-15 09:40:00 (10分钟后)
+
+        int minutes = DateUtils.minutesBetween(date1, date2);
+        assertEquals("相差10分钟", 10, minutes);
+    }
+
+    /**
+     * 测试今天判断
+     */
+    @Test
+    public void testIsToday() {
+        long now = System.currentTimeMillis();
+
+        assertTrue("当前时间应是今天", DateUtils.isToday(now));
+
+        // 昨天
+        long yesterday = now - 24 * 60 * 60 * 1000L;
+        assertFalse("昨天不是今天", DateUtils.isToday(yesterday));
+
+        // 明天
+        long tomorrow = now + 24 * 60 * 60 * 1000L;
+        assertFalse("明天不是今天", DateUtils.isToday(tomorrow));
+    }
+
+    /**
+     * 测试天数内判断
+     */
+    @Test
+    public void testIsWithinDays() {
+        long now = System.currentTimeMillis();
+        long threeDaysLater = now + 3 * 24 * 60 * 60 * 1000L;
+
+        assertTrue("3天后应在3天内", DateUtils.isWithinDays(threeDaysLater, 3));
+        assertFalse("3天后不应在2天内", DateUtils.isWithinDays(threeDaysLater, 2));
+    }
+
+    /**
+     * 测试中文星期
+     */
+    @Test
+    public void testGetChineseWeekday() {
+        // 2024-03-15 是星期五
+        long timestamp = 1710465000000L;
+        String weekday = DateUtils.getChineseWeekday(timestamp);
+        assertEquals("星期五", weekday, "星期五");
+    }
+
+    /**
+     * 测试日期加减
+     */
+    @Test
+    public void testAddDays() {
+        long date = 1710465000000L; // 2024-03-15
+        long nextDay = DateUtils.addDays(date, 1);
+
+        int daysDiff = DateUtils.daysBetween(date, nextDay);
+        assertEquals("加1天应相差1天", 1, daysDiff);
+    }
+
+    /**
+     * 测试小时加减
+     */
+    @Test
+    public void testAddHours() {
+        long date = 1710465000000L; // 2024-03-15 09:30:00
+        long twoHoursLater = DateUtils.addHours(date, 2);
+
+        int hoursDiff = DateUtils.hoursBetween(date, twoHoursLater);
+        assertEquals("加2小时应相差2小时", 2, hoursDiff);
+    }
+
+    /**
+     * 测试中文数字解析
+     */
+    @Test
+    public void testParseChineseNumber() {
+        assertEquals("一", 1, DateUtils.parseChineseNumber("一"));
+        assertEquals("二", 2, DateUtils.parseChineseNumber("二"));
+        assertEquals("十", 10, DateUtils.parseChineseNumber("十"));
+        assertEquals("十一", 11, DateUtils.parseChineseNumber("十一"));
+        assertEquals("十二", 12, DateUtils.parseChineseNumber("十二"));
+
+        assertEquals("无效输入", -1, DateUtils.parseChineseNumber("invalid"));
+        assertEquals("空字符串", -1, DateUtils.parseChineseNumber(""));
+        assertEquals("null", -1, DateUtils.parseChineseNumber(null));
+    }
+
+    /**
+     * 测试当前时间字符串
+     */
+    @Test
+    public void testGetCurrentTimeString() {
+        String currentTime = DateUtils.getCurrentTimeString();
+        assertNotNull("当前时间字符串不应为null", currentTime);
+        assertTrue("应包含年份", currentTime.contains("年"));
+        assertTrue("应包含月", currentTime.contains("月"));
+        assertTrue("应包含日", currentTime.contains("日"));
+    }
+
+    /**
+     * 测试今天日期字符串
+     */
+    @Test
+    public void testGetTodayString() {
+        String today = DateUtils.getTodayString();
+        assertNotNull("今天日期字符串不应为null", today);
+        assertTrue("应符合格式 YYYY-MM-DD", today.matches("\\d{4}-\\d{2}-\\d{2}"));
+    }
+
+    /**
+     * 测试完整日期时间格式化
+     */
+    @Test
+    public void testFormatFullDateTime() {
+        long timestamp = 1710465000000L; // 2024-03-15 09:30:00 星期五
+        String fullDateTime = DateUtils.formatFullDateTime(timestamp);
+
+        assertNotNull("完整日期时间不应为null", fullDateTime);
+        assertTrue("应包含年份", fullDateTime.contains("2024"));
+        assertTrue("应包含星期", fullDateTime.contains("星期"));
+    }
+
+    /**
+     * 测试边界情况
+     */
+    @Test
+    public void testEdgeCases() {
+        // 零时间戳
+        String result1 = DateUtils.formatTimestamp(0);
+        assertEquals("零时间戳应返回空字符串", "", result1);
+
+        // 负时间戳
+        String result2 = DateUtils.formatTimestamp(-1);
+        assertEquals("负时间戳应返回空字符串", "", result2);
+
+        // 无效时间的差值计算
+        int days1 = DateUtils.daysBetween(-1, 100);
+        assertEquals("负时间戳差值应返回-1", -1, days1);
+
+        int days2 = DateUtils.daysBetween(0, 100);
+        assertEquals("零时间戳差值应返回-1", -1, days2);
+    }
+}

@@ -1,0 +1,34 @@
+# VoiceDocCompare ProGuard Rules
+# 单夫纯律师制作，保留全部权利
+
+# 保持 Python 相关类
+-keep class com.chaquo.python.** { *; }
+-keep class com.chaquo.pyhpy.** { *; }
+-keep @com.chaquo.python.annotations.* class * { *; }
+-keep class com.chaquo.pyho.** { *; }
+
+# 保持 Python 接口
+-keep class com.chaquo.python.PyObject { *; }
+-keep class com.chaquo.python.PyException { *; }
+-keep class com.chaquo.python.Kwarg { *; }
+
+# 保持 Sherpa-ONNX
+-keep class com.k2fsa.sherpa.onnx.** { *; }
+-dontwarn com.k2fsa.sherpa.onnx.**
+
+# 保持数据类
+-keepclass * implements java.io.Serializable { *; }
+-keepclass * implements android.os.Parcelable { *; }
+
+# 保持 MainActivity
+-keep class com.voicedoc.app.MainActivity { *; }
+-keepclass com.voicedoc.app.MainActivity$* { *; }
+
+# 保持 SettingsActivity
+-keep class com.voicedoc.app.SettingsActivity { *; }
+-keepclass com.voicedoc.app.SettingsActivity$* { *; }
+
+# 保持本地 native 方法
+-keepclasseswithmembernames class * {
+    native <methods>;
+}

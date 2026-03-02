@@ -1,0 +1,133 @@
+package com.multilanglearner.data.network
+
+import android.util.Log
+import com.multilanglearner.domain.model.AIConfig
+import com.multilanglearner.domain.model.WordTimestamp
+import kotlinx.serialization.Serializable
+import kotlinx.serialization.json.*
+import okhttp3.*
+import okhttp3.MediaType.Companion.toMediaType
+import okhttp3.RequestBody.Companion.asRequestBody
+import okhttp3.RequestBody.Companion.toRequestBody
+import java.io.File
+import java.util.concurrent.TimeUnit
+import javax.inject.Inject
+import javax.inject.Singleton
+
+@Serializable
+data class WhisperResult(
+    val success: Boolean,
+    val text: String = "",
+    val words: List<WordTimestamp> = emptyList(),
+    val detectedLang: String = "",
+    val error: String = ""
+)
+
+@Singleton
+class WhisperService @Inject constructor() {
+    private val client = OkHttpClient.Builder()
+        .connectTimeout(30, TimeUnit.SECONDS)
+        .readTimeout(300, TimeUnit.SECONDS)
+        .writeTimeout(60, TimeUnit.SECONDS)
+        .build()
+
+    private val json = Json { ignoreUnknownKeys = true }
+
+    // Groq API 文件大小限制（25MB）
+    private val MAX_FILE_SIZE = 25 * 1024 * 1024L
+
+    /**
+     * Transcribe audio via Groq Whisper API
+     * 优先使用 groqApiKey，其次使用 provider 为 groq 时的 apiKey
+     */
+    suspend fun transcribeGroq(audioFile: File, config: AIConfig, lang: String? = null): WhisperResult? {
+        // 获取 Groq API Key：优先使用专门的 groqApiKey，其次检查 provider 是否为 groq
+        val apiKey = config.groqApiKey.takeIf { it.isNotBlank() }
+            ?: (config.apiKey.takeIf { config.provider == "groq" && it.isNotBlank() })
+            ?: return WhisperResult(success = false, error = "未配置 Groq API Key，请在设置中添加")
+
+        val whisperModel = config.whisperModel.ifBlank { "whisper-large-v3" }
+
+        // 检查文件大小
+        val fileSize = audioFile.length()
+        Log.d("WhisperService", "File size: $fileSize bytes, max: $MAX_FILE_SIZE")
+
+        if (fileSize > MAX_FILE_SIZE) {
+            val sizeMB = String.format("%.2f", fileSize / 1024.0 / 1024.0)
+            val maxMB = String.format("%.2f", MAX_FILE_SIZE / 1024.0 / 1024.0)
+            Log.e("WhisperService", "File too large: $sizeMB MB (max: $maxMB MB)")
+            return WhisperResult(
+                success = false,
+                error = "文件太大 ($sizeMB MB)，超过 Groq 限制 ($maxMB MB)。请先在电脑上使用 yt-dlp 下载视频并提取音频，或使用较短的视频。"
+            )
+        }
+
+        Log.d("WhisperService", "Starting transcription with Groq Whisper: model=$whisperModel, file=${audioFile.name}, size=$fileSize")
+
+        val bodyBuilder = MultipartBody.Builder().setType(MultipartBody.FORM)
+            .addFormDataPart("file", audioFile.name, audioFile.asRequestBody("application/octet-stream".toMediaType()))
+            .addFormDataPart("model", whisperModel)
+            .addFormDataPart("response_format", "verbose_json")
+            .addFormDataPart("timestamp_granularities[]", "word")
+            .addFormDataPart("timestamp_granularities[]", "segment")
+            .addFormDataPart("temperature", "0")
+            .addFormDataPart("prompt", "Transcribe accurately with proper punctuation and capitalization.")
+
+        lang?.let { bodyBuilder.addFormDataPart("language", it) }
+
+        val request = Request.Builder()
+            .url("https://api.groq.com/openai/v1/audio/transcriptions")
+            .addHeader("Authorization", "Bearer $apiKey")
+            .post(bodyBuilder.build())
+            .build()
+
+        return try {
+            Log.d("WhisperService", "Sending request to Groq API...")
+            val response = client.newCall(request).execute()
+
+            Log.d("WhisperService", "Response code: ${response.code}")
+
+            if (response.code != 200) {
+                val errorBody = response.body?.string() ?: "Unknown error"
+                Log.e("WhisperService", "API error: $errorBody")
+
+                // 解析错误信息
+                val errorMsg = try {
+                    val errorJson = json.parseToJsonElement(errorBody).jsonObject
+                    errorJson["error"]?.jsonObject?.get("message")?.jsonPrimitive?.contentOrNull
+                        ?: errorJson["error"]?.jsonObject?.get("type")?.jsonPrimitive?.contentOrNull
+                        ?: errorBody
+                } catch (e: Exception) {
+                    errorBody
+                }
+
+                return WhisperResult(success = false, error = "转录失败: $errorMsg")
+            }
+
+            val body = response.body?.string() ?: return WhisperResult(success = false, error = "空响应")
+            Log.d("WhisperService", "Response length: ${body.length}")
+
+            val jsonObj = json.parseToJsonElement(body).jsonObject
+            val text = jsonObj["text"]?.jsonPrimitive?.contentOrNull ?: ""
+            val detectedLang = jsonObj["language"]?.jsonPrimitive?.contentOrNull ?: ""
+
+            Log.d("WhisperService", "Transcribed text length: ${text.length}, detected language: $detectedLang")
+
+            val words = jsonObj["words"]?.jsonArray?.map { w ->
+                val obj = w.jsonObject
+                WordTimestamp(
+                    w = obj["word"]?.jsonPrimitive?.contentOrNull ?: "",
+                    s = (obj["start"]?.jsonPrimitive?.doubleOrNull ?: 0.0),
+                    e = (obj["end"]?.jsonPrimitive?.doubleOrNull ?: 0.0)
+                )
+            } ?: emptyList()
+
+            Log.d("WhisperService", "Word timestamps count: ${words.size}")
+
+            WhisperResult(success = true, text = text, words = words, detectedLang = detectedLang)
+        } catch (e: Exception) {
+            Log.e("WhisperService", "Transcription error", e)
+            WhisperResult(success = false, error = "网络错误: ${e.message}")
+        }
+    }
+}

@@ -1,0 +1,270 @@
+package com.court.assistant.ui
+
+import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.verticalScroll
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.ArrowBack
+import androidx.compose.material.icons.filled.Delete
+import androidx.compose.material.icons.filled.Info
+import androidx.compose.material.icons.filled.Share
+import androidx.compose.material.icons.filled.FileDownload
+import androidx.compose.material3.*
+import androidx.compose.runtime.*
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.unit.dp
+import com.court.assistant.ui.theme.*
+import com.court.assistant.viewmodel.MainViewModel
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun SettingsScreen(
+    viewModel: MainViewModel,
+    onBack: () -> Unit
+) {
+    val context = LocalContext.current
+    var showClearDialog by remember { mutableStateOf(false) }
+    var showAboutDialog by remember { mutableStateOf(false) }
+    val state by viewModel.uiState.collectAsState()
+
+    LaunchedEffect(state.message) {
+        state.message?.let {
+            android.widget.Toast.makeText(context, it, android.widget.Toast.LENGTH_SHORT).show()
+            viewModel.clearMessage()
+        }
+    }
+
+    val exportLauncher =
+        androidx.activity.compose.rememberLauncherForActivityResult(
+            contract = androidx.activity.result.contract.ActivityResultContracts.CreateDocument("text/csv")
+        ) { uri ->
+            uri?.let {
+                context.contentResolver.openOutputStream(it)?.use { output ->
+                    val exportPath = viewModel.exportData()
+                    if (exportPath != null) {
+                        java.io.File(exportPath).inputStream().use { input ->
+                            input.copyTo(output)
+                        }
+                        android.widget.Toast.makeText(context, "已导出数据", android.widget.Toast.LENGTH_SHORT)
+                            .show()
+                    }
+                }
+            }
+        }
+
+    if (showClearDialog) {
+        AlertDialog(
+            onDismissRequest = { showClearDialog = false },
+            title = { Text("清除数据") },
+            text = { Text("确定要清除所有短信和文档数据吗？此操作不可恢复。") },
+            confirmButton = {
+                TextButton(
+                    onClick = {
+                        viewModel.clearAllData()
+                        showClearDialog = false
+                    }
+                ) {
+                    Text("确定", color = CinnabarRed)
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { showClearDialog = false }) {
+                    Text("取消")
+                }
+            }
+        )
+    }
+
+    if (showAboutDialog) {
+        AlertDialog(
+            onDismissRequest = { showAboutDialog = false },
+            title = { Text("关于法院助手") },
+            text = {
+                Column(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalAlignment = Alignment.CenterHorizontally
+                ) {
+                    Spacer(modifier = Modifier.height(8.dp))
+                    Text(
+                        "法院助手",
+                        style = MaterialTheme.typography.headlineMedium,
+                        color = CinnabarRed
+                    )
+                    Spacer(modifier = Modifier.height(4.dp))
+                    Text("版本 1.0.0", style = MaterialTheme.typography.bodyMedium)
+                    Spacer(modifier = Modifier.height(16.dp))
+                    Text(
+                        "宋氏美学，单夫纯律师制作保留权利",
+                        style = MaterialTheme.typography.labelSmall,
+                        color = CharcoalGray.copy(alpha = 0.7f),
+                        textAlign = TextAlign.Center
+                    )
+                    Spacer(modifier = Modifier.height(8.dp))
+                    Text(
+                        "本应用帮助您管理法院送达短信、下载和预览法律文书，并自动同步开庭信息到系统日历。",
+                        style = MaterialTheme.typography.bodySmall,
+                        textAlign = TextAlign.Center
+                    )
+                }
+            },
+            confirmButton = {
+                TextButton(onClick = { showAboutDialog = false }) {
+                    Text("关闭")
+                }
+            }
+        )
+    }
+
+    Scaffold(
+        topBar = {
+            TopAppBar(
+                title = { Text("设置", style = MaterialTheme.typography.titleLarge) },
+                navigationIcon = {
+                    IconButton(onClick = onBack) {
+                        Icon(Icons.Default.ArrowBack, contentDescription = "返回")
+                    }
+                },
+                colors = TopAppBarDefaults.topAppBarColors(
+                    containerColor = Ivory,
+                    titleContentColor = InkBlack
+                )
+            )
+        }
+    ) { padding ->
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(padding)
+                .verticalScroll(rememberScrollState())
+                .background(Ivory),
+            verticalArrangement = Arrangement.spacedBy(1.dp)
+        ) {
+            // Data Section
+            SettingsSection(title = "数据管理") {
+                SettingsItem(
+                    title = "短信数量",
+                    subtitle = "${state.smsWithPdfs.size} 条法院短信"
+                )
+                SettingsItem(
+                    title = "文档数量",
+                    subtitle = "${state.smsWithPdfs.sumOf { it.pdfs.size }} 个文书"
+                )
+                SettingsItem(
+                    title = "导出数据",
+                    subtitle = "导出为CSV文件备份",
+                    icon = { Icon(Icons.Default.FileDownload, "导出", tint = JadeGreen) },
+                    onClick = {
+                        val timestamp =
+                            java.text.SimpleDateFormat("yyyyMMdd_HHmmss", java.util.Locale.CHINA)
+                                .format(java.util.Date())
+                        exportLauncher.launch("法院助手数据_$timestamp.csv")
+                    }
+                )
+                SettingsItem(
+                    title = "清除所有数据",
+                    subtitle = "删除所有短信和文档记录",
+                    icon = { Icon(Icons.Default.Delete, "清除", tint = CinnabarRed) },
+                    onClick = { showClearDialog = true },
+                    danger = true
+                )
+            }
+
+            // Calendar Section
+            SettingsSection(title = "日历设置") {
+                SettingsItem(
+                    title = "自动同步日历",
+                    subtitle = "新短信自动添加开庭提醒",
+                    enabled = true
+                )
+            }
+
+            // About Section
+            SettingsSection(title = "关于") {
+                SettingsItem(
+                    title = "关于应用",
+                    subtitle = "版本信息与制作信息",
+                    icon = { Icon(Icons.Default.Info, "关于", tint = CharcoalGray) },
+                    onClick = { showAboutDialog = true }
+                )
+            }
+
+            // Footer
+            Text(
+                "宋氏美学，单夫纯律师制作保留权利",
+                style = MaterialTheme.typography.labelSmall,
+                color = CharcoalGray.copy(alpha = 0.5f),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(vertical = 24.dp),
+                textAlign = TextAlign.Center
+            )
+        }
+    }
+}
+
+@Composable
+fun SettingsSection(
+    title: String,
+    content: @Composable ColumnScope.() -> Unit
+) {
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .background(WarmWhite)
+            .padding(vertical = 8.dp)
+    ) {
+        Text(
+            title,
+            style = MaterialTheme.typography.labelSmall,
+            color = CharcoalGray.copy(alpha = 0.6f),
+            modifier = Modifier.padding(horizontal = 16.dp, bottom = 4.dp)
+        )
+        content()
+    }
+}
+
+@Composable
+fun SettingsItem(
+    title: String,
+    subtitle: String,
+    icon: @Composable () -> Unit = {},
+    onClick: () -> Unit = {},
+    enabled: Boolean = true,
+    danger: Boolean = false
+) {
+    Surface(
+        onClick = onClick,
+        modifier = Modifier.fillMaxWidth(),
+        enabled = enabled && onClick !== {},
+        color = Color.Transparent
+    ) {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(16.dp, 12.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            icon()
+            Spacer(modifier = Modifier.width(12.dp))
+            Column(modifier = Modifier.weight(1f)) {
+                Text(
+                    title,
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = if (danger) CinnabarRed else InkBlack
+                )
+                Text(
+                    subtitle,
+                    style = MaterialTheme.typography.labelSmall,
+                    color = if (danger) CinnabarRed.copy(alpha = 0.7f) else CharcoalGray.copy(alpha = 0.7f)
+                )
+            }
+        }
+    }
+}

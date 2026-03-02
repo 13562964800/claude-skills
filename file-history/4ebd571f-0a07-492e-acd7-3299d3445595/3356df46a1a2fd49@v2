@@ -1,0 +1,64 @@
+#!/usr/bin/env python3
+# -*- coding: utf-8 -*-
+"""
+将215个插图插入到完整版Markdown文档中
+"""
+
+import re
+import os
+
+# 不需要映射表，直接从文档中提取插图编号
+
+def insert_illustrations(input_file, output_file, illustration_dir):
+    """将插图插入到Markdown文档中"""
+
+    with open(input_file, 'r', encoding='utf-8') as f:
+        content = f.read()
+
+    # 查找所有插图占位符
+    pattern = r'【插图(\d+)(?:-\d+)?：[^】]+】'
+    matches = re.finditer(pattern, content)
+
+    # 从后往前替换，避免位置偏移
+    replacements = []
+    for match in matches:
+        full_match = match.group(0)
+        # 提取插图编号
+        num_match = re.search(r'插图(\d+)', full_match)
+        if num_match:
+            num = int(num_match.group(1))
+            # 构建SVG文件路径
+            svg_file = f"插图{num:02d}.svg" if num < 100 else f"插图{num}.svg"
+            svg_path = os.path.join(illustration_dir, svg_file)
+
+            if os.path.exists(svg_path):
+                # 读取SVG内容
+                with open(svg_path, 'r', encoding='utf-8') as sf:
+                    svg_content = sf.read()
+
+                # 创建替换文本：保留原描述 + 插入SVG
+                replacement = f"{full_match}\n\n{svg_content}\n"
+                replacements.append((match.start(), match.end(), replacement))
+
+    # 从后往前替换
+    for start, end, replacement in reversed(replacements):
+        content = content[:start] + replacement + content[end:]
+
+    # 写入输出文件
+    with open(output_file, 'w', encoding='utf-8') as f:
+        f.write(content)
+
+    print(f"✅ 已插入 {len(replacements)} 个插图")
+    print(f"✅ 输出文件: {output_file}")
+
+def main():
+    input_file = "C:/Users/Administrator/AI科普画册/AI前沿知识儿童科普画册-完整版.md"
+    output_file = "C:/Users/Administrator/AI科普画册/AI前沿知识儿童科普画册-带全部插图.md"
+    illustration_dir = "C:/Users/Administrator/插图/新插图"
+
+    print("开始插入插图...")
+    insert_illustrations(input_file, output_file, illustration_dir)
+    print("\n✅ 完成！")
+
+if __name__ == "__main__":
+    main()

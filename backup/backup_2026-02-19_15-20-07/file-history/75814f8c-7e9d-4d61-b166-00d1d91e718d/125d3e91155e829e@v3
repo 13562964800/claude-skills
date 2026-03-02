@@ -1,0 +1,59 @@
+<?xml version="1.0" encoding="utf-8"?>
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="200dp"
+    android:height="200dp"
+    android:viewportWidth="200"
+    android:viewportHeight="200">
+
+    <!-- 日历图标 -->
+    <group
+        android:translateX="50"
+        android:translateY="30">
+
+        <!-- 日历外框 -->
+        <path
+            android:fillColor="@color/bg_paper"
+            android:strokeColor="@color/dai_cyan"
+            android:strokeWidth="8"
+            android:pathData="M4,0 L96,0 L96,130 L4,130 Z" />
+
+        <!-- 日历头部 -->
+        <path
+            android:fillColor="@color/dai_cyan"
+            android:pathData="M0,20 L100,20 L100,50 L0,50 Z" />
+
+        <!-- 月份文字区域 -->
+        <path
+            android:fillColor="@color/bg_paper"
+            android:pathData="M35,38 h30 v20 h-30 z M30,45 h10 v10 h-10 z M60,45 h10 v10 h-10 z" />
+
+        <!-- 日期网格 -->
+        <path
+            android:strokeColor="@color/ink_light"
+            android:strokeWidth="4"
+            android:pathData="M10,60 h90 v90 h-90 z" />
+
+        <!-- 日期数字 -->
+        <path
+            android:fillColor="@color/ink_gray"
+            android:pathData="M25,80 h10 v10 h-10 z M55,80 h10 v10 h-10 z M80,80 h10 v10 h-10 z" />
+
+        <!-- 开庭提醒图标（用 path 画圆） -->
+        <path
+            android:fillColor="@color/dai_cyan"
+            android:pathData="M80,28 m-12,0 a12,12 0 1,0 24,0 a12,12 0 1,0 -24,0" />
+
+        <!-- 铃钟主体 -->
+        <path
+            android:fillColor="@color/bg_paper"
+            android:pathData="M74,36 L80,30 L86,30 L86,36 L80,42 L78,42 Z" />
+
+        <!-- 铃钟线条 -->
+        <path
+            android:strokeColor="@color/bg_paper"
+            android:strokeWidth="3"
+            android:strokeLineCap="round"
+            android:pathData="M76,40 v6 M80,44 v2" />
+    </group>
+
+</vector>

@@ -1,0 +1,55 @@
+package com.court.assistant.ui
+
+import androidx.compose.runtime.Composable
+import androidx.navigation.NavType
+import androidx.navigation.compose.NavHost
+import androidx.navigation.compose.composable
+import androidx.navigation.compose.rememberNavController
+import androidx.navigation.navArgument
+import com.court.assistant.viewmodel.MainViewModel
+
+@Composable
+fun Navigation(viewModel: MainViewModel) {
+    val navController = rememberNavController()
+
+    NavHost(navController = navController, startDestination = "main") {
+        composable("main") {
+            MainScreen(
+                viewModel = viewModel,
+                onOpenWebView = { smsId, url ->
+                    navController.navigate("webview/$smsId/${java.net.URLEncoder.encode(url, "UTF-8")}")
+                },
+                onOpenPdf = { pdfId ->
+                    navController.navigate("pdf/$pdfId")
+                }
+            )
+        }
+        composable(
+            "webview/{smsId}/{url}",
+            arguments = listOf(
+                navArgument("smsId") { type = NavType.LongType },
+                navArgument("url") { type = NavType.StringType }
+            )
+        ) { entry ->
+            val smsId = entry.arguments?.getLong("smsId") ?: return@composable
+            val url = java.net.URLDecoder.decode(entry.arguments?.getString("url") ?: "", "UTF-8")
+            WebViewScreen(
+                viewModel = viewModel,
+                smsId = smsId,
+                url = url,
+                onBack = { navController.popBackStack() }
+            )
+        }
+        composable(
+            "pdf/{pdfId}",
+            arguments = listOf(navArgument("pdfId") { type = NavType.LongType })
+        ) { entry ->
+            val pdfId = entry.arguments?.getLong("pdfId") ?: return@composable
+            PdfPreviewScreen(
+                viewModel = viewModel,
+                pdfId = pdfId,
+                onBack = { navController.popBackStack() }
+            )
+        }
+    }
+}

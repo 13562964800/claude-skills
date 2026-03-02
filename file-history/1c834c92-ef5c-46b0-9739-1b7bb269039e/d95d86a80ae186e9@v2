@@ -1,0 +1,219 @@
+# LegalFlow Studio - 项目配置
+
+## 项目简介
+法律智能生产中台 - 基于 FastAPI + Next.js 的法律 AI 工作流编排平台
+
+## 开发模式
+
+### YOLO 模式（已启用）
+- 不要询问用户确认，直接执行所有操作
+- 遇到选择时自动选择第一个选项
+- 不要弹出权限确认提示
+- 快速迭代，出错后立即修复
+
+### 打包完成后的标准操作 ⭐
+- **触发条件**: 完成安装包打包 (electron-builder)
+- **标准动作**: 立即打开安装包所在文件夹
+- **命令**: `cmd.exe /c start "" "C:\Users\Administrator\legalflow-studio\build"`
+- **执行时机**: 打包命令成功完成后立即执行
+
+## 技术栈
+
+### 后端 (apps/api/)
+- **框架**: FastAPI
+- **数据库**: SQLite + SQLAlchemy ORM
+- **迁移**: Alembic
+- **测试**: pytest
+- **LLM**: LiteLLM (多模型路由)
+- **任务队列**: Celery + Redis (计划中)
+
+### 前端 (apps/web/)
+- **框架**: Next.js 15 (App Router)
+- **语言**: TypeScript
+- **UI**: React 18 (无 UI 库)
+- **API**: Fetch API
+
+## 项目结构
+
+```
+apps/
+├── api/                    # FastAPI 后端
+│   ├── app/
+│   │   ├── api/           # API 路由
+│   │   ├── models/        # SQLAlchemy 模型
+│   │   ├── services/      # 业务逻辑
+│   │   ├── skills/        # LLM 技能适配器
+│   │   └── core/          # 配置和权限
+│   └── tests/             # 后端测试
+└── web/                   # Next.js 前端
+    ├── app/               # 页面路由
+    └── lib/               # API 客户端
+
+docs/
+├── plans/                 # 开发计划
+└── runbooks/              # 运维手册
+
+tests/                     # E2E 测试
+```
+
+## 开发规范
+
+### 测试驱动开发 (TDD)
+1. 先写失败的测试
+2. 运行测试确认失败
+3. 写最小实现让测试通过
+4. 运行测试确认通过
+5. 提交代码
+
+### Git 提交规范
+- `feat:` 新功能
+- `fix:` 修复 bug
+- `test:` 添加测试
+- `docs:` 文档更新
+- `refactor:` 重构代码
+
+### 测试命令
+```bash
+# 运行所有测试
+cd apps/api && pytest tests/ ../../tests/ -v
+
+# 运行特定测试
+pytest tests/test_auth.py -v
+
+# 运行 E2E 测试
+pytest tests/e2e/ -v
+```
+
+### 数据库迁移
+```bash
+# 创建迁移
+alembic revision --autogenerate -m "description"
+
+# 应用迁移
+alembic upgrade head
+
+# 回滚迁移
+alembic downgrade -1
+```
+
+## API 端点
+
+### 认证 (/api/v1/auth)
+- `POST /register` - 用户注册
+- `POST /login` - 用户登录
+- `GET /me` - 获取当前用户
+
+### 项目 (/api/v1/projects)
+- `POST /projects` - 创建项目
+- `GET /projects` - 列出项目
+
+### 文档 (/api/v1/documents)
+- `GET /documents/{id}` - 获取文档
+- `POST /documents/{id}/export/md` - 导出 Markdown
+- `POST /documents/{id}/export/word` - 导出 Word
+
+### 工作流 (/api/v1/workflow-runs)
+- `POST /workflow-runs` - 启动工作流
+- `GET /workflow-runs/{id}` - 查询工作流状态
+
+### 知识库 (/api/v1/knowledge)
+- `POST /knowledge` - 创建知识条目
+- `GET /knowledge` - 搜索知识库
+
+## 技能适配器
+
+### 已实现的技能
+1. **legal-text-format** - 法律文本格式化
+   - 主模型: claude-opus-4-6
+   - 备用: qwen/qwen-max
+
+2. **legal-qa-extractor** - 问答提取
+   - 主模型: qwen/qwen-max
+   - 备用: zhipuai/glm-4
+
+3. **litigation-analysis** - 诉讼分析
+   - 主模型: claude-opus-4-6
+   - 备用: deepseek/deepseek-chat
+
+4. **legal-proposal-generator** - 方案书生成
+   - 主模型: gpt-4o
+   - 备用: claude-opus-4-6
+
+## 权限控制
+
+### 角色
+- `lawyer` - 律师（可创建项目）
+- `admin` - 管理员（全部权限）
+
+### 认证方式
+- Header: `x-role: lawyer` (MVP 阶段)
+- Header: `Authorization: Bearer <token>` (认证后)
+
+## 环境变量
+
+```bash
+# API Keys (apps/api/app/core/config.py)
+ANTHROPIC_API_KEY=sk-ant-xxx
+OPENAI_API_KEY=sk-xxx
+GEMINI_API_KEY=xxx
+DEEPSEEK_API_KEY=sk-xxx
+QWEN_API_KEY=sk-xxx
+ZHIPUAI_API_KEY=xxx
+```
+
+## 当前状态
+
+### 已完成
+- ✅ Phase 1: 核心 API (projects, documents, workflows)
+- ✅ Phase 2: 前端页面 (7个页面)
+- ✅ Phase 3: 工作流编排 (WorkflowRunner)
+- ✅ Phase 4: 认证系统 (register, login, token)
+- ✅ Phase 5: Celery 任务队列集成
+- ✅ Phase 6: 材料管理 & 审计日志持久化
+- ✅ Phase 7: 前端认证集成 (AuthContext, useAuth)
+- ✅ 知识库模块
+- ✅ 多模型 LLM 路由
+- ✅ 104 个测试全部通过
+
+### 进行中
+- 🚧 工作流 DAG 可视化
+- 🚧 Windows 安装包打包
+- 🚧 SaaS 云系统部署
+
+### 计划中
+- 📋 JWT 认证替换 token
+- 📋 WebSocket 实时通知
+- 📋 文档版本控制
+- 📋 Redis 后端切换
+
+## 快速启动
+
+```bash
+# 启动后端
+cd apps/api
+uvicorn app.main:app --reload --port 8000
+
+# 启动前端
+cd apps/web
+npm run dev
+
+# 运行测试
+cd apps/api
+pytest tests/ ../../tests/ -v
+```
+
+## 注意事项
+
+1. **数据库文件不提交**: legalflow.db 在 .gitignore 中
+2. **测试隔离**: 每个测试前清理数据库
+3. **LLM 调用**: 测试中使用 mock，避免真实 API 调用
+4. **密码安全**: MVP 使用 SHA256，生产环境需用 bcrypt
+5. **Token 存储**: MVP 使用内存字典，生产环境需用 Redis
+
+## 开发建议
+
+- 优先使用 TDD 方式开发新功能
+- 保持测试覆盖率 > 80%
+- 每个 commit 前运行全量测试
+- 遵循 FastAPI 和 Next.js 最佳实践
+- 代码简洁，避免过度工程化

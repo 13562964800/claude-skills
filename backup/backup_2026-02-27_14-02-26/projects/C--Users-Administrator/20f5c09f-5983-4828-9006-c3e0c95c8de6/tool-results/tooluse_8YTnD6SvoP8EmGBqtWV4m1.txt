@@ -1,0 +1,147 @@
+     1→# 研究成果总结
+     2→
+     3→## 项目现状分析
+     4→
+     5→### 视频解析服务 (VideoDownloadService.kt)
+     6→**支持平台：** B站、抖音、YouTube、TikTok、微博、小红书
+     7→
+     8→**现有方案：**
+     9→| 平台 | 主方案 | 备用方案 | 问题 |
+    10→|------|--------|----------|------|
+    11→| B站 | 官方API | 9个第三方API | DASH格式需音视频合并 |
+    12→| YouTube | InnerTube API | Lemnoslife/NoEmbed | InnerTube经常被限制，第三方不提供下载链接 |
+    13→| 抖音 | pearktrue等6个API | - | 依赖第三方稳定性 |
+    14→| TikTok | tikwm等3个API | - | 依赖第三方稳定性 |
+    15→
+    16→### 转录服务 (WhisperService.kt)
+    17→**现有方案：** Groq API 云端转录
+    18→- 优点：速度快、准确率高
+    19→- 缺点：需网络、100MB文件限制、API配额限制
+    20→
+    21→### AI服务 (AIService.kt)
+    22→- 支持 Claude 和 OpenAI 兼容 API
+    23→- 用于翻译和内容理解
+    24→
+    25→---
+    26→
+    27→## GitHub 热门项目研究
+    28→
+    29→### 视频解析项目
+    30→
+    31→#### 1. NewPipeExtractor (推荐)
+    32→- **地址：** https://github.com/TeamNewPipe/NewPipeExtractor
+    33→- **特点：** 专为 Android 设计，不依赖 YouTube API
+    34→- **优势：** 直接解析网页，稳定性高，支持多平台
+    35→- **集成方式：** Gradle 依赖
+    36→
+    37→#### 2. yt-dlp
+    38→- **地址：** https://github.com/yt-dlp/yt-dlp
+    39→- **特点：** 最强大的命令行视频下载工具
+    40→- **限制：** 不适合直接在 Android 运行，需通过 API 服务
+    41→
+    42→#### 3. bilibili-api (Kotlin)
+    43→- **地址：** https://github.com/czp3009/bilibili-api
+    44→- **特点：** B站官方 API 封装
+    45→- **用途：** 可参考其 API 调用逻辑
+    46→
+    47→### 转录项目
+    48→
+    49→#### 1. sherpa-onnx (推荐)
+    50→- **地址：** https://github.com/k2-fsa/sherpa-onnx
+    51→- **特点：** 专为移动端优化的语音识别
+    52→- **优势：** 支持多种 Whisper 模型，可离线运行
+    53→- **模型大小：** tiny(75MB) / base(142MB) / small(466MB)
+    54→
+    55→#### 2. whisper.cpp
+    56→- **地址：** https://github.com/ggerganov/whisper.cpp
+    57→- **特点：** C++ 实现，高性能
+    58→- **限制：** 需 NDK 编译，集成复杂
+    59→
+    60→#### 3. faster-whisper
+    61→- **特点：** 使用 CTranslate2 优化
+    62→- **限制：** Python 实现，不适合 Android
+    63→
+    64→---
+    65→
+    66→## 改进方案设计
+    67→
+    68→### 方案一：YouTube 解析改进（高优先级）
+    69→
+    70→**问题：** 当前 InnerTube API 经常被限制，第三方 API 不提供下载链接
+    71→
+    72→**解决方案：** 集成 NewPipeExtractor
+    73→
+    74→```kotlin
+    75→// build.gradle.kts
+    76→implementation("com.github.TeamNewPipe:NewPipeExtractor:v0.24.0")
+    77→
+    78→// 使用示例
+    79→val streamInfo = StreamInfo.getInfo(NewPipe.getService(0), videoUrl)
+    80→val videoStream = streamInfo.videoStreams.first()
+    81→val audioStream = streamInfo.audioStreams.first()
+    82→```
+    83→
+    84→**改动范围：**
+    85→1. 添加 NewPipeExtractor 依赖
+    86→2. 修改 `fetchYoutubeInfo()` 使用 NewPipeExtractor
+    87→3. 处理音视频分离的 DASH 格式
+    88→
+    89→### 方案二：B站 DASH 格式优化（高优先级）
+    90→
+    91→**问题：** B站高清视频使用 DASH 格式，音视频分离
+    92→
+    93→**解决方案：**
+    94→1. 下载音视频流
+    95→2. 使用 FFmpeg 合并
+    96→
+    97→**改动范围：**
+    98→1. 修改下载逻辑支持双流下载
+    99→2. 添加 FFmpeg 合并步骤
+   100→
+   101→### 方案三：本地转录选项（中优先级）
+   102→
+   103→**问题：** 云端转录需网络，有配额限制
+   104→
+   105→**解决方案：** 添加 sherpa-onnx 离线转录选项
+   106→
+   107→**改动范围：**
+   108→1. 添加 sherpa-onnx Android 依赖
+   109→2. 创建 `LocalWhisperService.kt`
+   110→3. 添加模型下载/管理功能
+   111→4. UI 添加转录方式选择
+   112→
+   113→### 方案四：API 健康检查（中优先级）
+   114→
+   115→**问题：** 第三方 API 不稳定，需逐个尝试
+   116→
+   117→**解决方案：** 添加 API 健康检查和自动选择机制
+   118→
+   119→**改动范围：**
+   120→1. 创建 `ApiHealthChecker.kt`
+   121→2. 定期检测 API 可用性
+   122→3. 自动选择最佳 API
+   123→
+   124→---
+   125→
+   126→## 实施优先级
+   127→
+   128→| 优先级 | 任务 | 预计改动量 |
+   129→|--------|------|------------|
+   130→| P0 | NewPipeExtractor 集成 | 中等 |
+   131→| P0 | B站 DASH 格式处理 | 中等 |
+   132→| P1 | API 健康检查 | 小 |
+   133→| P1 | 转录进度优化 | 小 |
+   134→| P2 | 本地 Whisper 集成 | 大 |
+   135→
+   136→---
+   137→
+   138→## 技术决策
+   139→
+   140→| 决策 | 理由 |
+   141→|------|------|
+   142→| 使用 NewPipeExtractor | 专为 Android 设计，不依赖 YouTube API，稳定性高 |
+   143→| 保留云端 Groq API | 本地模型较大（100MB+），云端更快更省电 |
+   144→| 添加 sherpa-onnx 选项 | 提供离线转录能力，满足隐私需求 |
+   145→| API 健康检查机制 | 提高解析成功率，自动选择最佳 API |
+   146→| DASH 格式优先处理 | B站高清视频使用 DASH，需要音视频合并 |
+   147→

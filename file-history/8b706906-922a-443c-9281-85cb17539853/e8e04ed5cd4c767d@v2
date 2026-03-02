@@ -1,0 +1,48 @@
+package com.formfiller.data
+
+import androidx.room.*
+
+@Dao
+interface ProfileDao {
+    @Query("SELECT * FROM profiles ORDER BY createdAt DESC")
+    suspend fun getAll(): List<Profile>
+
+    @Query("SELECT * FROM profiles ORDER BY createdAt DESC")
+    fun getAllSync(): List<Profile>
+
+    @Insert
+    suspend fun insert(profile: Profile): Long
+
+    @Delete
+    suspend fun delete(profile: Profile)
+
+    @Update
+    suspend fun update(profile: Profile)
+}
+
+@Dao
+interface FieldDao {
+    @Query("SELECT * FROM fields WHERE profileId = :profileId")
+    suspend fun getByProfile(profileId: Long): List<Field>
+
+    @Query("SELECT * FROM fields")
+    fun getAllSync(): List<Field>
+
+    @Query("SELECT * FROM fields WHERE profileId = :profileId")
+    fun getByProfileSync(profileId: Long): List<Field>
+
+    @Insert
+    suspend fun insert(field: Field): Long
+
+    @Insert
+    suspend fun insertAll(fields: List<Field>)
+
+    @Delete
+    suspend fun delete(field: Field)
+
+    @Update
+    suspend fun update(field: Field)
+
+    @Query("DELETE FROM fields WHERE profileId = :profileId")
+    suspend fun deleteByProfile(profileId: Long)
+}

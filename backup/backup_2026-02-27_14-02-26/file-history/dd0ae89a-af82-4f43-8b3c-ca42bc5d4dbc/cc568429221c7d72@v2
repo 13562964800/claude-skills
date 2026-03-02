@@ -1,0 +1,111 @@
+# ============================================
+# 最高级代码混淆配置
+# 单夫纯律师制作，保留权利
+# ============================================
+
+# 最大优化遍数
+-optimizationpasses 5
+
+# 混合大小写类名
+-dontusemixedcaseclassnames
+
+# 不跳过非公共库类
+-dontskipnonpubliclibraryclasses
+-dontskipnonpubliclibraryclassmembers
+
+# 全部优化开启
+-optimizations !code/simplification/arithmetic,!code/simplification/cast,!field/*,!class/merging/*
+
+# 移除日志
+-assumenosideeffects class android.util.Log {
+    public static boolean isLoggable(java.lang.String, int);
+    public static int v(...);
+    public static int i(...);
+    public static int w(...);
+    public static int d(...);
+    public static int e(...);
+}
+
+# 重新打包到空包名（最大混淆）
+-repackageclasses ''
+-allowaccessmodification
+-mergeinterfacesaggressively
+
+# 移除未使用的代码
+-dontnote **
+-dontwarn **
+
+# ============================================
+# 保留规则
+# ============================================
+
+# Hilt / Dagger
+-keep class dagger.hilt.** { *; }
+-keep class javax.inject.** { *; }
+-keep class * extends dagger.hilt.android.internal.managers.ViewComponentManager$FragmentContextWrapper { *; }
+-keepclasseswithmembers class * {
+    @dagger.* <methods>;
+}
+-keepclasseswithmembers class * {
+    @javax.inject.* <fields>;
+}
+-keepclasseswithmembers class * {
+    @javax.inject.* <init>(...);
+}
+
+# Room
+-keep class * extends androidx.room.RoomDatabase { *; }
+-keep @androidx.room.Entity class * { *; }
+-keep @androidx.room.Dao interface * { *; }
+
+# Kotlin Serialization
+-keepattributes *Annotation*
+-keep class kotlinx.serialization.** { *; }
+-keepclassmembers class * {
+    @kotlinx.serialization.* <fields>;
+}
+-keep,includedescriptorclasses class com.multilanglearner.**$$serializer { *; }
+-keepclassmembers class com.multilanglearner.** {
+    *** Companion;
+}
+-keepclasseswithmembers class com.multilanglearner.** {
+    kotlinx.serialization.KSerializer serializer(...);
+}
+
+# Retrofit / OkHttp
+-keep class retrofit2.** { *; }
+-keep class okhttp3.** { *; }
+-keepattributes Signature
+-keepattributes Exceptions
+
+# Compose
+-keep class androidx.compose.** { *; }
+
+# FFmpeg
+-keep class com.arthenica.ffmpegkit.** { *; }
+
+# Data classes used in API
+-keep class com.multilanglearner.data.model.** { *; }
+-keep class com.multilanglearner.data.network.WhisperResult { *; }
+-keep class com.multilanglearner.data.network.WordTimestamp { *; }
+
+# Hilt generated
+-keep class com.multilanglearner.Hilt_* { *; }
+-keep class * extends android.app.Application { *; }
+-keep class * extends android.app.Service { *; }
+-keep class * extends android.content.BroadcastReceiver { *; }
+
+# Enum
+-keepclassmembers enum * {
+    public static **[] values();
+    public static ** valueOf(java.lang.String);
+}
+
+# Parcelable
+-keep class * implements android.os.Parcelable {
+    public static final android.os.Parcelable$Creator *;
+}
+
+# R8 full mode
+-keepattributes SourceFile,LineNumberTable
+-renamesourcefileattribute SourceFile

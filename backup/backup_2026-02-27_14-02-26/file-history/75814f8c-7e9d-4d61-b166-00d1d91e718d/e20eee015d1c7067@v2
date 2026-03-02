@@ -1,0 +1,128 @@
+#!/bin/bash
+
+# CourtAssistant 项目初始化脚本
+# 宋氏美学 · 单夫纯律师 制作
+
+set -e  # 遇到错误立即退出
+
+echo "================================"
+echo "CourtAssistant 项目初始化"
+echo "宋氏美学 · 单夫纯律师"
+echo "================================"
+echo ""
+
+# 1. 检查当前目录
+PROJECT_DIR=$(pwd)
+if [[ ! -d "${PROJECT_DIR}/app/src/main" ]]; then
+    echo "❌ 错误: 请在项目根目录运行此脚本"
+    echo "当前目录: ${PROJECT_DIR}"
+    exit 1
+fi
+
+echo "✅ 项目目录验证通过: ${PROJECT_DIR}"
+echo ""
+
+# 2. 检查 Git 状态
+if git rev-parse --git-dir > /dev/null 2>&1; then
+    echo "📦 Git 仓库状态:"
+    git log --oneline -5 || echo "  (暂无提交记录)"
+    echo ""
+
+    # 检查是否有未提交的更改
+    if ! git diff-index --quiet HEAD --; then
+        echo "⚠️  警告: 存在未提交的更改"
+        git status --short
+        echo ""
+    fi
+else
+    echo "⚠️  未初始化 Git 仓库"
+    echo ""
+fi
+
+# 3. 读取当前进度
+if [[ -f "claude-progress.txt" ]]; then
+    echo "📊 当前进度:"
+    head -20 claude-progress.txt
+    echo ""
+else
+    echo "⚠️  未找到进度跟踪文件"
+    echo ""
+fi
+
+# 4. 读取功能列表
+if [[ -f "feature_list.json" ]]; then
+    echo "📋 功能清单状态:"
+    # 使用 jq 解析 JSON，如果没有 jq 则使用 grep
+    if command -v jq &> /dev/null; then
+        jq -r '.features[] | "\(.passes == true and "✅" or "🚧") \(.category) - \(.description)"' feature_list.json
+    else
+        grep -E '"category"|"description"|"passes"' feature_list.json | head -30
+    fi
+    echo ""
+else
+    echo "⚠️  未找到功能清单文件"
+    echo ""
+fi
+
+# 5. 检查依赖配置
+echo "🔍 依赖配置检查:"
+
+# 检查 build.gradle.kts
+if [[ -f "app/build.gradle.kts" ]]; then
+    echo "  ✅ build.gradle.kts 存在"
+else
+    echo "  ❌ build.gradle.kts 缺失"
+fi
+
+# 检查 AndroidManifest.xml
+if [[ -f "app/src/main/AndroidManifest.xml" ]]; then
+    echo "  ✅ AndroidManifest.xml 存在"
+else
+    echo "  ❌ AndroidManifest.xml 缺失"
+fi
+
+echo ""
+
+# 6. 显示项目结构
+echo "📁 项目结构:"
+echo "  app/src/main/java/com/courassistant/java/"
+for dir in model database repository utils parser receiver service ui adapter; do
+    if [[ -d "app/src/main/java/com/courassistant/java/${dir}" ]]; then
+        count=$(find "app/src/main/java/com/courassistant/java/${dir}" -name "*.java" 2>/dev/null | wc -l)
+        echo "    ✅ ${dir}/ (${count} 个文件)"
+    else
+        echo "    ⚠️  ${dir}/ (缺失)"
+    fi
+done
+echo ""
+
+# 7. 显示下一步建议
+echo "================================"
+echo "💡 建议的下一步:"
+if [[ -f "feature_list.json" ]]; then
+    if command -v jq &> /dev/null; then
+        next_task=$(jq -r '.features[] | select(.passes == false) | .category' feature_list.json | head -1)
+        if [[ -n "$next_task" ]]; then
+            echo "  待完成: ${next_task}"
+        else
+            echo "  🎉 所有核心功能已完成！"
+            echo "  建议进入测试阶段"
+        fi
+    fi
+else
+    echo "  1. 运行 ./gradlew assembleDebug 检查编译"
+    echo "  2. 连接 Android 设备进行测试"
+    echo "  3. 检查功能清单中未完成的项"
+fi
+echo "================================"
+echo ""
+
+# 8. 环境变量设置
+export ANDROID_HOME=${ANDROID_HOME:-"$HOME/Android/Sdk"}
+export PATH="$PATH:$ANDROID_HOME/platform-tools:$ANDROID_HOME/tools"
+
+echo "🚀 环境已准备就绪"
+echo ""
+echo "提示: 使用 'adb logcat | grep CourtAssistant' 查看应用日志"
+echo "提示: 使用 './gradlew assembleDebug' 编译项目"
+echo ""

@@ -1,0 +1,1086 @@
+     1→package com.multilanglearner.ui.home
+     2→
+     3→import android.content.BroadcastReceiver
+     4→import android.content.Context
+     5→import android.content.Intent
+     6→import android.content.IntentFilter
+     7→import android.net.Uri
+     8→import androidx.activity.compose.rememberLauncherForActivityResult
+     9→import androidx.activity.result.contract.ActivityResultContracts
+    10→import androidx.compose.foundation.ExperimentalFoundationApi
+    11→import androidx.compose.foundation.clickable
+    12→import androidx.compose.foundation.combinedClickable
+    13→import androidx.compose.foundation.layout.Box
+    14→import androidx.compose.foundation.layout.offset
+    15→import androidx.compose.foundation.layout.padding
+    16→import androidx.compose.foundation.layout.*
+    17→import androidx.compose.foundation.lazy.LazyColumn
+    18→import androidx.compose.foundation.lazy.items
+    19→import androidx.compose.foundation.shape.CircleShape
+    20→import androidx.compose.foundation.background
+    21→import androidx.compose.foundation.shape.RoundedCornerShape
+    22→import androidx.compose.material.icons.Icons
+    23→import androidx.compose.material.icons.filled.*
+    24→import androidx.compose.material3.*
+    25→import androidx.compose.runtime.*
+    26→import androidx.compose.ui.Alignment
+    27→import androidx.compose.ui.Modifier
+    28→import androidx.compose.ui.graphics.Color
+    29→import androidx.compose.ui.platform.LocalClipboardManager
+    30→import androidx.compose.ui.platform.LocalContext
+    31→import androidx.compose.ui.text.style.TextOverflow
+    32→import androidx.compose.ui.unit.dp
+    33→import androidx.hilt.navigation.compose.hiltViewModel
+    34→import com.multilanglearner.data.db.entity.VideoEntity
+    35→import com.multilanglearner.domain.model.LANGUAGES
+    36→import com.multilanglearner.service.TranscriptionService
+    37→import kotlinx.coroutines.launch
+    38→import java.io.File
+    39→
+    40→@OptIn(ExperimentalMaterial3Api::class, ExperimentalFoundationApi::class)
+    41→@Composable
+    42→fun HomeScreen(
+    43→    onNavigateToPlayer: (String, String?) -> Unit,
+    44→    onNavigateToVocabulary: () -> Unit,
+    45→    onNavigateToRegulation: () -> Unit,
+    46→    viewModel: HomeViewModel = hiltViewModel()
+    47→) {
+    48→    val uiState by viewModel.uiState.collectAsState()
+    49→    val clipboardManager = LocalClipboardManager.current
+    50→    val context = LocalContext.current
+    51→    val snackbarHostState = remember { SnackbarHostState() }
+    52→    val coroutineScope = rememberCoroutineScope()
+    53→    var showAISettings by remember { mutableStateOf(false) }
+    54→    var showVideoDownloadSettings by remember { mutableStateOf(false) }
+    55→    var showThemeDialog by remember { mutableStateOf(false) }
+    56→
+    57→    // 视频列表类型切换：待转录 / 已转录
+    58→    var videoListType by remember { mutableStateOf(0) } // 0 = 待转录, 1 = 已转录
+    59→
+    60→    // 转录服务广播接收器
+    61→    val transcriptionQueueReceiver = remember {
+    62→        object : BroadcastReceiver() {
+    63→            override fun onReceive(context: Context?, intent: Intent?) {
+    64→                when (intent?.action) {
+    65→                    TranscriptionService.ACTION_PROGRESS -> {
+    66→                        val message = intent.getStringExtra(TranscriptionService.EXTRA_MESSAGE) ?: ""
+    67→                        val progress = intent.getIntExtra(TranscriptionService.EXTRA_PROGRESS, 0)
+    68→                        // 从消息中提取当前转录的视频名称
+    69→                        val currentVideo = message.substringBefore(")").trim()
+    70→                        viewModel.updateTranscriptionQueue(currentVideo, uiState.transcriptionQueue, progress, message)
+    71→                    }
+    72→                    TranscriptionService.ACTION_QUEUE_UPDATE -> {
+    73→                        val queueArray = intent.getStringArrayExtra(TranscriptionService.EXTRA_QUEUE_LIST)
+    74→                        val queueList = queueArray?.toList() ?: emptyList()
+    75→                        viewModel.updateTranscriptionQueue(uiState.transcribingVideo, queueList, uiState.transcriptionProgress, uiState.transcriptionMessage)
+    76→                    }
+    77→                    TranscriptionService.ACTION_COMPLETED -> {
+    78→                        val success = intent.getBooleanExtra(TranscriptionService.EXTRA_SUCCESS, false)
+    79→                        val videoPath = intent.getStringExtra(TranscriptionService.EXTRA_VIDEO_PATH)
+    80→                        val vttPath = intent.getStringExtra(TranscriptionService.EXTRA_VTT_PATH)
+    81→                        if (success && videoPath != null && vttPath != null) {
+    82→                            viewModel.transcriptionCompleted(videoPath, vttPath)
+    83→                        } else {
+    84→                            viewModel.transcriptionCompleted()
+    85→                        }
+    86→                    }
+    87→                }
+    88→            }
+    89→        }
+    90→    }
+    91→
+    92→    // 注册和注销转录广播接收器
+    93→    DisposableEffect(Unit) {
+    94→        val progressFilter = IntentFilter(TranscriptionService.ACTION_PROGRESS)
+    95→        val queueFilter = IntentFilter(TranscriptionService.ACTION_QUEUE_UPDATE)
+    96→        val completedFilter = IntentFilter(TranscriptionService.ACTION_COMPLETED)
+    97→        context.registerReceiver(transcriptionQueueReceiver, progressFilter, android.content.Context.RECEIVER_NOT_EXPORTED)
+    98→        context.registerReceiver(transcriptionQueueReceiver, queueFilter, android.content.Context.RECEIVER_NOT_EXPORTED)
+    99→        context.registerReceiver(transcriptionQueueReceiver, completedFilter, android.content.Context.RECEIVER_NOT_EXPORTED)
+   100→
+   101→        onDispose {
+   102→            context.unregisterReceiver(transcriptionQueueReceiver)
+   103→        }
+   104→    }
+   105→
+   106→    // 确认对话框状态
+   107→    var showDeleteConfirm by remember { mutableStateOf(false) }
+   108→    var showLocationConfirm by remember { mutableStateOf(false) }
+   109→    var showShareConfirm by remember { mutableStateOf(false) }
+   110→    var selectedVideo by remember { mutableStateOf<VideoEntity?>(null) }
+   111→
+   112→    // Video file picker launcher
+   113→    val videoPickerLauncher = rememberLauncherForActivityResult(
+   114→        contract = ActivityResultContracts.GetContent()
+   115→    ) { uri: Uri? ->
+   116→        uri?.let {
+   117→            viewModel.importVideo(context, it) { path, sub ->
+   118→                onNavigateToPlayer(path, sub)
+   119→            }
+   120→        }
+   121→    }
+   122→
+   123→    // 监听 Snackbar 事件
+   124→    LaunchedEffect(uiState.snackbarMessage) {
+   125→        uiState.snackbarMessage?.let { message ->
+   126→            snackbarHostState.showSnackbar(message, duration = SnackbarDuration.Short)
+   127→            viewModel.clearSnackbar()
+   128→        }
+   129→    }
+   130→
+   131→    // 监听 tab 切换事件
+   132→    LaunchedEffect(uiState.switchToTab) {
+   133→        uiState.switchToTab?.let { tab ->
+   134→            videoListType = tab
+   135→            viewModel.clearSwitchTab()
+   136→        }
+   137→    }
+   138→
+   139→    Scaffold(
+   140→        snackbarHost = { SnackbarHost(snackbarHostState) },
+   141→        topBar = {
+   142→            TopAppBar(
+   143→                title = {
+   144→                    Text("视频解析与转录", style = MaterialTheme.typography.titleLarge)
+   145→                },
+   146→                actions = {
+   147→                    // AI设置按钮
+   148→                    IconButton(onClick = { showAISettings = true }) {
+   149→                        Icon(Icons.Default.SmartToy, "AI与转录设置")
+   150→                    }
+   151→                    // 下载设置按钮
+   152→                    IconButton(onClick = { showVideoDownloadSettings = true }) {
+   153→                        Icon(Icons.Default.CloudDownload, "下载设置")
+   154→                    }
+   155→                    // 主题设置
+   156→                    IconButton(onClick = { showThemeDialog = true }) {
+   157→                        Icon(Icons.Default.Palette, "主题")
+   158→                    }
+   159→                }
+   160→            )
+   161→        }
+   162→    ) { padding ->
+   163→        Column(
+   164→            modifier = Modifier.fillMaxSize().padding(padding).padding(horizontal = 16.dp)
+   165→        ) {
+   166→            // URL Input Row
+   167→            Card(modifier = Modifier.fillMaxWidth()) {
+   168→                Column(modifier = Modifier.padding(16.dp)) {
+   169→                    Row(verticalAlignment = Alignment.CenterVertically) {
+   170→                        OutlinedTextField(
+   171→                            value = uiState.url,
+   172→                            onValueChange = viewModel::setUrl,
+   173→                            placeholder = { Text("粘贴 YouTube/B站/抖音 视频链接...") },
+   174→                            modifier = Modifier.weight(1f),
+   175→                            singleLine = true,
+   176→                            trailingIcon = {
+   177→                                if (uiState.url.isNotEmpty()) {
+   178→                                    IconButton(onClick = { viewModel.setUrl("") }) {
+   179→                                        Icon(Icons.Default.Clear, "清除")
+   180→                                    }
+   181→                                }
+   182→                            }
+   183→                        )
+   184→                        Spacer(Modifier.width(8.dp))
+   185→                        IconButton(onClick = {
+   186→                            clipboardManager.getText()?.text?.let { text ->
+   187→                                val urlMatch = Regex("https?://[^\\s\"'<>]+").find(text)
+   188→                                viewModel.setUrl(urlMatch?.value ?: text.trim())
+   189→                            }
+   190→                        }) { Icon(Icons.Default.ContentPaste, "粘贴") }
+   191→                    }
+   192→
+   193→                    Spacer(Modifier.height(8.dp))
+   194→
+   195→                    // Language selector + buttons
+   196→                    Row(verticalAlignment = Alignment.CenterVertically) {
+   197→                        var langExpanded by remember { mutableStateOf(false) }
+   198→                        ExposedDropdownMenuBox(expanded = langExpanded, onExpandedChange = { langExpanded = it }) {
+   199→                            OutlinedTextField(
+   200→                                value = LANGUAGES.find { it.code == uiState.selectedLang }?.name ?: "英语",
+   201→                                onValueChange = {},
+   202→                                readOnly = true,
+   203→                                modifier = Modifier.menuAnchor().width(100.dp),
+   204→                                trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(langExpanded) },
+   205→                                textStyle = MaterialTheme.typography.bodySmall
+   206→                            )
+   207→                            ExposedDropdownMenu(expanded = langExpanded, onDismissRequest = { langExpanded = false }) {
+   208→                                LANGUAGES.forEach { lang ->
+   209→                                    DropdownMenuItem(
+   210→                                        text = { Text(lang.name) },
+   211→                                        onClick = { viewModel.setLang(lang.code); langExpanded = false }
+   212→                                    )
+   213→                                }
+   214→                            }
+   215→                        }
+   216→
+   217→                        Spacer(Modifier.width(8.dp))
+   218→                        Button(
+   219→                            onClick = { viewModel.downloadVideo { path, sub -> onNavigateToPlayer(path, sub) } },
+   220→                            enabled = uiState.url.isNotBlank() && uiState.activeDownloads.size < 3
+   221→                        ) {
+   222→                            if (uiState.isProcessing) {
+   223→                                CircularProgressIndicator(
+   224→                                    modifier = Modifier.size(16.dp),
+   225→                                    strokeWidth = 2.dp,
+   226→                                    color = MaterialTheme.colorScheme.onPrimary
+   227→                                )
+   228→                                Spacer(Modifier.width(4.dp))
+   229→                            }
+   230→                            Text(if (uiState.isProcessing) "处理中" else "下载")
+   231→                        }
+   232→
+   233→                        Spacer(Modifier.width(4.dp))
+   234→                        OutlinedButton(onClick = { videoPickerLauncher.launch("video/*") }) {
+   235→                            Icon(Icons.Default.FolderOpen, null, Modifier.size(16.dp))
+   236→                            Spacer(Modifier.width(4.dp))
+   237→                            Text("导入")
+   238→                        }
+   239→                    }
+   240→
+   241→                    // YouTube VPN 提示
+   242→                    if (uiState.url.contains("youtube.com") || uiState.url.contains("youtu.be")) {
+   243→                        Spacer(Modifier.height(6.dp))
+   244→                        Row(
+   245→                            verticalAlignment = Alignment.CenterVertically,
+   246→                            modifier = Modifier
+   247→                                .fillMaxWidth()
+   248→                                .background(
+   249→                                    MaterialTheme.colorScheme.tertiaryContainer,
+   250→                                    RoundedCornerShape(6.dp)
+   251→                                )
+   252→                                .padding(horizontal = 10.dp, vertical = 6.dp)
+   253→                        ) {
+   254→                            Icon(
+   255→                                Icons.Default.VpnKey,
+   256→                                contentDescription = null,
+   257→                                tint = MaterialTheme.colorScheme.onTertiaryContainer,
+   258→                                modifier = Modifier.size(16.dp)
+   259→                            )
+   260→                            Spacer(Modifier.width(6.dp))
+   261→                            Text(
+   262→                                "YouTube 需要开启 VPN 才能解析",
+   263→                                style = MaterialTheme.typography.bodySmall,
+   264→                                color = MaterialTheme.colorScheme.onTertiaryContainer
+   265→                            )
+   266→                        }
+   267→                    }
+   268→
+   269→                    // 下载进度卡片 - 显示所有正在下载的任务
+   270→                    if (uiState.activeDownloads.isNotEmpty()) {
+   271→                        Spacer(Modifier.height(12.dp))
+   272→                        // 过滤出需要显示的任务
+   273→                        val downloadingTasks = uiState.activeDownloads.values.filter { task ->
+   274→                            task.status == DownloadStatus.DOWNLOADING ||
+   275→                            task.status == DownloadStatus.FETCHING_INFO ||
+   276→                            task.status == DownloadStatus.WAITING_FOR_AUTH ||
+   277→                            task.status == DownloadStatus.FAILED
+   278→                        }
+   279→                        downloadingTasks.forEach { task ->
+   280→                            DownloadProgressCard(
+   281→                                task = task,
+   282→                                onCancel = { viewModel.cancelDownload(task.id) },
+   283→                                formatFileSize = { viewModel.formatFileSize(it) },
+   284→                                formatSpeed = { viewModel.formatSpeed(it) },
+   285→                                formatRemainingTime = { viewModel.formatRemainingTime(it) },
+   286→                                getStatusText = { viewModel.getStatusText(it) }
+   287→                            )
+   288→                            Spacer(Modifier.height(8.dp))
+   289→                        }
+   290→                    }
+   291→
+   292→                    // 下载队列提示
+   293→                    if (uiState.downloadQueue.isNotEmpty()) {
+   294→                        Spacer(Modifier.height(8.dp))
+   295→                        Surface(
+   296→                            modifier = Modifier.fillMaxWidth(),
+   297→                            color = MaterialTheme.colorScheme.secondaryContainer,
+   298→                            shape = RoundedCornerShape(8.dp)
+   299→                        ) {
+   300→                            Row(
+   301→                                modifier = Modifier.padding(12.dp),
+   302→                                verticalAlignment = Alignment.CenterVertically
+   303→                            ) {
+   304→                                Icon(
+   305→                                    Icons.Default.Info,
+   306→                                    contentDescription = null,
+   307→                                    tint = MaterialTheme.colorScheme.onSecondaryContainer,
+   308→                                    modifier = Modifier.size(20.dp)
+   309→                                )
+   310→                                Spacer(Modifier.width(8.dp))
+   311→                                Text(
+   312→                                    "队列中有 ${uiState.downloadQueue.size} 个任务等待下载",
+   313→                                    style = MaterialTheme.typography.bodySmall,
+   314→                                    color = MaterialTheme.colorScheme.onSecondaryContainer
+   315→                                )
+   316→                            }
+   317→                        }
+   318→                    }
+   319→                }
+   320→            }
+   321→
+   322→            Spacer(Modifier.height(8.dp))
+   323→
+   324→            // 视频列表切换：下载中 / 已下载 / 已转录
+   325→            Row(
+   326→                modifier = Modifier.fillMaxWidth(),
+   327→                horizontalArrangement = Arrangement.SpaceBetween,
+   328→                verticalAlignment = Alignment.CenterVertically
+   329→            ) {
+   330→                Text("视频列表", style = MaterialTheme.typography.titleMedium)
+   331→                // 切换按钮
+   332→                Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+   333→                    FilterChip(
+   334→                        selected = videoListType == 0,
+   335→                        onClick = { videoListType = 0 },
+   336→                        label = { Text("下载中") },
+   337→                        leadingIcon = { if (videoListType == 0) Icon(Icons.Default.Check, null, Modifier.size(14.dp)) else null }
+   338→                    )
+   339→                    FilterChip(
+   340→                        selected = videoListType == 1,
+   341→                        onClick = { videoListType = 1 },
+   342→                        label = { Text("已下载") },
+   343→                        leadingIcon = { if (videoListType == 1) Icon(Icons.Default.Check, null, Modifier.size(14.dp)) else null }
+   344→                    )
+   345→                    FilterChip(
+   346→                        selected = videoListType == 2,
+   347→                        onClick = { videoListType = 2 },
+   348→                        label = { Text("已转录") },
+   349→                        leadingIcon = { if (videoListType == 2) Icon(Icons.Default.Check, null, Modifier.size(14.dp)) else null }
+   350→                    )
+   351→                    Spacer(Modifier.weight(1f))
+   352→                    // 词书入口
+   353→                    AssistChip(
+   354→                        onClick = onNavigateToVocabulary,
+   355→                        label = { Text("词书") },
+   356→                        leadingIcon = { Icon(Icons.Default.Book, null, Modifier.size(16.dp)) }
+   357→                    )
+   358→                }
+   359→            }
+   360→            Spacer(Modifier.height(8.dp))
+   361→
+   362→            // 转录进度卡片（正在转录时显示）
+   363→            if (uiState.transcribingVideo != null) {
+   364→                TranscriptionProgressCard(
+   365→                    currentVideo = uiState.transcribingVideo ?: "",
+   366→                    queueList = uiState.transcriptionQueue,
+   367→                    progress = uiState.transcriptionProgress,
+   368→                    message = uiState.transcriptionMessage,
+   369→                    onCancel = { viewModel.cancelTranscription(context) }
+   370→                )
+   371→                Spacer(Modifier.height(8.dp))
+   372→            }
+   373→
+   374→            // 根据类型显示不同内容
+   375→            when (videoListType) {
+   376→                0 -> {
+   377→                    // 下载中列表 - 显示正在下载的任务
+   378→                    if (uiState.activeDownloads.isEmpty()) {
+   379→                        Box(Modifier.fillMaxWidth().padding(32.dp), contentAlignment = Alignment.Center) {
+   380→                            Text("暂无下载任务\n粘贴链接开始下载", color = MaterialTheme.colorScheme.onSurfaceVariant)
+   381→                        }
+   382→                    } else {
+   383→                        LazyColumn(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+   384→                            items(uiState.activeDownloads.values.toList()) { task ->
+   385→                                DownloadProgressCard(
+   386→                                    task = task,
+   387→                                    onCancel = { viewModel.cancelDownload(task.id) },
+   388→                                    formatFileSize = { viewModel.formatFileSize(it) },
+   389→                                    formatSpeed = { viewModel.formatSpeed(it) },
+   390→                                    formatRemainingTime = { viewModel.formatRemainingTime(it) },
+   391→                                    getStatusText = { viewModel.getStatusText(it) }
+   392→                                )
+   393→                            }
+   394→                        }
+   395→                    }
+   396→                }
+   397→                1 -> {
+   398→                    // 已下载列表（未转录）
+   399→                    val downloadedVideos = uiState.videos.filter { it.vttPath == null || !File(it.vttPath).exists() }
+   400→                    if (downloadedVideos.isEmpty()) {
+   401→                        Box(Modifier.fillMaxWidth().padding(32.dp), contentAlignment = Alignment.Center) {
+   402→                            Text("暂无已下载视频\n下载完成后会显示在这里", color = MaterialTheme.colorScheme.onSurfaceVariant)
+   403→                        }
+   404→                    } else {
+   405→                        // VPN 提示
+   406→                        Row(
+   407→                            verticalAlignment = Alignment.CenterVertically,
+   408→                            modifier = Modifier
+   409→                                .fillMaxWidth()
+   410→                                .background(
+   411→                                    MaterialTheme.colorScheme.tertiaryContainer,
+   412→                                    RoundedCornerShape(6.dp)
+   413→                                )
+   414→                                .padding(horizontal = 10.dp, vertical = 6.dp)
+   415→                        ) {
+   416→                            Icon(
+   417→                                Icons.Default.VpnKey,
+   418→                                contentDescription = null,
+   419→                                tint = MaterialTheme.colorScheme.onTertiaryContainer,
+   420→                                modifier = Modifier.size(16.dp)
+   421→                            )
+   422→                            Spacer(Modifier.width(6.dp))
+   423→                            Text(
+   424→                                "转录使用在线 Whisper 模型，需要开启 VPN",
+   425→                                style = MaterialTheme.typography.bodySmall,
+   426→                                color = MaterialTheme.colorScheme.onTertiaryContainer
+   427→                            )
+   428→                        }
+   429→                        Spacer(Modifier.height(8.dp))
+   430→                        LazyColumn(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+   431→                            items(downloadedVideos) { video ->
+   432→                                VideoListItem(
+   433→                                    video = video,
+   434→                                    showTranscribe = true,
+   435→                                    isTranscribed = false,
+   436→                                    onTranscribe = { viewModel.startTranscription(video, context) },
+   437→                                    onPlay = { onNavigateToPlayer(video.filePath, video.vttPath) },
+   438→                                    onDelete = { viewModel.deleteVideo(video.id, video.filePath) },
+   439→                                    onShare = { viewModel.shareVideoFile(video.filePath, context) },
+   440→                                    onOpenFolder = { viewModel.openFileLocation(video.filePath, context) }
+   441→                                )
+   442→                            }
+   443→                        }
+   444→                    }
+   445→                }
+   446→                2 -> {
+   447→                    // 已转录列表
+   448→                    val transcribedVideos = uiState.videos.filter { it.vttPath != null && File(it.vttPath).exists() }
+   449→                    if (transcribedVideos.isEmpty()) {
+   450→                        Box(Modifier.fillMaxWidth().padding(32.dp), contentAlignment = Alignment.Center) {
+   451→                            Text("暂无已转录视频\n点击「转录」按钮开始转录", color = MaterialTheme.colorScheme.onSurfaceVariant)
+   452→                        }
+   453→                    } else {
+   454→                        LazyColumn(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+   455→                            items(transcribedVideos) { video ->
+   456→                                VideoListItem(
+   457→                                    video = video,
+   458→                                    showTranscribe = false,
+   459→                                    isTranscribed = true,
+   460→                                    onTranscribe = { },
+   461→                                    onPlay = { onNavigateToPlayer(video.filePath, video.vttPath) },
+   462→                                    onDelete = { viewModel.deleteVideo(video.id, video.filePath) },
+   463→                                    onShare = { viewModel.shareVideoFile(video.filePath, context) },
+   464→                                    onOpenFolder = { viewModel.openFileLocation(video.filePath, context) }
+   465→                                )
+   466→                            }
+   467→                        }
+   468→                    }
+   469→                }
+   470→            }
+   471→        }
+   472→    }
+   473→
+   474→    // AI Settings Bottom Sheet
+   475→    if (showAISettings) {
+   476→        com.multilanglearner.ui.ai.AISettingsSheet(onDismiss = { showAISettings = false })
+   477→    }
+   478→
+   479→    // Theme Dialog
+   480→    if (showThemeDialog) {
+   481→        val currentTheme by viewModel.currentTheme.collectAsState(initial = "aurora")
+   482→        val currentFontSize by viewModel.currentFontSize.collectAsState(initial = "medium")
+   483→        com.multilanglearner.ui.component.ThemeDialog(
+   484→            currentTheme = currentTheme,
+   485→            currentFontSize = currentFontSize,
+   486→            onDismiss = { showThemeDialog = false },
+   487→            onThemeSelected = { viewModel.setTheme(it) },
+   488→            onFontSizeSelected = { viewModel.setFontSize(it) }
+   489→        )
+   490→    }
+   491→
+   492→    // Video Download Settings Dialog
+   493→    if (showVideoDownloadSettings) {
+   494→        com.multilanglearner.ui.component.VideoDownloadSettingsSheet(
+   495→            onDismiss = { showVideoDownloadSettings = false }
+   496→        )
+   497→    }
+   498→
+   499→    // B站登录对话框（自动获取Cookie）
+   500→    if (uiState.showBilibiliLogin) {
+   501→        com.multilanglearner.ui.component.BilibiliLoginDialog(
+   502→            onDismiss = { viewModel.dismissBilibiliLogin() },
+   503→            onCookiesExtracted = { cookies ->
+   504→                viewModel.onBilibiliCookiesExtracted(
+   505→                    sessdata = cookies.sessdata,
+   506→                    biliJct = cookies.biliJct,
+   507→                    dedeUserID = cookies.dedeUserID,
+   508→                    fullCookie = cookies.fullCookie
+   509→                ) { path, sub -> onNavigateToPlayer(path, sub) }
+   510→            }
+   511→        )
+   512→    }
+   513→
+   514→    // YouTube登录对话框
+   515→    if (uiState.showYouTubeLogin) {
+   516→        com.multilanglearner.ui.component.PlatformLoginDialog(
+   517→            platform = com.multilanglearner.ui.component.VideoPlatform.YOUTUBE,
+   518→            onDismiss = { viewModel.dismissYouTubeLogin() },
+   519→            onCookiesExtracted = { cookies ->
+   520→                viewModel.onYouTubeCookiesExtracted(
+   521→                    cookies = cookies.cookies,
+   522→                    fullCookie = cookies.fullCookie
+   523→                ) { path, sub -> onNavigateToPlayer(path, sub) }
+   524→            }
+   525→        )
+   526→    }
+   527→
+   528→    // 抖音登录对话框
+   529→    if (uiState.showDouyinLogin) {
+   530→        com.multilanglearner.ui.component.PlatformLoginDialog(
+   531→            platform = com.multilanglearner.ui.component.VideoPlatform.DOUYIN,
+   532→            onDismiss = { viewModel.dismissDouyinLogin() },
+   533→            onCookiesExtracted = { cookies ->
+   534→                viewModel.onDouyinCookiesExtracted(
+   535→                    cookies = cookies.cookies,
+   536→                    fullCookie = cookies.fullCookie
+   537→                ) { path, sub -> onNavigateToPlayer(path, sub) }
+   538→            }
+   539→        )
+   540→    }
+   541→
+   542→    // TikTok登录对话框
+   543→    if (uiState.showTiktokLogin) {
+   544→        com.multilanglearner.ui.component.PlatformLoginDialog(
+   545→            platform = com.multilanglearner.ui.component.VideoPlatform.TIKTOK,
+   546→            onDismiss = { viewModel.dismissTiktokLogin() },
+   547→            onCookiesExtracted = { cookies ->
+   548→                viewModel.onTiktokCookiesExtracted(
+   549→                    cookies = cookies.cookies,
+   550→                    fullCookie = cookies.fullCookie
+   551→                ) { path, sub -> onNavigateToPlayer(path, sub) }
+   552→            }
+   553→        )
+   554→    }
+   555→
+   556→    // 删除确认对话框
+   557→    if (showDeleteConfirm && selectedVideo != null) {
+   558→        AlertDialog(
+   559→            onDismissRequest = { showDeleteConfirm = false },
+   560→            title = { Text("确认删除") },
+   561→            text = { Text("确定要删除「${selectedVideo!!.title}」吗？\n\n删除后将无法恢复，视频文件和相关字幕都会被删除。") },
+   562→            confirmButton = {
+   563→                Button(
+   564→                    onClick = {
+   565→                        viewModel.deleteVideo(selectedVideo!!.id, selectedVideo!!.filePath)
+   566→                        showDeleteConfirm = false
+   567→                        selectedVideo = null
+   568→                    },
+   569→                    colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.error)
+   570→                ) {
+   571→                    Text("删除")
+   572→                }
+   573→            },
+   574→            dismissButton = {
+   575→                TextButton(onClick = { showDeleteConfirm = false; selectedVideo = null }) {
+   576→                    Text("取消")
+   577→                }
+   578→            }
+   579→        )
+   580→    }
+   581→
+   582→    // 打开文件位置确认对话框
+   583→    if (showLocationConfirm && selectedVideo != null) {
+   584→        AlertDialog(
+   585→            onDismissRequest = { showLocationConfirm = false },
+   586→            title = { Text("打开文件位置") },
+   587→            text = { Text("确定要打开「${selectedVideo!!.title}」的文件位置吗？") },
+   588→            confirmButton = {
+   589→                Button(onClick = {
+   590→                    viewModel.openFileLocation(selectedVideo!!.filePath, context)
+   591→                    showLocationConfirm = false
+   592→                    selectedVideo = null
+   593→                }) {
+   594→                    Text("打开")
+   595→                }
+   596→            },
+   597→            dismissButton = {
+   598→                TextButton(onClick = { showLocationConfirm = false; selectedVideo = null }) {
+   599→                    Text("取消")
+   600→                }
+   601→            }
+   602→        )
+   603→    }
+   604→
+   605→    // 分享确认对话框
+   606→    if (showShareConfirm && selectedVideo != null) {
+   607→        AlertDialog(
+   608→            onDismissRequest = { showShareConfirm = false },
+   609→            title = { Text("分享视频") },
+   610→            text = { Text("确定要分享「${selectedVideo!!.title}」吗？\n\n可以选择分享到微信等应用。") },
+   611→            confirmButton = {
+   612→                Button(onClick = {
+   613→                    viewModel.shareVideoFile(selectedVideo!!.filePath, context)
+   614→                    showShareConfirm = false
+   615→                    selectedVideo = null
+   616→                }) {
+   617→                    Text("分享")
+   618→                }
+   619→            },
+   620→            dismissButton = {
+   621→                TextButton(onClick = { showShareConfirm = false; selectedVideo = null }) {
+   622→                    Text("取消")
+   623→                }
+   624→            }
+   625→        )
+   626→    }
+   627→
+   628→    // 重复下载确认对话框
+   629→    if (uiState.showDuplicateDownloadConfirm) {
+   630→        AlertDialog(
+   631→            onDismissRequest = { viewModel.cancelDuplicateDownload() },
+   632→            title = { Text("视频已存在") },
+   633→            text = {
+   634→                Text("「${uiState.duplicateVideoTitle}」已经下载过了。\n\n是否要重新下载？")
+   635→            },
+   636→            confirmButton = {
+   637→                Button(onClick = {
+   638→                    viewModel.confirmDuplicateDownload { path, sub -> onNavigateToPlayer(path, sub) }
+   639→                }) {
+   640→                    Text("重新下载")
+   641→                }
+   642→            },
+   643→            dismissButton = {
+   644→                TextButton(onClick = { viewModel.cancelDuplicateDownload() }) {
+   645→                    Text("取消")
+   646→                }
+   647→            }
+   648→        )
+   649→    }
+   650→}
+   651→
+   652→/**
+   653→ * 下载进度卡片组件
+   654→ */
+   655→@Composable
+   656→private fun DownloadProgressCard(
+   657→    task: DownloadTask,
+   658→    onCancel: () -> Unit,
+   659→    formatFileSize: (Long) -> String,
+   660→    formatSpeed: (Long) -> String,
+   661→    formatRemainingTime: (Long) -> String,
+   662→    getStatusText: (DownloadStatus) -> String
+   663→) {
+   664→    Card(
+   665→        modifier = Modifier.fillMaxWidth(),
+   666→        colors = CardDefaults.cardColors(
+   667→            containerColor = when (task.status) {
+   668→                DownloadStatus.FAILED, DownloadStatus.CANCELLED -> MaterialTheme.colorScheme.errorContainer
+   669→                DownloadStatus.WAITING_FOR_AUTH -> MaterialTheme.colorScheme.tertiaryContainer
+   670→                else -> MaterialTheme.colorScheme.primaryContainer
+   671→            }
+   672→        )
+   673→    ) {
+   674→        Column(modifier = Modifier.padding(16.dp)) {
+   675→            // 标题和状态
+   676→            Row(
+   677→                modifier = Modifier.fillMaxWidth(),
+   678→                horizontalArrangement = Arrangement.SpaceBetween,
+   679→                verticalAlignment = Alignment.CenterVertically
+   680→            ) {
+   681→                Column(Modifier.weight(1f)) {
+   682→                    Text(
+   683→                        task.title,
+   684→                        style = MaterialTheme.typography.titleSmall,
+   685→                        maxLines = 1,
+   686→                        overflow = TextOverflow.Ellipsis
+   687→                    )
+   688→                    Text(
+   689→                        getStatusText(task.status),
+   690→                        style = MaterialTheme.typography.bodySmall,
+   691→                        color = when (task.status) {
+   692→                            DownloadStatus.FAILED, DownloadStatus.CANCELLED -> MaterialTheme.colorScheme.error
+   693→                            DownloadStatus.WAITING_FOR_AUTH -> MaterialTheme.colorScheme.onTertiaryContainer
+   694→                            else -> MaterialTheme.colorScheme.onPrimaryContainer
+   695→                        }
+   696→                    )
+   697→                }
+   698→
+   699→                // 取消/关闭按钮
+   700→                if (task.status == DownloadStatus.DOWNLOADING || task.status == DownloadStatus.FETCHING_INFO || task.status == DownloadStatus.FAILED) {
+   701→                    IconButton(onClick = onCancel) {
+   702→                        Icon(Icons.Default.Close, "关闭", tint = MaterialTheme.colorScheme.error)
+   703→                    }
+   704→                }
+   705→            }
+   706→
+   707→            Spacer(Modifier.height(12.dp))
+   708→
+   709→            // 进度条
+   710→            if (task.status == DownloadStatus.DOWNLOADING) {
+   711→                Column {
+   712→                    Row(
+   713→                        modifier = Modifier.fillMaxWidth(),
+   714→                        horizontalArrangement = Arrangement.SpaceBetween
+   715→                    ) {
+   716→                        Text(
+   717→                            "${task.progress}%",
+   718→                            style = MaterialTheme.typography.bodySmall
+   719→                        )
+   720→                        if (task.speed > 0) {
+   721→                            Text(
+   722→                                formatSpeed(task.speed),
+   723→                                style = MaterialTheme.typography.bodySmall,
+   724→                                color = MaterialTheme.colorScheme.primary
+   725→                            )
+   726→                        }
+   727→                    }
+   728→
+   729→                    Spacer(Modifier.height(4.dp))
+   730→
+   731→                    LinearProgressIndicator(
+   732→                        progress = { task.progress / 100f },
+   733→                        modifier = Modifier.fillMaxWidth(),
+   734→                        color = MaterialTheme.colorScheme.primary
+   735→                    )
+   736→
+   737→                    // 文件大小和剩余时间
+   738→                    if (task.totalBytes > 0) {
+   739→                        Spacer(Modifier.height(4.dp))
+   740→                        Row(
+   741→                            modifier = Modifier.fillMaxWidth(),
+   742→                            horizontalArrangement = Arrangement.SpaceBetween
+   743→                        ) {
+   744→                            Text(
+   745→                                "${formatFileSize(task.bytesDownloaded)} / ${formatFileSize(task.totalBytes)}",
+   746→                                style = MaterialTheme.typography.bodySmall,
+   747→                                color = MaterialTheme.colorScheme.onPrimaryContainer
+   748→                            )
+   749→                            if (task.remainingTime > 0 && task.speed > 0) {
+   750→                                Text(
+   751→                                    "剩余 ${formatRemainingTime(task.remainingTime)}",
+   752→                                    style = MaterialTheme.typography.bodySmall,
+   753→                                    color = MaterialTheme.colorScheme.onPrimaryContainer
+   754→                                )
+   755→                            }
+   756→                        }
+   757→                    }
+   758→                }
+   759→            } else if (task.status == DownloadStatus.FETCHING_INFO) {
+   760→                Row(
+   761→                    modifier = Modifier.fillMaxWidth(),
+   762→                    verticalAlignment = Alignment.CenterVertically
+   763→                ) {
+   764→                    CircularProgressIndicator(
+   765→                        modifier = Modifier.size(20.dp),
+   766→                        strokeWidth = 2.dp
+   767→                    )
+   768→                    Spacer(Modifier.width(8.dp))
+   769→                    Text(
+   770→                        "正在解析视频信息...",
+   771→                        style = MaterialTheme.typography.bodySmall,
+   772→                        color = MaterialTheme.colorScheme.onPrimaryContainer
+   773→                    )
+   774→                }
+   775→            } else if (task.status == DownloadStatus.FAILED) {
+   776→                Row(
+   777→                    modifier = Modifier.fillMaxWidth(),
+   778→                    verticalAlignment = Alignment.CenterVertically
+   779→                ) {
+   780→                    Icon(
+   781→                        Icons.Default.Error,
+   782→                        contentDescription = null,
+   783→                        tint = MaterialTheme.colorScheme.error,
+   784→                        modifier = Modifier.size(20.dp)
+   785→                    )
+   786→                    Spacer(Modifier.width(8.dp))
+   787→                    Text(
+   788→                        task.errorMessage ?: "下载失败",
+   789→                        style = MaterialTheme.typography.bodySmall,
+   790→                        color = MaterialTheme.colorScheme.error
+   791→                    )
+   792→                }
+   793→            } else if (task.status == DownloadStatus.COMPLETED) {
+   794→                Row(
+   795→                    modifier = Modifier.fillMaxWidth(),
+   796→                    verticalAlignment = Alignment.CenterVertically
+   797→                ) {
+   798→                    Icon(
+   799→                        Icons.Default.CheckCircle,
+   800→                        contentDescription = null,
+   801→                        tint = MaterialTheme.colorScheme.primary,
+   802→                        modifier = Modifier.size(20.dp)
+   803→                    )
+   804→                    Spacer(Modifier.width(8.dp))
+   805→                    Text(
+   806→                        "下载完成",
+   807→                        style = MaterialTheme.typography.bodySmall,
+   808→                        color = MaterialTheme.colorScheme.primary
+   809→                    )
+   810→                }
+   811→            } else if (task.status == DownloadStatus.WAITING_FOR_AUTH) {
+   812→                Row(
+   813→                    modifier = Modifier.fillMaxWidth(),
+   814→                    verticalAlignment = Alignment.CenterVertically
+   815→                ) {
+   816→                    Icon(
+   817→                        Icons.Default.Lock,
+   818→                        contentDescription = null,
+   819→                        tint = MaterialTheme.colorScheme.tertiary,
+   820→                        modifier = Modifier.size(20.dp)
+   821→                    )
+   822→                    Spacer(Modifier.width(8.dp))
+   823→                    Text(
+   824→                        "需要登录获取下载权限",
+   825→                        style = MaterialTheme.typography.bodySmall,
+   826→                        color = MaterialTheme.colorScheme.onTertiaryContainer
+   827→                    )
+   828→                }
+   829→            }
+   830→        }
+   831→    }
+   832→}
+   833→
+   834→/**
+   835→ * 转录进度卡片组件
+   836→ */
+   837→@Composable
+   838→private fun TranscriptionProgressCard(
+   839→    currentVideo: String,
+   840→    queueList: List<String>,
+   841→    progress: Int,
+   842→    message: String,
+   843→    onCancel: () -> Unit = {}
+   844→) {
+   845→    Card(
+   846→        modifier = Modifier.fillMaxWidth(),
+   847→        colors = CardDefaults.cardColors(
+   848→            containerColor = MaterialTheme.colorScheme.tertiaryContainer
+   849→        )
+   850→    ) {
+   851→        Column(modifier = Modifier.padding(12.dp)) {
+   852→            // 标题行
+   853→            Row(
+   854→                modifier = Modifier.fillMaxWidth(),
+   855→                horizontalArrangement = Arrangement.SpaceBetween,
+   856→                verticalAlignment = Alignment.CenterVertically
+   857→            ) {
+   858→                Row(verticalAlignment = Alignment.CenterVertically) {
+   859→                    Icon(
+   860→                        Icons.Default.Mic,
+   861→                        contentDescription = null,
+   862→                        tint = MaterialTheme.colorScheme.onTertiaryContainer,
+   863→                        modifier = Modifier.size(20.dp)
+   864→                    )
+   865→                    Spacer(Modifier.width(8.dp))
+   866→                    Text(
+   867→                        "正在转录",
+   868→                        style = MaterialTheme.typography.titleMedium,
+   869→                        color = MaterialTheme.colorScheme.onTertiaryContainer
+   870→                    )
+   871→                }
+   872→                Text(
+   873→                    "$progress%",
+   874→                    style = MaterialTheme.typography.titleMedium,
+   875→                    color = MaterialTheme.colorScheme.primary
+   876→                )
+   877→                Spacer(Modifier.width(8.dp))
+   878→                IconButton(
+   879→                    onClick = onCancel,
+   880→                    modifier = Modifier.size(28.dp)
+   881→                ) {
+   882→                    Icon(
+   883→                        Icons.Default.Close,
+   884→                        contentDescription = "终止转录",
+   885→                        tint = MaterialTheme.colorScheme.error,
+   886→                        modifier = Modifier.size(18.dp)
+   887→                    )
+   888→                }
+   889→            }
+   890→
+   891→            Spacer(Modifier.height(8.dp))
+   892→
+   893→            // 当前转录的视频
+   894→            Text(
+   895→                currentVideo,
+   896→                style = MaterialTheme.typography.bodyMedium,
+   897→                color = MaterialTheme.colorScheme.onTertiaryContainer
+   898→            )
+   899→
+   900→            Spacer(Modifier.height(4.dp))
+   901→
+   902→            // 进度条
+   903→            LinearProgressIndicator(
+   904→                progress = { progress / 100f },
+   905→                modifier = Modifier.fillMaxWidth(),
+   906→                color = MaterialTheme.colorScheme.primary
+   907→            )
+   908→
+   909→            Spacer(Modifier.height(4.dp))
+   910→
+   911→            // 状态消息
+   912→            Text(
+   913→                message,
+   914→                style = MaterialTheme.typography.bodySmall,
+   915→                color = MaterialTheme.colorScheme.onTertiaryContainer
+   916→            )
+   917→
+   918→            // 队列中的视频
+   919→            if (queueList.isNotEmpty()) {
+   920→                Spacer(Modifier.height(8.dp))
+   921→                Text(
+   922→                    "等待中: ${queueList.size} 个视频",
+   923→                    style = MaterialTheme.typography.bodySmall,
+   924→                    color = MaterialTheme.colorScheme.onTertiaryContainer
+   925→                )
+   926→                queueList.take(3).forEach { videoName ->
+   927→                    Text(
+   928→                        "• $videoName",
+   929→                        style = MaterialTheme.typography.bodySmall,
+   930→                        color = MaterialTheme.colorScheme.onTertiaryContainer,
+   931→                        modifier = Modifier.padding(start = 8.dp)
+   932→                    )
+   933→                }
+   934→                if (queueList.size > 3) {
+   935→                    Text(
+   936→                        "• 还有 ${queueList.size - 3} 个...",
+   937→                        style = MaterialTheme.typography.bodySmall,
+   938→                        color = MaterialTheme.colorScheme.onTertiaryContainer,
+   939→                        modifier = Modifier.padding(start = 8.dp)
+   940→                    )
+   941→                }
+   942→            }
+   943→        }
+   944→    }
+   945→}
+   946→
+   947→/**
+   948→ * 视频列表项组件
+   949→ * @param showTranscribe 是否显示转录按钮（已下载但未转录的视频）
+   950→ * @param isTranscribed 是否已转录（已转录的视频删除按钮只在对话框中显示）
+   951→ */
+   952→@Composable
+   953→private fun VideoListItem(
+   954→    video: VideoEntity,
+   955→    showTranscribe: Boolean,
+   956→    isTranscribed: Boolean = false,
+   957→    onTranscribe: () -> Unit,
+   958→    onPlay: () -> Unit,
+   959→    onDelete: () -> Unit,
+   960→    onShare: () -> Unit,
+   961→    onOpenFolder: () -> Unit
+   962→) {
+   963→    var showActionDialog by remember { mutableStateOf(false) }
+   964→
+   965→    Card(
+   966→        modifier = Modifier
+   967→            .fillMaxWidth()
+   968→            .clickable { showActionDialog = true }
+   969→    ) {
+   970→        Column(modifier = Modifier.padding(12.dp)) {
+   971→            Row(
+   972→                verticalAlignment = Alignment.CenterVertically
+   973→            ) {
+   974→                Icon(
+   975→                    Icons.Default.VideoLibrary,
+   976→                    contentDescription = null,
+   977→                    tint = MaterialTheme.colorScheme.primary
+   978→                )
+   979→                Spacer(Modifier.width(12.dp))
+   980→                Column(Modifier.weight(1f)) {
+   981→                    Text(
+   982→                        video.title,
+   983→                        style = MaterialTheme.typography.bodyLarge,
+   984→                        maxLines = 2
+   985→                    )
+   986→                    Text(
+   987→                        if (isTranscribed) "已转录" else "待转录",
+   988→                        style = MaterialTheme.typography.bodySmall,
+   989→                        color = if (isTranscribed)
+   990→                            MaterialTheme.colorScheme.primary
+   991→                        else
+   992→                            MaterialTheme.colorScheme.onSurfaceVariant
+   993→                    )
+   994→                }
+   995→            }
+   996→
+   997→            Spacer(Modifier.height(8.dp))
+   998→
+   999→            // 操作按钮行
+  1000→            Row(
+  1001→                modifier = Modifier.fillMaxWidth(),
+  1002→                horizontalArrangement = Arrangement.End
+  1003→            ) {
+  1004→                if (showTranscribe) {
+  1005→                    Button(
+  1006→                        onClick = onTranscribe,
+  1007→                        modifier = Modifier.height(36.dp)
+  1008→                    ) {
+  1009→                        Icon(Icons.Default.Mic, null, modifier = Modifier.size(16.dp))
+  1010→                        Spacer(Modifier.width(4.dp))
+  1011→                        Text("转录")
+  1012→                    }
+  1013→                    Spacer(Modifier.width(8.dp))
+  1014→                }
+  1015→                OutlinedButton(
+  1016→                    onClick = onPlay,
+  1017→                    modifier = Modifier.height(36.dp)
+  1018→                ) {
+  1019→                    Icon(Icons.Default.PlayArrow, null, modifier = Modifier.size(16.dp))
+  1020→                    Spacer(Modifier.width(4.dp))
+  1021→                    Text("播放")
+  1022→                }
+  1023→            }
+  1024→        }
+  1025→    }
+  1026→
+  1027→    // 点击操作对话框
+  1028→    if (showActionDialog) {
+  1029→        AlertDialog(
+  1030→            onDismissRequest = { showActionDialog = false },
+  1031→            title = { Text(video.title) },
+  1032→            text = {
+  1033→                Column(
+  1034→                    modifier = Modifier.fillMaxWidth(),
+  1035→                    verticalArrangement = Arrangement.spacedBy(8.dp)
+  1036→                ) {
+  1037→                    // 打开所在文件夹
+  1038→                    OutlinedButton(
+  1039→                        onClick = {
+  1040→                            showActionDialog = false
+  1041→                            onOpenFolder()
+  1042→                        },
+  1043→                        modifier = Modifier.fillMaxWidth()
+  1044→                    ) {
+  1045→                        Icon(Icons.Default.Folder, null, modifier = Modifier.size(18.dp))
+  1046→                        Spacer(Modifier.width(8.dp))
+  1047→                        Text("打开所在文件夹")
+  1048→                    }
+  1049→                    // 分享
+  1050→                    OutlinedButton(
+  1051→                        onClick = {
+  1052→                            showActionDialog = false
+  1053→                            onShare()
+  1054→                        },
+  1055→                        modifier = Modifier.fillMaxWidth()
+  1056→                    ) {
+  1057→                        Icon(Icons.Default.Share, null, modifier = Modifier.size(18.dp))
+  1058→                        Spacer(Modifier.width(8.dp))
+  1059→                        Text("分享到微信")
+  1060→                    }
+  1061→                    // 删除
+  1062→                    OutlinedButton(
+  1063→                        onClick = {
+  1064→                            showActionDialog = false
+  1065→                            onDelete()
+  1066→                        },
+  1067→                        modifier = Modifier.fillMaxWidth(),
+  1068→                        colors = ButtonDefaults.outlinedButtonColors(
+  1069→                            contentColor = MaterialTheme.colorScheme.error
+  1070→                        )
+  1071→                    ) {
+  1072→                        Icon(Icons.Default.Delete, null, modifier = Modifier.size(18.dp))
+  1073→                        Spacer(Modifier.width(8.dp))
+  1074→                        Text("删除视频")
+  1075→                    }
+  1076→                }
+  1077→            },
+  1078→            confirmButton = {
+  1079→                TextButton(onClick = { showActionDialog = false }) {
+  1080→                    Text("取消")
+  1081→                }
+  1082→            }
+  1083→        )
+  1084→    }
+  1085→}
+  1086→

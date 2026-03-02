@@ -1,0 +1,43 @@
+package com.ai.hotspot.data.remote.rss
+
+/**
+ * RSS数据源配置
+ */
+enum class RssSource(
+    val url: String,
+    val displayName: String,
+    val defaultCategory: String
+) {
+    // 中文源（优先）
+    JIQIZHIXIN(
+        url = "https://www.jiqizhixin.com/rss",
+        displayName = "机器之心",
+        defaultCategory = "NEWS"
+    ),
+    LEIPHONE_AI(
+        url = "https://www.leiphone.com/feed",
+        displayName = "雷锋网AI",
+        defaultCategory = "NEWS"
+    ),
+    SSPAI(
+        url = "https://sspai.com/feed",
+        displayName = "少数派",
+        defaultCategory = "TOOL"
+    ),
+
+    // 英文源
+    GITHUB_TRENDING(
+        url = "https://mshibanami.github.io/GitHubTrendingRSS/daily/all.xml",
+        displayName = "GitHub热榜",
+        defaultCategory = "PROJECT"
+    ),
+    HACKER_NEWS(
+        url = "https://hnrss.org/frontpage",
+        displayName = "Hacker News",
+        defaultCategory = "NEWS"
+    );
+
+    companion object {
+        val allUrls: List<String> = entries.map { it.url }
+    }
+}

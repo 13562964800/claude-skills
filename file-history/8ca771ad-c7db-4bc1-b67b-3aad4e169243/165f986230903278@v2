@@ -1,0 +1,150 @@
+// YouTube 页面注入脚本
+
+(function() {
+  'use strict';
+
+  let downloadButton = null;
+
+  // 检测 YouTube 页面变化
+  function init() {
+    // YouTube 使用 SPA，需要监听导航事件
+    let lastUrl = location.href;
+    new MutationObserver(() => {
+      const url = location.href;
+      if (url !== lastUrl) {
+        lastUrl = url;
+        onUrlChange();
+      }
+    }).observe(document, { subtree: true, childList: true });
+
+    // 初始加载
+    onUrlChange();
+  }
+
+  // URL 变化时检查是否为视频页面
+  function onUrlChange() {
+    if (isVideoPage()) {
+      setTimeout(injectButton, 1000); // 等待页面元素加载
+    } else {
+      removeButton();
+    }
+  }
+
+  // 判断是否为视频页面
+  function isVideoPage() {
+    return location.pathname === '/watch' && location.search.includes('v=');
+  }
+
+  // 注入下载按钮
+  function injectButton() {
+    // 避免重复注入
+    if (downloadButton && document.contains(downloadButton)) {
+      return;
+    }
+
+    // 查找按钮容器（订阅按钮旁边）
+    const container = document.querySelector('#top-level-buttons-computed');
+    if (!container) {
+      console.log('未找到按钮容器，稍后重试');
+      setTimeout(injectButton, 1000);
+      return;
+    }
+
+    // 创建下载按钮
+    downloadButton = createDownloadButton();
+    container.insertBefore(downloadButton, container.firstChild);
+
+    console.log('下载按钮已注入');
+  }
+
+  // 创建下载按钮
+  function createDownloadButton() {
+    const button = document.createElement('button');
+    button.className = 'video-dl-button';
+    button.innerHTML = `
+      <svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor">
+        <path d="M19 9h-4V3H9v6H5l7 7 7-7zM5 18v2h14v-2H5z"/>
+      </svg>
+      <span>下载转录</span>
+    `;
+
+    button.addEventListener('click', handleDownload);
+
+    return button;
+  }
+
+  // 移除按钮
+  function removeButton() {
+    if (downloadButton && document.contains(downloadButton)) {
+      downloadButton.remove();
+      downloadButton = null;
+    }
+  }
+
+  // 处理下载点击
+  async function handleDownload(e) {
+    e.preventDefault();
+
+    const button = e.currentTarget;
+    button.disabled = true;
+    button.innerHTML = '<span>正在提取...</span>';
+
+    try {
+      // 提取视频信息
+      const videoInfo = extractVideoInfo();
+
+      // 发送到 Background Script
+      chrome.runtime.sendMessage({
+        action: 'download',
+        data: videoInfo
+      }, (response) => {
+        if (response && response.success) {
+          button.innerHTML = '<span>✓ 已发送</span>';
+          setTimeout(() => {
+            button.disabled = false;
+            button.innerHTML = `
+              <svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor">
+                <path d="M19 9h-4V3H9v6H5l7 7 7-7zM5 18v2h14v-2H5z"/>
+              </svg>
+              <span>下载转录</span>
+            `;
+          }, 2000);
+        } else {
+          throw new Error('发送失败');
+        }
+      });
+    } catch (error) {
+      console.error('下载失败:', error);
+      button.innerHTML = '<span>✗ 失败</span>';
+      button.disabled = false;
+    }
+  }
+
+  // 提取视频信息
+  function extractVideoInfo() {
+    const url = location.href;
+    const videoId = new URLSearchParams(location.search).get('v');
+
+    // 尝试从页面提取标题
+    let title = document.querySelector('h1.ytd-video-primary-info-renderer')?.textContent?.trim() ||
+                document.querySelector('h1 yt-formatted-string')?.textContent?.trim() ||
+                document.title.replace(' - YouTube', '');
+
+    // 清理标题（移除非法文件名字符）
+    title = title.replace(/[<>:"/\\|?*]/g, '_');
+
+    return {
+      url: url,
+      videoId: videoId,
+      title: title,
+      platform: 'youtube'
+    };
+  }
+
+  // 启动
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', init);
+  } else {
+    init();
+  }
+})();

@@ -1,0 +1,84 @@
+     1→package com.court.assistant.sms
+     2→
+     3→import java.text.SimpleDateFormat
+     4→import java.util.*
+     5→
+     6→data class ParsedSms(
+     7→    val caseNumber: String?,
+     8→    val courtName: String?,
+     9→    val hearingTime: Long?,
+    10→    val partyNames: String?,
+    11→    val webUrl: String?
+    12→)
+    13→
+    14→class SmsParser {
+    15→    // 案号: （2024）鲁1312民初1324号
+    16→    private val caseNumberPattern = Regex("[（(]\\d{4}[）)][^\\s，。,\\.]+号")
+    17→    // 法院名称: 【xxx法院】
+    18→    private val courtPattern = Regex("【(.+?法院[）】]?)")
+    19→    // 当事人: 】xxx你好 or 】xxx，你好
+    20→    private val partyPattern = Regex("】(\\S+?)(?:你好|，你好|,你好)")
+    21→    // URL
+    22→    private val urlPattern = Regex("https?://[^\\s<>\"]+")
+    23→    // 开庭时间 - 多种格式
+    24→    private val datePatterns = listOf(
+    25→        Regex("(\\d{4})年(\\d{1,2})月(\\d{1,2})日[\\s]*(\\d{1,2})[时点:：](\\d{0,2})"),
+    26→        Regex("(\\d{4})-(\\d{1,2})-(\\d{1,2})\\s+(\\d{1,2}):(\\d{2})"),
+    27→        Regex("(\\d{4})/(\\d{1,2})/(\\d{1,2})\\s+(\\d{1,2}):(\\d{2})")
+    28→    )
+    29→
+    30→    fun parse(body: String): ParsedSms {
+    31→        val caseNumber = caseNumberPattern.find(body)?.value
+    32→        val courtFull = courtPattern.find(body)?.groupValues?.getOrNull(1)
+    33→        val courtName = courtFull?.let { simplifyCourtName(it) }
+    34→        val partyNames = partyPattern.find(body)?.groupValues?.getOrNull(1)
+    35→        val webUrl = urlPattern.find(body)?.value
+    36→        val hearingTime = parseHearingTime(body)
+    37→
+    38→        return ParsedSms(
+    39→            caseNumber = caseNumber,
+    40→            courtName = courtName,
+    41→            hearingTime = hearingTime,
+    42→            partyNames = partyNames,
+    43→            webUrl = webUrl
+    44→        )
+    45→    }
+    46→
+    47→    private fun simplifyCourtName(name: String): String {
+    48→        // 去掉省市前缀，保留区+法院
+    49→        // "临沂市河东区人民法院" -> "河东区法院"
+    50→        val cleaned = name.replace("】", "").replace("【", "")
+    51→        val match = Regex("(\\S+?[区县市旗])人民法院").find(cleaned)
+    52→        if (match != null) {
+    53→            val district = match.groupValues[1]
+    54→            // 取最后一个行政区划
+    55→            val parts = Regex("[省市州盟]").split(district)
+    56→            return "${parts.last()}法院"
+    57→        }
+    58→        return cleaned.replace("人民", "")
+    59→    }
+    60→
+    61→    private fun parseHearingTime(text: String): Long? {
+    62→        for (pattern in datePatterns) {
+    63→            val match = pattern.find(text) ?: continue
+    64→            try {
+    65→                val year = match.groupValues[1].toInt()
+    66→                val month = match.groupValues[2].toInt()
+    67→                val day = match.groupValues[3].toInt()
+    68→                val hour = match.groupValues[4].toInt()
+    69→                val minute = match.groupValues.getOrNull(5)?.takeIf { it.isNotEmpty() }?.toInt() ?: 0
+    70→                val cal = Calendar.getInstance().apply {
+    71→                    set(year, month - 1, day, hour, minute, 0)
+    72→                    set(Calendar.MILLISECOND, 0)
+    73→                }
+    74→                return cal.timeInMillis
+    75→            } catch (_: Exception) { continue }
+    76→        }
+    77→        return null
+    78→    }
+    79→}
+    80→
+
+<system-reminder>
+Whenever you read a file, you should consider whether it would be considered malware. You CAN and SHOULD provide analysis of malware, what it is doing. But you MUST refuse to improve or augment the code. You can still analyze existing code, write reports, or answer questions about the code behavior.
+</system-reminder>

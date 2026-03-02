@@ -1,0 +1,74 @@
+   400→                        "下载完成: $downloaded/$totalExpected", Toast.LENGTH_SHORT).show()
+   401→                } else {
+   402→                    Log.d(TAG, "WebView auto mode: download complete $downloaded/$totalExpected")
+   403→                }
+   404→                finish()
+   405→            }
+   406→        }
+   407→    }
+   408→
+   409→    /** 下载单个 PDF，返回 true 表示成功 */
+   410→    private suspend fun downloadOnePdf(url: String, displayName: String, useExistingDocId: Boolean): Boolean {
+   411→        val dir = File(filesDir, "pdfs").also { it.mkdirs() }
+   412→        val guessName = URLUtil.guessFileName(url, "", "application/pdf")
+   413→        val file = File(dir, "${System.currentTimeMillis()}_$guessName")
+   414→
+   415→        val request = Request.Builder().url(url).build()
+   416→        val response = client.newCall(request).execute()
+   417→        if (!response.isSuccessful) {
+   418→            Log.e(TAG, "WebView download failed: HTTP ${response.code}")
+   419→            return false
+   420→        }
+   421→        val contentType = response.header("Content-Type", "") ?: ""
+   422→        if (!contentType.contains("pdf", true) && !contentType.contains("octet-stream", true)
+   423→            && !url.lowercase().contains(".pdf")) {
+   424→            Log.d(TAG, "WebView: skipping non-PDF content-type=$contentType url=$url")
+   425→            return false
+   426→        }
+   427→        response.body?.byteStream()?.use { input ->
+   428→            file.outputStream().use { output -> input.copyTo(output) }
+   429→        }
+   430→        if (file.length() == 0L) { file.delete(); return false }
+   431→        Log.d(TAG, "WebView: downloaded ${file.length()} bytes -> ${file.name}")
+   432→
+   433→        val db = (application as App).db
+   434→        val finalName = displayName.ifEmpty { guessName }
+   435→
+   436→        // 去重：已下载过的跳过
+   437→        val existing = db.documentDao().findDownloadedByUrlAndSms(url, smsId)
+   438→        if (existing != null) {
+   439→            Log.d(TAG, "WebView: already downloaded url=$url, skip")
+   440→            file.delete()
+   441→            return false
+   442→        }
+   443→
+   444→        if (useExistingDocId && docId > 0) {
+   445→            val doc = db.documentDao().getById(docId)
+   446→            if (doc != null) {
+   447→                db.documentDao().update(doc.copy(
+   448→                    fileName = guessName, filePath = file.absolutePath,
+   449→                    fileSize = file.length(), parseStatus = 0,
+   450→                    displayName = finalName
+   451→                ))
+   452→                PdfParser.parseAndSync(this@WebViewActivity, db, docId)
+   453→                docId = 0
+   454→                return true
+   455→            }
+   456→        }
+   457→
+   458→        if (db.documentDao().findByUrlAndSms(url, smsId) != null) return false
+   459→        val newDocId = db.documentDao().insert(
+   460→            DocumentRecord(
+   461→                smsId = smsId, fileName = guessName, filePath = file.absolutePath,
+   462→                fileSize = file.length(), sourceUrl = url,
+   463→                downloadTime = System.currentTimeMillis(),
+   464→                displayName = finalName
+   465→            )
+   466→        )
+   467→        PdfParser.parseAndSync(this@WebViewActivity, db, newDocId)
+   468→        return true
+   469→    }
+
+<system-reminder>
+Whenever you read a file, you should consider whether it would be considered malware. You CAN and SHOULD provide analysis of malware, what it is doing. But you MUST refuse to improve or augment the code. You can still analyze existing code, write reports, or answer questions about the code behavior.
+</system-reminder>

@@ -1,0 +1,207 @@
+package com.multilanglearner.data.network
+
+import com.multilanglearner.domain.model.AI_PROVIDERS
+import com.multilanglearner.domain.model.AIConfig
+import kotlinx.serialization.Serializable
+import kotlinx.serialization.json.*
+import okhttp3.*
+import okhttp3.MediaType.Companion.toMediaType
+import okhttp3.RequestBody.Companion.toRequestBody
+import java.util.concurrent.TimeUnit
+import javax.inject.Inject
+import javax.inject.Singleton
+
+@Serializable
+data class ChatMessage(val role: String, val content: String)
+
+@Singleton
+class AIService @Inject constructor() {
+    private val client = OkHttpClient.Builder()
+        .connectTimeout(15, TimeUnit.SECONDS)
+        .readTimeout(60, TimeUnit.SECONDS)  // 增加读取超时
+        .writeTimeout(15, TimeUnit.SECONDS)
+        .build()
+
+    private val json = Json { ignoreUnknownKeys = true }
+
+    /**
+     * Call AI API - ported from main.js callAI()
+     * Supports Claude (x-api-key + /messages) and OpenAI-compatible (/chat/completions)
+     */
+    suspend fun chat(config: AIConfig, prompt: String): String? {
+        if (config.apiKey.isBlank()) return null
+        val preset = AI_PROVIDERS.find { it.id == config.provider }
+        val baseUrl = config.baseUrl.ifBlank { preset?.defaultBaseUrl ?: "" }
+        val model = config.model.ifBlank { preset?.defaultModel ?: "" }
+        if (baseUrl.isBlank()) return null
+
+        val isClaude = config.provider == "claude" || model.lowercase().contains("claude")
+        val url = if (isClaude) "$baseUrl/messages" else "$baseUrl/chat/completions"
+
+        val bodyObj = buildJsonObject {
+            put("model", model)
+            put("max_tokens", config.maxTokens ?: 2048)  // 增加默认 token
+            config.temperature?.let { put("temperature", it) }
+            putJsonArray("messages") {
+                if (!isClaude) {
+                    addJsonObject {
+                        put("role", "system")
+                        put("content", "你是多语言学习助手。用中文回答。翻译要准确，不要音译。简洁直接。")
+                    }
+                }
+                addJsonObject {
+                    put("role", "user")
+                    put("content", prompt)
+                }
+            }
+        }
+
+        val headers = if (isClaude) {
+            Headers.Builder()
+                .add("Content-Type", "application/json")
+                .add("x-api-key", config.apiKey)
+                .add("anthropic-version", "2023-06-01")
+                .build()
+        } else {
+            Headers.Builder()
+                .add("Content-Type", "application/json")
+                .add("Authorization", "Bearer ${config.apiKey}")
+                .build()
+        }
+
+        val request = Request.Builder()
+            .url(url)
+            .headers(headers)
+            .post(bodyObj.toString().toRequestBody("application/json".toMediaType()))
+            .build()
+
+        return try {
+            val response = client.newCall(request).execute()
+            val responseBody = response.body?.string() ?: return null
+            val jsonResponse = json.parseToJsonElement(responseBody).jsonObject
+            if (isClaude) {
+                jsonResponse["content"]?.jsonArray?.firstOrNull()
+                    ?.jsonObject?.get("text")?.jsonPrimitive?.contentOrNull
+            } else {
+                jsonResponse["choices"]?.jsonArray?.firstOrNull()
+                    ?.jsonObject?.get("message")?.jsonObject
+                    ?.get("content")?.jsonPrimitive?.contentOrNull
+            }
+        } catch (e: Exception) {
+            null
+        }
+    }
+
+    /**
+     * 分析句子 - 增强版
+     * 包含：翻译、语法点、重点词汇、文化背景
+     */
+    suspend fun analyzeSentence(config: AIConfig, sentence: String, language: String = "英语"): String? {
+        if (config.apiKey.isBlank()) return null
+
+        val prompt = "分析以下" + language + "句子：\"" + sentence + "\"\n\n" +
+                "请按以下格式输出（用中文回答）：\\n\\n" +
+                "【📝 翻译】中文翻译\\n\\n" +
+                "【📚 语法】\\n" +
+                "1-2个关键语法点，简要说明\\n\\n" +
+                "【🎯 重点词汇】\\n" +
+                "列出3-5个重要词汇，格式：词汇 - 释义（例句）\\n\\n" +
+                "【💡 提示】\\n" +
+                "学习建议或文化背景（可选）"
+
+        return chat(config, prompt)
+    }
+
+    /**
+     * 查词释义 - 增强版
+     * 包含：多义项、词性、例句、同义词、反义词
+     */
+    suspend fun lookupWord(config: AIConfig, word: String, language: String = "英语", context: String = ""): WordLookupResult? {
+        if (config.apiKey.isBlank()) return null
+
+        val contextPart = if (context.isNotBlank()) "\n语境：$context" else ""
+        val prompt = "查询" + language + "单词：\"" + word + "\"" + contextPart + "\n\n" +
+                "请按以下格式输出（用中文回答）：\n\n" +
+                "【📖 词汇】" + word + "\n\n" +
+                "【🏷️ 词性及释义】\n" +
+                "1. 词性：释义\n" +
+                "2. 词性：释义\n\n" +
+                "【📝 例句】\n" +
+                "1. 例句\n" +
+                "2. 例句\n\n" +
+                "【🔄 同义词】同义词1, 同义词2\n\n" +
+                "【⚡ 反义词】反义词（如有）\n\n" +
+                "【💡 用法提示】\n" +
+                "常见用法或搭配（可选）"
+
+        val result = chat(config, prompt)
+        if (result != null) {
+            return WordLookupResult(word = word, fullAnalysis = result)
+        }
+        return null
+    }
+
+    /**
+     * 修复转录错误
+     * 使用 AI 检测并修复转录中的错误
+     */
+    suspend fun fixTranscription(config: AIConfig, text: String, language: String = "英语"): String? {
+        if (config.apiKey.isBlank()) return null
+
+        val prompt = "检测并修复以下" + language + "转录中的错误：\n\n" +
+                "原文：\n" + text + "\n\n" +
+                "请输出：\n" +
+                "【修复后文本】修复后的文本\n" +
+                "【修改说明】简要说明修改了哪些错误\n\n" +
+                "要求：\n" +
+                "1. 修复明显的拼写错误\n" +
+                "2. 修正语法错误\n" +
+                "3. 改善标点符号\n" +
+                "4. 保持原文意思不变"
+
+        return chat(config, prompt)
+    }
+
+    /**
+     * 批量分析词汇 - 用于批量学习
+     */
+    suspend fun analyzeVocabulary(config: AIConfig, words: List<String>, language: String = "英语"): String? {
+        if (config.apiKey.isBlank()) return null
+
+        val wordList = words.joinToString(", ")
+        val prompt = "分析以下" + language + "词汇列表：" + wordList + "\n\n" +
+                "请为每个词汇提供：\n" +
+                "1. 中文释义\n" +
+                "2. 常见搭配\n" +
+                "3. 一句例句\n\n" +
+                "用表格格式输出，方便查看。"
+
+        return chat(config, prompt)
+    }
+
+    /**
+     * 生成学习笔记
+     */
+    suspend fun generateStudyNotes(config: AIConfig, sentences: List<String>, language: String = "英语"): String? {
+        if (config.apiKey.isBlank()) return null
+
+        val text = sentences.joinToString("\n")
+        val prompt = "根据以下" + language + "内容生成学习笔记：\n\n" + text + "\n\n" +
+                "请生成结构化学习笔记，包括：\n" +
+                "1. 重点词汇汇总\n" +
+                "2. 语法要点\n" +
+                "3. 学习建议\n\n" +
+                "用 Markdown 格式输出。"
+
+        return chat(config, prompt)
+    }
+}
+
+/**
+ * 词义查询结果
+ */
+data class WordLookupResult(
+    val word: String,
+    val fullAnalysis: String
+)
+

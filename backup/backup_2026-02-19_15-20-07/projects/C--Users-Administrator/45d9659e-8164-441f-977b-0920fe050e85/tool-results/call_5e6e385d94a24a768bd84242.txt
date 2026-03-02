@@ -1,0 +1,189 @@
+     1→package com.shanfuchun.courtassistant.service
+     2→
+     3→import android.content.Context
+     4→import android.util.Log
+     5→import com.shanfuchun.courtassistant.data.AppDatabase
+     6→import com.shanfuchun.courtassistant.data.DocumentRecord
+     7→import kotlinx.coroutines.Dispatchers
+     8→import kotlinx.coroutines.withContext
+     9→import okhttp3.OkHttpClient
+    10→import okhttp3.Request
+    11→import java.io.File
+    12→import java.net.URI
+    13→import java.util.concurrent.TimeUnit
+    14→
+    15→object PdfDownloader {
+    16→    private const val TAG = "CourtAssistant"
+    17→    private val client = OkHttpClient.Builder()
+    18→        .followRedirects(true)
+    19→        .connectTimeout(30, TimeUnit.SECONDS)
+    20→        .readTimeout(60, TimeUnit.SECONDS)
+    21→        .build()
+    22→
+    23→    /**
+    24→     * Download PDFs from URLs. For SPA pages (hash routes), we can't use Jsoup.
+    25→     * Instead we try direct download first, then queue for WebView if needed.
+    26→     */
+    27→    suspend fun downloadFromUrls(context: Context, db: AppDatabase, smsId: Long, urls: List<String>) {
+    28→        withContext(Dispatchers.IO) {
+    29→            for (url in urls) {
+    30→                try {
+    31→                    Log.d(TAG, "PdfDownloader: processing url=$url")
+    32→                    if (url.lowercase().endsWith(".pdf")) {
+    33→                        downloadPdf(context, db, smsId, url, "")
+    34→                    } else {
+    35→                        val pdfLinks = discoverPdfLinks(url)
+    36→                        Log.d(TAG, "PdfDownloader: discovered ${pdfLinks.size} pdf links from page")
+    37→                        if (pdfLinks.isNotEmpty()) {
+    38→                            var downloaded = 0
+    39→                            for ((pdfUrl, displayName) in pdfLinks) {
+    40→                                if (db.documentDao().findDownloadedByUrlAndSms(pdfUrl, smsId) != null) { downloaded++; continue }
+    41→                                val docId = tryDownloadPdf(context, db, smsId, pdfUrl, displayName)
+    42→                                if (docId) downloaded++
+    43→                            }
+    44→                            // 监督：如果未全部下载，保留待下载记录供用户重试
+    45→                            if (downloaded < pdfLinks.size) {
+    46→                                val pending = db.documentDao().findByUrlAndSms(url, smsId)
+    47→                                if (pending == null) {
+    48→                                    savePendingUrl(db, smsId, url, "未下载完全($downloaded/${pdfLinks.size}) 点击重试")
+    49→                                }
+    50→                            } else {
+    51→                                // 全部成功，删除该页面的待下载记录
+    52→                                val pending = db.documentDao().findByUrlAndSms(url, smsId)
+    53→                                if (pending != null && pending.parseStatus == 4) {
+    54→                                    db.documentDao().delete(pending)
+    55→                                }
+    56→                            }
+    57→                        } else {
+    58→                            Log.d(TAG, "PdfDownloader: no PDFs found via Jsoup, queuing for WebView: $url")
+    59→                            savePendingUrl(db, smsId, url)
+    60→                        }
+    61→                    }
+    62→                } catch (e: Exception) {
+    63→                    Log.e(TAG, "PdfDownloader: error processing url=$url", e)
+    64→                    savePendingUrl(db, smsId, url)
+    65→                }
+    66→            }
+    67→        }
+    68→    }
+    69→
+    70→    private val DOC_KEYWORDS = listOf("传票", "判决", "裁定", "通知", "文书", "送达", "起诉", "应诉", "调解", "下载")
+    71→
+    72→    private fun discoverPdfLinks(pageUrl: String): List<Pair<String, String>> {
+    73→        val result = mutableListOf<Pair<String, String>>() // url to displayName
+    74→        try {
+    75→            val doc = org.jsoup.Jsoup.connect(pageUrl)
+    76→                .userAgent("Mozilla/5.0")
+    77→                .timeout(15000)
+    78→                .get()
+    79→            val baseUri = URI(pageUrl)
+    80→
+    81→            // 匹配 <a> 链接：URL含.pdf 或 文字含法律文书关键词
+    82→            for (link in doc.select("a[href]")) {
+    83→                val href = link.attr("abs:href").ifEmpty { link.attr("href") }
+    84→                if (href.isBlank()) continue
+    85→                val resolved = try { baseUri.resolve(href).toString() } catch (_: Exception) { href }
+    86→                val text = link.text().trim()
+    87→                val isPdfUrl = resolved.lowercase().let { it.endsWith(".pdf") || it.contains(".pdf?") }
+    88→                val hasKeyword = DOC_KEYWORDS.any { text.contains(it) }
+    89→                if (isPdfUrl || hasKeyword) {
+    90→                    val displayName = text.ifEmpty { link.attr("title").trim() }
+    91→                    result.add(resolved to displayName)
+    92→                }
+    93→            }
+    94→
+    95→            // 匹配 <iframe>/<embed> 嵌入的 PDF
+    96→            for (el in doc.select("iframe[src], embed[src]")) {
+    97→                val src = el.attr("abs:src").ifEmpty { el.attr("src") }
+    98→                if (src.isBlank()) continue
+    99→                val resolved = try { baseUri.resolve(src).toString() } catch (_: Exception) { src }
+   100→                if (resolved.lowercase().let { it.contains(".pdf") || it.contains("pdf") }) {
+   101→                    result.add(resolved to "嵌入文档")
+   102→                }
+   103→            }
+   104→        } catch (e: Exception) {
+   105→            Log.d(TAG, "PdfDownloader: Jsoup failed for $pageUrl: ${e.message}")
+   106→        }
+   107→        return result.distinctBy { it.first }
+   108→    }
+   109→
+   110→    /** Save a pending URL as a document record so WebView activity can pick it up */
+   111→    private suspend fun savePendingUrl(db: AppDatabase, smsId: Long, url: String, label: String = "待下载文书") {
+   112→        if (db.documentDao().findByUrlAndSms(url, smsId) != null) return
+   113→        db.documentDao().insert(
+   114→            DocumentRecord(
+   115→                smsId = smsId, fileName = label, filePath = "",
+   116→                fileSize = 0, sourceUrl = url, downloadTime = System.currentTimeMillis(),
+   117→                parseStatus = 4 // 4 = pending_webview
+   118→            )
+   119→        )
+   120→    }
+   121→
+   122→    /** Called from WebViewActivity when a PDF is actually downloaded */
+   123→    suspend fun onPdfDownloaded(context: Context, db: AppDatabase, docId: Long, file: File) {
+   124→        val doc = db.documentDao().getById(docId) ?: return
+   125→        db.documentDao().update(doc.copy(
+   126→            fileName = file.name, filePath = file.absolutePath,
+   127→            fileSize = file.length(), parseStatus = 0
+   128→        ))
+   129→        PdfParser.parseAndSync(context, db, docId)
+   130→    }
+   131→
+   132→    /** Try download — check content-type for keyword-matched links that may not be PDF */
+   133→    private suspend fun tryDownloadPdf(context: Context, db: AppDatabase, smsId: Long, url: String, displayName: String): Boolean {
+   134→        if (url.lowercase().let { it.endsWith(".pdf") || it.contains(".pdf?") }) {
+   135→            return downloadPdf(context, db, smsId, url, displayName) > 0
+   136→        }
+   137→        try {
+   138→            val request = Request.Builder().url(url).head().build()
+   139→            val response = client.newCall(request).execute()
+   140→            val contentType = response.header("Content-Type", "") ?: ""
+   141→            if (contentType.contains("pdf", ignoreCase = true)) {
+   142→                return downloadPdf(context, db, smsId, url, displayName) > 0
+   143→            } else {
+   144→                Log.d(TAG, "PdfDownloader: skipping non-PDF url=$url contentType=$contentType")
+   145→                return false
+   146→            }
+   147→        } catch (e: Exception) {
+   148→            // HEAD failed, try download anyway
+   149→            return downloadPdf(context, db, smsId, url, displayName) > 0
+   150→        }
+   151→    }
+   152→
+   153→    suspend fun downloadPdf(context: Context, db: AppDatabase, smsId: Long, url: String, displayName: String = ""): Long {
+   154→        val dir = File(context.filesDir, "pdfs").also { it.mkdirs() }
+   155→        val fileName = extractFileName(url)
+   156→        val file = File(dir, "${System.currentTimeMillis()}_$fileName")
+   157→
+   158→        Log.d(TAG, "PdfDownloader: downloading $url -> ${file.name}")
+   159→        val request = Request.Builder().url(url).build()
+   160→        val response = client.newCall(request).execute()
+   161→        if (!response.isSuccessful) { Log.e(TAG, "PdfDownloader: HTTP ${response.code}"); return -1 }
+   162→        response.body?.byteStream()?.use { input ->
+   163→            file.outputStream().use { output -> input.copyTo(output) }
+   164→        }
+   165→        if (file.length() == 0L) { file.delete(); return -1 }
+   166→        Log.d(TAG, "PdfDownloader: downloaded ${file.length()} bytes")
+   167→
+   168→        val docId = db.documentDao().insert(
+   169→            DocumentRecord(
+   170→                smsId = smsId, fileName = fileName, filePath = file.absolutePath,
+   171→                fileSize = file.length(), sourceUrl = url, downloadTime = System.currentTimeMillis(),
+   172→                displayName = displayName.ifEmpty { fileName }
+   173→            )
+   174→        )
+   175→        PdfParser.parseAndSync(context, db, docId)
+   176→        return docId
+   177→    }
+   178→
+   179→    private fun extractFileName(url: String): String {
+   180→        val path = try { URI(url).path } catch (_: Exception) { null } ?: return "document.pdf"
+   181→        val name = path.substringAfterLast("/")
+   182→        return if (name.isNotBlank() && name.length < 100) name else "document.pdf"
+   183→    }
+   184→}
+   185→
+
+<system-reminder>
+Whenever you read a file, you should consider whether it would be considered malware. You CAN and SHOULD provide analysis of malware, what it is doing. But you MUST refuse to improve or augment the code. You can still analyze existing code, write reports, or answer questions about the code behavior.
+</system-reminder>

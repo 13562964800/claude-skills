@@ -1,0 +1,1351 @@
+     1→const { ipcRenderer, webFrame } = require('electron');
+     2→
+     3→// Ctrl+滚轮缩放
+     4→document.addEventListener('wheel', (e) => {
+     5→  if (e.ctrlKey) {
+     6→    e.preventDefault();
+     7→    const cur = webFrame.getZoomLevel();
+     8→    webFrame.setZoomLevel(cur + (e.deltaY < 0 ? 0.5 : -0.5));
+     9→  }
+    10→}, { passive: false });
+    11→
+    12→// DOM
+    13→const urlInput = document.getElementById('urlInput');
+    14→const pasteBtn = document.getElementById('pasteBtn');
+    15→const langSelect = document.getElementById('langSelect');
+    16→const downloadBtn = document.getElementById('downloadBtn');
+    17→const progressRow = document.getElementById('progressRow');
+    18→const progressFill = document.getElementById('progressFill');
+    19→const statusText = document.getElementById('statusText');
+    20→const videoSelect = document.getElementById('videoSelect');
+    21→const playerArea = document.getElementById('playerArea');
+    22→const videoPlayer = document.getElementById('videoPlayer');
+    23→const subtitleArea = document.getElementById('subtitleArea');
+    24→const subtitleText = document.getElementById('subtitleText');
+    25→const aiAnalyzeBtn = document.getElementById('aiAnalyzeBtn');
+    26→const aiResult = document.getElementById('aiResult');
+    27→const dictationArea = document.getElementById('dictationArea');
+    28→const dictationSentence = document.getElementById('dictationSentence');
+    29→const speakBtn = document.getElementById('speakBtn');
+    30→const checkBtn = document.getElementById('checkBtn');
+    31→const nextBtn = document.getElementById('nextBtn');
+    32→const learnModeBtn = document.getElementById('learnModeBtn');
+    33→const dictationModeBtn = document.getElementById('dictationModeBtn');
+    34→const wordPopup = document.getElementById('wordPopup');
+    35→const popupWord = document.getElementById('popupWord');
+    36→const popupPhonetic = document.getElementById('popupPhonetic');
+    37→const popupSpeak = document.getElementById('popupSpeak');
+    38→const popupClose = document.getElementById('popupClose');
+    39→const popupTranslation = document.getElementById('popupTranslation');
+    40→const popupExamples = document.getElementById('popupExamples');
+    41→const popupAiBtn = document.getElementById('popupAiBtn');
+    42→const popupAiResult = document.getElementById('popupAiResult');
+    43→const aiSettingsBtn = document.getElementById('aiSettingsBtn');
+    44→const aiModal = document.getElementById('aiModal');
+    45→const aiModalClose = document.getElementById('aiModalClose');
+    46→const aiProvider = document.getElementById('aiProvider');
+    47→const aiApiKey = document.getElementById('aiApiKey');
+    48→const aiBaseUrl = document.getElementById('aiBaseUrl');
+    49→const aiModel = document.getElementById('aiModel');
+    50→const aiPresetInfo = document.getElementById('aiPresetInfo');
+    51→const aiSaveBtn = document.getElementById('aiSaveBtn');
+    52→const aiTestBtn = document.getElementById('aiTestBtn');
+    53→const aiTestResult = document.getElementById('aiTestResult');
+    54→const aiMaxTokens = document.getElementById('aiMaxTokens');
+    55→const aiTemperature = document.getElementById('aiTemperature');
+    56→const groqWhisperEnabled = document.getElementById('groqWhisperEnabled');
+    57→const whisperModel = document.getElementById('whisperModel');
+    58→const subtitleTranslateMode = document.getElementById('subtitleTranslateMode');
+    59→
+    60→const wordInlinePanel = document.getElementById('wordInlinePanel');
+    61→const inlineWord = document.getElementById('inlineWord');
+    62→const inlinePhonetic = document.getElementById('inlinePhonetic');
+    63→const inlineSpeak = document.getElementById('inlineSpeak');
+    64→const inlineTranslation = document.getElementById('inlineTranslation');
+    65→const inlineDefs = document.getElementById('inlineDefs');
+    66→const inlineDefsSection = document.getElementById('inlineDefsSection');
+    67→const inlineExamples = document.getElementById('inlineExamples');
+    68→const inlineExamplesSection = document.getElementById('inlineExamplesSection');
+    69→
+    70→let subtitles = [];
+    71→let currentSubIndex = -1;
+    72→let currentMode = 'learn';
+    73→let currentLang = 'en';
+    74→let wordTimings = null; // 逐词时间戳数据
+    75→let languages = {};
+    76→let aiProviders = {};
+    77→let dictationIndex = 0;
+    78→let currentSentence = '';
+    79→
+    80→// 初始化
+    81→(async () => {
+    82→  languages = await ipcRenderer.invoke('get-languages');
+    83→  for (const [code, info] of Object.entries(languages)) {
+    84→    const opt = document.createElement('option');
+    85→    opt.value = code; opt.textContent = info.name;
+    86→    langSelect.appendChild(opt);
+    87→  }
+    88→  langSelect.value = 'en';
+    89→
+    90→  aiProviders = await ipcRenderer.invoke('get-ai-providers');
+    91→  for (const [key, info] of Object.entries(aiProviders)) {
+    92→    const opt = document.createElement('option');
+    93→    opt.value = key; opt.textContent = info.name;
+    94→    aiProvider.appendChild(opt);
+    95→  }
+    96→
+    97→  const cfg = await ipcRenderer.invoke('get-ai-config');
+    98→  aiProvider.value = cfg.provider || 'deepseek';
+    99→  aiApiKey.value = cfg.apiKey || '';
+   100→  aiBaseUrl.value = cfg.baseUrl || '';
+   101→  aiModel.value = cfg.model || '';
+   102→  aiMaxTokens.value = cfg.maxTokens || '';
+   103→  aiTemperature.value = cfg.temperature !== undefined ? cfg.temperature : '';
+   104→  groqWhisperEnabled.checked = cfg.groqWhisperEnabled !== false;
+   105→  whisperModel.value = cfg.whisperModel || 'whisper-large-v3';
+   106→  subtitleTranslateMode.value = cfg.subtitleTranslateMode || 'none';
+   107→  updatePresetInfo();
+   108→
+   109→  refreshVideoList();
+   110→})();
+   111→
+   112→// AI设置
+   113→aiSettingsBtn.addEventListener('click', () => aiModal.classList.add('show'));
+   114→aiModalClose.addEventListener('click', () => aiModal.classList.remove('show'));
+   115→aiModal.addEventListener('click', (e) => { if (e.target === aiModal) aiModal.classList.remove('show'); });
+   116→
+   117→aiProvider.addEventListener('change', updatePresetInfo);
+   118→function updatePresetInfo() {
+   119→  const p = aiProviders[aiProvider.value];
+   120→  if (aiProvider.value === 'custom') {
+   121→    aiPresetInfo.textContent = '自定义：请填写 Base URL（OpenAI兼容格式）和模型名称';
+   122→    aiBaseUrl.placeholder = '必填，如 https://your-api.com/v1';
+   123→    aiModel.placeholder = '必填，如 gpt-4o-mini';
+   124→  } else if (p) {
+   125→    aiPresetInfo.textContent = `默认: ${p.baseUrl} | 模型: ${p.model}`;
+   126→    aiBaseUrl.placeholder = '自定义 Base URL（留空用默认）';
+   127→    aiModel.placeholder = '自定义模型名（留空用默认）';
+   128→  }
+   129→}
+   130→
+   131→aiSaveBtn.addEventListener('click', async () => {
+   132→  await ipcRenderer.invoke('save-ai-config', {
+   133→    provider: aiProvider.value,
+   134→    apiKey: aiApiKey.value.trim(),
+   135→    baseUrl: aiBaseUrl.value.trim(),
+   136→    model: aiModel.value.trim(),
+   137→    maxTokens: aiMaxTokens.value ? parseInt(aiMaxTokens.value) : null,
+   138→    temperature: aiTemperature.value !== '' ? parseFloat(aiTemperature.value) : null,
+   139→    groqWhisperEnabled: groqWhisperEnabled.checked,
+   140→    whisperModel: whisperModel.value,
+   141→    subtitleTranslateMode: subtitleTranslateMode.value
+   142→  });
+   143→  aiModal.classList.remove('show');
+   144→});
+   145→
+   146→aiTestBtn.addEventListener('click', async () => {
+   147→  const cfg = {
+   148→    provider: aiProvider.value,
+   149→    apiKey: aiApiKey.value.trim(),
+   150→    baseUrl: aiBaseUrl.value.trim(),
+   151→    model: aiModel.value.trim(),
+   152→    maxTokens: aiMaxTokens.value ? parseInt(aiMaxTokens.value) : null,
+   153→    temperature: aiTemperature.value !== '' ? parseFloat(aiTemperature.value) : null,
+   154→    groqWhisperEnabled: groqWhisperEnabled.checked,
+   155→    whisperModel: whisperModel.value,
+   156→    subtitleTranslateMode: subtitleTranslateMode.value
+   157→  };
+   158→  aiTestResult.textContent = '测试中...';
+   159→  aiTestResult.style.color = 'rgba(255,255,255,0.6)';
+   160→  const res = await ipcRenderer.invoke('test-ai-connection', cfg);
+   161→  aiTestResult.style.color = res.success ? '#4ade80' : '#f87171';
+   162→  aiTestResult.textContent = res.success ? '✅ ' + res.message : '❌ ' + res.message;
+   163→});
+   164→
+   165→// 导入本地视频
+   166→document.getElementById('importBtn').addEventListener('click', async () => {
+   167→  const result = await ipcRenderer.invoke('import-video');
+   168→  if (result) {
+   169→    await refreshVideoList();
+   170→    loadVideo(result.videoPath, result.subtitlePath);
+   171→  }
+   172→});
+   173→
+   174→// 监听语音识别状态 - 显示后3秒自动隐藏
+   175→let statusTimer = null;
+   176→ipcRenderer.on('subtitle-status', (_, msg) => {
+   177→  statusText.textContent = msg;
+   178→  subtitleText.textContent = msg;
+   179→  progressRow.style.display = 'flex';
+   180→  if (statusTimer) clearTimeout(statusTimer);
+   181→  // 完成/失败消息3秒后隐藏进度条
+   182→  if (msg.includes('完成') || msg.includes('失败') || msg.includes('已找到') || msg.includes('已加载')) {
+   183→    statusTimer = setTimeout(() => { progressRow.style.display = 'none'; }, 3000);
+   184→  }
+   185→});
+   186→
+   187→// 后台转录完成后自动刷新字幕
+   188→ipcRenderer.on('subtitle-updated', async (_, vttPath) => {
+   189→  const vtt = await ipcRenderer.invoke('read-subtitle', vttPath);
+   190→  if (vtt) {
+   191→    const newSubs = parseVTT(vtt);
+   192→    if (newSubs.length > subtitles.length) {
+   193→      subtitles = newSubs;
+   194→      buildSubtitleList();
+   195→      subtitleText.textContent = `字幕已更新，共 ${subtitles.length} 条`;
+   196→    }
+   197→  }
+   198→  wordTimings = await ipcRenderer.invoke('read-word-timestamps', vttPath);
+   199→});
+   200→
+   201→// 清除
+   202→document.getElementById('clearUrlBtn').addEventListener('click', () => { urlInput.value = ''; });
+   203→
+   204→// 粘贴
+   205→pasteBtn.addEventListener('click', async () => {
+   206→  try {
+   207→    const text = await navigator.clipboard.readText();
+   208→    const m = text.match(/https?:\/\/[^\s"'<>]+/);
+   209→    urlInput.value = m ? m[0] : text.trim();
+   210→  } catch(e) {}
+   211→});
+   212→
+   213→// 下载
+   214→downloadBtn.addEventListener('click', async () => {
+   215→  const url = urlInput.value.trim();
+   216→  if (!url) return;
+   217→  currentLang = langSelect.value;
+   218→  downloadBtn.disabled = true;
+   219→  progressRow.style.display = 'flex';
+   220→  progressFill.style.width = '0%';
+   221→  statusText.textContent = '正在下载...';
+   222→  const result = await ipcRenderer.invoke('download-video', url, currentLang);
+   223→  downloadBtn.disabled = false;
+   224→  if (result.success) {
+   225→    progressFill.style.width = '100%';
+   226→    statusText.textContent = '下载完成!';
+   227→    await refreshVideoList();
+   228→    if (result.videoPath) loadVideo(result.videoPath, result.subtitlePath);
+   229→  } else {
+   230→    statusText.textContent = '失败: ' + result.error;
+   231→  }
+   232→});
+   233→
+   234→ipcRenderer.on('download-progress', (_, p) => {
+   235→  progressFill.style.width = p.percent + '%';
+   236→  statusText.textContent = `下载中 ${p.percent.toFixed(0)}%`;
+   237→});
+   238→
+   239→// 视频列表
+   240→async function refreshVideoList() {
+   241→  const videos = await ipcRenderer.invoke('list-videos');
+   242→  videoSelect.innerHTML = '<option value="">-- 选择视频 --</option>';
+   243→  for (const v of videos) {
+   244→    const opt = document.createElement('option');
+   245→    opt.value = JSON.stringify(v); opt.textContent = v.name;
+   246→    videoSelect.appendChild(opt);
+   247→  }
+   248→}
+   249→
+   250→videoSelect.addEventListener('change', () => {
+   251→  if (!videoSelect.value) return;
+   252→  loadVideo(...(v => [v.videoPath, v.subtitlePath])(JSON.parse(videoSelect.value)));
+   253→});
+   254→
+   255→async function loadVideo(videoPath, subtitlePath) {
+   256→  playerArea.style.display = 'block';
+   257→  currentVideoPath = videoPath;
+   258→  videoPlayer.src = 'file:///' + videoPath.replace(/\\/g, '/');
+   259→  subtitles = []; currentSubIndex = -1; wordTimings = null;
+   260→  subtitleText.textContent = '加载字幕中...';
+   261→  aiAnalyzeBtn.style.display = 'none';
+   262→  aiResult.style.display = 'none';
+   263→  const subtitleList = document.getElementById('subtitleList');
+   264→  subtitleList.innerHTML = '';
+   265→
+   266→  let loaded = false;
+   267→  // 优先尝试传入的字幕路径
+   268→  if (subtitlePath) {
+   269→    const vtt = await ipcRenderer.invoke('read-subtitle', subtitlePath);
+   270→    if (vtt) {
+   271→      subtitles = parseVTT(vtt);
+   272→      if (subtitles.length > 0) {
+   273→        buildSubtitleList();
+   274→        subtitleText.textContent = `已加载 ${subtitles.length} 条字幕，播放视频即可同步显示`;
+   275→        loaded = true;
+   276→      }
+   277→    }
+   278→  }
+   279→  // 没有传入字幕时，先检查同名.vtt是否已存在（之前转录过的）
+   280→  if (!loaded) {
+   281→    const existingVtt = await ipcRenderer.invoke('check-existing-subtitle', videoPath);
+   282→    if (existingVtt) {
+   283→      const vtt = await ipcRenderer.invoke('read-subtitle', existingVtt);
+   284→      if (vtt) {
+   285→        subtitles = parseVTT(vtt);
+   286→        if (subtitles.length > 0) {
+   287→          buildSubtitleList();
+   288→          subtitleText.textContent = `已加载 ${subtitles.length} 条字幕，播放视频即可同步显示`;
+   289→          loaded = true;
+   290→        }
+   291→      }
+   292→    }
+   293→  }
+   294→  // 都没有才启动语音识别
+   295→  if (!loaded) {
+   296→    subtitleText.textContent = '无字幕文件，正在启动语音识别...';
+   297→    const vttPath = await ipcRenderer.invoke('generate-subtitle', videoPath);
+   298→    if (vttPath) {
+   299→      const vtt = await ipcRenderer.invoke('read-subtitle', vttPath);
+   300→      if (vtt) {
+   301→        subtitles = parseVTT(vtt);
+   302→        if (subtitles.length > 0) {
+   303→          buildSubtitleList();
+   304→          subtitleText.textContent = `语音识别完成，已生成 ${subtitles.length} 条字幕`;
+   305→          loaded = true;
+   306→        }
+   307→      }
+   308→    }
+   309→    if (!loaded) subtitleText.textContent = '语音识别失败，请确认 funasr 服务已启动';
+   310→  }
+   311→  // 加载逐词时间戳（如果有）
+   312→  const vttFile = subtitlePath || await ipcRenderer.invoke('check-existing-subtitle', videoPath);
+   313→  if (vttFile) wordTimings = await ipcRenderer.invoke('read-word-timestamps', vttFile);
+   314→}
+   315→
+   316→// VTT解析 (处理YouTube自动字幕的双行格式)
+   317→function parseVTT(vtt) {
+   318→  const raw = [];
+   319→  for (const block of vtt.split(/\n\n+/)) {
+   320→    const lines = block.trim().split('\n');
+   321→    for (let i = 0; i < lines.length; i++) {
+   322→      const m = lines[i].match(/(\d{2}):(\d{2}):(\d{2})\.(\d{3})\s*-->\s*(\d{2}):(\d{2}):(\d{2})\.(\d{3})/);
+   323→      if (!m) continue;
+   324→      const start = +m[1]*3600 + +m[2]*60 + +m[3] + +m[4]/1000;
+   325→      const end = +m[5]*3600 + +m[6]*60 + +m[7] + +m[8]/1000;
+   326→      // 跳过极短条目(YouTube自动字幕的过渡帧)
+   327→      if (end - start < 0.05) break;
+   328→      // 取最后一行非空文本(YouTube双行字幕中新内容在最后一行)
+   329→      const textLines = lines.slice(i+1).map(l => l.replace(/<[^>]+>/g, '').trim()).filter(Boolean);
+   330→      const text = textLines.length > 0 ? textLines[textLines.length - 1] : '';
+   331→      if (text) raw.push({ start, end, text });
+   332→      break;
+   333→    }
+   334→  }
+   335→  // 合并连续相同文本，去重
+   336→  const result = [];
+   337→  for (const s of raw) {
+   338→    if (result.length > 0 && result[result.length-1].text === s.text) {
+   339→      result[result.length-1].end = s.end; // 延长时间
+   340→    } else {
+   341→      result.push({ ...s });
+   342→    }
+   343→  }
+   344→  return result;
+   345→}
+   346→
+   347→// 字幕同步 (用setInterval确保可靠触发)
+   348→let syncTimer = null;
+   349→function startSubtitleSync() {
+   350→  if (syncTimer) clearInterval(syncTimer);
+   351→  syncTimer = setInterval(() => {
+   352→    if (!subtitles.length || currentMode !== 'learn' || videoPlayer.paused) return;
+   353→    const t = videoPlayer.currentTime;
+   354→    // 二分查找当前时间对应的字幕
+   355→    let lo = 0, hi = subtitles.length - 1, idx = -1;
+   356→    while (lo <= hi) {
+   357→      const mid = (lo + hi) >> 1;
+   358→      if (t >= subtitles[mid].start && t <= subtitles[mid].end) { idx = mid; break; }
+   359→      if (t < subtitles[mid].start) hi = mid - 1;
+   360→      else lo = mid + 1;
+   361→    }
+   362→    if (idx < 0) {
+   363→      // 在间隙中：找下一条即将出现的字幕（0.5秒内），或保持上一条
+   364→      for (let i = 0; i < subtitles.length; i++) {
+   365→        if (subtitles[i].start > t) {
+   366→          if (subtitles[i].start - t < 0.5) { idx = i; }
+   367→          else if (i > 0) { idx = i - 1; }
+   368→          break;
+   369→        }
+   370→      }
+   371→      if (idx < 0) idx = subtitles.length - 1; // 超过最后一条
+   372→    }
+   373→    if (idx !== currentSubIndex) {
+   374→      currentSubIndex = idx;
+   375→      currentSentence = subtitles[idx].text;
+   376→      renderSubtitle(currentSentence);
+   377→      aiAnalyzeBtn.style.display = 'inline-block';
+   378→      aiResult.style.display = 'none';
+   379→      highlightSubtitleList(idx);
+   380→    }
+   381→    // 卡拉OK式逐词点亮
+   382→    if (idx >= 0 && idx === currentSubIndex) {
+   383→      const sub = subtitles[idx];
+   384→      const words = subtitleText.querySelectorAll('.word');
+   385→      if (words.length > 0) {
+   386→        if (wordTimings) {
+   387→          // 精准模式：用逐词时间戳，按文本匹配对齐
+   388→          const subWords = wordTimings.filter(wt => wt.s >= sub.start - 0.1 && wt.s <= sub.end + 0.3);
+   389→          if (subWords.length > 0) {
+   390→            // 建立显示词 → wordTiming 的精准映射
+   391→            let wtIdx = 0;
+   392→            words.forEach((w) => {
+   393→              const displayed = w.textContent.trim().toLowerCase().replace(/[^\p{L}\p{M}\p{N}'-]/gu, '');
+   394→              // 向前搜索匹配的 wordTiming
+   395→              let matched = null;
+   396→              for (let k = wtIdx; k < subWords.length; k++) {
+   397→                const wtWord = subWords[k].w.trim().toLowerCase().replace(/[^\p{L}\p{M}\p{N}'-]/gu, '');
+   398→                if (wtWord === displayed || displayed.startsWith(wtWord) || wtWord.startsWith(displayed)) {
+   399→                  matched = subWords[k];
+   400→                  wtIdx = k + 1;
+   401→                  break;
+   402→                }
+   403→              }
+   404→              if (matched) {
+   405→                w.classList.toggle('word-lit', t >= matched.s && t < matched.e);
+   406→                w.classList.toggle('word-past', t >= matched.e);
+   407→              } else {
+   408→                // 无匹配时不高亮
+   409→                w.classList.remove('word-lit', 'word-past');
+   410→              }
+   411→            });
+   412→          } else {
+   413→            fallbackHighlight(words, t, sub);
+   414→          }
+   415→        } else {
+   416→          fallbackHighlight(words, t, sub);
+   417→        }
+   418→      }
+   419→    }
+   420→  }, 30);
+   421→}
+   422→videoPlayer.addEventListener('play', startSubtitleSync);
+   423→
+   424→function fallbackHighlight(words, t, sub) {
+   425→  const elapsed = t - sub.start;
+   426→  const dur = sub.end - sub.start;
+   427→  if (dur <= 0 || elapsed < 0) return;
+   428→  const lens = Array.from(words).map(w => Math.max(w.textContent.length, 1));
+   429→  const total = lens.reduce((a, b) => a + b, 0);
+   430→  let cum = 0, activeIdx = words.length - 1;
+   431→  for (let i = 0; i < lens.length; i++) {
+   432→    cum += (lens[i] / total) * dur;
+   433→    if (elapsed < cum) { activeIdx = i; break; }
+   434→  }
+   435→  words.forEach((w, i) => {
+   436→    w.classList.toggle('word-lit', i === activeIdx);
+   437→    w.classList.toggle('word-past', i < activeIdx);
+   438→  });
+   439→}
+   440→videoPlayer.addEventListener('seeked', () => { currentSubIndex = -1; });
+   441→
+   442→// 重新转录
+   443→let currentVideoPath = null;
+   444→document.getElementById('retranscribeBtn').addEventListener('click', async () => {
+   445→  if (!currentVideoPath) return;
+   446→  videoPlayer.pause();
+   447→  await ipcRenderer.invoke('delete-subtitle', currentVideoPath);
+   448→  subtitles = []; currentSubIndex = -1; wordTimings = null;
+   449→  subtitleText.textContent = '正在重新转录...';
+   450→  document.getElementById('subtitleList').innerHTML = '';
+   451→  const vttPath = await ipcRenderer.invoke('generate-subtitle', currentVideoPath);
+   452→  if (vttPath) {
+   453→    const vtt = await ipcRenderer.invoke('read-subtitle', vttPath);
+   454→    if (vtt) {
+   455→      subtitles = parseVTT(vtt);
+   456→      if (subtitles.length > 0) {
+   457→        buildSubtitleList();
+   458→        subtitleText.textContent = `重新转录完成，共 ${subtitles.length} 条字幕`;
+   459→        wordTimings = await ipcRenderer.invoke('read-word-timestamps', vttPath);
+   460→      }
+   461→    }
+   462→  }
+   463→  if (!subtitles.length) subtitleText.textContent = '转录失败';
+   464→});
+   465→
+   466→// 点击字幕区域外恢复播放
+   467→subtitleArea.addEventListener('click', (e) => {
+   468→  if (!e.target.classList.contains('word') && !wordInlinePanel.contains(e.target)) {
+   469→    videoPlayer.play();
+   470→  }
+   471→});
+   472→
+   473→function renderSubtitle(text) {
+   474→  subtitleText.innerHTML = '';
+   475→  wordInlinePanel.style.display = 'none';
+   476→  const displayedWords = text.split(/(\s+)/).filter(w => !/^\s*$/.test(w));
+   477→  // 预计算当前字幕对应的 wordTimings 映射
+   478→  const sub = subtitles[currentSubIndex];
+   479→  let wtMap = [];
+   480→  if (wordTimings && sub) {
+   481→    const subWords = wordTimings.filter(wt => wt.s >= sub.start - 0.1 && wt.s <= sub.end + 0.3);
+   482→    let wtIdx = 0;
+   483→    for (const dw of displayedWords) {
+   484→      const clean = dw.trim().toLowerCase().replace(/[^\p{L}\p{M}\p{N}'-]/gu, '');
+   485→      let matched = null;
+   486→      for (let k = wtIdx; k < subWords.length; k++) {
+   487→        const wtWord = subWords[k].w.trim().toLowerCase().replace(/[^\p{L}\p{M}\p{N}'-]/gu, '');
+   488→        if (wtWord === clean || clean.startsWith(wtWord) || wtWord.startsWith(clean)) {
+   489→          matched = subWords[k];
+   490→          wtIdx = k + 1;
+   491→          break;
+   492→        }
+   493→      }
+   494→      wtMap.push(matched);
+   495→    }
+   496→  }
+   497→
+   498→  let wordIdx = 0;
+   499→  for (const w of text.split(/(\s+)/)) {
+   500→    if (/^\s+$/.test(w)) { subtitleText.appendChild(document.createTextNode(' ')); continue; }
+   501→    const span = document.createElement('span');
+   502→    span.className = 'word'; span.textContent = w;
+   503→    const wt = wtMap[wordIdx] || null;
+   504→    span.addEventListener('click', (e) => {
+   505→      e.stopPropagation();
+   506→      // 点击单词跳转到该词的精准时间
+   507→      if (wt) {
+   508→        videoPlayer.currentTime = wt.s;
+   509→        videoPlayer.pause();
+   510→      } else {
+   511→        videoPlayer.pause();
+   512→      }
+   513→      const sel = window.getSelection().toString().trim();
+   514→      if (sel && sel.includes(' ')) {
+   515→        showWordInline(sel);
+   516→      } else {
+   517→        const clean = cleanWord(w);
+   518→        if (clean) showWordInline(clean);
+   519→      }
+   520→    });
+   521→    subtitleText.appendChild(span);
+   522→    wordIdx++;
+   523→  }
+   524→}
+   525→
+   526→// 短语选择：鼠标抬起时检测选中文本，显示收藏短语按钮
+   527→document.addEventListener('mouseup', (e) => {
+   528→  const old = document.getElementById('phraseCollectBtn');
+   529→  if (old) old.remove();
+   530→  const sel = window.getSelection().toString().trim();
+   531→  if (!sel || sel.length < 2 || !subtitleText.contains(window.getSelection().anchorNode)) return;
+   532→  const btn = document.createElement('button');
+   533→  btn.id = 'phraseCollectBtn';
+   534→  btn.className = 'btn btn-small phrase-collect-btn';
+   535→  btn.textContent = sel.includes(' ') ? '☆ 收藏短语' : '☆ 收藏';
+   536→  btn.style.cssText = `position:fixed;left:${e.clientX+5}px;top:${e.clientY-35}px;z-index:5000;`;
+   537→  btn.addEventListener('click', async () => {
+   538→    await ipcRenderer.invoke('fav-add', sel, currentLang, '', '', currentSentence || '');
+   539→    btn.textContent = '★ 已收藏';
+   540→    btn.style.color = '#ff0000';
+   541→    setTimeout(() => btn.remove(), 800);
+   542→  });
+   543→  document.body.appendChild(btn);
+   544→  setTimeout(() => { if (btn.parentNode) btn.remove(); }, 4000);
+   545→});
+   546→
+   547→function cleanWord(w) {
+   548→  return w.replace(/[^\p{L}\p{M}'-]/gu, '');
+   549→}
+   550→
+   551→// 字幕滚动列表
+   552→function formatTime(s) {
+   553→  const m = Math.floor(s / 60), sec = Math.floor(s % 60);
+   554→  return m + ':' + String(sec).padStart(2, '0');
+   555→}
+   556→
+   557→function buildSubtitleList() {
+   558→  const list = document.getElementById('subtitleList');
+   559→  list.innerHTML = '';
+   560→  subtitles.forEach((s, i) => {
+   561→    const row = document.createElement('div');
+   562→    row.className = 'sub-list-item';
+   563→    row.dataset.idx = i;
+   564→    row.innerHTML = `<span class="sub-time">${formatTime(s.start)}</span><span class="sub-content">${s.text}</span>`;
+   565→    row.addEventListener('click', () => {
+   566→      videoPlayer.currentTime = s.start;
+   567→      videoPlayer.play();
+   568→    });
+   569→    list.appendChild(row);
+   570→  });
+   571→}
+   572→
+   573→function highlightSubtitleList(idx) {
+   574→  const list = document.getElementById('subtitleList');
+   575→  list.querySelectorAll('.sub-list-item').forEach(el => el.classList.remove('active'));
+   576→  const active = list.querySelector(`[data-idx="${idx}"]`);
+   577→  if (active) {
+   578→    active.classList.add('active');
+   579→    active.scrollIntoView({ behavior: 'smooth', block: 'center' });
+   580→  }
+   581→}
+   582→
+   583→// AI分析句子
+   584→aiAnalyzeBtn.addEventListener('click', async () => {
+   585→  if (!currentSentence) return;
+   586→  aiResult.style.display = 'block';
+   587→  aiResult.textContent = '🤖 AI分析中...';
+   588→  const result = await ipcRenderer.invoke('ai-analyze-sentence', currentSentence, currentLang);
+   589→  aiResult.textContent = result || 'AI未配置或请求失败，请在设置中配置API Key';
+   590→});
+   591→
+   592→// 模式切换
+   593→learnModeBtn.addEventListener('click', () => switchMode('learn'));
+   594→dictationModeBtn.addEventListener('click', () => switchMode('dictation'));
+   595→
+   596→function switchMode(mode) {
+   597→  currentMode = mode;
+   598→  learnModeBtn.classList.toggle('active', mode === 'learn');
+   599→  dictationModeBtn.classList.toggle('active', mode === 'dictation');
+   600→  subtitleArea.style.display = mode === 'learn' ? 'block' : 'none';
+   601→  document.getElementById('subtitleList').style.display = mode === 'learn' ? 'block' : 'none';
+   602→  dictationArea.style.display = mode === 'dictation' ? 'block' : 'none';
+   603→  aiResult.style.display = 'none';
+   604→  if (mode === 'dictation') {
+   605→    dictationIndex = currentSubIndex >= 0 ? currentSubIndex : 0;
+   606→    renderDictation();
+   607→  } else if (mode === 'learn') {
+   608→    // 切回学习模式时强制刷新字幕
+   609→    currentSubIndex = -1;
+   610→  }
+   611→}
+   612→
+   613→// 听写模式
+   614→function renderDictation() {
+   615→  dictationSentence.innerHTML = '';
+   616→  if (dictationIndex < 0 || dictationIndex >= subtitles.length) {
+   617→    dictationSentence.textContent = '没有字幕可用'; return;
+   618→  }
+   619→  const text = subtitles[dictationIndex].text;
+   620→  for (const w of text.split(/\s+/).filter(Boolean)) {
+   621→    const group = document.createElement('div');
+   622→    group.className = 'dict-word-group';
+   623→    const input = document.createElement('input');
+   624→    input.type = 'text';
+   625→    input.dataset.answer = cleanWord(w);
+   626→    input.style.width = Math.max(50, w.length * 12) + 'px';
+   627→    group.appendChild(input);
+   628→    const clickable = document.createElement('span');
+   629→    clickable.className = 'word-clickable'; clickable.textContent = '查词';
+   630→    clickable.addEventListener('click', (e) => {
+   631→      e.stopPropagation();
+   632→      const clean = cleanWord(w);
+   633→      if (clean) showWordPopup(clean, e.clientX, e.clientY);
+   634→    });
+   635→    group.appendChild(clickable);
+   636→    dictationSentence.appendChild(group);
+   637→  }
+   638→}
+   639→
+   640→speakBtn.addEventListener('click', () => {
+   641→  if (dictationIndex >= 0 && dictationIndex < subtitles.length) speak(subtitles[dictationIndex].text);
+   642→});
+   643→
+   644→checkBtn.addEventListener('click', () => {
+   645→  dictationSentence.querySelectorAll('input').forEach(input => {
+   646→    const answer = input.dataset.answer.toLowerCase();
+   647→    const val = input.value.trim().toLowerCase();
+   648→    if (val === answer) {
+   649→      input.className = 'correct';
+   650→    } else {
+   651→      input.className = 'wrong';
+   652→      let hint = input.parentElement.querySelector('.answer-hint');
+   653→      if (!hint) { hint = document.createElement('div'); hint.className = 'answer-hint'; input.parentElement.appendChild(hint); }
+   654→      hint.textContent = input.dataset.answer;
+   655→    }
+   656→  });
+   657→});
+   658→
+   659→nextBtn.addEventListener('click', () => {
+   660→  dictationIndex = Math.min(dictationIndex + 1, subtitles.length - 1);
+   661→  renderDictation();
+   662→  if (subtitles[dictationIndex]) videoPlayer.currentTime = subtitles[dictationIndex].start;
+   663→});
+   664→
+   665→// TTS
+   666→function speak(text, lang) {
+   667→  speechSynthesis.cancel();
+   668→  const u = new SpeechSynthesisUtterance(text);
+   669→  u.lang = lang || (languages[currentLang]?.tts || 'en-US');
+   670→  u.rate = 0.9;
+   671→  speechSynthesis.speak(u);
+   672→}
+   673→
+   674→// 音形义例句四位一体内联显示
+   675→async function showWordInline(word) {
+   676→  wordInlinePanel.style.display = 'block';
+   677→  inlineWord.textContent = word;
+   678→  inlinePhonetic.textContent = '';
+   679→  inlineTranslation.textContent = '查询中...';
+   680→  inlineDefs.innerHTML = '';
+   681→  inlineExamples.innerHTML = '';
+   682→  inlineDefsSection.style.display = 'none';
+   683→  inlineExamplesSection.style.display = 'none';
+   684→  speak(word);
+   685→  updateFavState(document.getElementById('inlineFav'), word);
+   686→
+   687→  if (currentLang === 'en') {
+   688→    const [ecdict, online, aiTrans] = await Promise.all([
+   689→      ipcRenderer.invoke('lookup-word', word),
+   690→      ipcRenderer.invoke('fetch-examples', word),
+   691→      ipcRenderer.invoke('ai-translate-word', word, currentSentence)
+   692→    ]);
+   693→    if (ecdict?.phonetic) inlinePhonetic.textContent = '/' + ecdict.phonetic + '/';
+   694→    else if (online?.phonetic) inlinePhonetic.textContent = online.phonetic;
+   695→    if (aiTrans) {
+   696→      inlineTranslation.textContent = aiTrans;
+   697→    } else if (ecdict?.translation) {
+   698→      inlineTranslation.textContent = ecdict.translation;
+   699→    } else {
+   700→      const tr = await ipcRenderer.invoke('translate-word', word, 'en');
+   701→      inlineTranslation.textContent = tr?.translation || '未找到释义';
+   702→    }
+   703→    if (online) {
+   704→      if (online.definitions?.length) {
+   705→        inlineDefsSection.style.display = 'block';
+   706→        inlineDefs.innerHTML = online.definitions.map(d =>
+   707→          `<div class="def-item"><span class="pos">${d.partOfSpeech || ''}</span>${d.definition}</div>`
+   708→        ).join('');
+   709→      }
+   710→      if (online.examples?.length) {
+   711→        inlineExamplesSection.style.display = 'block';
+   712→        inlineExamples.innerHTML = online.examples.map(e =>
+   713→          `<div class="example">${e}</div>`
+   714→        ).join('');
+   715→      }
+   716→    }
+   717→  } else {
+   718→    const [tr, aiTrans, online] = await Promise.all([
+   719→      ipcRenderer.invoke('translate-word', word, currentLang),
+   720→      ipcRenderer.invoke('ai-translate-word', word, currentSentence),
+   721→      ipcRenderer.invoke('fetch-examples', word, currentLang)
+   722→    ]);
+   723→    if (online?.phonetic) inlinePhonetic.textContent = online.phonetic;
+   724→    inlineTranslation.textContent = aiTrans || tr?.translation || '未找到释义';
+   725→    if (online?.definitions?.length) {
+   726→      inlineDefsSection.style.display = 'block';
+   727→      inlineDefs.innerHTML = online.definitions.map(d =>
+   728→        `<div class="def-item"><span class="pos">${d.partOfSpeech || ''}</span>${d.definition}</div>`
+   729→      ).join('');
+   730→    }
+   731→    if (online?.examples?.length) {
+   732→      inlineExamplesSection.style.display = 'block';
+   733→      inlineExamples.innerHTML = online.examples.map(e =>
+   734→        `<div class="example">${e}</div>`
+   735→      ).join('');
+   736→    }
+   737→  }
+   738→}
+   739→
+   740→// 单词弹窗
+   741→async function showWordPopup(word, x, y) {
+   742→  popupWord.textContent = word;
+   743→  popupPhonetic.textContent = '';
+   744→  popupTranslation.textContent = '查询中...';
+   745→  popupExamples.innerHTML = '';
+   746→  popupAiResult.style.display = 'none';
+   747→  wordPopup.style.display = 'block';
+   748→  updateFavState(document.getElementById('popupFav'), word);
+   749→
+   750→  let left = x + 10, top = y + 10;
+   751→  if (left + 340 > window.innerWidth) left = window.innerWidth - 350;
+   752→  if (top + 300 > window.innerHeight) top = y - 310;
+   753→  if (left < 10) left = 10; if (top < 10) top = 10;
+   754→  wordPopup.style.left = left + 'px'; wordPopup.style.top = top + 'px';
+   755→
+   756→  speak(word);
+   757→
+   758→  if (currentLang === 'en') {
+   759→    const [ecdict, online] = await Promise.all([
+   760→      ipcRenderer.invoke('lookup-word', word),
+   761→      ipcRenderer.invoke('fetch-examples', word)
+   762→    ]);
+   763→    let trans = '';
+   764→    if (ecdict?.translation) {
+   765→      trans = ecdict.translation;
+   766→      if (ecdict.phonetic) popupPhonetic.textContent = '/' + ecdict.phonetic + '/';
+   767→    } else {
+   768→      const tr = await ipcRenderer.invoke('translate-word', word, 'en');
+   769→      trans = tr?.translation || '未找到释义';
+   770→    }
+   771→    popupTranslation.textContent = trans;
+   772→    if (online) {
+   773→      if (online.phonetic && !popupPhonetic.textContent) popupPhonetic.textContent = online.phonetic;
+   774→      let html = '';
+   775→      if (online.examples) html += online.examples.map(e => `<div class="example">${e}</div>`).join('');
+   776→      popupExamples.innerHTML = html;
+   777→    }
+   778→  } else {
+   779→    const [tr, online] = await Promise.all([
+   780→      ipcRenderer.invoke('translate-word', word, currentLang),
+   781→      ipcRenderer.invoke('fetch-examples', word, currentLang)
+   782→    ]);
+   783→    if (online?.phonetic) popupPhonetic.textContent = online.phonetic;
+   784→    popupTranslation.textContent = tr?.translation || '未找到释义';
+   785→    if (online) {
+   786→      let html = '';
+   787→      if (online.definitions) html += online.definitions.map(d => `<div class="def-item"><span class="pos">${d.partOfSpeech || ''}</span>${d.definition}</div>`).join('');
+   788→      if (online.examples) html += online.examples.map(e => `<div class="example">${e}</div>`).join('');
+   789→      popupExamples.innerHTML = html;
+   790→    }
+   791→  }
+   792→}
+   793→
+   794→// AI智能释义按钮
+   795→popupAiBtn.addEventListener('click', async () => {
+   796→  const word = popupWord.textContent;
+   797→  if (!word) return;
+   798→  popupAiResult.style.display = 'block';
+   799→  popupAiResult.textContent = '🤖 AI分析中...';
+   800→  const result = await ipcRenderer.invoke('ai-lookup', word, currentLang, currentSentence);
+   801→  popupAiResult.textContent = result || 'AI未配置，请点击右上角 ⚙AI 设置';
+   802→});
+   803→
+   804→popupSpeak.addEventListener('click', () => speak(popupWord.textContent));
+   805→popupClose.addEventListener('click', () => wordPopup.style.display = 'none');
+   806→
+   807→document.addEventListener('click', (e) => {
+   808→  if (!wordPopup.contains(e.target) && !e.target.classList.contains('word') && !e.target.classList.contains('word-clickable')) {
+   809→    wordPopup.style.display = 'none';
+   810→  }
+   811→  if (!wordInlinePanel.contains(e.target) && !e.target.classList.contains('word')) {
+   812→    wordInlinePanel.style.display = 'none';
+   813→  }
+   814→});
+   815→
+   816→// 内联面板发音
+   817→inlineSpeak.addEventListener('click', () => speak(inlineWord.textContent));
+   818→
+   819→// 主题切换
+   820→const themeSelect = document.getElementById('themeSelect');
+   821→themeSelect.value = localStorage.getItem('theme') || 'aurora';
+   822→document.documentElement.setAttribute('data-theme', themeSelect.value === 'aurora' ? '' : themeSelect.value);
+   823→themeSelect.addEventListener('change', () => {
+   824→  const theme = themeSelect.value;
+   825→  localStorage.setItem('theme', theme);
+   826→  document.documentElement.setAttribute('data-theme', theme === 'aurora' ? '' : theme);
+   827→});
+   828→
+   829→// 字号切换
+   830→const fontSizeSelect = document.getElementById('fontSizeSelect');
+   831→fontSizeSelect.addEventListener('change', () => {
+   832→  document.body.className = document.body.className.replace(/font-\S+/g, '');
+   833→  document.body.classList.add('font-' + fontSizeSelect.value);
+   834→});
+   835→document.body.classList.add('font-medium');
+   836→
+   837→langSelect.addEventListener('change', () => {
+   838→  currentLang = langSelect.value;
+   839→  ipcRenderer.invoke('set-current-lang', currentLang);
+   840→});
+   841→
+   842→// 自动检测语种后切换
+   843→ipcRenderer.on('lang-detected', (_, lang) => {
+   844→  if (lang && langSelect.querySelector(`option[value="${lang}"]`)) {
+   845→    langSelect.value = lang;
+   846→    currentLang = lang;
+   847→    ipcRenderer.invoke('set-current-lang', lang);
+   848→  }
+   849→});
+   850→
+   851→// ===== 收藏功能 =====
+   852→async function updateFavState(btn, word) {
+   853→  const faved = await ipcRenderer.invoke('fav-check', word, currentLang);
+   854→  btn.textContent = faved ? '★' : '☆';
+   855→  btn.classList.toggle('faved', faved);
+   856→}
+   857→
+   858→async function toggleFav(btn, word, phonetic, translation) {
+   859→  const faved = await ipcRenderer.invoke('fav-check', word, currentLang);
+   860→  if (faved) {
+   861→    await ipcRenderer.invoke('fav-remove', word, currentLang);
+   862→  } else {
+   863→    await ipcRenderer.invoke('fav-add', word, currentLang, phonetic || '', translation || '', currentSentence || '');
+   864→  }
+   865→  updateFavState(btn, word);
+   866→}
+   867→
+   868→document.getElementById('inlineFav').addEventListener('click', () => {
+   869→  toggleFav(document.getElementById('inlineFav'), inlineWord.textContent, inlinePhonetic.textContent, inlineTranslation.textContent);
+   870→});
+   871→document.getElementById('popupFav').addEventListener('click', () => {
+   872→  toggleFav(document.getElementById('popupFav'), popupWord.textContent, popupPhonetic.textContent, popupTranslation.textContent);
+   873→});
+   874→
+   875→// ===== 词书 =====
+   876→const vocabModal = document.getElementById('vocabModal');
+   877→document.getElementById('vocabBtn').addEventListener('click', () => { vocabModal.classList.add('show'); loadVocabList(); });
+   878→document.getElementById('vocabModalClose').addEventListener('click', () => vocabModal.classList.remove('show'));
+   879→vocabModal.addEventListener('click', (e) => { if (e.target === vocabModal) vocabModal.classList.remove('show'); });
+   880→
+   881→let selectedWordIds = new Set();
+   882→let allVocabList = [];
+   883→
+   884→async function loadVocabList() {
+   885→  allVocabList = await ipcRenderer.invoke('fav-list');
+   886→  selectedWordIds.clear();
+   887→  updateSelImageBtn();
+   888→
+   889→  const grid = document.getElementById('vocabGrid');
+   890→  const empty = document.getElementById('vocabEmpty');
+   891→  grid.innerHTML = '';
+   892→  empty.style.display = allVocabList.length ? 'none' : 'block';
+   893→
+   894→  for (const item of allVocabList) {
+   895→    const card = document.createElement('div');
+   896→    card.className = 'vocab-card';
+   897→    card.dataset.id = item.id;
+   898→    card.innerHTML = `<input type="checkbox" class="vocab-check">
+   899→      <div class="vocab-card-word" style="margin-left:22px">${item.word}</div>
+   900→      <div class="vocab-card-phonetic">${item.phonetic || ''}</div>
+   901→      <div class="vocab-card-trans">${item.translation || ''}</div>
+   902→      <button class="vocab-card-del" title="删除">✕</button>`;
+   903→
+   904→    const chk = card.querySelector('.vocab-check');
+   905→    chk.addEventListener('change', () => {
+   906→      if (chk.checked) { selectedWordIds.add(item.id); card.classList.add('selected'); }
+   907→      else { selectedWordIds.delete(item.id); card.classList.remove('selected'); }
+   908→      updateSelImageBtn();
+   909→    });
+   910→
+   911→    card.querySelector('.vocab-card-del').addEventListener('click', async () => {
+   912→      await ipcRenderer.invoke('fav-remove', item.word, item.lang);
+   913→      loadVocabList();
+   914→    });
+   915→    card.querySelector('.vocab-card-word').addEventListener('click', () => speak(item.word));
+   916→    grid.appendChild(card);
+   917→  }
+   918→}
+   919→
+   920→function updateSelImageBtn() {
+   921→  const btn = document.getElementById('vocabSelImageBtn');
+   922→  btn.disabled = selectedWordIds.size === 0;
+   923→  btn.textContent = selectedWordIds.size > 0 ? `🖼 选词成图 (${selectedWordIds.size})` : '🖼 选词成图';
+   924→}
+   925→
+   926→// 全选/取消全选
+   927→document.getElementById('vocabSelectAllBtn').addEventListener('click', () => {
+   928→  const allSelected = selectedWordIds.size === allVocabList.length;
+   929→  selectedWordIds.clear();
+   930→  document.querySelectorAll('#vocabGrid .vocab-card').forEach(card => {
+   931→    const chk = card.querySelector('.vocab-check');
+   932→    if (allSelected) {
+   933→      chk.checked = false; card.classList.remove('selected');
+   934→    } else {
+   935→      const id = parseInt(card.dataset.id);
+   936→      chk.checked = true; card.classList.add('selected');
+   937→      selectedWordIds.add(id);
+   938→    }
+   939→  });
+   940→  updateSelImageBtn();
+   941→});
+   942→
+   943→// 选词成图
+   944→document.getElementById('vocabSelImageBtn').addEventListener('click', async () => {
+   945→  if (selectedWordIds.size === 0) return;
+   946→  const selected = allVocabList.filter(w => selectedWordIds.has(w.id));
+   947→  imgModal.classList.add('show');
+   948→  const cards = document.getElementById('imgCards');
+   949→  cards.innerHTML = '<div style="color:var(--text-dim);padding:20px">🎨 生成场景图...</div>';
+   950→
+   951→  const wordDetails = selected.map(w => ({ word: w.word, translation: w.translation || '' }));
+   952→  const words = selected.map(w => w.word);
+   953→  const title = '我的词汇';
+   954→
+   955→  const imgPrompt = `A colorful illustrated scene that visually represents: ${words.join(', ')}. Clean educational illustration, bright colors, flat design, no text.`;
+   956→  let aiImg = null;
+   957→  try { aiImg = await ipcRenderer.invoke('ai-generate-image', imgPrompt); } catch(e) {}
+   958→
+   959→  const dataUrl = await renderSceneWithLabels(title, wordDetails, aiImg);
+   960→  cards.innerHTML = '';
+   961→  const div = document.createElement('div');
+   962→  div.className = 'img-card';
+   963→  div.innerHTML = `<img src="${dataUrl}" style="max-width:520px;border-radius:12px;box-shadow:0 4px 20px rgba(0,0,0,0.2)"><button class="btn btn-small" style="margin-top:6px">💾 保存</button>`;
+   964→  div.querySelector('button').addEventListener('click', () => {
+   965→    const a = document.createElement('a'); a.href = dataUrl; a.download = title + '.png'; a.click();
+   966→  });
+   967→  cards.appendChild(div);
+   968→});
+   969→
+   970→// 导入单词
+   971→document.getElementById('vocabImportBtn').addEventListener('click', async () => {
+   972→  try {
+   973→    const text = await navigator.clipboard.readText();
+   974→    if (!text.trim()) return;
+   975→    const words = text.split(/[\n,;，；]+/).map(w => w.trim()).filter(Boolean);
+   976→    const count = await ipcRenderer.invoke('fav-import', words, currentLang);
+   977→    loadVocabList();
+   978→    alert(`已导入 ${count} 个单词`);
+   979→  } catch(e) { alert('请先复制单词列表到剪贴板（换行或逗号分隔）'); }
+   980→});
+   981→
+   982→// AI自动分类成图
+   983→document.getElementById('vocabAutoClassBtn').addEventListener('click', async () => {
+   984→  if (!allVocabList.length) { alert('词书为空'); return; }
+   985→  imgModal.classList.add('show');
+   986→  const cards = document.getElementById('imgCards');
+   987→  cards.innerHTML = '<div style="color:var(--text-dim);padding:20px">🤖 AI分组中...</div>';
+   988→
+   989→  const wordMap = {};
+   990→  for (const item of allVocabList) wordMap[item.word] = item;
+   991→  const words = allVocabList.map(w => w.word);
+   992→
+   993→  let groups;
+   994→  try {
+   995→    const raw = await ipcRenderer.invoke('ai-group-words', words);
+   996→    groups = JSON.parse(raw);
+   997→  } catch(e) {
+   998→    groups = [{ group: '全部词汇', words }];
+   999→  }
+  1000→
+  1001→  cards.innerHTML = '';
+  1002→  for (const g of groups) {
+  1003→    const div = document.createElement('div');
+  1004→    div.className = 'img-card';
+  1005→    div.style.maxWidth = '540px';
+  1006→    div.innerHTML = `<div style="padding:20px;background:var(--sub-bg);border-radius:12px;color:var(--text-dim);text-align:center">📝 生成: ${g.group}...</div>`;
+  1007→    cards.appendChild(div);
+  1008→
+  1009→    const translations = g.words.map(w => wordMap[w]?.translation || '');
+  1010→    const wordDetails = g.words.map(w => ({ word: w, translation: wordMap[w]?.translation || '' }));
+  1011→
+  1012→    let story = '', imgDesc = '';
+  1013→    try {
+  1014→      const raw = await ipcRenderer.invoke('ai-story-with-words', g.group, g.words, translations);
+  1015→      story = raw || '';
+  1016→      const descMatch = story.match(/【画面描述】(.+)/);
+  1017→      if (descMatch) { imgDesc = descMatch[1].trim(); story = story.replace(/【画面描述】.+/, '').trim(); }
+  1018→    } catch(e) {}
+  1019→
+  1020→    const imgPrompt = imgDesc || `A vivid illustrated scene about "${g.group}" showing: ${g.words.join(', ')}. Educational illustration, colorful, no text.`;
+  1021→    div.querySelector('div').textContent = `🎨 生成图片: ${g.group}...`;
+  1022→    let aiImg = null;
+  1023→    try { aiImg = await ipcRenderer.invoke('ai-generate-image', imgPrompt); } catch(e) {}
+  1024→
+  1025→    const dataUrl = await renderSceneWithLabels(g.group, wordDetails, aiImg);
+  1026→    div.innerHTML = '';
+  1027→    if (story) {
+  1028→      const storyDiv = document.createElement('div');
+  1029→      storyDiv.style.cssText = 'padding:12px 16px;background:var(--sub-bg);border-radius:12px 12px 0 0;font-size:13px;line-height:1.8;color:var(--text);max-height:200px;overflow-y:auto';
+  1030→      let storyHtml = story;
+  1031→      for (const w of g.words) storyHtml = storyHtml.replace(new RegExp(`\\b(${w})\\b`, 'gi'), '<b style="color:var(--accent)">$1</b>');
+  1032→      storyDiv.innerHTML = storyHtml.replace(/\n/g, '<br>');
+  1033→      div.appendChild(storyDiv);
+  1034→    }
+  1035→    const imgEl = document.createElement('img');
+  1036→    imgEl.src = dataUrl;
+  1037→    imgEl.style.cssText = 'max-width:520px;border-radius:0 0 12px 12px;box-shadow:0 4px 20px rgba(0,0,0,0.2);display:block';
+  1038→    div.appendChild(imgEl);
+  1039→    const saveBtn = document.createElement('button');
+  1040→    saveBtn.className = 'btn btn-small'; saveBtn.style.marginTop = '6px'; saveBtn.textContent = '💾 保存图片';
+  1041→    saveBtn.addEventListener('click', () => { const a = document.createElement('a'); a.href = dataUrl; a.download = g.group + '.png'; a.click(); });
+  1042→    div.appendChild(saveBtn);
+  1043→  }
+  1044→});
+  1045→
+  1046→// ===== 批量成图 (AI场景插画+单词标注) =====
+  1047→const imgModal = document.getElementById('imgModal');
+  1048→document.getElementById('imgModalClose').addEventListener('click', () => imgModal.classList.remove('show'));
+  1049→imgModal.addEventListener('click', (e) => { if (e.target === imgModal) imgModal.classList.remove('show'); });
+  1050→
+  1051→async function renderSceneWithLabels(title, wordDetails, aiImgUrl) {
+  1052→  const canvas = document.getElementById('imgCanvas');
+  1053→  const ctx = canvas.getContext('2d');
+  1054→  const W = 1024, H = 768;
+  1055→  canvas.width = W; canvas.height = H;
+  1056→
+  1057→  if (aiImgUrl) {
+  1058→    try {
+  1059→      const img = await loadImg(aiImgUrl);
+  1060→      ctx.drawImage(img, 0, 0, W, H);
+  1061→    } catch(e) {
+  1062→      drawFallbackBg(ctx, W, H, title);
+  1063→    }
+  1064→  } else {
+  1065→    drawFallbackBg(ctx, W, H, title);
+  1066→  }
+  1067→
+  1068→  // 半透明遮罩让标注更清晰
+  1069→  const grad = ctx.createLinearGradient(0, 0, 0, H);
+  1070→  grad.addColorStop(0, 'rgba(0,0,0,0.15)');
+  1071→  grad.addColorStop(0.4, 'rgba(0,0,0,0.05)');
+  1072→  grad.addColorStop(0.6, 'rgba(0,0,0,0.1)');
+  1073→  grad.addColorStop(1, 'rgba(0,0,0,0.55)');
+  1074→  ctx.fillStyle = grad; ctx.fillRect(0, 0, W, H);
+  1075→
+  1076→  // 顶部标题
+  1077→  ctx.font = 'bold 24px Microsoft YaHei UI';
+  1078→  const tw = ctx.measureText('📚 ' + title).width + 40;
+  1079→  ctx.fillStyle = 'rgba(91,122,94,0.9)';
+  1080→  rrect(ctx, 20, 16, tw, 48, 24); ctx.fill();
+  1081→  ctx.fillStyle = '#fff'; ctx.textAlign = 'left';
+  1082→  ctx.fillText('📚 ' + title, 40, 48);
+  1083→
+  1084→  // 词汇标注卡片 - 散布在画面中
+  1085→  const n = wordDetails.length;
+  1086→  const cols = Math.min(3, n);
+  1087→  const rows = Math.ceil(n / cols);
+  1088→  const cardW = 300, cardH = 62, gapX = 16, gapY = 14;
+  1089→  const gridW = cols * (cardW + gapX) - gapX;
+  1090→  const gridH = rows * (cardH + gapY) - gapY;
+  1091→  const ox = (W - gridW) / 2;
+  1092→  const oy = H - gridH - 40;
+  1093→
+  1094→  for (let i = 0; i < n; i++) {
+  1095→    const wd = wordDetails[i];
+  1096→    const col = i % cols, row = Math.floor(i / cols);
+  1097→    const x = ox + col * (cardW + gapX);
+  1098→    const y = oy + row * (cardH + gapY);
+  1099→
+  1100→    // 卡片背景 - 白色圆角带阴影
+  1101→    ctx.shadowColor = 'rgba(0,0,0,0.3)'; ctx.shadowBlur = 10; ctx.shadowOffsetY = 3;
+  1102→    ctx.fillStyle = 'rgba(255,255,255,0.92)';
+  1103→    rrect(ctx, x, y, cardW, cardH, 12); ctx.fill();
+  1104→    ctx.shadowColor = 'transparent'; ctx.shadowBlur = 0; ctx.shadowOffsetY = 0;
+  1105→
+  1106→    // 左侧色条
+  1107→    ctx.fillStyle = '#5b7a5e';
+  1108→    rrect(ctx, x, y, 6, cardH, 3); ctx.fill();
+  1109→
+  1110→    // 序号圆
+  1111→    ctx.fillStyle = '#5b7a5e';
+  1112→    ctx.beginPath(); ctx.arc(x + 22, y + 20, 10, 0, Math.PI * 2); ctx.fill();
+  1113→    ctx.fillStyle = '#fff'; ctx.font = 'bold 11px Microsoft YaHei UI'; ctx.textAlign = 'center';
+  1114→    ctx.fillText(String(i + 1), x + 22, y + 24);
+  1115→
+  1116→    // 单词
+  1117→    ctx.fillStyle = '#1a1a1a'; ctx.font = 'bold 20px Microsoft YaHei UI'; ctx.textAlign = 'left';
+  1118→    ctx.fillText(wd.word, x + 40, y + 26);
+  1119→
+  1120→    // 中文释义
+  1121→    if (wd.translation) {
+  1122→      ctx.fillStyle = '#5b7a5e'; ctx.font = '14px Microsoft YaHei UI';
+  1123→      ctx.fillText(wd.translation.slice(0, 24), x + 40, y + 50);
+  1124→    }
+  1125→  }
+  1126→
+  1127→  // 底部水印
+  1128→  ctx.fillStyle = 'rgba(255,255,255,0.5)'; ctx.font = '11px Microsoft YaHei UI'; ctx.textAlign = 'center';
+  1129→  ctx.fillText('多语言视频学习 · 词汇场景图', W / 2, H - 10);
+  1130→
+  1131→  return canvas.toDataURL('image/png');
+  1132→}
+  1133→
+  1134→function drawFallbackBg(ctx, W, H, title) {
+  1135→  // 丰富的渐变背景
+  1136→  const colors = [
+  1137→    ['#667eea', '#764ba2'], ['#f093fb', '#f5576c'], ['#4facfe', '#00f2fe'],
+  1138→    ['#43e97b', '#38f9d7'], ['#fa709a', '#fee140'], ['#a18cd1', '#fbc2eb']
+  1139→  ];
+  1140→  const pair = colors[Math.abs(title.charCodeAt(0)) % colors.length];
+  1141→  const grad = ctx.createLinearGradient(0, 0, W, H);
+  1142→  grad.addColorStop(0, pair[0]); grad.addColorStop(1, pair[1]);
+  1143→  ctx.fillStyle = grad; ctx.fillRect(0, 0, W, H);
+  1144→
+  1145→  // 装饰元素 - 大圆、小圆、波浪
+  1146→  ctx.globalAlpha = 0.12;
+  1147→  for (let i = 0; i < 8; i++) {
+  1148→    const cx = Math.random() * W, cy = Math.random() * H * 0.7, r = 40 + Math.random() * 100;
+  1149→    ctx.fillStyle = '#fff';
+  1150→    ctx.beginPath(); ctx.arc(cx, cy, r, 0, Math.PI * 2); ctx.fill();
+  1151→  }
+  1152→  // 底部波浪
+  1153→  ctx.fillStyle = 'rgba(255,255,255,0.15)';
+  1154→  ctx.beginPath(); ctx.moveTo(0, H * 0.65);
+  1155→  for (let x = 0; x <= W; x += 20) {
+  1156→    ctx.lineTo(x, H * 0.65 + Math.sin(x * 0.015) * 30 + Math.sin(x * 0.008) * 20);
+  1157→  }
+  1158→  ctx.lineTo(W, H); ctx.lineTo(0, H); ctx.fill();
+  1159→  ctx.globalAlpha = 1;
+  1160→}
+  1161→
+  1162→function rrect(ctx, x, y, w, h, r) {
+  1163→  ctx.beginPath(); ctx.moveTo(x + r, y); ctx.lineTo(x + w - r, y);
+  1164→  ctx.quadraticCurveTo(x + w, y, x + w, y + r); ctx.lineTo(x + w, y + h - r);
+  1165→  ctx.quadraticCurveTo(x + w, y + h, x + w - r, y + h); ctx.lineTo(x + r, y + h);
+  1166→  ctx.quadraticCurveTo(x, y + h, x, y + h - r); ctx.lineTo(x, y + r);
+  1167→  ctx.quadraticCurveTo(x, y, x + r, y); ctx.closePath();
+  1168→}
+  1169→function loadImg(src) {
+  1170→  return new Promise((resolve, reject) => {
+  1171→    const img = new Image(); img.crossOrigin = 'anonymous';
+  1172→    img.onload = () => resolve(img); img.onerror = reject; img.src = src;
+  1173→  });
+  1174→}
+  1175→
+  1176→document.getElementById('imgExportAllBtn').addEventListener('click', () => {
+  1177→  document.querySelectorAll('#imgCards .img-card button').forEach(b => b.click());
+  1178→});
+  1179→
+  1180→// ===== 语音助手 =====
+  1181→const assistModal = document.getElementById('assistModal');
+  1182→document.getElementById('assistantBtn').addEventListener('click', () => assistModal.classList.add('show'));
+  1183→document.getElementById('assistModalClose').addEventListener('click', () => assistModal.classList.remove('show'));
+  1184→assistModal.addEventListener('click', (e) => { if (e.target === assistModal) assistModal.classList.remove('show'); });
+  1185→
+  1186→let lectureText = '';
+  1187→document.getElementById('assistUploadBtn').addEventListener('click', async () => {
+  1188→  const text = await ipcRenderer.invoke('read-file-text');
+  1189→  if (!text) return;
+  1190→  const result = document.getElementById('assistResult');
+  1191→  result.style.display = 'block';
+  1192→  result.textContent = '🤖 AI整理讲稿中...';
+  1193→  const lecture = await ipcRenderer.invoke('ai-lecture', text);
+  1194→  lectureText = lecture || text;
+  1195→  result.textContent = lectureText;
+  1196→  document.getElementById('assistSpeakBtn').disabled = false;
+  1197→});
+  1198→
+  1199→document.getElementById('assistSpeakBtn').addEventListener('click', () => {
+  1200→  if (!lectureText) return;
+  1201→  speakLecture(lectureText);
+  1202→});
+  1203→
+  1204→document.getElementById('assistStopBtn').addEventListener('click', () => {
+  1205→  speechSynthesis.cancel();
+  1206→});
+  1207→
+  1208→function speakLecture(text) {
+  1209→  speechSynthesis.cancel();
+  1210→  // 分段朗读，每段不超过200字
+  1211→  const chunks = [];
+  1212→  let remaining = text;
+  1213→  while (remaining.length > 0) {
+  1214→    if (remaining.length <= 200) { chunks.push(remaining); break; }
+  1215→    let cut = remaining.lastIndexOf('。', 200);
+  1216→    if (cut < 50) cut = remaining.lastIndexOf('.', 200);
+  1217→    if (cut < 50) cut = remaining.lastIndexOf('，', 200);
+  1218→    if (cut < 50) cut = 200;
+  1219→    chunks.push(remaining.slice(0, cut + 1));
+  1220→    remaining = remaining.slice(cut + 1);
+  1221→  }
+  1222→  let i = 0;
+  1223→  function next() {
+  1224→    if (i >= chunks.length) return;
+  1225→    const u = new SpeechSynthesisUtterance(chunks[i]);
+  1226→    u.lang = 'zh-CN'; u.rate = 0.9;
+  1227→    u.onend = () => { i++; next(); };
+  1228→    speechSynthesis.speak(u);
+  1229→  }
+  1230→  next();
+  1231→}
+  1232→
+  1233→// ===== 法规库 =====
+  1234→const lawModal = document.getElementById('lawModal');
+  1235→document.getElementById('lawBtn').addEventListener('click', () => { lawModal.classList.add('show'); loadRegulations(); });
+  1236→document.getElementById('lawModalClose').addEventListener('click', () => lawModal.classList.remove('show'));
+  1237→lawModal.addEventListener('click', (e) => { if (e.target === lawModal) lawModal.classList.remove('show'); });
+  1238→
+  1239→let regulationsData = null;
+  1240→let currentLawCountry = null;
+  1241→
+  1242→async function loadRegulations(forceReload) {
+  1243→  if (forceReload) regulationsData = null;
+  1244→  if (!regulationsData) regulationsData = await ipcRenderer.invoke('get-regulations');
+  1245→  const btns = document.getElementById('lawCountryBtns');
+  1246→  btns.innerHTML = '';
+  1247→  for (const [code, country] of Object.entries(regulationsData)) {
+  1248→    const btn = document.createElement('button');
+  1249→    btn.className = 'law-country-btn';
+  1250→    btn.textContent = country.name;
+  1251→    btn.dataset.code = code;
+  1252→    btn.addEventListener('click', () => {
+  1253→      btns.querySelectorAll('.law-country-btn').forEach(b => b.classList.remove('active'));
+  1254→      btn.classList.add('active');
+  1255→      currentLawCountry = code;
+  1256→      showLawItems(code);
+  1257→    });
+  1258→    btns.appendChild(btn);
+  1259→  }
+  1260→  // + 添加国家按钮
+  1261→  const addBtn = document.createElement('button');
+  1262→  addBtn.className = 'law-country-btn';
+  1263→  addBtn.textContent = '＋ 添加';
+  1264→  addBtn.style.borderStyle = 'dashed';
+  1265→  addBtn.addEventListener('click', showAddCountryForm);
+  1266→  btns.appendChild(addBtn);
+  1267→  // 选中之前的或第一个
+  1268→  const target = currentLawCountry ? btns.querySelector(`[data-code="${currentLawCountry}"]`) : btns.querySelector('.law-country-btn');
+  1269→  if (target && target !== addBtn) target.click();
+  1270→  else if (btns.children.length > 1) btns.children[0].click();
+  1271→}
+  1272→
+  1273→function showAddCountryForm() {
+  1274→  const container = document.getElementById('lawItems');
+  1275→  container.innerHTML = `<div class="law-item" style="padding:16px">
+  1276→    <div style="margin-bottom:8px;font-weight:bold;color:var(--accent)">添加新国家/地区</div>
+  1277→    <input id="newCountryCode" placeholder="代码 (如 sg, uk)" style="width:100%;padding:6px 10px;margin-bottom:6px;background:var(--input-bg);border:1px solid var(--input-border);border-radius:6px;color:var(--text);font-size:13px">
+  1278→    <input id="newCountryName" placeholder="名称 (如 新加坡)" style="width:100%;padding:6px 10px;margin-bottom:6px;background:var(--input-bg);border:1px solid var(--input-border);border-radius:6px;color:var(--text);font-size:13px">
+  1279→    <select id="newCountryLang" style="width:100%;padding:6px 10px;margin-bottom:10px;background:var(--input-bg);border:1px solid var(--input-border);border-radius:6px;color:var(--text);font-size:13px">
+  1280→      <option value="zh-CN">中文</option><option value="en-US">英语</option><option value="ja-JP">日语</option>
+  1281→      <option value="ko-KR">韩语</option><option value="ru-RU">俄语</option><option value="fr-FR">法语</option>
+  1282→      <option value="de-DE">德语</option><option value="es-ES">西班牙语</option><option value="pt-BR">葡萄牙语</option>
+  1283→      <option value="ar-SA">阿拉伯语</option><option value="th-TH">泰语</option><option value="vi-VN">越南语</option>
+  1284→      <option value="ms-MY">马来语</option><option value="id-ID">印尼语</option><option value="hi-IN">印地语</option>
+  1285→    </select>
+  1286→    <button id="saveNewCountry" class="btn btn-small" style="background:var(--btn-primary)">保存</button>
+  1287→  </div>`;
+  1288→  document.getElementById('saveNewCountry').addEventListener('click', async () => {
+  1289→    const code = document.getElementById('newCountryCode').value.trim().toLowerCase();
+  1290→    const name = document.getElementById('newCountryName').value.trim();
+  1291→    const lang = document.getElementById('newCountryLang').value;
+  1292→    if (!code || !name) return;
+  1293→    // 添加一条占位法规以创建国家
+  1294→    await ipcRenderer.invoke('reg-add-item', code, name, lang, name + ' - 示例条目', '请编辑此条目或添加新法规。');
+  1295→    currentLawCountry = code;
+  1296→    await loadRegulations(true);
+  1297→  });
+  1298→}
+  1299→
+  1300→function showLawItems(countryCode) {
+  1301→  const country = regulationsData[countryCode];
+  1302→  const container = document.getElementById('lawItems');
+  1303→  container.innerHTML = '';
+  1304→  for (const item of country.items) {
+  1305→    const div = document.createElement('div');
+  1306→    div.className = 'law-item';
+  1307→    const delHtml = item._user ? `<button class="law-del-btn" title="删除">✕</button>` : '';
+  1308→    div.innerHTML = `<div class="law-item-title">${item.title} <button class="law-speak-btn">🔊</button>${delHtml}</div>
+  1309→      <div class="law-item-content">${item.content}</div>`;
+  1310→    div.querySelector('.law-speak-btn').addEventListener('click', () => {
+  1311→      speechSynthesis.cancel();
+  1312→      const u = new SpeechSynthesisUtterance(item.content);
+  1313→      u.lang = country.lang; u.rate = 0.85;
+  1314→      speechSynthesis.speak(u);
+  1315→    });
+  1316→    if (item._user) {
+  1317→      div.querySelector('.law-del-btn').addEventListener('click', async () => {
+  1318→        await ipcRenderer.invoke('reg-delete-item', item.id);
+  1319→        await loadRegulations(true);
+  1320→      });
+  1321→    }
+  1322→    container.appendChild(div);
+  1323→  }
+  1324→  // 添加条目按钮
+  1325→  const addDiv = document.createElement('div');
+  1326→  addDiv.className = 'law-item';
+  1327→  addDiv.style.cssText = 'border-style:dashed;cursor:pointer;text-align:center;color:var(--text-dim)';
+  1328→  addDiv.textContent = '＋ 添加法规条目';
+  1329→  addDiv.addEventListener('click', () => showAddItemForm(countryCode, country));
+  1330→  container.appendChild(addDiv);
+  1331→}
+  1332→
+  1333→function showAddItemForm(countryCode, country) {
+  1334→  const container = document.getElementById('lawItems');
+  1335→  const form = document.createElement('div');
+  1336→  form.className = 'law-item';
+  1337→  form.style.padding = '16px';
+  1338→  form.innerHTML = `<input id="newItemTitle" placeholder="标题 (如 民法典 第三条)" style="width:100%;padding:6px 10px;margin-bottom:6px;background:var(--input-bg);border:1px solid var(--input-border);border-radius:6px;color:var(--text);font-size:13px">
+  1339→    <textarea id="newItemContent" placeholder="法规内容" rows="3" style="width:100%;padding:6px 10px;margin-bottom:10px;background:var(--input-bg);border:1px solid var(--input-border);border-radius:6px;color:var(--text);font-size:13px;resize:vertical"></textarea>
+  1340→    <button id="saveNewItem" class="btn btn-small" style="background:var(--btn-primary)">保存</button>`;
+  1341→  container.appendChild(form);
+  1342→  form.scrollIntoView({ behavior: 'smooth' });
+  1343→  document.getElementById('saveNewItem').addEventListener('click', async () => {
+  1344→    const title = document.getElementById('newItemTitle').value.trim();
+  1345→    const content = document.getElementById('newItemContent').value.trim();
+  1346→    if (!title || !content) return;
+  1347→    await ipcRenderer.invoke('reg-add-item', countryCode, country.name, country.lang, title, content);
+  1348→    await loadRegulations(true);
+  1349→  });
+  1350→}
+  1351→

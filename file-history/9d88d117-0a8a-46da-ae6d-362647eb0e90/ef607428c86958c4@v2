@@ -1,0 +1,437 @@
+# Phase 2: Frontend Complete Implementation Plan
+
+> **For Claude:** REQUIRED SUB-SKILL: Use superpowers:executing-plans to implement this plan task-by-task.
+
+**Goal:** 让 Next.js 前端真正接入后端 API，实现项目创建、流程触发、文档查看的完整交互。
+
+**Architecture:** 前端用 Next.js App Router + fetch 直接调用后端 API（localhost:8000）；不引入额外状态管理库，用 React useState/useEffect 保持最小化；页面间用 Next.js Link 导航。
+
+**Tech Stack:** Next.js 15, React 18, TypeScript, fetch API
+
+---
+
+### Task 1: 安装前端依赖并验证 Next.js 可启动
+
+**Files:**
+- Modify: `apps/web/package.json`
+- Create: `apps/web/next.config.ts`
+- Create: `apps/web/tsconfig.json`
+- Test: `tests/test_web_setup.py`
+
+**Step 1: Write the failing test**
+
+```python
+# tests/test_web_setup.py
+import os
+
+WEB = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), 'apps', 'web')
+
+def test_next_config_exists():
+    assert os.path.exists(os.path.join(WEB, 'next.config.ts'))
+
+def test_tsconfig_exists():
+    assert os.path.exists(os.path.join(WEB, 'tsconfig.json'))
+
+def test_package_json_has_next():
+    import json
+    pkg = json.load(open(os.path.join(WEB, 'package.json')))
+    assert 'next' in pkg.get('dependencies', {})
+```
+
+**Step 2: Run test to verify it fails**
+
+Run: `cd /c/Users/Administrator/legalflow-studio && python -m pytest tests/test_web_setup.py -v`
+Expected: FAIL（next.config.ts 不存在）
+
+**Step 3: Write minimal implementation**
+
+`apps/web/next.config.ts`:
+```ts
+import type { NextConfig } from 'next';
+const config: NextConfig = {};
+export default config;
+```
+
+`apps/web/tsconfig.json`:
+```json
+{
+  "compilerOptions": {
+    "target": "ES2017",
+    "lib": ["dom", "dom.iterable", "esnext"],
+    "allowJs": true,
+    "skipLibCheck": true,
+    "strict": true,
+    "noEmit": true,
+    "esModuleInterop": true,
+    "module": "esnext",
+    "moduleResolution": "bundler",
+    "resolveJsonModule": true,
+    "isolatedModules": true,
+    "jsx": "preserve",
+    "incremental": true,
+    "plugins": [{ "name": "next" }],
+    "paths": { "@/*": ["./*"] }
+  },
+  "include": ["next-env.d.ts", "**/*.ts", "**/*.tsx", ".next/types/**/*.ts"],
+  "exclude": ["node_modules"]
+}
+```
+
+**Step 4: Run test to verify it passes**
+
+Run: `cd /c/Users/Administrator/legalflow-studio && python -m pytest tests/test_web_setup.py -v`
+Expected: PASS
+
+**Step 5: Commit**
+
+```bash
+cd /c/Users/Administrator/legalflow-studio
+git add apps/web/next.config.ts apps/web/tsconfig.json tests/test_web_setup.py
+git commit -m "chore: add next.js config and tsconfig"
+```
+
+---
+
+### Task 2: 创建 API 客户端工具函数
+
+**Files:**
+- Create: `apps/web/lib/api.ts`
+- Test: `tests/test_web_api_client.py`
+
+**Step 1: Write the failing test**
+
+```python
+# tests/test_web_api_client.py
+import os
+
+WEB = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), 'apps', 'web')
+
+def test_api_client_exists():
+    path = os.path.join(WEB, 'lib', 'api.ts')
+    assert os.path.exists(path)
+
+def test_api_client_has_base_url():
+    path = os.path.join(WEB, 'lib', 'api.ts')
+    content = open(path, encoding='utf-8').read()
+    assert 'BASE_URL' in content
+
+def test_api_client_has_create_project():
+    path = os.path.join(WEB, 'lib', 'api.ts')
+    content = open(path, encoding='utf-8').read()
+    assert 'createProject' in content
+
+def test_api_client_has_list_projects():
+    path = os.path.join(WEB, 'lib', 'api.ts')
+    content = open(path, encoding='utf-8').read()
+    assert 'listProjects' in content
+```
+
+**Step 2: Run test to verify it fails**
+
+Run: `cd /c/Users/Administrator/legalflow-studio && python -m pytest tests/test_web_api_client.py -v`
+Expected: FAIL
+
+**Step 3: Write minimal implementation**
+
+`apps/web/lib/api.ts`:
+```ts
+const BASE_URL = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:8000';
+
+async function apiFetch(path: string, options?: RequestInit) {
+  const res = await fetch(`${BASE_URL}${path}`, options);
+  if (!res.ok) throw new Error(`API error ${res.status}`);
+  return res.json();
+}
+
+export async function listProjects() {
+  return apiFetch('/api/v1/projects');
+}
+
+export async function createProject(name: string, type: string) {
+  return apiFetch('/api/v1/projects', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', 'x-role': 'lawyer' },
+    body: JSON.stringify({ name, type }),
+  });
+}
+
+export async function getDocument(id: number) {
+  return apiFetch(`/api/v1/documents/${id}`);
+}
+
+export async function exportMd(id: number): Promise<string> {
+  const res = await fetch(`${BASE_URL}/api/v1/documents/${id}/export/md`, { method: 'POST' });
+  return res.text();
+}
+```
+
+**Step 4: Run test to verify it passes**
+
+Run: `cd /c/Users/Administrator/legalflow-studio && python -m pytest tests/test_web_api_client.py -v`
+Expected: PASS
+
+**Step 5: Commit**
+
+```bash
+cd /c/Users/Administrator/legalflow-studio
+git add apps/web/lib/api.ts tests/test_web_api_client.py
+git commit -m "feat: add frontend api client"
+```
+
+---
+
+### Task 3: Dashboard 页面接入真实数据
+
+**Files:**
+- Modify: `apps/web/app/dashboard/page.tsx`
+- Test: `tests/test_web_dashboard.py`
+
+**Step 1: Write the failing test**
+
+```python
+# tests/test_web_dashboard.py
+import os
+
+WEB = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), 'apps', 'web')
+
+def test_dashboard_imports_api():
+    content = open(os.path.join(WEB, 'app', 'dashboard', 'page.tsx'), encoding='utf-8').read()
+    assert 'listProjects' in content or 'api' in content.lower()
+
+def test_dashboard_has_link_to_projects():
+    content = open(os.path.join(WEB, 'app', 'dashboard', 'page.tsx'), encoding='utf-8').read()
+    assert '/projects' in content
+```
+
+**Step 2: Run test to verify it fails**
+
+Run: `cd /c/Users/Administrator/legalflow-studio && python -m pytest tests/test_web_dashboard.py -v`
+Expected: FAIL
+
+**Step 3: Write minimal implementation**
+
+`apps/web/app/dashboard/page.tsx`:
+```tsx
+import Link from 'next/link';
+
+export default function DashboardPage() {
+  return (
+    <main style={{ padding: '2rem', fontFamily: 'sans-serif' }}>
+      <h1>LegalFlow Studio</h1>
+      <p>法律智能生产中台</p>
+      <nav style={{ marginTop: '1.5rem', display: 'flex', gap: '1rem' }}>
+        <Link href="/projects">项目列表</Link>
+        <Link href="/documents">文档中心</Link>
+      </nav>
+    </main>
+  );
+}
+```
+
+**Step 4: Run test to verify it passes**
+
+Run: `cd /c/Users/Administrator/legalflow-studio && python -m pytest tests/test_web_dashboard.py -v`
+Expected: PASS
+
+**Step 5: Commit**
+
+```bash
+cd /c/Users/Administrator/legalflow-studio
+git add apps/web/app/dashboard/page.tsx tests/test_web_dashboard.py
+git commit -m "feat: update dashboard with navigation links"
+```
+
+---
+
+### Task 4: Projects 页面（列表 + 创建表单）
+
+**Files:**
+- Modify: `apps/web/app/projects/page.tsx`
+- Test: `tests/test_web_projects_page.py`
+
+**Step 1: Write the failing test**
+
+```python
+# tests/test_web_projects_page.py
+import os
+
+WEB = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), 'apps', 'web')
+
+def test_projects_page_has_create_form():
+    content = open(os.path.join(WEB, 'app', 'projects', 'page.tsx'), encoding='utf-8').read()
+    assert 'createProject' in content or 'form' in content.lower()
+
+def test_projects_page_has_list():
+    content = open(os.path.join(WEB, 'app', 'projects', 'page.tsx'), encoding='utf-8').read()
+    assert 'listProjects' in content or 'useEffect' in content
+```
+
+**Step 2: Run test to verify it fails**
+
+Run: `cd /c/Users/Administrator/legalflow-studio && python -m pytest tests/test_web_projects_page.py -v`
+Expected: FAIL
+
+**Step 3: Write minimal implementation**
+
+`apps/web/app/projects/page.tsx`:
+```tsx
+'use client';
+import { useEffect, useState } from 'react';
+import { listProjects, createProject } from '@/lib/api';
+
+type Project = { id: number; name: string; type: string; status: string };
+
+export default function ProjectsPage() {
+  const [projects, setProjects] = useState<Project[]>([]);
+  const [name, setName] = useState('');
+  const [type, setType] = useState('litigation');
+
+  useEffect(() => {
+    listProjects().then(setProjects).catch(console.error);
+  }, []);
+
+  async function handleCreate(e: React.FormEvent) {
+    e.preventDefault();
+    const p = await createProject(name, type);
+    setProjects(prev => [...prev, p]);
+    setName('');
+  }
+
+  return (
+    <main style={{ padding: '2rem', fontFamily: 'sans-serif' }}>
+      <h1>项目列表</h1>
+      <form onSubmit={handleCreate} style={{ marginBottom: '1.5rem', display: 'flex', gap: '0.5rem' }}>
+        <input value={name} onChange={e => setName(e.target.value)} placeholder="项目名称" required />
+        <select value={type} onChange={e => setType(e.target.value)}>
+          <option value="litigation">诉讼</option>
+          <option value="consulting">咨询</option>
+          <option value="content">内容</option>
+        </select>
+        <button type="submit">新建</button>
+      </form>
+      <ul>
+        {projects.map(p => (
+          <li key={p.id}>{p.name} — {p.type} — {p.status}</li>
+        ))}
+      </ul>
+    </main>
+  );
+}
+```
+
+**Step 4: Run test to verify it passes**
+
+Run: `cd /c/Users/Administrator/legalflow-studio && python -m pytest tests/test_web_projects_page.py -v`
+Expected: PASS
+
+**Step 5: Commit**
+
+```bash
+cd /c/Users/Administrator/legalflow-studio
+git add apps/web/app/projects/page.tsx tests/test_web_projects_page.py
+git commit -m "feat: add projects list and create form"
+```
+
+---
+
+### Task 5: Documents 页面（列表 + Markdown 导出）
+
+**Files:**
+- Modify: `apps/web/app/documents/page.tsx`
+- Test: `tests/test_web_documents_page.py`
+
+**Step 1: Write the failing test**
+
+```python
+# tests/test_web_documents_page.py
+import os
+
+WEB = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), 'apps', 'web')
+
+def test_documents_page_has_export():
+    content = open(os.path.join(WEB, 'app', 'documents', 'page.tsx'), encoding='utf-8').read()
+    assert 'exportMd' in content or 'export' in content.lower()
+
+def test_documents_page_has_get_document():
+    content = open(os.path.join(WEB, 'app', 'documents', 'page.tsx'), encoding='utf-8').read()
+    assert 'getDocument' in content or 'api' in content.lower()
+```
+
+**Step 2: Run test to verify it fails**
+
+Run: `cd /c/Users/Administrator/legalflow-studio && python -m pytest tests/test_web_documents_page.py -v`
+Expected: FAIL
+
+**Step 3: Write minimal implementation**
+
+`apps/web/app/documents/page.tsx`:
+```tsx
+'use client';
+import { useState } from 'react';
+import { getDocument, exportMd } from '@/lib/api';
+
+type Doc = { id: number; title: string; content: string; status: string };
+
+export default function DocumentsPage() {
+  const [docId, setDocId] = useState('1');
+  const [doc, setDoc] = useState<Doc | null>(null);
+  const [mdContent, setMdContent] = useState('');
+
+  async function handleLoad() {
+    const d = await getDocument(Number(docId));
+    setDoc(d);
+  }
+
+  async function handleExportMd() {
+    const md = await exportMd(Number(docId));
+    setMdContent(md);
+  }
+
+  return (
+    <main style={{ padding: '2rem', fontFamily: 'sans-serif' }}>
+      <h1>文档中心</h1>
+      <div style={{ display: 'flex', gap: '0.5rem', marginBottom: '1rem' }}>
+        <input value={docId} onChange={e => setDocId(e.target.value)} style={{ width: '4rem' }} />
+        <button onClick={handleLoad}>加载文档</button>
+        <button onClick={handleExportMd}>导出 Markdown</button>
+      </div>
+      {doc && <pre style={{ background: '#f5f5f5', padding: '1rem' }}>{JSON.stringify(doc, null, 2)}</pre>}
+      {mdContent && <pre style={{ background: '#eef', padding: '1rem' }}>{mdContent}</pre>}
+    </main>
+  );
+}
+```
+
+**Step 4: Run test to verify it passes**
+
+Run: `cd /c/Users/Administrator/legalflow-studio && python -m pytest tests/test_web_documents_page.py -v`
+Expected: PASS
+
+**Step 5: Commit**
+
+```bash
+cd /c/Users/Administrator/legalflow-studio
+git add apps/web/app/documents/page.tsx tests/test_web_documents_page.py
+git commit -m "feat: add documents page with load and export"
+```
+
+---
+
+### Task 6: 全量验证
+
+**Step 1: 运行全部测试**
+
+```bash
+cd /c/Users/Administrator/legalflow-studio/apps/api
+python -m pytest tests/ ../../tests/ -v
+```
+
+Expected: 全部 PASS（含新增 web 测试）
+
+**Step 2: Commit**
+
+```bash
+cd /c/Users/Administrator/legalflow-studio
+git add .
+git commit -m "test: phase2 frontend complete verification"
+```

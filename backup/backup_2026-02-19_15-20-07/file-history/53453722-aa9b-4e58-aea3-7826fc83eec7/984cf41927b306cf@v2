@@ -1,0 +1,137 @@
+# 快速启动指南
+
+## 第一步：安装后端环境
+
+```bash
+# 进入后端目录
+cd C:\Users\Administrator\image-processor-skill\backend
+
+# 安装依赖
+pip install -r requirements.txt
+```
+
+## 第二步：启动后端服务
+
+```bash
+# 运行Flask服务
+python app.py
+```
+
+看到以下输出表示启动成功：
+```
+ * Running on http://0.0.0.0:5000
+```
+
+## 第三步：启动前端
+
+### 方式一：直接打开（推荐快速测试）
+
+直接双击打开：
+```
+C:\Users\Administrator\image-processor-skill\frontend\image-editor.html
+```
+
+### 方式二：使用本地服务器（推荐开发）
+
+```bash
+# 进入前端目录
+cd C:\Users\Administrator\image-processor-skill\frontend
+
+# Python 3
+python -m http.server 8080
+
+# 或者 Python 2
+python -m SimpleHTTPServer 8080
+```
+
+然后访问：http://localhost:8080/image-editor.html
+
+## 使用流程
+
+1. **上传图片**
+   - 拖拽图片到上传区域
+   - 或点击选择文件
+
+2. **选择裁剪比例**
+   - 自由、1:1、4:3、16:9、9:16等
+
+3. **调整滤镜**
+   - 基础调整：亮度、对比度、饱和度、色温、模糊
+   - 文字特效：选择预设滤镜
+
+4. **确认裁剪**
+   - 点击"确认裁剪"按钮
+   - 等待后端处理（通常1-3秒）
+
+5. **下载图片**
+   - 点击"下载图片"保存结果
+
+## 测试用例
+
+### 测试1：海报文字图处理
+
+1. 上传一张有文字的海报图片
+2. 选择"高对比度"预设
+3. 微调对比度到130%
+4. 裁剪并下载
+
+### 测试2：标题文字锐化
+
+1. 上传有标题的图片
+2. 选择"文字锐化"预设
+3. 微调亮度到105%
+4. 裁剪并下载
+
+## 故障排查
+
+### 问题1：前端无法连接后端
+
+**错误：** 裁剪后一直显示"处理中..."
+
+**解决：**
+1. 确认后端服务是否运行：访问 http://localhost:5000/api/health
+2. 检查浏览器控制台是否有CORS错误
+3. 修改前端代码中的后端地址（image-editor.js 第159行）
+
+### 问题2：Python依赖安装失败
+
+**错误：** pip install 时出现错误
+
+**解决：**
+```bash
+# 升级pip
+python -m pip install --upgrade pip
+
+# 使用国内镜像源
+pip install -r requirements.txt -i https://pypi.tuna.tsinghua.edu.cn/simple
+```
+
+### 问题3：图片处理速度慢
+
+**优化建议：**
+1. 限制图片最大尺寸（前端代码第136行）
+2. 减少同时处理的图片数量
+3. 升级服务器配置（CPU/内存）
+
+## 性能基准测试
+
+在你的机器上运行以下命令测试性能：
+
+```bash
+# 进入后端目录
+cd C:\Users\Administrator\image-processor-skill\backend
+
+# 安装测试工具
+pip install pytest pytest-benchmark
+
+# 运行性能测试（可选）
+pytest benchmark.py -v
+```
+
+## 下一步
+
+- 📖 阅读 [README.md](README.md) 了解详细功能
+- 🎨 尝试添加自定义预设滤镜
+- 🚀 部署到生产环境（建议使用Docker）
+
+祝你使用愉快！

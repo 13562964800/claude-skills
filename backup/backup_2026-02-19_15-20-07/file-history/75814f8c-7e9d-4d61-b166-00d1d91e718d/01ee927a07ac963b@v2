@@ -1,0 +1,75 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- 短信菜单卡片 - 宋氏美学 -->
+<!-- 单夫纯律师 制作 -->
+<com.google.android.material.card.MaterialCardView xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:id="@+id/menu_card"
+    android:layout_width="wrap_content"
+    android:layout_height="wrap_content"
+    android:layout_marginEnd="12dp"
+    app:cardBackgroundColor="@color/bg_paper"
+    app:cardCornerRadius="8dp"
+    app:cardElevation="2dp"
+    app:strokeColor="@color/dai_cyan"
+    app:strokeWidth="1dp">
+
+    <LinearLayout
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:orientation="horizontal"
+        android:paddingHorizontal="16dp"
+        android:paddingVertical="10dp"
+        android:gravity="center_vertical">
+
+        <!-- 分类标签 -->
+        <TextView
+            android:id="@+id/tv_label"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="全部"
+            android:textColor="@color/ink_gray"
+            android:textSize="15sp"
+            android:fontFamily="serif"
+            android:paddingEnd="8dp" />
+
+        <!-- 信息文字 -->
+        <TextView
+            android:id="@+id/tv_info"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="菜单"
+            android:textColor="@color/ink_gray"
+            android:textSize="15sp"
+            android:fontFamily="serif" />
+
+        <!-- 传票标签 -->
+        <TextView
+            android:id="@+id/tv_summons_tag"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginStart="8dp"
+            android:paddingHorizontal="8dp"
+            android:paddingVertical="2dp"
+            android:text="传票"
+            android:textColor="@color/dai_cyan"
+            android:textSize="12sp"
+            android:fontFamily="serif"
+            android:background="@drawable/button_primary"
+            android:visibility="gone" />
+
+        <!-- 日历同步状态 -->
+        <TextView
+            android:id="@+id/tv_calendar_status"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginStart="8dp"
+            android:paddingHorizontal="6dp"
+            android:paddingVertical="2dp"
+            android:text="✓日历"
+            android:textSize="12sp"
+            android:fontFamily="serif"
+            android:visibility="gone" />
+
+    </LinearLayout>
+
+</com.google.android.material.card.MaterialCardView>

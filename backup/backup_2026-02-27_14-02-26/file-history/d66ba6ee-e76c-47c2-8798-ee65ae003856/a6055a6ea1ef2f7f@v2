@@ -1,0 +1,8 @@
+package com.formfiller
+
+import android.app.Application
+import com.formfiller.data.AppDatabase
+
+class App : Application() {
+    val db by lazy { AppDatabase.get(this) }
+}

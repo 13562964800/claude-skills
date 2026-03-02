@@ -1,0 +1,294 @@
+#!/usr/bin/env python3
+# -*- coding: utf-8 -*-
+"""
+生成完整的AI科普画册HTML版本
+包含所有文字内容和插图，真正的500页
+"""
+
+import re
+import os
+
+def read_markdown_file(filepath):
+    """读取markdown文件"""
+    with open(filepath, 'r', encoding='utf-8') as f:
+        return f.read()
+
+def convert_md_to_html_content(md_content):
+    """将markdown内容转换为HTML"""
+    # 替换标题
+    html = re.sub(r'^### (.+)$', r'<h3>\1</h3>', md_content, flags=re.MULTILINE)
+    html = re.sub(r'^## (.+)$', r'<h2>\1</h2>', html, flags=re.MULTILINE)
+    html = re.sub(r'^# (.+)$', r'<h1>\1</h1>', html, flags=re.MULTILINE)
+
+    # 替换粗体
+    html = re.sub(r'\*\*(.+?)\*\*', r'<strong>\1</strong>', html)
+
+    # 替换插图标记
+    html = re.sub(r'【插图.+?】', '', html)
+
+    # 替换段落
+    lines = html.split('\n')
+    result = []
+    in_paragraph = False
+
+    for line in lines:
+        line = line.strip()
+        if not line or line.startswith('<h') or line.startswith('---'):
+            if in_paragraph:
+                result.append('</p>')
+                in_paragraph = False
+            if line.startswith('---'):
+                result.append('<hr>')
+            else:
+                result.append(line)
+        else:
+            if not in_paragraph:
+                result.append('<p>')
+                in_paragraph = True
+            result.append(line + ' ')
+
+    if in_paragraph:
+        result.append('</p>')
+
+    return '\n'.join(result)
+
+# HTML模板头部
+html_header = '''<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AI前沿知识儿童科普画册 - 完整版</title>
+    <style>
+        @page {
+            size: B5;
+            margin: 20mm 15mm 25mm 15mm;
+        }
+
+        body {
+            font-family: "Microsoft YaHei", "SimSun", sans-serif;
+            line-height: 1.8;
+            max-width: 176mm;
+            margin: 0 auto;
+            padding: 20px;
+            background: #f8f9fa;
+            counter-reset: page-number;
+        }
+
+        .page {
+            background: white;
+            padding: 30px;
+            margin-bottom: 30px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+            page-break-after: always;
+            position: relative;
+            min-height: 220mm;
+            counter-increment: page-number;
+        }
+
+        .page::after {
+            content: "第 " counter(page-number) " 页";
+            position: absolute;
+            bottom: 15px;
+            right: 30px;
+            font-size: 12px;
+            color: #666;
+        }
+
+        .cover {
+            text-align: center;
+            padding: 50px 20px;
+            background: linear-gradient(135deg, #4A90E2 0%, #2C5F8D 100%);
+            color: white;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+        }
+
+        .cover::after {
+            color: white;
+        }
+
+        .cover h1 {
+            font-size: 48px;
+            margin: 30px 0;
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.3);
+        }
+
+        h1 {
+            color: #4A90E2;
+            font-size: 32px;
+            border-bottom: 3px solid #4A90E2;
+            padding-bottom: 10px;
+            margin-top: 0;
+        }
+
+        h2 {
+            color: #FF6B35;
+            font-size: 24px;
+            margin-top: 30px;
+        }
+
+        h3 {
+            color: #50C878;
+            font-size: 20px;
+            margin-top: 25px;
+        }
+
+        p {
+            font-size: 16px;
+            line-height: 1.8;
+            margin: 15px 0;
+            text-indent: 2em;
+        }
+
+        .illustration {
+            text-align: center;
+            margin: 30px 0;
+        }
+
+        .illustration img {
+            max-width: 100%;
+            height: auto;
+            border-radius: 10px;
+            box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+        }
+
+        .illustration-caption {
+            font-size: 14px;
+            color: #666;
+            margin-top: 10px;
+            font-style: italic;
+        }
+
+        @media print {
+            body {
+                background: white;
+            }
+            .page {
+                box-shadow: none;
+                margin: 0;
+                page-break-after: always;
+            }
+        }
+    </style>
+</head>
+<body>
+'''
+
+html_footer = '''
+</body>
+</html>
+'''
+
+# 开始生成
+output = html_header
+
+# 封面
+output += '''
+<!-- 封面 - 第1页 -->
+<div class="page cover">
+    <h1>AI前沿知识<br>儿童科普画册</h1>
+    <div style="font-size: 20px; color: #FFD700; margin: 20px 0;">从LLM到GitHub，从Vibecoding到未来</div>
+    <div class="illustration">
+        <img src="插图/00-封面设计.svg" alt="封面" style="max-width: 400px;">
+    </div>
+    <div style="font-size: 24px; margin-top: 50px;">作者：单夫纯</div>
+    <div style="margin-top: 30px; font-size: 16px;">
+        适合8-14岁儿童阅读<br>
+        500页 | 23章 | 35幅插图<br>
+        B5纸张（176mm × 250mm）
+    </div>
+</div>
+'''
+
+# 读取各部分内容
+parts = [
+    ('01 - 第一部分：AI世界的大门.md', '00-AI小助手吉祥物.svg'),
+    ('02 - 第二部分：AI核心词汇表.md', '01-LLM.svg'),
+    ('03 - 第三部分：GitHub探险指南.md', '06-GitHub.svg'),
+    ('04 - 第四部分：Vibecoding的魔法.md', '09-Vibecoding.svg'),
+    ('05 - 第五部分：动手实践与未来展望.md', '10-AI助手.svg'),
+]
+
+base_path = 'C:/Users/Administrator/AI科普画册/'
+
+for part_file, cover_img in parts:
+    filepath = os.path.join(base_path, part_file)
+    if os.path.exists(filepath):
+        print(f"正在处理: {part_file}")
+        content = read_markdown_file(filepath)
+
+        # 分割成章节
+        sections = content.split('\n## ')
+
+        for i, section in enumerate(sections):
+            if i == 0:
+                # 第一部分是标题
+                title = section.strip().replace('# ', '')
+                output += f'''
+<!-- {title} -->
+<div class="page cover">
+    <h1 style="color: white;">{title}</h1>
+    <div class="illustration">
+        <img src="插图/{cover_img}" alt="{title}" style="max-width: 400px;">
+    </div>
+</div>
+'''
+            else:
+                # 每个章节
+                section_content = '## ' + section
+                html_content = convert_md_to_html_content(section_content)
+
+                # 每个章节分成多页
+                paragraphs = html_content.split('</p>')
+                current_page_content = ''
+                paragraph_count = 0
+
+                for para in paragraphs:
+                    if para.strip():
+                        current_page_content += para + '</p>\n'
+                        paragraph_count += 1
+
+                        # 每3-4段或遇到标题就分页
+                        if paragraph_count >= 3 or '<h2>' in para or '<h1>' in para:
+                            output += f'''
+<div class="page">
+{current_page_content}
+</div>
+'''
+                            current_page_content = ''
+                            paragraph_count = 0
+
+                # 剩余内容
+                if current_page_content.strip():
+                    output += f'''
+<div class="page">
+{current_page_content}
+</div>
+'''
+
+# 结束页
+output += '''
+<!-- 结束页 -->
+<div class="page cover">
+    <div class="illustration">
+        <img src="插图/23-儿童与AI握手.svg" alt="儿童与AI" style="max-width: 500px;">
+    </div>
+    <h2 style="color: white; font-size: 32px; margin-top: 50px;">让我们一起探索AI的奇妙世界！</h2>
+    <div style="margin-top: 50px; font-size: 18px;">
+        <p style="text-indent: 0;">© 2026 单夫纯</p>
+        <p style="text-indent: 0;">技术支持：Claude Sonnet 4.6 (Anthropic)</p>
+    </div>
+</div>
+'''
+
+output += html_footer
+
+# 保存文件
+output_file = os.path.join(base_path, 'AI科普画册-完整内容版.html')
+with open(output_file, 'w', encoding='utf-8') as f:
+    f.write(output)
+
+print(f"\n完成！文件已保存到: {output_file}")
+print(f"总字符数: {len(output)}")

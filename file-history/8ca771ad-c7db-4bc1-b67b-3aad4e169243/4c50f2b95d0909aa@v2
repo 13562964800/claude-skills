@@ -1,0 +1,58 @@
+@echo off
+chcp 65001 >nul
+title Android APK 打包工具
+
+echo.
+echo ============================================================
+echo Android 视频下载转录应用 - APK 打包工具
+echo ============================================================
+echo.
+
+echo [提示] 此项目需要在 Android Studio 中打包
+echo.
+echo 原因：
+echo 1. 需要 Android SDK（约 3GB）
+echo 2. 需要 Gradle 构建工具
+echo 3. 需要 Java JDK 17
+echo 4. 需要下载大量依赖库
+echo.
+
+echo ============================================================
+echo 打包步骤：
+echo ============================================================
+echo.
+echo 1. 安装 Android Studio
+echo    下载地址: https://developer.android.com/studio
+echo.
+echo 2. 打开项目
+echo    File -^> Open -^> 选择: D:\VideoDownloadApp
+echo.
+echo 3. 等待 Gradle 同步完成
+echo    （首次同步会下载依赖，需要 5-10 分钟）
+echo.
+echo 4. 构建 APK
+echo    Build -^> Build Bundle(s) / APK(s) -^> Build APK(s)
+echo.
+echo 5. APK 输出位置
+echo    app\build\outputs\apk\debug\app-debug.apk
+echo.
+
+echo ============================================================
+echo 或者使用命令行（需要先安装 Android SDK）：
+echo ============================================================
+echo.
+echo cd D:\VideoDownloadApp
+echo gradlew assembleDebug
+echo.
+
+echo ============================================================
+echo 项目信息：
+echo ============================================================
+echo.
+echo 项目位置: D:\VideoDownloadApp
+echo 项目类型: Android Kotlin + Jetpack Compose
+echo 最低 SDK: 24 (Android 7.0)
+echo 目标 SDK: 34 (Android 14)
+echo.
+
+pause

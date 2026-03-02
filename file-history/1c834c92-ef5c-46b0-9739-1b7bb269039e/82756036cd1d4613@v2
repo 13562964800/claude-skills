@@ -1,0 +1,50 @@
+from abc import ABC, abstractmethod
+import logging
+import os
+
+
+class LLMRouter:
+    DEFAULT_PRIMARY = 'claude-opus-4-6'
+    DEFAULT_FALLBACK = 'deepseek/deepseek-chat'
+
+    def __init__(self, primary: str = DEFAULT_PRIMARY, fallback: str = DEFAULT_FALLBACK):
+        self.primary_model = primary
+        self.fallback_model = fallback
+
+    def _inject_keys(self, custom_keys: dict = None):
+        """从 Settings 或自定义 keys 注入 API Key 到环境变量（LiteLLM 自动读取）。"""
+        try:
+            from app.core.config import settings
+            key_map = {
+                'ANTHROPIC_API_KEY': custom_keys.get('anthropic_api_key') if custom_keys else None or settings.anthropic_api_key,
+                'OPENAI_API_KEY': custom_keys.get('openai_api_key') if custom_keys else None or settings.openai_api_key,
+                'GEMINI_API_KEY': custom_keys.get('gemini_api_key') if custom_keys else None or settings.gemini_api_key,
+                'DEEPSEEK_API_KEY': custom_keys.get('deepseek_api_key') if custom_keys else None or settings.deepseek_api_key,
+                'DASHSCOPE_API_KEY': custom_keys.get('qwen_api_key') if custom_keys else None or settings.qwen_api_key,
+                'ZHIPUAI_API_KEY': custom_keys.get('zhipuai_api_key') if custom_keys else None or settings.zhipuai_api_key,
+            }
+            for k, v in key_map.items():
+                if v:
+                    os.environ[k] = v
+        except Exception:
+            pass
+
+    def complete(self, messages: list[dict], custom_keys: dict = None, **kwargs) -> str:
+        import litellm
+        self._inject_keys(custom_keys)
+        try:
+            resp = litellm.completion(model=self.primary_model, messages=messages, **kwargs)
+            return resp.choices[0].message.content
+        except Exception as e:
+            logging.warning(f'LLMRouter primary {self.primary_model} failed: {e}, fallback to {self.fallback_model}')
+            resp = litellm.completion(model=self.fallback_model, messages=messages, **kwargs)
+            return resp.choices[0].message.content
+
+
+class SkillAdapter(ABC):
+    name: str
+    router: LLMRouter = LLMRouter()
+
+    @abstractmethod
+    def run(self, payload: dict) -> dict:
+        ...

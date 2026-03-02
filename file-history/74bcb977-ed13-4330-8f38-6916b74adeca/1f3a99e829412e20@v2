@@ -1,0 +1,36 @@
+import os
+
+WEB = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), 'apps', 'web')
+
+def test_workflow_page_exists():
+    path = os.path.join(WEB, 'app', 'workflows', 'page.tsx')
+    assert os.path.exists(path)
+
+def test_workflow_page_has_templates():
+    content = open(os.path.join(WEB, 'app', 'workflows', 'page.tsx'), encoding='utf-8').read()
+    assert 'legal-text-format' in content
+
+def test_workflow_page_has_trigger():
+    content = open(os.path.join(WEB, 'app', 'workflows', 'page.tsx'), encoding='utf-8').read()
+    assert 'startWorkflow' in content or 'workflow-runs' in content
+
+def test_workflow_page_has_async_mode():
+    content = open(os.path.join(WEB, 'app', 'workflows', 'page.tsx'), encoding='utf-8').read()
+    assert 'startWorkflowAsync' in content
+    assert 'async' in content
+
+def test_workflow_page_has_polling():
+    content = open(os.path.join(WEB, 'app', 'workflows', 'page.tsx'), encoding='utf-8').read()
+    assert 'pollStatus' in content or 'getWorkflowRun' in content
+
+def test_api_client_has_start_workflow():
+    content = open(os.path.join(WEB, 'lib', 'api.ts'), encoding='utf-8').read()
+    assert 'startWorkflow' in content
+
+def test_api_client_has_async_workflow():
+    content = open(os.path.join(WEB, 'lib', 'api.ts'), encoding='utf-8').read()
+    assert 'startWorkflowAsync' in content
+
+def test_api_client_has_get_workflow_run():
+    content = open(os.path.join(WEB, 'lib', 'api.ts'), encoding='utf-8').read()
+    assert 'getWorkflowRun' in content

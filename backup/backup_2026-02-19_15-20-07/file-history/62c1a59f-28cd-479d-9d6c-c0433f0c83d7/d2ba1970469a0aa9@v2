@@ -1,0 +1,92 @@
+# 时间戳功能更新说明
+
+## 问题
+文档和网页标红（差异点）处，没有显示对应的录音时间点。
+
+## 解决方案
+已更新代码，支持从 FunASR、OpenAI Whisper API 和 Groq Whisper API 获取词级时间戳。
+
+## 修改的文件
+
+### 1. requirements.txt
+添加了以下依赖包：
+- `stable-ts` - 本地时间戳支持
+- `openai` - OpenAI Whisper API 客户端
+- `groq` - Groq Whisper API 客户端
+
+### 2. transcribe.py
+- 添加了 `jieba` 导入和 `_ensure_jieba_initialized()` 函数
+- 修改 `_transcribe_funasr()` 函数：
+  - 添加 `return_timestamps` 参数
+  - 从 FunASR 响应中提取字符级时间戳
+  - 使用 jieba 分词将字符级时间戳转换为词级时间戳
+- 修改 `_transcribe_groq()` 和 `_transcribe_whisper()` 函数：
+  - 添加 `return_timestamps` 参数
+  - 支持 `timestamp_granularities=['word']` 获取词级时间戳
+- 新增 `_transcribe_openai_whisper_with_timestamps()` 和 `_transcribe_groq_with_timestamps()` 函数
+- 新增 `_transcribe_with_ts_wrapper()` 函数处理长音频时间戳对齐
+- 修改 `transcribe_with_timestamps()` 函数支持 FunASR
+
+### 3. main.py
+- 更新 `transcribe()` 函数：
+  - 优先从 FunASR、OpenAI Whisper、Groq Whisper 获取时间戳
+  - 添加状态消息显示时间戳获取情况
+
+### 4. html_report.py
+- 更新时间戳显示格式：
+  - 有时间戳：`🕐 @m:ss.ms`
+  - 无时间戳：`(无时间戳)`（灰色小字）
+- 点击差异点可跳转到音频对应位置
+
+### 5. docx_util.py
+- 更新时间戳显示格式：
+  - 有时间戳：`🕐 @m:ss.ms`（蓝色粗体）
+  - 无时间戳：`(无时间戳)`（红色）
+
+## 使用方法
+
+### 本地 FunASR（推荐）
+1. 确保 FunASR 服务正在运行
+2. 在设置中选择 "FunASR(本地)"
+3. 运行对比，自动获取时间戳
+
+### OpenAI Whisper API
+1. 在设置中选择 "OpenAI Whisper"
+2. 输入 API Key（格式：sk-...）
+3. 运行对比，自动获取时间戳
+
+### Groq Whisper API
+1. 在设置中选择 "Groq Whisper"
+2. 输入 API Key（格式：gsk_...）
+3. 运行对比，自动获取时间戳
+
+## 时间戳显示效果
+
+### HTML 报告
+```
+这是[误读为:"错误" 🕐 @1:23.45]一个示例
+这是[漏读 🕐 @2:30.12]另一个示例
+```
+- 点击标红的差异点，音频播放器会跳转到对应时间
+
+### Word 文档
+```
+这是[误读为:"错误" 🕐 @1:23.45]一个示例
+这是[漏读 🕐 @2:30.12]另一个示例
+```
+- 时间戳以蓝色粗体显示
+- 可以手动跳转到音频播放器对应位置
+
+## 测试
+运行测试脚本验证功能：
+```bash
+python test_timestamps.py
+```
+
+## 注意事项
+1. FunASR、OpenAI Whisper、Groq Whisper 支持词级时间戳
+2. 百度语音、阿里云语音不支持词级时间戳（会显示"无时间戳"）
+3. 首次使用 stable-ts 需要下载模型（约 150MB）
+
+## 完成
+所有修改已完成，时间戳功能已就绪！

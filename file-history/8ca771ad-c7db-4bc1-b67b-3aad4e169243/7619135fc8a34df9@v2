@@ -1,0 +1,228 @@
+"""
+FastAPI 服务器 - 视频下载转录服务
+"""
+
+import asyncio
+import json
+import os
+import uuid
+from datetime import datetime
+from pathlib import Path
+from typing import Dict, List, Optional
+
+from fastapi import FastAPI, WebSocket, WebSocketDisconnect
+from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import JSONResponse
+from pydantic import BaseModel
+
+from parsers.ytdlp_parser import YtdlpParser
+from downloaders.ytdlp_downloader import YtdlpDownloader
+from transcription.transcription_service import TranscriptionService
+from storage.database import Database
+from utils.config import load_config
+
+# 初始化
+app = FastAPI(title="视频下载转录服务")
+config = load_config()
+db = Database(config['database']['path'])
+parser = YtdlpParser()
+downloader = YtdlpDownloader(config['download']['output_dir'])
+transcription_service = TranscriptionService(config['transcription'])
+
+# CORS 配置
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+
+# WebSocket 连接管理
+class ConnectionManager:
+    def __init__(self):
+        self.active_connections: List[WebSocket] = []
+
+    async def connect(self, websocket: WebSocket):
+        await websocket.accept()
+        self.active_connections.append(websocket)
+
+    def disconnect(self, websocket: WebSocket):
+        self.active_connections.remove(websocket)
+
+    async def broadcast(self, message: dict):
+        """广播消息到所有连接"""
+        for connection in self.active_connections:
+            try:
+                await connection.send_json(message)
+            except:
+                pass
+
+manager = ConnectionManager()
+
+# 请求模型
+class DownloadRequest(BaseModel):
+    url: str
+    title: Optional[str] = None
+    cookies: Optional[List[Dict]] = None
+    platform: Optional[str] = None
+
+# 任务队列
+tasks: Dict[str, dict] = {}
+
+@app.get("/")
+async def root():
+    return {"message": "视频下载转录服务运行中"}
+
+@app.get("/health")
+async def health():
+    """健康检查"""
+    return {"status": "ok", "timestamp": datetime.now().isoformat()}
+
+@app.post("/download")
+async def download_video(request: DownloadRequest):
+    """接收下载请求"""
+    task_id = str(uuid.uuid4())
+
+    # 创建任务
+    task = {
+        "task_id": task_id,
+        "url": request.url,
+        "title": request.title or "未知标题",
+        "platform": request.platform,
+        "status": "pending",
+        "percent": "0%",
+        "timestamp": datetime.now().timestamp()
+    }
+
+    tasks[task_id] = task
+    db.create_task(task)
+
+    # 异步处理
+    asyncio.create_task(process_download(task_id, request))
+
+    return {"task_id": task_id, "status": "queued"}
+
+@app.websocket("/ws")
+async def websocket_endpoint(websocket: WebSocket):
+    """WebSocket 连接"""
+    await manager.connect(websocket)
+    try:
+        while True:
+            data = await websocket.receive_json()
+
+            if data.get('action') == 'download':
+                # 创建下载任务
+                request = DownloadRequest(**data)
+                result = await download_video(request)
+                await websocket.send_json(result)
+
+    except WebSocketDisconnect:
+        manager.disconnect(websocket)
+
+async def process_download(task_id: str, request: DownloadRequest):
+    """处理下载任务"""
+    try:
+        task = tasks[task_id]
+
+        # 1. 解析视频信息
+        await update_task(task_id, status="parsing", message="正在解析视频...")
+
+        video_info = await parser.parse(
+            request.url,
+            cookies=request.cookies
+        )
+
+        # 更新标题
+        if not request.title:
+            task['title'] = video_info['title']
+
+        # 2. 下载视频
+        await update_task(task_id, status="downloading", message="正在下载视频...")
+
+        def progress_callback(d):
+            if d['status'] == 'downloading':
+                percent = d.get('_percent_str', '0%')
+                asyncio.create_task(update_task(
+                    task_id,
+                    percent=percent,
+                    speed=d.get('_speed_str', 'N/A'),
+                    eta=d.get('_eta_str', 'N/A')
+                ))
+
+        video_path = await downloader.download(
+            request.url,
+            video_info['title'],
+            progress_callback=progress_callback,
+            cookies=request.cookies
+        )
+
+        # 3. 转录
+        await update_task(task_id, status="transcribing", percent="100%", message="正在转录...")
+
+        result = await transcription_service.transcribe(video_path)
+
+        # 保存转录结果
+        transcript_path = video_path.replace('.mp4', '.md')
+        with open(transcript_path, 'w', encoding='utf-8') as f:
+            f.write(f"# {task['title']}\n\n")
+            f.write(f"**语言**: {result['language']}\n")
+            f.write(f"**引擎**: {result['engine']}\n\n")
+            f.write(f"## 转录内容\n\n")
+            f.write(result['text'])
+
+        # 4. 完成
+        await update_task(
+            task_id,
+            status="completed",
+            message="转录完成",
+            video_path=video_path,
+            transcript_path=transcript_path,
+            language=result['language'],
+            engine=result['engine']
+        )
+
+        # 广播完成消息
+        await manager.broadcast({
+            "type": "transcription_complete",
+            "task_id": task_id,
+            "title": task['title'],
+            "engine": result['engine'],
+            "language": result['language']
+        })
+
+    except Exception as e:
+        print(f"任务失败: {e}")
+        await update_task(
+            task_id,
+            status="failed",
+            message=f"错误: {str(e)}"
+        )
+
+        await manager.broadcast({
+            "type": "error",
+            "task_id": task_id,
+            "message": str(e)
+        })
+
+async def update_task(task_id: str, **kwargs):
+    """更新任务状态"""
+    if task_id in tasks:
+        tasks[task_id].update(kwargs)
+        db.update_task(task_id, kwargs)
+
+        # 广播进度
+        await manager.broadcast({
+            "type": "progress",
+            "task_id": task_id,
+            **tasks[task_id]
+        })
+
+if __name__ == "__main__":
+    import uvicorn
+    uvicorn.run(
+        app,
+        host="0.0.0.0",
+        port=8765,
+        log_level="info"
+    )

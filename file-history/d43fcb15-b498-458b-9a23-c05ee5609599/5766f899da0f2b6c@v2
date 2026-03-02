@@ -1,0 +1,544 @@
+import requests, json, re
+import jieba
+from difflib import SequenceMatcher
+from jiwer import wer, cer
+from pypinyin import pinyin, Style
+from functools import lru_cache
+from typing import List, Tuple, Dict, Any
+
+FILLER_WORDS = {'嗯', '呃', '啊', '哦', '呢', '吧', '嘛', '哈', '噢', '诶',
+                '那个', '就是', '就是说', '然后', '对吧', '对的', '这个',
+                '那', '所以', '但是', '不过', '其实', '反正', '好的'}
+
+# 中文数字映射
+CN_NUMBERS = {
+    '零': '0', '〇': '0', '一': '1', '二': '2', '两': '2', '三': '3', '四': '4',
+    '五': '5', '六': '6', '七': '7', '八': '8', '九': '9', '十': '10',
+    '廿': '20', '卅': '30', '卌': '40', '百': '100', '千': '1000',
+    '万': '10000', '亿': '100000000', '兆': '1000000000000'
+}
+CN_NUMBERS_READING = {
+    '0': '零', '1': '一', '2': '二', '3': '三', '4': '四',
+    '5': '五', '6': '六', '7': '七', '8': '八', '9': '九'
+}
+
+# ===== 性能优化：预编译正则表达式 =====
+_RE_PUNCT = re.compile(r'[，。！？；：、\u201c\u201d\u2018\u2019（）【】《》…—·\s,.!?;:\'"()\[\]{}\-]')
+_RE_PUNCT_SIMPLE = re.compile(r'[，。！？；：、\u201c\u201d\u2018\u2019（）【】《》…—·\s,.!?;:\'"()\[\]{}\-]')
+_RE_YEAR = re.compile(r'(\d{4})年')
+_RE_PERCENT_RANGE = re.compile(r'(\d+)%-(\d+)%')
+_RE_PERCENT = re.compile(r'(\d+)%')
+_RE_RANGE = re.compile(r'(\d+)-(\d+)(年|月|日|元|美元|亿|万|)?')
+_RE_WITH_UNIT = re.compile(r'(\d+)([亿万千百元块美])')
+_RE_NUMBER = re.compile(r'\b(\d+)\b')
+_RE_WHITESPACE = re.compile(r'\s+')
+
+# 句子结束标点集合（用于快速检查）
+_SENTENCE_END_PUNCT = set('。！？.!?\n')
+
+# ===== 性能优化：jieba分词器复用 =====
+_jieba_initialized = False
+
+def _ensure_jieba_initialized():
+    """确保jieba分词器只初始化一次"""
+    global _jieba_initialized
+    if not _jieba_initialized:
+        jieba.initialize()
+        _jieba_initialized = True
+
+# ===== 性能优化：拼音缓存 =====
+@lru_cache(maxsize=10000)
+def _get_char_pinyin(char: str) -> List[str]:
+    """获取单个字符的拼音（带缓存）"""
+    if not char:
+        return []
+    return pinyin(char, style=Style.TONE3, neutral_tone_with_five=True)[0]
+
+# ===== 性能优化：批量拼音计算 =====
+def _get_pinyin_batch(text: str) -> List[List[str]]:
+    """批量计算拼音，减少函数调用开销"""
+    return [_get_char_pinyin(c) for c in text]
+
+# ===== 性能优化：标点符号快速判断 =====
+def _is_punct(ch: str) -> bool:
+    """快速判断是否为标点符号（使用预编译正则和集合查找）"""
+    if len(ch) == 1:
+        # ASCII标点快速路径
+        if ch in '.,!?;:\'"()[]{}-\n\r\t ':
+            return True
+    return _RE_PUNCT_SIMPLE.match(ch) is not None
+
+# ===== 性能优化：jieba分词器复用 =====
+_jieba_initialized = False
+
+def _ensure_jieba_initialized():
+    """确保jieba分词器只初始化一次"""
+    global _jieba_initialized
+    if not _jieba_initialized:
+        jieba.initialize()
+        _jieba_initialized = True
+
+# ===== 性能优化：拼音缓存 =====
+@lru_cache(maxsize=10000)
+def _get_char_pinyin(char: str) -> List[str]:
+    """获取单个字符的拼音（带缓存）"""
+    if not char:
+        return []
+    return pinyin(char, style=Style.TONE3, neutral_tone_with_five=True)[0]
+
+def _arabic_to_chinese_simple(num_str, is_year=False):
+    """将阿拉伯数字字符串转换为中文读音形式
+
+    Args:
+        num_str: 阿拉伯数字字符串，如 "15"
+        is_year: 是否为年份（年份逐位读：2023→二零二三，普通数字整体读：15→十五）
+
+    Returns:
+        中文读音，如 "十五" 或 "二零二三"
+    """
+    if not num_str or not num_str.isdigit():
+        return num_str
+
+    # 年份：逐位读法
+    if is_year:
+        return ''.join(CN_NUMBERS_READING.get(d, d) for d in num_str)
+
+    # 普通数字：完整读法
+    try:
+        num = int(num_str)
+        if num < 10:
+            return CN_NUMBERS_READING[num_str]
+        elif num < 20:
+            return '十' + (CN_NUMBERS_READING[num_str[1]] if num_str[1] != '0' else '')
+        elif num < 100:
+            tens = num // 10
+            ones = num % 10
+            result = CN_NUMBERS_READING[str(tens)] + '十' if tens != 1 else '十'
+            if ones > 0:
+                result += CN_NUMBERS_READING[str(ones)]
+            return result
+        elif num < 1000:
+            hundreds = num // 100
+            remainder = num % 100
+            result = CN_NUMBERS_READING[str(hundreds)] + '百'
+            if remainder > 0:
+                if remainder < 10:
+                    result += '零' + CN_NUMBERS_READING[str(remainder)]
+                elif remainder < 20:
+                    result += '一十'
+                    if remainder > 10:
+                        result += CN_NUMBERS_READING[str(remainder % 10)]
+                else:
+                    result += _arabic_to_chinese_simple(str(remainder))
+            return result
+        elif num < 10000:
+            thousands = num // 1000
+            remainder = num % 1000
+            result = CN_NUMBERS_READING[str(thousands)] + '千'
+            if remainder > 0 and remainder < 100:
+                result += '零' + _arabic_to_chinese_simple(str(remainder))
+            elif remainder >= 100:
+                result += _arabic_to_chinese_simple(str(remainder))
+            return result
+        elif num < 100000000:
+            wan = num // 10000
+            remainder = num % 10000
+            result = _arabic_to_chinese_simple(str(wan)) + '万'
+            if remainder > 0 and remainder < 1000:
+                result += '零' + _arabic_to_chinese_simple(str(remainder))
+            elif remainder >= 1000:
+                result += _arabic_to_chinese_simple(str(remainder))
+            return result
+        else:
+            yi = num // 100000000
+            remainder = num % 100000000
+            result = _arabic_to_chinese_simple(str(yi)) + '亿'
+            if remainder > 0:
+                result += _arabic_to_chinese_simple(str(remainder))
+            return result
+    except:
+        return num_str
+
+def _normalize_number_reading(text):
+    """规范化数字读音，将阿拉伯数字和中文数字转换为统一的拼音比较格式
+
+    处理规则：
+    1. 年份：2023年 → 二零二三年（逐位读）
+    2. 普通数字：15 → 十五（完整读）
+    3. 百分比：15% → 百分之十五
+    4. 范围：5-10 → 五到十，12%-20% → 百分之十二到百分之二十
+
+    例如：
+    - "2023年" → "二零二三年"
+    - "15亿至25亿美元" → "十五亿至二十五亿美元"
+    - "12%-20%" → "百分之十二到百分之二十"
+    - "5-10年" → "五到十年"
+    """
+    result = text
+
+    # 1. 先处理年份（必须先处理，因为年份是4位数字特殊读法）
+    # 例如：2023年 → 二零二三年
+    def convert_year(match):
+        year = match.group(1)
+        return ''.join(CN_NUMBERS_READING.get(d, d) for d in year) + '年'
+    result = re.sub(r'(\d{4})年', convert_year, result)
+
+    # 2. 处理百分比范围：12%-20% → 百分之十二到百分之二十（必须在单独百分比之前处理）
+    def convert_percent_range(match):
+        num1 = match.group(1)
+        num2 = match.group(2)
+        return '百分之' + _arabic_to_chinese_simple(num1) + '到百分之' + _arabic_to_chinese_simple(num2)
+    result = re.sub(r'(\d+)%-(\d+)%', convert_percent_range, result)
+
+    # 3. 处理范围表达式：5-10 → 五到十，5-10年 → 五到十年
+    def convert_range(match):
+        num1 = match.group(1)
+        num2 = match.group(2)
+        suffix = match.group(3) if match.group(3) else ''
+        return _arabic_to_chinese_simple(num1) + '到' + _arabic_to_chinese_simple(num2) + suffix
+    result = re.sub(r'(\d+)-(\d+)(年|月|日|元|美元|亿|万|)?', convert_range, result)
+
+    # 4. 处理百分比：15% → 百分之十五
+    def convert_percent(match):
+        num = match.group(1)
+        return '百分之' + _arabic_to_chinese_simple(num)
+    result = re.sub(r'(\d+)%', convert_percent, result)
+
+    # 5. 处理带单位的数字：15亿、25美元
+    def convert_with_unit(match):
+        num = match.group(1)
+        unit = match.group(2)
+        return _arabic_to_chinese_simple(num) + unit
+    result = re.sub(r'(\d+)([亿万千百元块美])', convert_with_unit, result)
+
+    # 6. 处理剩余的纯阿拉伯数字：60 → 六十
+    def convert_number(match):
+        num = match.group(1)
+        return _arabic_to_chinese_simple(num)
+    result = re.sub(r'\b(\d+)\b', convert_number, result)
+
+    # 7. 清理多余的空格
+    result = re.sub(r'\s+', '', result)
+
+    return result
+
+def _same_pinyin(a: str, b: str) -> bool:
+    """Return True if two strings have identical pinyin with tones.
+
+    智能同音字识别：
+    - 长度相同时：逐字比较拼音（如 他/她）
+    - 长度不同时：检查是否都是同音词（如 的/地得/的）
+    - 先进行数字读音规范化，然后再比较拼音
+
+    性能优化：使用LRU缓存避免重复计算拼音
+    """
+    if not a or not b:
+        return False
+
+    # 先规范化数字读音
+    a_normalized = _normalize_number_reading(a)
+    b_normalized = _normalize_number_reading(b)
+
+    # Remove punctuation before comparing
+    a_clean = _normalize(a_normalized)
+    b_clean = _normalize(b_normalized)
+
+    if not a_clean or not b_clean:
+        return False
+
+    # 获取拼音列表
+    pa = [_get_char_pinyin(c) for c in a_clean]
+    pb = [_get_char_pinyin(c) for c in b_clean]
+
+    # 长度相同时：直接比较
+    if len(pa) == len(pb):
+        return pa == pb
+
+    # 长度不同时：检查是否是同音词
+    # 例如："的" vs "地得" 都是 "de"
+    # 如果A是B的子集且拼音相同，或者B是A的子集且拼音相同
+    if len(pa) < len(pb):
+        # 检查是否所有A的拼音都能在B中找到对应
+        return _is_subsequence_pinyin(pa, pb)
+    else:
+        # 检查是否所有B的拼音都能在A中找到对应
+        return _is_subsequence_pinyin(pb, pa)
+
+def _is_subsequence_pinyin(shorter, longer):
+    """检查较短的拼音序列是否是较长的拼音序列的同音子序列
+
+    例如：["de"] 是否是 ["de", "de"] 的子序列（的 vs 地得）
+
+    拼音格式：["声母", "韵母", "声调"] 如 ["d", "e", "5"]
+    需要转换为字符串比较
+    """
+    if not shorter:
+        return True
+    if not longer:
+        return False
+
+    # 将拼音列表转换为字符串（如 ['d', 'e', '5'] -> "de5"）
+    shorter_strs = [''.join(p) if isinstance(p, list) else str(p) for p in shorter]
+    longer_strs = [''.join(p) if isinstance(p, list) else str(p) for p in longer]
+
+    # 如果长短语的拼音集合相同（考虑重复），认为是同音
+    # 例如："的"(de) 和 "地得"(de, de) 都包含 "de"
+    from collections import Counter
+    shorter_counter = Counter(shorter_strs)
+    longer_counter = Counter(longer_strs)
+
+    # 检查较短序列的每个拼音是否都在较长序列中
+    for pinyin, count in shorter_counter.items():
+        if longer_counter.get(pinyin, 0) < count:
+            return False
+
+    return True
+
+def _is_punct(ch):
+    return bool(re.match(r'[，。！？；：、\u201c\u201d\u2018\u2019（）【】《》…—·\s,.!?;:\'"()\[\]{}\-]', ch))
+
+def _normalize(text):
+    """Remove punctuation for comparison."""
+    return re.sub(r'[，。！？；：、\u201c\u201d\u2018\u2019（）【】《》…—·\s,.!?;:\'"()\[\]{}\-]', '', text)
+
+def _punct_only_diff(a, b):
+    """Return True if a and b differ only in punctuation (same chars after removing punct)."""
+    na, nb = _normalize(a), _normalize(b)
+    if na != nb:
+        return False
+    # Same content, check if sentence breaks match
+    return _sentence_breaks_match(a, b)
+
+def _get_sentence_breaks(text):
+    """Extract sentence break positions (char offsets after removing punct) from sentence-ending punctuation."""
+    breaks = []
+    char_idx = 0
+    for ch in text:
+        if _is_punct(ch):
+            if ch in '。！？.!?\n':
+                breaks.append(char_idx)
+        else:
+            char_idx += 1
+    return breaks
+
+def _sentence_breaks_match(doc_text, audio_text):
+    """Check if audio sentence breaks align with doc sentence breaks."""
+    doc_breaks = _get_sentence_breaks(doc_text)
+    audio_breaks = _get_sentence_breaks(audio_text)
+    if not doc_breaks and not audio_breaks:
+        return True
+    if not doc_breaks or not audio_breaks:
+        return len(doc_breaks) == len(audio_breaks)
+    return doc_breaks == audio_breaks
+
+def _segment(text: str) -> List[str]:
+    """Jieba word segmentation, filter empty tokens.
+
+    性能优化：确保jieba只初始化一次
+    """
+    _ensure_jieba_initialized()
+    return [w for w in jieba.cut(text) if w.strip()]
+
+def _find_paragraph(doc_paragraphs, doc_text_norm, word_pos, doc_words):
+    """Map a word position in doc_words back to paragraph index."""
+    # Build char offset for each word
+    char_offset = 0
+    for i, w in enumerate(doc_words):
+        if i == word_pos:
+            break
+        char_offset += len(w)
+    # Find which paragraph this char offset falls in
+    running = 0
+    for idx, p in enumerate(doc_paragraphs):
+        plen = len(_normalize(p))
+        if running + plen > char_offset:
+            return idx
+        running += plen
+    return len(doc_paragraphs) - 1
+
+def compare_texts(audio_text, doc_text, config, word_timestamps=None):
+    """Algorithm-based word-level diff using jieba + SequenceMatcher."""
+    doc_paragraphs = [p.strip() for p in doc_text.split('\n') if p.strip()]
+    confidence_threshold = config.get('confidence_threshold', 0.0)
+
+    # Normalize and segment
+    audio_norm = _normalize(audio_text)
+    doc_norm = _normalize(doc_text)
+    audio_words = _segment(audio_norm)
+    doc_words = _segment(doc_norm)
+
+    # Build char->timestamp mapping from word_timestamps
+    ts_map = {}  # audio char offset -> {start, end, confidence}
+    if word_timestamps:
+        offset = 0
+        for wt in word_timestamps:
+            w = _normalize(wt['word'])
+            for i in range(len(w)):
+                ts_map[offset + i] = {'start': wt['start'], 'end': wt['end'], 'confidence': wt.get('confidence', 1.0)}
+            offset += len(w)
+
+    # Diff
+    matcher = SequenceMatcher(None, doc_words, audio_words)
+    raw_diffs = []
+
+    # Track audio char offset per audio_words position
+    audio_char_offsets = []
+    off = 0
+    for w in audio_words:
+        audio_char_offsets.append(off)
+        off += len(w)
+
+    for tag, i1, i2, j1, j2 in matcher.get_opcodes():
+        if tag == 'equal':
+            continue
+
+        doc_fragment = ''.join(doc_words[i1:i2])
+        audio_fragment = ''.join(audio_words[j1:j2])
+
+        # Skip filler words
+        if tag == 'insert' and audio_fragment in FILLER_WORDS:
+            continue
+        if tag == 'delete' and doc_fragment in FILLER_WORDS:
+            continue
+        if tag == 'replace':
+            if doc_fragment in FILLER_WORDS and audio_fragment in FILLER_WORDS:
+                continue
+            # Same pinyin+tone = same pronunciation, not a real diff
+            if _same_pinyin(doc_fragment, audio_fragment):
+                continue
+            # Punctuation-only difference: if sentence breaks match, not a diff
+            if _punct_only_diff(doc_fragment, audio_fragment):
+                continue
+
+        # Skip single punctuation or whitespace-only diffs
+        if not doc_fragment.strip() and not audio_fragment.strip():
+            continue
+        # Skip pure punctuation fragments
+        if all(_is_punct(c) or not c.strip() for c in doc_fragment) and all(_is_punct(c) or not c.strip() for c in audio_fragment):
+            continue
+
+        pos = _find_paragraph(doc_paragraphs, doc_norm, i1, doc_words)
+
+        # Get timestamp and confidence for this diff
+        ts_start = ts_end = None
+        confidence = 1.0
+        if ts_map and j1 < len(audio_char_offsets):
+            char_off = audio_char_offsets[j1]
+            if char_off in ts_map:
+                ts_start = ts_map[char_off]['start']
+                confidence = ts_map[char_off]['confidence']
+            if j2 > 0 and j2 - 1 < len(audio_char_offsets):
+                end_off = audio_char_offsets[j2 - 1]
+                if end_off in ts_map:
+                    ts_end = ts_map[end_off]['end']
+
+        diff_entry = {
+            'docText': doc_fragment,
+            'audioText': audio_fragment,
+            'type': 'mismatch' if tag == 'replace' else ('missing_in_audio' if tag == 'delete' else 'extra_in_audio'),
+            'position': pos,
+            'confidence': confidence,
+            'uncertain': confidence < confidence_threshold if confidence_threshold > 0 else False,
+        }
+        if ts_start is not None:
+            diff_entry['time_start'] = ts_start
+        if ts_end is not None:
+            diff_entry['time_end'] = ts_end
+
+        raw_diffs.append(diff_entry)
+
+    n_mismatch = sum(1 for d in raw_diffs if d['type'] == 'mismatch')
+    n_missing = sum(1 for d in raw_diffs if d['type'] == 'missing_in_audio')
+    n_extra = sum(1 for d in raw_diffs if d['type'] == 'extra_in_audio')
+
+    # Check sentence break alignment
+    break_ok = _sentence_breaks_match(doc_text, audio_text)
+    break_note = '' if break_ok else '\n⚠ 语音断句位置与原文不一致'
+
+    # WER/CER metrics
+    doc_str = ' '.join(doc_words)
+    audio_str = ' '.join(audio_words)
+    wer_val = wer(doc_str, audio_str) if doc_str else 0
+    cer_val = cer(doc_norm, audio_norm) if doc_norm else 0
+    accuracy_word = max(0, (1 - wer_val) * 100)
+    accuracy_char = max(0, (1 - cer_val) * 100)
+
+    summary = (f'共{len(raw_diffs)}处差异：{n_mismatch}处误读，{n_missing}处漏读，{n_extra}处多读{break_note}\n'
+               f'词准确率 {accuracy_word:.1f}% | 字准确率 {accuracy_char:.1f}%')
+
+    return {
+        'diffs': raw_diffs, 'summary': summary,
+        'wer': wer_val, 'cer': cer_val,
+        'accuracy_word': accuracy_word, 'accuracy_char': accuracy_char,
+    }
+
+# --- LLM calls kept for test_llm ---
+def _call_claude(prompt, api_key, model):
+    r = requests.post('https://api.anthropic.com/v1/messages', timeout=30,
+        headers={'Content-Type': 'application/json', 'x-api-key': api_key, 'anthropic-version': '2023-06-01'},
+        json={'model': model, 'max_tokens': 100, 'messages': [{'role': 'user', 'content': prompt}]})
+    if r.status_code == 401:
+        raise Exception('API Key 无效或已过期')
+    elif r.status_code == 429:
+        raise Exception('请求频率超限，请稍后再试')
+    elif r.status_code >= 500:
+        raise Exception(f'服务器错误 (HTTP {r.status_code})')
+    r.raise_for_status()
+    data = r.json()
+    return data.get('content', [{}])[0].get('text', '')
+
+def _call_openai_compat(prompt, api_key, endpoint, model):
+    r = requests.post(endpoint, timeout=30,
+        headers={'Content-Type': 'application/json', 'Authorization': f'Bearer {api_key}'},
+        json={'model': model, 'messages': [{'role': 'user', 'content': prompt}], 'temperature': 0.1, 'max_tokens': 100})
+    if r.status_code == 401:
+        raise Exception('API Key 无效或已过期')
+    elif r.status_code == 429:
+        raise Exception('请求频率超限，请稍后再试')
+    elif r.status_code >= 500:
+        raise Exception(f'服务器错误 (HTTP {r.status_code})')
+    r.raise_for_status()
+    data = r.json()
+    return data.get('choices', [{}])[0].get('message', {}).get('content', '')
+
+def test_llm(provider_id, api_key, model=None):
+    from config import LLM_PROVIDERS
+    provider = LLM_PROVIDERS[provider_id]
+    m = model or provider['default_model']
+
+    # Basic validation
+    if not api_key or not api_key.strip():
+        return False, '请先输入 API Key'
+
+    # Provider-specific format validation
+    if provider_id == 'openai' and not api_key.startswith('sk-'):
+        return False, 'OpenAI API Key 格式错误（应以 sk- 开头）'
+    if provider_id == 'claude' and (len(api_key) < 20 or not api_key.startswith('sk-ant-')):
+        return False, 'Claude API Key 格式错误（应以 sk-ant- 开头）'
+
+    prompt = '请只回复"成功"两个字，不要添加其他内容。'
+    try:
+        content = ''
+        if provider_id == 'claude':
+            content = _call_claude(prompt, api_key, m)
+        else:
+            content = _call_openai_compat(prompt, api_key, provider['endpoint'], m)
+
+        if content and ('成功' in content or 'OK' in content.upper() or '连接成功' in content):
+            return True, '✓ 连接成功，API 可用'
+        elif content:
+            return True, f'✓ 连接成功（响应: {content[:30].strip()}）'
+        else:
+            return False, '连接成功但无响应内容'
+    except requests.exceptions.Timeout:
+        return False, '连接超时，请检查网络或稍后再试'
+    except requests.exceptions.ConnectionError:
+        return False, '网络连接失败，请检查网络设置'
+    except Exception as e:
+        error_msg = str(e)
+        if 'API Key' in error_msg or '401' in error_msg:
+            return False, 'API Key 无效，请检查后重试'
+        elif '频率' in error_msg or '429' in error_msg:
+            return False, '请求过于频繁，请稍后再试'
+        else:
+            return False, f'连接失败: {error_msg[:80]}'

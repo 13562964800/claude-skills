@@ -1,0 +1,28 @@
+package com.court.assistant.data.db
+
+import android.content.Context
+import androidx.room.*
+
+@Database(
+    entities = [CourtSmsEntity::class, PdfDocumentEntity::class],
+    version = 1,
+    exportSchema = false
+)
+abstract class CourtDatabase : RoomDatabase() {
+    abstract fun courtDao(): CourtDao
+
+    companion object {
+        @Volatile
+        private var INSTANCE: CourtDatabase? = null
+
+        fun getInstance(context: Context): CourtDatabase {
+            return INSTANCE ?: synchronized(this) {
+                Room.databaseBuilder(
+                    context.applicationContext,
+                    CourtDatabase::class.java,
+                    "court_assistant.db"
+                ).build().also { INSTANCE = it }
+            }
+        }
+    }
+}

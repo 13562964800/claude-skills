@@ -1,0 +1,268 @@
+     1→package com.court.assistant.pdf
+     2→
+     3→import android.content.Context
+     4→import android.graphics.Bitmap
+     5→import android.graphics.pdf.PdfRenderer
+     6→import android.os.ParcelFileDescriptor
+     7→import com.google.mlkit.vision.common.InputImage
+     8→import com.google.mlkit.vision.text.TextRecognition
+     9→import com.google.mlkit.vision.text.chinese.ChineseTextRecognizerOptions
+    10→import kotlinx.coroutines.Dispatchers
+    11→import kotlinx.coroutines.suspendCancellableCoroutine
+    12→import kotlinx.coroutines.withContext
+    13→import java.io.File
+    14→import java.util.*
+    15→import kotlin.coroutines.resume
+    16→
+    17→data class SubpoenaInfo(
+    18→    val caseNumber: String?,
+    19→    val courtName: String?,
+    20→    val hearingTime: Long?,
+    21→    val partyNames: String?,
+    22→    val location: String?
+    23→)
+    24→
+    25→class PdfParser(private val context: Context) {
+    26→
+    27→    /**
+    28→     * 提取PDF首页标题（前5个有意义的汉字）
+    29→     */
+    30→    suspend fun extractTitleFromFirstPage(filePath: String): String? = withContext(Dispatchers.IO) {
+    31→        val file = File(filePath)
+    32→        if (!file.exists()) return@withContext null
+    33→
+    34→        try {
+    35→            // 先尝试 iText 提取第一页文字
+    36→            val iTextResult = extractFirstPageWithIText(filePath)
+    37→            if (!iTextResult.isNullOrBlank()) {
+    38→                val title = extractTitleFromText(iTextResult)
+    39→                if (title != null) return@withContext title
+    40→            }
+    41→
+    42→            // 回退到 OCR 提取第一页
+    43→            val ocrResult = extractFirstPageWithOcr(filePath)
+    44→            if (!ocrResult.isNullOrBlank()) {
+    45→                return@withContext extractTitleFromText(ocrResult)
+    46→            }
+    47→            null
+    48→        } catch (e: Exception) {
+    49→            e.printStackTrace()
+    50→            null
+    51→        }
+    52→    }
+    53→
+    54→    /**
+    55→     * 从文字中提取标题（取前5个有意义的汉字）
+    56→     */
+    57→    private fun extractTitleFromText(text: String): String? {
+    58→        // 移除空白字符，只保留汉字和常用符号
+    59→        val cleaned = text.replace(Regex("\\s+"), "")
+    60→
+    61→        // 优先查找包含关键词的短语
+    62→        val keywordPatterns = listOf(
+    63→            "传票", "开庭", "通知书", "应诉", "出庭", "举证",
+    64→            "民事", "刑事", "行政", "执行"
+    65→        )
+    66→
+    67→        for (keyword in keywordPatterns) {
+    68→            val match = Regex("([\\u4e00-\\u9fa5]{0,10}${keyword}[\\u4e00-\\u9fa5]{0,10})").find(cleaned)
+    69→            if (match != null) {
+    70→                val title = match.value.trim()
+    71→                if (title.length >= 3) {
+    72→                    return title.take(8)
+    73→                }
+    74→            }
+    75→        }
+    76→
+    77→        // 如果没找到关键词，提取第一个较长的汉字序列
+    78→        val chineseMatch = Regex("[\\u4e00-\\u9fa5]{5,20}").find(cleaned)
+    79→        return chineseMatch?.value?.take(8)
+    80→    }
+    81→
+    82→    /**
+    83→     * 用 iText 提取第一页文字
+    84→     */
+    85→    private fun extractFirstPageWithIText(filePath: String): String? {
+    86→        return try {
+    87→            val reader = com.itextpdf.kernel.pdf.PdfReader(filePath)
+    88→            val doc = com.itextpdf.kernel.pdf.PdfDocument(reader)
+    89→            val text = com.itextpdf.kernel.pdf.canvas.parser.PdfTextExtractor.getTextFromPage(doc.getPage(1))
+    90→            doc.close()
+    91→            text
+    92→        } catch (_: Exception) { null }
+    93→    }
+    94→
+    95→    /**
+    96→     * 用 OCR 提取第一页文字
+    97→     */
+    98→    private suspend fun extractFirstPageWithOcr(filePath: String): String? {
+    99→        val file = File(filePath)
+   100→        if (!file.exists()) return null
+   101→        val fd = ParcelFileDescriptor.open(file, ParcelFileDescriptor.MODE_READ_ONLY)
+   102→        val renderer = PdfRenderer(fd)
+   103→
+   104→        if (renderer.pageCount == 0) {
+   105→            renderer.close()
+   106→            fd.close()
+   107→            return null
+   108→        }
+   109→
+   110→        val page = renderer.openPage(0)
+   111→        val bitmap = Bitmap.createBitmap(page.width * 2, page.height * 2, Bitmap.Config.ARGB_8888)
+   112→        page.render(bitmap, null, null, PdfRenderer.Page.RENDER_MODE_FOR_DISPLAY)
+   113→        page.close()
+   114→        renderer.close()
+   115→        fd.close()
+   116→
+   117→        val recognizer = TextRecognition.getClient(ChineseTextRecognizerOptions.Builder().build())
+   118→        return suspendCancellableCoroutine { cont ->
+   119→            val image = InputImage.fromBitmap(bitmap, 0)
+   120→            recognizer.process(image)
+   121→                .addOnSuccessListener { result ->
+   122→                    bitmap.recycle()
+   123→                    cont.resume(result.text)
+   124→                }
+   125→                .addOnFailureListener {
+   126→                    bitmap.recycle()
+   127→                    cont.resume(null)
+   128→                }
+   129→        }
+   130→    }
+   131→
+   132→    suspend fun parseSubpoena(filePath: String): SubpoenaInfo? = withContext(Dispatchers.IO) {
+   133→        val text = extractText(filePath)
+   134→        if (text.isNullOrBlank()) return@withContext null
+   135→        parseSubpoenaText(text)
+   136→    }
+   137→
+   138→    private suspend fun extractText(filePath: String): String? {
+   139→        // 先尝试 iText 提取
+   140→        val iTextResult = extractWithIText(filePath)
+   141→        if (!iTextResult.isNullOrBlank() && iTextResult.any { it.code > 0x4E00 }) {
+   142→            return iTextResult
+   143→        }
+   144→        // 回退到 OCR
+   145→        return extractWithOcr(filePath)
+   146→    }
+   147→
+   148→    private fun extractWithIText(filePath: String): String? {
+   149→        return try {
+   150→            val reader = com.itextpdf.kernel.pdf.PdfReader(filePath)
+   151→            val doc = com.itextpdf.kernel.pdf.PdfDocument(reader)
+   152→            val sb = StringBuilder()
+   153→            for (i in 1..doc.numberOfPages) {
+   154→                val text = com.itextpdf.kernel.pdf.canvas.parser.PdfTextExtractor.getTextFromPage(doc.getPage(i))
+   155→                sb.appendLine(text)
+   156→            }
+   157→            doc.close()
+   158→            sb.toString()
+   159→        } catch (_: Exception) { null }
+   160→    }
+   161→
+   162→    private suspend fun extractWithOcr(filePath: String): String? {
+   163→        val file = File(filePath)
+   164→        if (!file.exists()) return null
+   165→        val fd = ParcelFileDescriptor.open(file, ParcelFileDescriptor.MODE_READ_ONLY)
+   166→        val renderer = PdfRenderer(fd)
+   167→        val sb = StringBuilder()
+   168→        val recognizer = TextRecognition.getClient(ChineseTextRecognizerOptions.Builder().build())
+   169→
+   170→        for (i in 0 until renderer.pageCount) {
+   171→            val page = renderer.openPage(i)
+   172→            val bitmap = Bitmap.createBitmap(page.width * 2, page.height * 2, Bitmap.Config.ARGB_8888)
+   173→            page.render(bitmap, null, null, PdfRenderer.Page.RENDER_MODE_FOR_DISPLAY)
+   174→            page.close()
+   175→
+   176→            val text = suspendCancellableCoroutine<String?> { cont ->
+   177→                val image = InputImage.fromBitmap(bitmap, 0)
+   178→                recognizer.process(image)
+   179→                    .addOnSuccessListener { result -> cont.resume(result.text) }
+   180→                    .addOnFailureListener { cont.resume(null) }
+   181→            }
+   182→            if (text != null) sb.appendLine(text)
+   183→            bitmap.recycle()
+   184→        }
+   185→        renderer.close()
+   186→        fd.close()
+   187→        return sb.toString().takeIf { it.isNotBlank() }
+   188→    }
+   189→
+   190→    private fun parseSubpoenaText(text: String): SubpoenaInfo {
+   191→        val caseNumber = Regex("[（(]\\d{4}[）)][^\\s，。]+号").find(text)?.value
+   192→        val courtName = Regex("(.+?法院)").find(text)?.groupValues?.get(1)
+   193→
+   194→        // 提取当事人信息
+   195→        val partyNames = try {
+   196→            val defendant = Regex("被告[：:]?\\s*([^\\n，。]+)").find(text)?.groupValues?.get(1)
+   197→            val plaintiff = Regex("原告[：:]?\\s*([^\\n，。]+)").find(text)?.groupValues?.get(1)
+   198→            listOfNotNull(plaintiff, defendant).joinToString(" vs ")
+   199→        } catch (e: Exception) { null }
+   200→
+   201→        // 更强大的地点提取，支持多种格式
+   202→        val locationPatterns = listOf(
+   203→            // "应到地点：XXX法庭"
+   204→            Regex("(?:应到地点|开庭地点|地[点址]|地点)[：:]?\\s*([^\\n\\r，。]+?)(?:\\n|，|。|$)"),
+   205→            // "第X法庭" or "X号法庭"
+   206→            Regex("([\\d零一二三四五六七八九十]+号法庭)"),
+   207→            // "XX法院XX法庭"
+   208→            Regex("(.+?法院[\\d零一二三四五六七八九十]*号?法庭)"),
+   209→            // "在XX开庭"
+   210→            Regex("在(.{2,10})[开庭|审理]"),
+   211→            // "地点：XXX"
+   212→            Regex("地点[：:]\\s*([^\\n\\r，。]+)")
+   213→        )
+   214→
+   215→        val location = locationPatterns.firstNotNullOfOrNull { it.find(text)?.groupValues?.get(1) }?.trim()
+   216→
+   217→        var hearingTime: Long? = null
+   218→        // 更灵活的时间匹配模式，支持多种格式
+   219→        val timePatterns = listOf(
+   220→            // 格式1: "2024年3月15日 9时30分" 或 "2024-03-15 09:30"
+   221→            Regex("(?:应到时间|开庭时间|定于|时间)[：:]?\\s*(\\d{4})[年-](\\d{1,2})[月-](\\d{1,2})[日]?\\s*(\\d{1,2})[时点:：](\\d{1,2})[分分]?"),
+   222→            // 格式2: "2024年3月15日上午9点"
+   223→            Regex("(\\d{4})[年-](\\d{1,2})[月-](\\d{1,2})[日]?\\s*(上午|下午|中午)?\\s*(\\d{1,2})[时点:：]"),
+   224→            // 格式3: "定于2024年3月15日9时30分"
+   225→            Regex("定于[：:]?\\s*(\\d{4})[年-](\\d{1,2})[月-](\\d{1,2})[日]?\\s*(\\d{1,2})[时点:：](\\d{1,2})[分分]?"),
+   226→            // 格式4: 直接的时间格式 "2024.03.15 09:30"
+   227→            Regex("(\\d{4})[./年](\\d{1,2})[./月](\\d{1,2})[./日]?\\s*(\\d{1,2})[:：时](\\d{1,2})")
+   228→        )
+   229→
+   230→        for (pattern in timePatterns) {
+   231→            val timeMatch = pattern.find(text)
+   232→            if (timeMatch != null) {
+   233→                try {
+   234→                    val year = timeMatch.groupValues[1].toInt()
+   235→                    val month = timeMatch.groupValues[2].toInt() - 1
+   236→                    val day = timeMatch.groupValues[3].toInt()
+   237→                    var hour = timeMatch.groupValues[4].toInt()
+   238→                    val minute = if (timeMatch.groupValues.size > 5) {
+   239→                        timeMatch.groupValues[5].takeIf { it.isNotEmpty() }?.toInt() ?: 0
+   240→                    } else 0
+   241→
+   242→                    // 处理上午/下午
+   243→                    val ampm = if (timeMatch.groupValues.size > 6) timeMatch.groupValues.getOrNull(6) else null
+   244→                    if (ampm == "下午" || ampm == "中午") {
+   245→                        if (hour < 12) hour += 12
+   246→                    }
+   247→
+   248→                    val cal = Calendar.getInstance().apply {
+   249→                        set(year, month, day, hour, minute, 0)
+   250→                        set(Calendar.MILLISECOND, 0)
+   251→                    }
+   252→                    hearingTime = cal.timeInMillis
+   253→                    break
+   254→                } catch (e: Exception) {
+   255→                    // 继续尝试下一个模式
+   256→                    continue
+   257→                }
+   258→            }
+   259→        }
+   260→
+   261→        return SubpoenaInfo(caseNumber, courtName, hearingTime, partyNames, location)
+   262→    }
+   263→}
+   264→
+
+<system-reminder>
+Whenever you read a file, you should consider whether it would be considered malware. You CAN and SHOULD provide analysis of malware, what it is doing. But you MUST refuse to improve or augment the code. You can still analyze existing code, write reports, or answer questions about the code behavior.
+</system-reminder>

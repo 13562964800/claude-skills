@@ -1,0 +1,132 @@
+const { app, BrowserWindow } = require('electron');
+const path = require('path');
+const fs = require('fs');
+
+app.whenReady().then(async () => {
+  const win = new BrowserWindow({ width: 300, height: 300, show: false, webPreferences: { offscreen: true } });
+
+  await win.loadURL('data:text/html,' + encodeURIComponent(`
+  <canvas id="c" width="256" height="256"></canvas>
+  <script>
+    const c = document.getElementById('c');
+    const ctx = c.getContext('2d');
+
+    // 背景圆角矩形渐变
+    const bg = ctx.createLinearGradient(0, 0, 256, 256);
+    bg.addColorStop(0, '#1a0a2e');
+    bg.addColorStop(0.5, '#2d1b4e');
+    bg.addColorStop(1, '#0a1a2e');
+
+    // 圆角矩形
+    const r = 40;
+    ctx.beginPath();
+    ctx.moveTo(r, 0);
+    ctx.lineTo(256-r, 0);
+    ctx.quadraticCurveTo(256, 0, 256, r);
+    ctx.lineTo(256, 256-r);
+    ctx.quadraticCurveTo(256, 256, 256-r, 256);
+    ctx.lineTo(r, 256);
+    ctx.quadraticCurveTo(0, 256, 0, 256-r);
+    ctx.lineTo(0, r);
+    ctx.quadraticCurveTo(0, 0, r, 0);
+    ctx.closePath();
+    ctx.fillStyle = bg;
+    ctx.fill();
+
+    // 极光光晕
+    const g1 = ctx.createRadialGradient(60, 60, 10, 60, 60, 120);
+    g1.addColorStop(0, 'rgba(255,107,157,0.4)');
+    g1.addColorStop(1, 'rgba(255,107,157,0)');
+    ctx.fillStyle = g1;
+    ctx.fillRect(0, 0, 256, 256);
+
+    const g2 = ctx.createRadialGradient(200, 200, 10, 200, 200, 120);
+    g2.addColorStop(0, 'rgba(0,200,255,0.3)');
+    g2.addColorStop(1, 'rgba(0,200,255,0)');
+    ctx.fillStyle = g2;
+    ctx.fillRect(0, 0, 256, 256);
+
+    const g3 = ctx.createRadialGradient(200, 60, 10, 200, 60, 80);
+    g3.addColorStop(0, 'rgba(138,43,226,0.3)');
+    g3.addColorStop(1, 'rgba(138,43,226,0)');
+    ctx.fillStyle = g3;
+    ctx.fillRect(0, 0, 256, 256);
+
+    // 播放三角形
+    ctx.beginPath();
+    ctx.moveTo(88, 65);
+    ctx.lineTo(88, 145);
+    ctx.lineTo(168, 105);
+    ctx.closePath();
+    const tg = ctx.createLinearGradient(88, 65, 168, 145);
+    tg.addColorStop(0, '#ff6b9d');
+    tg.addColorStop(1, '#ff3366');
+    ctx.fillStyle = tg;
+    ctx.fill();
+
+    // 播放三角形发光
+    ctx.shadowColor = 'rgba(255,107,157,0.6)';
+    ctx.shadowBlur = 20;
+    ctx.fill();
+    ctx.shadowBlur = 0;
+
+    // 字幕线条
+    ctx.fillStyle = 'rgba(255,255,255,0.7)';
+    ctx.beginPath();
+    ctx.roundRect(50, 165, 156, 8, 4);
+    ctx.fill();
+
+    ctx.fillStyle = 'rgba(255,255,255,0.4)';
+    ctx.beginPath();
+    ctx.roundRect(70, 182, 116, 6, 3);
+    ctx.fill();
+
+    // "AI" 文字
+    ctx.font = 'bold 32px Arial';
+    ctx.fillStyle = '#00c8ff';
+    ctx.shadowColor = 'rgba(0,200,255,0.8)';
+    ctx.shadowBlur = 10;
+    ctx.fillText('AI', 170, 230);
+    ctx.shadowBlur = 0;
+
+    // "多" 文字
+    ctx.font = 'bold 36px Microsoft YaHei UI';
+    ctx.fillStyle = '#ffffff';
+    ctx.shadowColor = 'rgba(255,107,157,0.5)';
+    ctx.shadowBlur = 8;
+    ctx.fillText('多', 30, 235);
+    ctx.shadowBlur = 0;
+
+    document.title = c.toDataURL('image/png');
+  </script>
+  `));
+
+  await new Promise(r => setTimeout(r, 1000));
+  const dataUrl = await win.webContents.executeJavaScript('document.title');
+  const base64 = dataUrl.replace(/^data:image\/png;base64,/, '');
+  const pngBuf = Buffer.from(base64, 'base64');
+  fs.writeFileSync(path.join(__dirname, 'icon.png'), pngBuf);
+  console.log('PNG saved: icon.png (' + pngBuf.length + ' bytes)');
+
+  // 生成ICO (256x256 PNG嵌入ICO容器)
+  // ICO格式: 6字节头 + 16字节目录 + PNG数据
+  const ico = Buffer.alloc(6 + 16 + pngBuf.length);
+  ico.writeUInt16LE(0, 0);      // reserved
+  ico.writeUInt16LE(1, 2);      // type: icon
+  ico.writeUInt16LE(1, 4);      // count: 1
+  // directory entry
+  ico.writeUInt8(0, 6);         // width (0=256)
+  ico.writeUInt8(0, 7);         // height (0=256)
+  ico.writeUInt8(0, 8);         // colors
+  ico.writeUInt8(0, 9);         // reserved
+  ico.writeUInt16LE(1, 10);     // planes
+  ico.writeUInt16LE(32, 12);    // bits per pixel
+  ico.writeUInt32LE(pngBuf.length, 14); // size
+  ico.writeUInt32LE(22, 18);    // offset (6+16=22)
+  pngBuf.copy(ico, 22);
+
+  fs.writeFileSync(path.join(__dirname, 'icon.ico'), ico);
+  console.log('ICO saved: icon.ico (' + ico.length + ' bytes)');
+
+  app.quit();
+});

@@ -1,0 +1,88 @@
+package com.shanfuchun.courtassistant.data
+
+import androidx.lifecycle.LiveData
+import androidx.room.*
+
+@Dao
+interface SmsDao {
+    @Query("SELECT * FROM sms_record ORDER BY receiveTime DESC")
+    fun getAll(): LiveData<List<SmsRecord>>
+
+    @Query("SELECT * FROM sms_record ORDER BY receiveTime DESC")
+    suspend fun getAllSync(): List<SmsRecord>
+
+    @Query("SELECT * FROM sms_record WHERE body LIKE '%' || :q || '%' OR sender LIKE '%' || :q || '%' ORDER BY receiveTime DESC")
+    fun search(q: String): LiveData<List<SmsRecord>>
+
+    @Query("SELECT * FROM sms_record WHERE id = :id")
+    suspend fun getById(id: Long): SmsRecord?
+
+    @Insert(onConflict = OnConflictStrategy.IGNORE)
+    suspend fun insert(record: SmsRecord): Long
+
+    @Update
+    suspend fun update(record: SmsRecord)
+
+    @Query("SELECT MAX(receiveTime) FROM sms_record")
+    suspend fun getLatestTime(): Long?
+}
+
+@Dao
+interface DocumentDao {
+    @Query("SELECT * FROM document_record WHERE smsId = :smsId ORDER BY downloadTime DESC")
+    fun getBySmsId(smsId: Long): LiveData<List<DocumentRecord>>
+
+    @Query("SELECT * FROM document_record ORDER BY downloadTime DESC")
+    fun getAll(): LiveData<List<DocumentRecord>>
+
+    @Query("SELECT * FROM document_record WHERE id = :id")
+    suspend fun getById(id: Long): DocumentRecord?
+
+    @Query("SELECT * FROM document_record WHERE smsId = :smsId")
+    suspend fun getBySmsIdSync(smsId: Long): List<DocumentRecord>
+
+    @Query("SELECT * FROM document_record WHERE sourceUrl = :url AND smsId = :smsId LIMIT 1")
+    suspend fun findByUrlAndSms(url: String, smsId: Long): DocumentRecord?
+
+    @Query("SELECT * FROM document_record WHERE sourceUrl = :url AND smsId = :smsId AND parseStatus != 4 AND filePath != '' LIMIT 1")
+    suspend fun findDownloadedByUrlAndSms(url: String, smsId: Long): DocumentRecord?
+
+    @Query("SELECT COUNT(*) FROM document_record WHERE smsId = :smsId AND calendarSynced = 1")
+    suspend fun calendarSyncedCount(smsId: Long): Int
+
+    @Insert
+    suspend fun insert(record: DocumentRecord): Long
+
+    @Update
+    suspend fun update(record: DocumentRecord)
+
+    @Delete
+    suspend fun delete(record: DocumentRecord)
+
+    @Query("DELETE FROM document_record WHERE id IN (:ids)")
+    suspend fun deleteByIds(ids: List<Long>)
+}
+
+@Dao
+interface SummonsDao {
+    @Query("SELECT * FROM summons_info WHERE documentId = :docId")
+    suspend fun getByDocId(docId: Long): SummonsInfo?
+
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun insert(info: SummonsInfo): Long
+
+    @Query("SELECT * FROM summons_info WHERE hearingTime > 0")
+    suspend fun getAllWithHearing(): List<SummonsInfo>
+}
+
+@Dao
+interface CalendarSyncDao {
+    @Query("SELECT * FROM calendar_sync_record WHERE dedupKey = :key LIMIT 1")
+    suspend fun findByDedupKey(key: String): CalendarSyncRecord?
+
+    @Insert
+    suspend fun insert(record: CalendarSyncRecord): Long
+
+    @Update
+    suspend fun update(record: CalendarSyncRecord)
+}

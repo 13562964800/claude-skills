@@ -1,0 +1,170 @@
+package com.ai.hotspot.data.remote.api
+
+import com.ai.hotspot.domain.model.Category
+import com.ai.hotspot.domain.model.Hotspot
+import com.ai.hotspot.domain.model.Source
+import io.ktor.client.*
+import io.ktor.client.request.*
+import io.ktor.client.statement.*
+import io.ktor.http.*
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
+import org.jsoup.Jsoup
+import java.time.LocalDateTime
+import java.time.format.DateTimeFormatter
+
+/**
+ * GitHub Trending API 客户端
+ */
+class GitHubApi(private val client: HttpClient) {
+
+    /**
+     * 从 GitHub Trending 页面抓取数据
+     */
+    suspend fun fetchTrending(since: String = "daily"): Result<List<Hotspot>> = runCatching {
+        withContext(Dispatchers.IO) {
+            val response = client.get("https://github.com/trending") {
+                parameter("since", since)
+                header("Accept", "text/html")
+            }
+
+            if (!response.status.isSuccess()) {
+                throw Exception("GitHub API error: ${response.status}")
+            }
+
+            val html = response.bodyAsText()
+            parseTrendingHtml(html)
+        }
+    }
+
+    /**
+     * 从 GitHub Trending RSS 获取数据
+     */
+    suspend fun fetchTrendingRss(): Result<List<Hotspot>> = runCatching {
+        withContext(Dispatchers.IO) {
+            val response = client.get("https://mshibanami.github.io/GitHubTrendingRSS/daily/all.xml")
+            val xml = response.bodyAsText()
+            parseRssXml(xml, Source.GITHUB)
+        }
+    }
+
+    private fun parseTrendingHtml(html: String): List<Hotspot> {
+        val doc = Jsoup.parse(html)
+        val items = mutableListOf<Hotspot>()
+
+        doc.select("article.Box-row").forEach { article ->
+            try {
+                val nameElement = article.selectFirst("h2 a")
+                val repoPath = nameElement?.attr("href")?.removePrefix("/") ?: return@forEach
+                val title = repoPath.replace("/", " / ")
+
+                val description = article.selectFirst("p.col-9")?.text()?.trim() ?: ""
+
+                val starsText = article.select("a[href*=/stargazers]").text()
+                val stars = starsText.replace(",", "").toIntOrNull()
+
+                val language = article.select("[itemprop=programmingLanguage]").text()
+
+                val tags = mutableListOf<String>()
+                if (language.isNotEmpty()) tags.add(language)
+
+                // 检测是否为AI相关项目
+                val isAiRelated = aiKeywords.any { keyword ->
+                    title.lowercase().contains(keyword) ||
+                    description.lowercase().contains(keyword)
+                }
+
+                if (!isAiRelated) return@forEach
+
+                items.add(
+                    Hotspot(
+                        id = "gh_$repoPath",
+                        title = title,
+                        description = description,
+                        source = Source.GITHUB,
+                        category = detectCategory(title, description),
+                        url = "https://github.com/$repoPath",
+                        stars = stars,
+                        author = repoPath.split("/").firstOrNull(),
+                        tags = tags,
+                        publishedAt = LocalDateTime.now(),
+                        fetchedAt = LocalDateTime.now()
+                    )
+                )
+            } catch (e: Exception) {
+                // 跳过解析失败的项目
+            }
+        }
+
+        return items
+    }
+
+    private fun detectCategory(title: String, description: String): Category {
+        val text = (title + " " + description).lowercase()
+
+        return when {
+            text.contains("agent") || text.contains("智能体") -> Category.AGENT
+            text.contains("llm") || text.contains("model") || text.contains("gpt") -> Category.MODEL
+            text.contains("framework") || text.contains("framework") -> Category.FRAMEWORK
+            text.contains("tool") || text.contains("cli") || text.contains("sdk") -> Category.TOOL
+            text.contains("tutorial") || text.contains("learn") || text.contains("course") -> Category.TUTORIAL
+            else -> Category.PROJECT
+        }
+    }
+
+    private val aiKeywords = listOf(
+        "ai", "artificial intelligence", "machine learning", "ml", "deep learning",
+        "neural", "gpt", "llm", "transformer", "nlp", "computer vision", "cv",
+        "diffusion", "stable diffusion", "langchain", "openai", "anthropic",
+        "claude", "chatgpt", "embedding", "rag", "vector", "agent", "autogpt",
+        "huggingface", "pytorch", "tensorflow", "keras", "onnx", "whisper",
+        "tts", "asr", "speech", "ocr", "yolo", "bert", "llama", "mistral",
+        "人工智能", "机器学习", "深度学习", "大模型", "智能体"
+    )
+
+    companion object {
+        private val dateFormatter = DateTimeFormatter.RFC_1123_DATE_TIME
+    }
+}
+
+/**
+ * 解析RSS XML（通用方法）
+ */
+fun parseRssXml(xml: String, source: Source): List<Hotspot> {
+    val items = mutableListOf<Hotspot>()
+    val doc = Jsoup.parse(xml, "", org.jsoup.parser.Parser.xmlParser())
+
+    doc.select("item").forEach { item ->
+        try {
+            val title = item.selectFirst("title")?.text() ?: return@forEach
+            val link = item.selectFirst("link")?.text() ?: return@forEach
+            val description = item.selectFirst("description")?.text() ?: ""
+            val pubDate = item.selectFirst("pubDate")?.text()
+
+            val publishedAt = try {
+                pubDate?.let {
+                    LocalDateTime.parse(it, DateTimeFormatter.RFC_1123_DATE_TIME)
+                } ?: LocalDateTime.now()
+            } catch (e: Exception) {
+                LocalDateTime.now()
+            }
+
+            items.add(
+                Hotspot(
+                    id = "${source.name.lowercase()}_${link.hashCode()}",
+                    title = title,
+                    description = description,
+                    source = source,
+                    category = Category.NEWS,
+                    url = link,
+                    publishedAt = publishedAt,
+                    fetchedAt = LocalDateTime.now()
+                )
+            )
+        } catch (e: Exception) {
+            // 跳过解析失败的条目
+        }
+    }
+
+    return items
+}

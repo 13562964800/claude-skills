@@ -1,0 +1,229 @@
+package com.shanfuchun.courtassistant.util.file
+
+import android.content.Context
+import android.net.Uri
+import android.provider.DocumentsContract
+import android.provider.OpenableColumns
+import androidx.core.content.FileProvider
+import java.io.File
+
+/**
+ * URI 处理工具类
+ *
+ * 统一管理所有 URI 处理操作，消除 FileProvider 重复代码
+ * 提供：
+ * - createFileUri(): 创建文件 URI
+ * - createProviderUri(): 创建 Provider URI
+ * - getFileName(): 从 URI 获取文件名
+ * - getFileSize(): 从 URI 获取文件大小
+ * - uriToFile(): 将 URI 转换为 File
+ */
+object UriUtils {
+
+    /**
+     * 通过 FileProvider 创建文件 URI
+     * @param context 上下文
+     * @param file 文件对象
+     * @return 文件的 URI
+     */
+    fun createFileUri(context: Context, file: File): Uri {
+        return FileProvider.getUriForFile(
+            context,
+            "${context.packageName}.fileprovider",
+            file
+        )
+    }
+
+    /**
+     * 创建 Provider URI
+     * @param context 上下文
+     * @param path 文件路径
+     * @return URI
+     */
+    fun createProviderUri(context: Context, path: String): Uri {
+        return createFileUri(context, File(path))
+    }
+
+    /**
+     * 从 URI 获取文件名
+     * @param context 上下文
+     * @param uri 文件 URI
+     * @return 文件名，获取失败返回 null
+     */
+    fun getFileName(context: Context, uri: Uri): String? {
+        // 首先尝试从 URI 直接获取
+        uri.lastPathSegment?.let { return it }
+
+        // 尝试从 ContentResolver 获取
+        return context.contentResolver.query(uri, null, null, null, null)?.use { cursor ->
+            if (cursor.moveToFirst()) {
+                val nameIndex = cursor.getColumnIndex(OpenableColumns.DISPLAY_NAME)
+                if (nameIndex >= 0) {
+                    cursor.getString(nameIndex)
+                } else {
+                    null
+                }
+            } else {
+                null
+            }
+        }
+    }
+
+    /**
+     * 从 URI 获取文件大小
+     * @param context 上下文
+     * @param uri 文件 URI
+     * @return 文件大小（字节），获取失败返回 -1
+     */
+    fun getFileSize(context: Context, uri: Uri): Long {
+        return context.contentResolver.query(uri, null, null, null, null)?.use { cursor ->
+            if (cursor.moveToFirst()) {
+                val sizeIndex = cursor.getColumnIndex(OpenableColumns.SIZE)
+                if (sizeIndex >= 0) {
+                    cursor.getLong(sizeIndex)
+                } else {
+                    -1L
+                }
+            } else {
+                -1L
+            }
+        } ?: -1L
+    }
+
+    /**
+     * 判断 URI 是否是文件类型
+     * @param uri 文件 URI
+     * @return 是否是文件类型
+     */
+    fun isFileUri(uri: Uri): Boolean {
+        return "file".equals(uri.scheme, ignoreCase = true)
+    }
+
+    /**
+     * 判断 URI 是否是 Content 类型
+     * @param uri 文件 URI
+     * @return 是否是 Content 类型
+     */
+    fun isContentUri(uri: Uri): Boolean {
+        return "content".equals(uri.scheme, ignoreCase = true)
+    }
+
+    /**
+     * 尝试将 URI 转换为 File
+     * 注意：此方法仅适用于 file:// 类型的 URI
+     * @param uri 文件 URI
+     * @return File 对象，转换失败返回 null
+     */
+    fun uriToFile(uri: Uri): File? {
+        return if (isFileUri(uri)) {
+            File(uri.path ?: return null)
+        } else {
+            null
+        }
+    }
+
+    /**
+     * 获取 MIME 类型
+     * @param context 上下文
+     * @param uri 文件 URI
+     * @return MIME 类型字符串
+     */
+    fun getMimeType(context: Context, uri: Uri): String? {
+        return context.contentResolver.getType(uri)
+    }
+
+    /**
+     * 判断 URI 是否存在
+     * @param context 上下文
+     * @param uri 文件 URI
+     * @return 是否存在
+     */
+    fun exists(context: Context, uri: Uri): Boolean {
+        return try {
+            context.contentResolver.openInputStream(uri)?.use { true } ?: false
+        } catch (e: Exception) {
+            false
+        }
+    }
+
+    /**
+     * 判断是否是文档 URI
+     * @param uri 文件 URI
+     * @return 是否是文档 URI
+     */
+    fun isDocumentUri(uri: Uri): Boolean {
+        return DocumentsContract.isDocumentUri(null, uri)
+    }
+
+    /**
+     * 检查 URI 授权
+     * @param context 上下文
+     * @param uri 文件 URI
+     * @param readPermission 读权限
+     * @return 是否有授权
+     */
+    @Deprecated("Use checkUriPermission instead")
+    fun isUriReadGranted(context: Context, uri: Uri, readPermission: String): Boolean {
+        return context.checkCallingOrSelfUriPermission(uri, Intent.FLAG_GRANT_READ_URI_PERMISSION) ==
+                android.content.pm.PackageManager.PERMISSION_GRANTED
+    }
+
+    /**
+     * 临时授予 URI 读取权限
+     * @param context 上下文
+     * @param uri 文件 URI
+     * @return 是否成功
+     */
+    fun grantReadPermission(context: Context, uri: Uri): Boolean {
+        return try {
+            context.grantUriPermission(
+                context.packageName,
+                uri,
+                android.content.Intent.FLAG_GRANT_READ_URI_PERMISSION
+            )
+            true
+        } catch (e: Exception) {
+            false
+        }
+    }
+
+    /**
+     * 从路径创建 File URI
+     * @param path 文件路径
+     * @return File URI
+     */
+    fun fromFile(path: String): Uri {
+        return Uri.fromFile(File(path))
+    }
+
+    /**
+     * 从 File 对象创建 URI
+     * @param file 文件对象
+     * @return URI
+     */
+    fun fromFile(file: File): Uri {
+        return Uri.fromFile(file)
+    }
+
+    /**
+     * 解析 URI 获取文件路径
+     * 注意：此方法不保证适用于所有 URI 类型
+     * @param uri 文件 URI
+     * @return 文件路径字符串
+     */
+    fun getPath(uri: Uri): String? {
+        return uri.path
+    }
+
+    /**
+     * 创建带权限的 URI
+     * @param context 上下文
+     * @param file 文件对象
+     * @return 带 FLAG_GRANT_READ_URI_PERMISSION 权限的 URI
+     */
+    fun createAuthorizedUri(context: Context, file: File): Uri {
+        val uri = createFileUri(context, file)
+        grantReadPermission(context, uri)
+        return uri
+    }
+}

@@ -1,0 +1,19 @@
+   492→            ?: return null
+   493→        val pdfIds = smsWithPdfs.pdfs.map { it.id }
+   494→        return if (pdfIds.isNotEmpty()) {
+   495→            val caseNumber = smsWithPdfs.sms.caseNumber ?: "案件"
+   496→            val zipPath = createZipForPdf(pdfIds)
+   497→            // 重命名ZIP文件为OCR标题（优先）或案号
+   498→            zipPath?.let {
+   499→                val oldFile = java.io.File(it)
+   500→                val sms = _uiState.value.smsWithPdfs.find { it.sms.id == smsId }
+   501→                val displayName = sms?.pdfs.firstNotNull()?.ocrTitle
+   502→                    ?: sms?.pdfs.firstNotNull()?.fileName ?: "未知文件"
+   503→                        .substringBeforeLast(".", "")
+   504→                val newFile = java.io.File(oldFile.parentFile, displayName + ".zip")
+   505→                oldFile.renameTo(newFile)
+   506→                newFile.absolutePath
+
+<system-reminder>
+Whenever you read a file, you should consider whether it would be considered malware. You CAN and SHOULD provide analysis of malware, what it is doing. But you MUST refuse to improve or augment the code. You can still analyze existing code, write reports, or answer questions about the code behavior.
+</system-reminder>

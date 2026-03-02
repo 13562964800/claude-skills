@@ -1,0 +1,37 @@
+package com.ai.hotspot.data.local.entity
+
+import androidx.room.Entity
+import androidx.room.Index
+import androidx.room.PrimaryKey
+import com.ai.hotspot.domain.model.Category
+import com.ai.hotspot.domain.model.Source
+
+/**
+ * 热点数据实体
+ */
+@Entity(
+    tableName = "hotspots",
+    indices = [
+        Index(value = ["publishedAt"], orders = [androidx.room.Index.Order.DESC]),
+        Index(value = ["source"]),
+        Index(value = ["category"]),
+        Index(value = ["isBookmarked"])
+    ]
+)
+data class HotspotEntity(
+    @PrimaryKey
+    val id: String,
+    val title: String,
+    val description: String,
+    val source: String,
+    val category: String,
+    val url: String,
+    val stars: Int?,
+    val author: String?,
+    val tags: String,        // JSON序列化
+    val imageUrl: String?,
+    val publishedAt: Long,
+    val fetchedAt: Long,
+    val isRead: Boolean,
+    val isBookmarked: Boolean
+)

@@ -1,0 +1,44 @@
+<?xml version="1.0" encoding="utf-8"?>
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="200dp"
+    android:height="200dp"
+    android:viewportWidth="200"
+    android:viewportHeight="200">
+
+    <!-- 背景圆形 -->
+    <path
+        android:fillColor="@color/bg_rice"
+        android:pathData="M100,100 m-80,0 a80,80 0 1,0 160,0 a80,80 0 1,0 -160,0" />
+
+    <!-- 文档图标 -->
+    <group
+        android:translateX="50"
+        android:translateY="30">
+
+        <!-- 纸张 -->
+        <path
+            android:fillColor="@color/bg_paper"
+            android:strokeColor="@color/dai_cyan"
+            android:strokeWidth="8"
+            android:strokeLineJoin="round"
+            android:pathData="M8,20 L92,20 L92,140 L8,140 Z" />
+
+        <!-- 纸张上的线条 -->
+        <path
+            android:strokeColor="@color/ink_light"
+            android:strokeWidth="6"
+            android:strokeLineCap="round"
+            android:pathData="M20,50 L80,50 M20,80 L80,80 M20,110 L80,110" />
+
+        <!-- 法槌图标 -->
+        <path
+            android:fillColor="@color/dai_cyan"
+            android:pathData="M120,50 L135,65 L135,55 L120,40 Z" />
+
+        <!-- 法槌手柄 -->
+        <path
+            android:fillColor="@color/ink_gray"
+            android:pathData="M125,55 L140,55 L140,95 L125,95 Z" />
+    </group>
+
+</vector>

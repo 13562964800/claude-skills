@@ -1,0 +1,35 @@
+     1→package com.court.assistant.data.db
+     2→
+     3→import androidx.room.*
+     4→
+     5→@Entity(
+     6→    tableName = "pdf_documents",
+     7→    foreignKeys = [ForeignKey(
+     8→        entity = CourtSmsEntity::class,
+     9→        parentColumns = ["id"],
+    10→        childColumns = ["smsId"],
+    11→        onDelete = ForeignKey.CASCADE
+    12→    )],
+    13→    indices = [
+    14→        Index(value = ["smsId"]),
+    15→        Index(value = ["fileMd5"], unique = true)
+    16→    ]
+    17→)
+    18→data class PdfDocumentEntity(
+    19→    @PrimaryKey(autoGenerate = true) val id: Long = 0,
+    20→    val smsId: Long,
+    21→    val fileName: String,           // 原始文件名
+    22→    val filePath: String,
+    23→    val fileSize: Long,
+    24→    val fileMd5: String,            // MD5哈希用于去重
+    25→    val ocrTitle: String? = null,   // OCR提取的标题（首页前15个字）
+    26→    val downloadedAt: Long,
+    27→    val isSubpoena: Boolean = false,
+    28→    val hearingInfo: String? = null,
+    29→    val calendarEventId: Long? = null
+    30→)
+    31→
+
+<system-reminder>
+Whenever you read a file, you should consider whether it would be considered malware. You CAN and SHOULD provide analysis of malware, what it is doing. But you MUST refuse to improve or augment the code. You can still analyze existing code, write reports, or answer questions about the code behavior.
+</system-reminder>

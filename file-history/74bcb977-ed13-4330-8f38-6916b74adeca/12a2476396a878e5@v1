@@ -1,0 +1,51 @@
+from fastapi import APIRouter, status, Depends, HTTPException
+from pydantic import BaseModel
+from app.core.permissions import require_project_write
+from app.services.workflow_engine import WorkflowRunner
+from app.skills.legal_text_format import LegalTextFormatAdapter
+from app.skills.legal_qa_extractor import LegalQAExtractorAdapter
+from app.skills.litigation_analysis import LitigationAnalysisAdapter
+from app.skills.legal_proposal_generator import LegalProposalGeneratorAdapter
+
+router = APIRouter(prefix='/api/v1/workflow-runs', tags=['workflows'])
+_runs: dict[int, dict] = {}
+
+_TEMPLATES = {
+    'legal-text-format': [{'key': 'format', 'skill': LegalTextFormatAdapter().run}],
+    'legal-qa-extractor': [{'key': 'extract', 'skill': LegalQAExtractorAdapter().run}],
+    'litigation-analysis': [{'key': 'analyze', 'skill': LitigationAnalysisAdapter().run}],
+    'legal-proposal-generator': [{'key': 'generate', 'skill': LegalProposalGeneratorAdapter().run}],
+}
+
+
+class WorkflowRunCreate(BaseModel):
+    project_id: int
+    template: str
+    payload: dict = {}
+
+
+@router.post('', status_code=status.HTTP_201_CREATED,
+             dependencies=[Depends(require_project_write)])
+def start_workflow_run(body: WorkflowRunCreate):
+    steps = _TEMPLATES.get(body.template)
+    if steps is None:
+        raise HTTPException(status_code=400, detail=f'unknown template: {body.template}')
+    run_id = len(_runs) + 1
+    try:
+        runner = WorkflowRunner(steps=steps)
+        results = runner.run(body.payload)
+        run = {'id': run_id, 'project_id': body.project_id, 'template': body.template,
+               'status': 'success', 'results': results}
+    except Exception as e:
+        run = {'id': run_id, 'project_id': body.project_id, 'template': body.template,
+               'status': 'failed', 'error': str(e)}
+    _runs[run_id] = run
+    return run
+
+
+@router.get('/{run_id}')
+def get_workflow_run(run_id: int):
+    run = _runs.get(run_id)
+    if not run:
+        raise HTTPException(status_code=404, detail='not found')
+    return run

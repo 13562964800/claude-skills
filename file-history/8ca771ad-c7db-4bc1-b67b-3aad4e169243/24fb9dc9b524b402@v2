@@ -1,0 +1,56 @@
+package com.videodownload.app.ui.home
+
+import android.app.Application
+import androidx.lifecycle.AndroidViewModel
+import androidx.lifecycle.viewModelScope
+import com.videodownload.app.data.AppDatabase
+import com.videodownload.app.data.model.VideoEntity
+import kotlinx.coroutines.flow.SharingStarted
+import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.stateIn
+import kotlinx.coroutines.launch
+import java.util.UUID
+
+class HomeViewModel(application: Application) : AndroidViewModel(application) {
+
+    private val database = AppDatabase.getInstance(application)
+    private val videoDao = database.videoDao()
+
+    val videos: StateFlow<List<VideoEntity>> = videoDao.getAllVideos()
+        .stateIn(
+            scope = viewModelScope,
+            started = SharingStarted.WhileSubscribed(5000),
+            initialValue = emptyList()
+        )
+
+    fun addVideo(url: String) {
+        viewModelScope.launch {
+            val video = VideoEntity(
+                id = UUID.randomUUID().toString(),
+                title = "正在解析...",
+                url = url,
+                platform = detectPlatform(url),
+                duration = 0f,
+                thumbnailUrl = null,
+                localPath = null,
+                downloadStatus = "pending",
+                downloadProgress = 0f,
+                createdAt = System.currentTimeMillis(),
+                updatedAt = System.currentTimeMillis()
+            )
+
+            videoDao.insertVideo(video)
+
+            // TODO: 启动下载服务
+        }
+    }
+
+    private fun detectPlatform(url: String): String {
+        return when {
+            url.contains("youtube.com") || url.contains("youtu.be") -> "YouTube"
+            url.contains("bilibili.com") || url.contains("b23.tv") -> "哔哩哔哩"
+            url.contains("douyin.com") -> "抖音"
+            else -> "未知"
+        }
+    }
+}

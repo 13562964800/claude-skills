@@ -1,0 +1,25 @@
+import os
+
+def test_profile_page_exists():
+    profile_page = os.path.join(os.path.dirname(__file__), '../apps/web/app/profile/page.tsx')
+    assert os.path.exists(profile_page)
+
+def test_profile_page_has_getMe():
+    profile_page = os.path.join(os.path.dirname(__file__), '../apps/web/app/profile/page.tsx')
+    with open(profile_page, 'r', encoding='utf-8') as f:
+        content = f.read()
+    assert 'useAuth' in content
+
+def test_profile_page_has_user_info():
+    profile_page = os.path.join(os.path.dirname(__file__), '../apps/web/app/profile/page.tsx')
+    with open(profile_page, 'r', encoding='utf-8') as f:
+        content = f.read()
+    assert 'email' in content
+    assert 'username' in content
+    assert 'role' in content
+
+def test_profile_page_has_logout():
+    profile_page = os.path.join(os.path.dirname(__file__), '../apps/web/app/profile/page.tsx')
+    with open(profile_page, 'r', encoding='utf-8') as f:
+        content = f.read()
+    assert 'logout' in content.lower()

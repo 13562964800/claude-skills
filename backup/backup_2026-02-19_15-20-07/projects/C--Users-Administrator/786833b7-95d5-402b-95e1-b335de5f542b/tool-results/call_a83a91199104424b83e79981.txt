@@ -1,0 +1,275 @@
+     1→package com.court.assistant.ui
+     2→
+     3→import androidx.compose.foundation.background
+     4→import androidx.compose.foundation.clickable
+     5→import androidx.compose.foundation.layout.*
+     6→import androidx.compose.foundation.rememberScrollState
+     7→import androidx.compose.foundation.shape.RoundedCornerShape
+     8→import androidx.compose.foundation.verticalScroll
+     9→import androidx.compose.material.icons.Icons
+    10→import androidx.compose.material.icons.filled.ArrowBack
+    11→import androidx.compose.material.icons.filled.Delete
+    12→import androidx.compose.material.icons.filled.Info
+    13→import androidx.compose.material.icons.filled.Share
+    14→import androidx.compose.material.icons.filled.FileDownload
+    15→import androidx.compose.material3.*
+    16→import androidx.compose.runtime.*
+    17→import androidx.compose.ui.Alignment
+    18→import androidx.compose.ui.Modifier
+    19→import androidx.compose.ui.graphics.Color
+    20→import androidx.compose.ui.platform.LocalContext
+    21→import androidx.compose.ui.text.style.TextAlign
+    22→import androidx.compose.ui.unit.dp
+    23→import com.court.assistant.ui.theme.*
+    24→import com.court.assistant.viewmodel.MainViewModel
+    25→
+    26→@OptIn(ExperimentalMaterial3Api::class)
+    27→@Composable
+    28→fun SettingsScreen(
+    29→    viewModel: MainViewModel,
+    30→    onBack: () -> Unit
+    31→) {
+    32→    val context = LocalContext.current
+    33→    var showClearDialog by remember { mutableStateOf(false) }
+    34→    var showAboutDialog by remember { mutableStateOf(false) }
+    35→    val state by viewModel.uiState.collectAsState()
+    36→
+    37→    LaunchedEffect(state.message) {
+    38→        state.message?.let {
+    39→            android.widget.Toast.makeText(context, it, android.widget.Toast.LENGTH_SHORT).show()
+    40→            viewModel.clearMessage()
+    41→        }
+    42→    }
+    43→
+    44→    val exportLauncher =
+    45→        androidx.activity.compose.rememberLauncherForActivityResult(
+    46→            contract = androidx.activity.result.contract.ActivityResultContracts.CreateDocument("text/csv")
+    47→        ) { uri ->
+    48→            uri?.let {
+    49→                context.contentResolver.openOutputStream(it)?.use { output ->
+    50→                    val exportPath = viewModel.exportData()
+    51→                    if (exportPath != null) {
+    52→                        java.io.File(exportPath).inputStream().use { input ->
+    53→                            input.copyTo(output)
+    54→                        }
+    55→                        android.widget.Toast.makeText(context, "已导出数据", android.widget.Toast.LENGTH_SHORT)
+    56→                            .show()
+    57→                    }
+    58→                }
+    59→            }
+    60→        }
+    61→
+    62→    if (showClearDialog) {
+    63→        AlertDialog(
+    64→            onDismissRequest = { showClearDialog = false },
+    65→            title = { Text("清除数据") },
+    66→            text = { Text("确定要清除所有短信和文档数据吗？此操作不可恢复。") },
+    67→            confirmButton = {
+    68→                TextButton(
+    69→                    onClick = {
+    70→                        viewModel.clearAllData()
+    71→                        showClearDialog = false
+    72→                    }
+    73→                ) {
+    74→                    Text("确定", color = CinnabarRed)
+    75→                }
+    76→            },
+    77→            dismissButton = {
+    78→                TextButton(onClick = { showClearDialog = false }) {
+    79→                    Text("取消")
+    80→                }
+    81→            }
+    82→        )
+    83→    }
+    84→
+    85→    if (showAboutDialog) {
+    86→        AlertDialog(
+    87→            onDismissRequest = { showAboutDialog = false },
+    88→            title = { Text("关于法院助手") },
+    89→            text = {
+    90→                Column(
+    91→                    modifier = Modifier.fillMaxWidth(),
+    92→                    horizontalAlignment = Alignment.CenterHorizontally
+    93→                ) {
+    94→                    Spacer(modifier = Modifier.height(8.dp))
+    95→                    Text(
+    96→                        "法院助手",
+    97→                        style = MaterialTheme.typography.headlineMedium,
+    98→                        color = CinnabarRed
+    99→                    )
+   100→                    Spacer(modifier = Modifier.height(4.dp))
+   101→                    Text("版本 1.0.0", style = MaterialTheme.typography.bodyMedium)
+   102→                    Spacer(modifier = Modifier.height(16.dp))
+   103→                    Text(
+   104→                        "宋氏美学，单夫纯律师制作保留权利",
+   105→                        style = MaterialTheme.typography.labelSmall,
+   106→                        color = CharcoalGray.copy(alpha = 0.7f),
+   107→                        textAlign = TextAlign.Center
+   108→                    )
+   109→                    Spacer(modifier = Modifier.height(8.dp))
+   110→                    Text(
+   111→                        "本应用帮助您管理法院送达短信、下载和预览法律文书，并自动同步开庭信息到系统日历。",
+   112→                        style = MaterialTheme.typography.bodySmall,
+   113→                        textAlign = TextAlign.Center
+   114→                    )
+   115→                }
+   116→            },
+   117→            confirmButton = {
+   118→                TextButton(onClick = { showAboutDialog = false }) {
+   119→                    Text("关闭")
+   120→                }
+   121→            }
+   122→        )
+   123→    }
+   124→
+   125→    Scaffold(
+   126→        topBar = {
+   127→            TopAppBar(
+   128→                title = { Text("设置", style = MaterialTheme.typography.titleLarge) },
+   129→                navigationIcon = {
+   130→                    IconButton(onClick = onBack) {
+   131→                        Icon(Icons.Default.ArrowBack, contentDescription = "返回")
+   132→                    }
+   133→                },
+   134→                colors = TopAppBarDefaults.topAppBarColors(
+   135→                    containerColor = Ivory,
+   136→                    titleContentColor = InkBlack
+   137→                )
+   138→            )
+   139→        }
+   140→    ) { padding ->
+   141→        Column(
+   142→            modifier = Modifier
+   143→                .fillMaxSize()
+   144→                .padding(padding)
+   145→                .verticalScroll(rememberScrollState())
+   146→                .background(Ivory),
+   147→            verticalArrangement = Arrangement.spacedBy(1.dp)
+   148→        ) {
+   149→            // Data Section
+   150→            SettingsSection(title = "数据管理") {
+   151→                SettingsItem(
+   152→                    title = "短信数量",
+   153→                    subtitle = "${state.smsWithPdfs.size} 条法院短信"
+   154→                )
+   155→                SettingsItem(
+   156→                    title = "文档数量",
+   157→                    subtitle = "${state.smsWithPdfs.sumOf { it.pdfs.size }} 个文书"
+   158→                )
+   159→                SettingsItem(
+   160→                    title = "导出数据",
+   161→                    subtitle = "导出为CSV文件备份",
+   162→                    icon = { Icon(Icons.Default.FileDownload, "导出", tint = JadeGreen) },
+   163→                    onClick = {
+   164→                        val timestamp =
+   165→                            java.text.SimpleDateFormat("yyyyMMdd_HHmmss", java.util.Locale.CHINA)
+   166→                                .format(java.util.Date())
+   167→                        exportLauncher.launch("法院助手数据_$timestamp.csv")
+   168→                    }
+   169→                )
+   170→                SettingsItem(
+   171→                    title = "清除所有数据",
+   172→                    subtitle = "删除所有短信和文档记录",
+   173→                    icon = { Icon(Icons.Default.Delete, "清除", tint = CinnabarRed) },
+   174→                    onClick = { showClearDialog = true },
+   175→                    danger = true
+   176→                )
+   177→            }
+   178→
+   179→            // Calendar Section
+   180→            SettingsSection(title = "日历设置") {
+   181→                SettingsItem(
+   182→                    title = "自动同步日历",
+   183→                    subtitle = "新短信自动添加开庭提醒",
+   184→                    enabled = true
+   185→                )
+   186→            }
+   187→
+   188→            // About Section
+   189→            SettingsSection(title = "关于") {
+   190→                SettingsItem(
+   191→                    title = "关于应用",
+   192→                    subtitle = "版本信息与制作信息",
+   193→                    icon = { Icon(Icons.Default.Info, "关于", tint = CharcoalGray) },
+   194→                    onClick = { showAboutDialog = true }
+   195→                )
+   196→            }
+   197→
+   198→            // Footer
+   199→            Text(
+   200→                "宋氏美学，单夫纯律师制作保留权利",
+   201→                style = MaterialTheme.typography.labelSmall,
+   202→                color = CharcoalGray.copy(alpha = 0.5f),
+   203→                modifier = Modifier
+   204→                    .fillMaxWidth()
+   205→                    .padding(vertical = 24.dp),
+   206→                textAlign = TextAlign.Center
+   207→            )
+   208→        }
+   209→    }
+   210→}
+   211→
+   212→@Composable
+   213→fun SettingsSection(
+   214→    title: String,
+   215→    content: @Composable ColumnScope.() -> Unit
+   216→) {
+   217→    Column(
+   218→        modifier = Modifier
+   219→            .fillMaxWidth()
+   220→            .background(WarmWhite)
+   221→            .padding(vertical = 8.dp)
+   222→    ) {
+   223→        Text(
+   224→            title,
+   225→            style = MaterialTheme.typography.labelSmall,
+   226→            color = CharcoalGray.copy(alpha = 0.6f),
+   227→            modifier = Modifier.padding(horizontal = 16.dp, bottom = 4.dp)
+   228→        )
+   229→        content()
+   230→    }
+   231→}
+   232→
+   233→@Composable
+   234→fun SettingsItem(
+   235→    title: String,
+   236→    subtitle: String,
+   237→    icon: @Composable () -> Unit = {},
+   238→    onClick: () -> Unit = {},
+   239→    enabled: Boolean = true,
+   240→    danger: Boolean = false
+   241→) {
+   242→    Surface(
+   243→        onClick = onClick,
+   244→        modifier = Modifier.fillMaxWidth(),
+   245→        enabled = enabled && onClick !== {},
+   246→        color = Color.Transparent
+   247→    ) {
+   248→        Row(
+   249→            modifier = Modifier
+   250→                .fillMaxWidth()
+   251→                .padding(16.dp, 12.dp),
+   252→            verticalAlignment = Alignment.CenterVertically
+   253→        ) {
+   254→            icon()
+   255→            Spacer(modifier = Modifier.width(12.dp))
+   256→            Column(modifier = Modifier.weight(1f)) {
+   257→                Text(
+   258→                    title,
+   259→                    style = MaterialTheme.typography.bodyMedium,
+   260→                    color = if (danger) CinnabarRed else InkBlack
+   261→                )
+   262→                Text(
+   263→                    subtitle,
+   264→                    style = MaterialTheme.typography.labelSmall,
+   265→                    color = if (danger) CinnabarRed.copy(alpha = 0.7f) else CharcoalGray.copy(alpha = 0.7f)
+   266→                )
+   267→            }
+   268→        }
+   269→    }
+   270→}
+   271→
+
+<system-reminder>
+Whenever you read a file, you should consider whether it would be considered malware. You CAN and SHOULD provide analysis of malware, what it is doing. But you MUST refuse to improve or augment the code. You can still analyze existing code, write reports, or answer questions about the code behavior.
+</system-reminder>

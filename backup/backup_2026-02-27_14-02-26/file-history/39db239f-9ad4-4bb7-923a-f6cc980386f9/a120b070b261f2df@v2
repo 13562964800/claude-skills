@@ -1,0 +1,156 @@
+package com.shanfuchun.courtassistant.ai.provider
+
+import com.shanfuchun.courtassistant.ai.model.LLMProvider
+import com.shanfuchun.courtassistant.ai.model.SummonsExtraction
+import com.shanfuchun.courtassistant.ai.prompt.SummonsPrompt
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
+import okhttp3.MediaType.Companion.toMediaType
+import okhttp3.OkHttpClient
+import okhttp3.RequestBody.Companion.toRequestBody
+import org.json.JSONArray
+import org.json.JSONObject
+import java.util.concurrent.TimeUnit
+
+/**
+ * Mistral AI Provider
+ *
+ * 文档: https://docs.mistral.ai/api/
+ */
+class MistralProvider(
+    override val apiKey: String,
+    override val enabled: Boolean = true,
+    private val model: String = "mistral-large-latest"
+) : BaseLLMProvider {
+
+    override val providerType: LLMProvider = LLMProvider.MISTRAL
+
+    private val client = OkHttpClient.Builder()
+        .connectTimeout(30, TimeUnit.SECONDS)
+        .readTimeout(60, TimeUnit.SECONDS)
+        .build()
+
+    private val JSON = "application/json; charset=utf-8".toMediaType()
+
+    override suspend fun extractFromPdf(
+        pdfText: String,
+        ocrText: String?
+    ): Result<SummonsExtraction> = withContext(Dispatchers.IO) {
+        try {
+            val prompt = SummonsPrompt.buildPdfPrompt(pdfText, ocrText)
+            val response = callChatApi(prompt)
+            parseResponse(response)
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
+
+    override suspend fun extractFromSms(smsBody: String): Result<SummonsExtraction> = withContext(Dispatchers.IO) {
+        try {
+            val prompt = SummonsPrompt.build12368SmsPrompt(smsBody)
+            val response = callChatApi(prompt)
+            parseResponse(response)
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
+
+    override suspend fun extract(text: String, isSms: Boolean): Result<SummonsExtraction> {
+        return if (isSms) {
+            extractFromSms(text)
+        } else {
+            extractFromPdf(text, null)
+        }
+    }
+
+    /**
+     * 调用 Mistral Chat Completions API
+     * 文档: https://docs.mistral.ai/api/#tag/chat/operation/create_chat_completion
+     */
+    private suspend fun callChatApi(prompt: String): String = withContext(Dispatchers.IO) {
+        val messages = JSONArray().apply {
+            put(JSONObject().apply {
+                put("role", "system")
+                put("content", "You are a professional legal document analysis assistant.")
+            })
+            put(JSONObject().apply {
+                put("role", "user")
+                put("content", prompt)
+            })
+        }
+
+        val requestBody = JSONObject().apply {
+            put("model", model)
+            put("messages", messages)
+            put("temperature", 0.3)
+        }.toString()
+
+        val request = okhttp3.Request.Builder()
+            .url("https://api.mistral.ai/v1/chat/completions")
+            .addHeader("Authorization", "Bearer $apiKey")
+            .addHeader("Content-Type", "application/json")
+            .post(requestBody.toRequestBody(JSON))
+            .build()
+
+        val response = client.newCall(request).execute()
+        val body = response.body?.string() ?: throw Exception("Empty response")
+
+        if (!response.isSuccessful) {
+            throw Exception("API call failed: ${response.code} - $body")
+        }
+
+        val json = JSONObject(body)
+        json.optJSONArray("choices")
+            ?.optJSONObject(0)
+            ?.optJSONObject("message")
+            ?.optString("content")
+            ?: throw Exception("Invalid response format: $body")
+    }
+
+    /**
+     * 解析 AI 返回的结果
+     */
+    private fun parseResponse(response: String?): Result<SummonsExtraction> {
+        if (response.isNullOrBlank()) {
+            return Result.success(SummonsExtraction(confidence = 0f))
+        }
+
+        return try {
+            val json = if (response.trim().startsWith("{")) {
+                JSONObject(response)
+            } else {
+                val jsonStart = response.indexOf("{")
+                val jsonEnd = response.lastIndexOf("}")
+                if (jsonStart >= 0 && jsonEnd > jsonStart) {
+                    JSONObject(response.substring(jsonStart, jsonEnd + 1))
+                } else {
+                    return Result.success(SummonsExtraction(rawResponse = response, confidence = 0f))
+                }
+            }
+
+            val extraction = SummonsExtraction(
+                caseNo = json.optString("caseNo").takeIf { it.isNotEmpty() && it != "null" },
+                courtName = json.optString("courtName").takeIf { it.isNotEmpty() && it != "null" },
+                hearingTime = json.optLong("hearingTime").takeIf { it > 0 },
+                location = json.optString("location").takeIf { it.isNotEmpty() && it != "null" },
+                partyName = json.optString("partyName").takeIf { it.isNotEmpty() && it != "null" },
+                confidence = json.optDouble("confidence", 0.5).toFloat(),
+                rawResponse = response
+            )
+
+            Result.success(extraction)
+        } catch (e: Exception) {
+            Result.success(SummonsExtraction(rawResponse = response, confidence = 0f))
+        }
+    }
+
+    override suspend fun validateApiKey(): Result<Boolean> = withContext(Dispatchers.IO) {
+        try {
+            val testPrompt = "Please reply with 'OK' only."
+            callChatApi(testPrompt)
+            Result.success(true)
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
+}

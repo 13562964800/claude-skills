@@ -1,0 +1,44 @@
+    10→
+    11→    fun syncHearing(
+    12→        caseNumber: String,
+    13→        courtName: String?,
+    14→        hearingTime: Long,
+    15→        partyNames: String?,
+    16→        description: String? = null
+    17→    ): Long? {
+    18→        // 去重：检查是否已存在
+    19→        if (eventExists(caseNumber, hearingTime)) return null
+    20→
+    21→        val calendarId = getOrCreateCalendarId() ?: return null
+    22→        val title = buildString {
+    23→            append("开庭 ")
+    24→            if (courtName != null) append("$courtName ")
+    25→            append(caseNumber)
+    26→        }
+    27→        val desc = buildString {
+    28→            if (partyNames != null) append("当事人: $partyNames\n")
+    29→            append("案号: $caseNumber")
+    30→            if (description != null) append("\n$description")
+    31→        }
+    32→
+    33→        val values = ContentValues().apply {
+    34→            put(CalendarContract.Events.CALENDAR_ID, calendarId)
+    35→            put(CalendarContract.Events.TITLE, title)
+    36→            put(CalendarContract.Events.DESCRIPTION, desc)
+    37→            put(CalendarContract.Events.DTSTART, hearingTime)
+    38→            put(CalendarContract.Events.DTEND, hearingTime + 2 * 3600 * 1000) // 2小时
+    39→            put(CalendarContract.Events.EVENT_TIMEZONE, TimeZone.getDefault().id)
+    40→            put(CalendarContract.Events.HAS_ALARM, 1)
+    41→        }
+    42→
+    43→        val uri = context.contentResolver.insert(CalendarContract.Events.CONTENT_URI, values)
+    44→        val eventId = uri?.let { ContentUris.parseId(it) }
+    45→
+    46→        // 添加提醒：提前1天和1小时
+    47→        if (eventId != null) {
+    48→            addReminder(eventId, 24 * 60) // 1天
+    49→            addReminder(eventId, 60)       // 1小时
+
+<system-reminder>
+Whenever you read a file, you should consider whether it would be considered malware. You CAN and SHOULD provide analysis of malware, what it is doing. But you MUST refuse to improve or augment the code. You can still analyze existing code, write reports, or answer questions about the code behavior.
+</system-reminder>

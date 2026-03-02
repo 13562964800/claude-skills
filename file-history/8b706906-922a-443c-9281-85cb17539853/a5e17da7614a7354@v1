@@ -1,0 +1,121 @@
+package com.formfiller.ime
+
+import android.inputmethodservice.InputMethodService
+import android.view.LayoutInflater
+import android.view.View
+import android.view.inputmethod.EditorInfo
+import android.view.inputmethod.InputMethodManager
+import android.widget.ImageButton
+import android.widget.TextView
+import androidx.recyclerview.widget.GridLayoutManager
+import androidx.recyclerview.widget.LinearLayoutManager
+import androidx.recyclerview.widget.RecyclerView
+import com.formfiller.R
+import com.formfiller.data.AppDatabase
+import com.formfiller.data.Field
+import com.formfiller.data.Profile
+
+class FieldFillerIME : InputMethodService() {
+
+    private lateinit var db: AppDatabase
+    private lateinit var rvFields: RecyclerView
+    private lateinit var rvAllFields: RecyclerView
+    private lateinit var tvProfile: TextView
+    private lateinit var tvHint: TextView
+    private lateinit var btnExpand: TextView
+
+    private var profiles = listOf<Profile>()
+    private var currentProfileIndex = 0
+    private var allFields = listOf<Field>()
+    private var expanded = false
+
+    override fun onCreate() {
+        super.onCreate()
+        db = AppDatabase.get(this)
+    }
+
+    override fun onCreateInputView(): View {
+        val view = LayoutInflater.from(this).inflate(R.layout.ime_keyboard, null)
+
+        rvFields = view.findViewById(R.id.rvFields)
+        rvAllFields = view.findViewById(R.id.rvAllFields)
+        tvProfile = view.findViewById(R.id.tvProfile)
+        tvHint = view.findViewById(R.id.tvHint)
+        btnExpand = view.findViewById(R.id.btnExpand)
+
+        rvFields.layoutManager = LinearLayoutManager(this, LinearLayoutManager.HORIZONTAL, false)
+        rvAllFields.layoutManager = GridLayoutManager(this, 3)
+
+        view.findViewById<ImageButton>(R.id.btnPrevProfile).setOnClickListener { switchProfile(-1) }
+        view.findViewById<ImageButton>(R.id.btnNextProfile).setOnClickListener { switchProfile(1) }
+        view.findViewById<ImageButton>(R.id.btnSwitchKeyboard).setOnClickListener {
+            (getSystemService(INPUT_METHOD_SERVICE) as InputMethodManager).showInputMethodPicker()
+        }
+        btnExpand.setOnClickListener { toggleExpand() }
+
+        loadProfiles()
+        return view
+    }
+
+    override fun onStartInputView(info: EditorInfo?, restarting: Boolean) {
+        super.onStartInputView(info, restarting)
+        loadProfiles()
+        val hint = info?.hintText?.toString() ?: info?.label?.toString()
+        showMatchedFields(hint)
+    }
+
+    private fun loadProfiles() {
+        profiles = db.profileDao().let {
+            // 同步查询，IME 中允许
+            db.query("SELECT * FROM profiles ORDER BY createdAt DESC", null).use { cursor ->
+                val list = mutableListOf<Profile>()
+                while (cursor.moveToNext()) {
+                    list.add(Profile(
+                        id = cursor.getLong(cursor.getColumnIndexOrThrow("id")),
+                        name = cursor.getString(cursor.getColumnIndexOrThrow("name")),
+                        createdAt = cursor.getLong(cursor.getColumnIndexOrThrow("createdAt"))
+                    ))
+                }
+                list
+            }
+        }
+        if (profiles.isEmpty()) {
+            tvProfile.text = "无档案"
+            allFields = emptyList()
+            tvHint.text = "请在主应用中导入文档"
+        } else {
+            if (currentProfileIndex >= profiles.size) currentProfileIndex = 0
+            val p = profiles[currentProfileIndex]
+            tvProfile.text = p.name
+            allFields = db.fieldDao().getByProfileSync(p.id)
+            tvHint.text = "${allFields.size} 个字段"
+        }
+    }
+
+    private fun showMatchedFields(hint: String?) {
+        val matched = FieldMatcher.match(hint, allFields)
+        val adapter = FieldChipAdapter(matched) { field -> commitField(field) }
+        rvFields.adapter = adapter
+        rvAllFields.adapter = FieldChipAdapter(allFields) { field -> commitField(field) }
+    }
+
+    private fun commitField(field: Field) {
+        currentInputConnection?.commitText(field.value, 1)
+    }
+
+    private fun switchProfile(delta: Int) {
+        if (profiles.isEmpty()) return
+        currentProfileIndex = (currentProfileIndex + delta + profiles.size) % profiles.size
+        val p = profiles[currentProfileIndex]
+        tvProfile.text = p.name
+        allFields = db.fieldDao().getByProfileSync(p.id)
+        tvHint.text = "${allFields.size} 个字段"
+        showMatchedFields(currentInputEditorInfo?.hintText?.toString())
+    }
+
+    private fun toggleExpand() {
+        expanded = !expanded
+        rvAllFields.visibility = if (expanded) View.VISIBLE else View.GONE
+        btnExpand.text = if (expanded) "收起 ▼" else "展开 ▲"
+    }
+}

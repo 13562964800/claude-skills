@@ -1,0 +1,302 @@
+#!/usr/bin/env python3
+# -*- encoding: utf-8 -*-
+"""
+双引擎翻译：百度翻译 API + DeepL API，将转录文本翻译为中文
+"""
+
+import os
+import sys
+import json
+import re
+import hashlib
+import random
+import time
+import argparse
+import urllib.request
+import urllib.error
+import urllib.parse
+from pathlib import Path
+
+CONFIG_PATH = Path.home() / ".clawdbot" / "translate_config.json"
+
+# 百度翻译支持的语言代码映射
+BAIDU_LANG_MAP = {
+    "en": "en", "ja": "jp", "ko": "kor", "fr": "fra", "de": "de",
+    "ru": "ru", "es": "spa", "pt": "pt", "it": "it", "ar": "ara",
+    "th": "th", "vi": "vie", "id": "id", "ms": "may",
+    "auto": "auto",
+}
+
+# DeepL 支持的语言代码
+DEEPL_LANGS = {"en", "ja", "ko", "fr", "de", "ru", "es", "pt", "it", "ar",
+               "th", "vi", "id", "ms", "zh"}
+
+
+def load_config():
+    if CONFIG_PATH.exists():
+        return json.loads(CONFIG_PATH.read_text("utf-8"))
+    return {}
+
+
+def save_config(cfg):
+    CONFIG_PATH.parent.mkdir(parents=True, exist_ok=True)
+    CONFIG_PATH.write_text(json.dumps(cfg, ensure_ascii=False, indent=2), "utf-8")
+
+
+def setup_keys():
+    """交互式配置 API 密钥"""
+    cfg = load_config()
+    print("=== 翻译 API 配置 ===\n")
+
+    print("[百度翻译 API] (https://fanyi-api.baidu.com/)")
+    cfg["baidu_appid"] = input(f"  APP ID [{cfg.get('baidu_appid','')}]: ").strip() or cfg.get("baidu_appid", "")
+    cfg["baidu_key"] = input(f"  密钥 [{cfg.get('baidu_key','')}]: ").strip() or cfg.get("baidu_key", "")
+
+    print("\n[DeepL API] (https://www.deepl.com/pro-api)")
+    cfg["deepl_key"] = input(f"  API Key [{cfg.get('deepl_key','')}]: ").strip() or cfg.get("deepl_key", "")
+    cfg["deepl_free"] = input(f"  免费版? (y/n) [{('y' if cfg.get('deepl_free', True) else 'n')}]: ").strip().lower() or ("y" if cfg.get("deepl_free", True) else "n")
+    cfg["deepl_free"] = cfg["deepl_free"] == "y"
+
+    save_config(cfg)
+    print(f"\n✅ 配置已保存到 {CONFIG_PATH}")
+
+
+def baidu_translate(text, from_lang="auto", cfg=None):
+    """百度翻译 API"""
+    appid = cfg.get("baidu_appid", "")
+    key = cfg.get("baidu_key", "")
+    if not appid or not key:
+        return None, "百度翻译未配置 APP ID 或密钥"
+
+    salt = str(random.randint(10000, 99999))
+    sign = hashlib.md5((appid + text + salt + key).encode()).hexdigest()
+
+    params = urllib.parse.urlencode({
+        "q": text, "from": BAIDU_LANG_MAP.get(from_lang, "auto"),
+        "to": "zh", "appid": appid, "salt": salt, "sign": sign,
+    })
+
+    url = "https://fanyi-api.baidu.com/api/trans/vip/translate?" + params
+    try:
+        with urllib.request.urlopen(url, timeout=30) as resp:
+            data = json.loads(resp.read())
+        if "trans_result" in data:
+            return "\n".join(r["dst"] for r in data["trans_result"]), None
+        return None, data.get("error_msg", f"百度翻译错误: {data}")
+    except Exception as e:
+        return None, f"百度翻译请求失败: {e}"
+
+
+def deepl_translate(text, from_lang="auto", cfg=None):
+    """DeepL API"""
+    key = cfg.get("deepl_key", "")
+    if not key:
+        return None, "DeepL 未配置 API Key"
+
+    base = "https://api-free.deepl.com" if cfg.get("deepl_free", True) else "https://api.deepl.com"
+    url = f"{base}/v2/translate"
+
+    payload = json.dumps({
+        "text": [text],
+        "target_lang": "ZH",
+        **({"source_lang": from_lang.upper()} if from_lang != "auto" else {}),
+    }).encode("utf-8")
+
+    req = urllib.request.Request(url, data=payload, headers={
+        "Authorization": f"DeepL-Auth-Key {key}",
+        "Content-Type": "application/json",
+    })
+    try:
+        with urllib.request.urlopen(req, timeout=30) as resp:
+            data = json.loads(resp.read())
+        return data["translations"][0]["text"], None
+    except urllib.error.HTTPError as e:
+        body = e.read().decode("utf-8", errors="replace")
+        return None, f"DeepL HTTP {e.code}: {body}"
+    except Exception as e:
+        return None, f"DeepL 请求失败: {e}"
+
+
+def translate_text(text, engine="baidu", from_lang="auto", cfg=None):
+    """统一翻译接口"""
+    if engine == "deepl":
+        return deepl_translate(text, from_lang, cfg)
+    return baidu_translate(text, from_lang, cfg)
+
+
+def translate_markdown(md_path, engine="baidu", from_lang="auto", output_path=None):
+    """翻译转录 Markdown 文件，保留时间戳格式"""
+    cfg = load_config()
+    md_path = Path(md_path)
+    content = md_path.read_text("utf-8")
+
+    lines = content.split("\n")
+    translated_lines = []
+    # 匹配时间戳行: "发言人N HH:MM:SS" 或纯时间戳
+    ts_pattern = re.compile(r"^(发言人\d+\s+)?\d{1,2}:\d{2}:\d{2}")
+    header_pattern = re.compile(r"^#{1,6}\s")
+
+    i = 0
+    batch = []  # 收集需要翻译的文本行
+    batch_indices = []  # 对应的行号
+
+    while i < len(lines):
+        line = lines[i]
+        # 保留标题、时间戳行、空行不翻译
+        if header_pattern.match(line) or ts_pattern.match(line) or line.strip() == "":
+            translated_lines.append(line)
+        else:
+            # 内容行，需要翻译
+            translated_lines.append(None)  # 占位
+            batch.append(line)
+            batch_indices.append(i)
+        i += 1
+
+    if not batch:
+        print("没有需要翻译的内容")
+        return
+
+    # 分批翻译（百度API单次限制约5000字符）
+    MAX_CHARS = 4000
+    translated = {}
+    pos = 0
+    total = len(batch)
+
+    while pos < total:
+        chunk = []
+        chunk_len = 0
+        start = pos
+        while pos < total and chunk_len + len(batch[pos]) < MAX_CHARS:
+            chunk.append(batch[pos])
+            chunk_len += len(batch[pos]) + 1
+            pos += 1
+        if not chunk:
+            chunk.append(batch[pos])
+            pos += 1
+
+        combined = "\n".join(chunk)
+        result, err = translate_text(combined, engine, from_lang, cfg)
+
+        if err:
+            print(f"⚠️  翻译错误 ({engine}): {err}")
+            # 回退到另一个引擎
+            fallback = "deepl" if engine == "baidu" else "baidu"
+            print(f"   尝试回退到 {fallback}...")
+            result, err2 = translate_text(combined, fallback, from_lang, cfg)
+            if err2:
+                print(f"⚠️  回退也失败: {err2}，保留原文")
+                result = combined
+
+        result_lines = result.split("\n")
+        for j, idx in enumerate(batch_indices[start:start + len(chunk)]):
+            translated[idx] = result_lines[j] if j < len(result_lines) else chunk[j - start]
+
+        print(f"  翻译进度: {min(pos, total)}/{total}")
+
+        # 百度免费API QPS限制
+        if engine == "baidu":
+            time.sleep(1.1)
+
+    # 填充翻译结果
+    for i in range(len(translated_lines)):
+        if translated_lines[i] is None:
+            translated_lines[i] = translated.get(i, lines[i])
+
+    # 输出
+    if output_path is None:
+        stem = md_path.stem
+        output_path = md_path.parent / f"{stem}_zh.md"
+    else:
+        output_path = Path(output_path)
+
+    output_path.write_text("\n".join(translated_lines), "utf-8")
+    print(f"✅ 翻译完成: {output_path}")
+    return str(output_path)
+
+
+def md_to_srt(md_path, srt_path=None):
+    """从转录 Markdown 生成 SRT 字幕文件"""
+    md_path = Path(md_path)
+    content = md_path.read_text("utf-8")
+    lines = content.split("\n")
+
+    ts_pattern = re.compile(r"^(?:发言人\d+\s+)?(\d{1,2}):(\d{2}):(\d{2})")
+    entries = []
+    i = 0
+    while i < len(lines):
+        m = ts_pattern.match(lines[i])
+        if m:
+            h, mn, s = int(m.group(1)), int(m.group(2)), int(m.group(3))
+            start_sec = h * 3600 + mn * 60 + s
+            # 收集后续文本行
+            text_lines = []
+            i += 1
+            while i < len(lines) and lines[i].strip() and not ts_pattern.match(lines[i]) and not lines[i].startswith("#"):
+                text_lines.append(lines[i].strip())
+                i += 1
+            if text_lines:
+                entries.append((start_sec, " ".join(text_lines)))
+        else:
+            i += 1
+
+    if not entries:
+        print("没有找到带时间戳的内容")
+        return None
+
+    # 生成 SRT
+    srt_lines = []
+    for idx, (start, text) in enumerate(entries):
+        end = entries[idx + 1][0] if idx + 1 < len(entries) else start + 5
+        if end <= start:
+            end = start + 3
+        srt_lines.append(str(idx + 1))
+        srt_lines.append(f"{start//3600:02d}:{(start%3600)//60:02d}:{start%60:02d},000 --> {end//3600:02d}:{(end%3600)//60:02d}:{end%60:02d},000")
+        srt_lines.append(text)
+        srt_lines.append("")
+
+    if srt_path is None:
+        srt_path = md_path.parent / f"{md_path.stem}.srt"
+    else:
+        srt_path = Path(srt_path)
+
+    srt_path.write_text("\n".join(srt_lines), "utf-8")
+    print(f"✅ 字幕生成: {srt_path}")
+    return str(srt_path)
+
+
+def main():
+    parser = argparse.ArgumentParser(description="翻译转录文本为中文（百度/DeepL双引擎）")
+    parser.add_argument("path", nargs="?", help="Markdown 文件路径")
+    parser.add_argument("--engine", choices=["baidu", "deepl"], default="baidu", help="翻译引擎（默认 baidu）")
+    parser.add_argument("--lang", default="auto", help="源语言代码（默认 auto）")
+    parser.add_argument("-o", "--output", help="输出文件路径")
+    parser.add_argument("--srt", action="store_true", help="同时生成 SRT 字幕文件")
+    parser.add_argument("--setup", action="store_true", help="配置 API 密钥")
+
+    args = parser.parse_args()
+
+    if args.setup:
+        setup_keys()
+        return
+
+    if not args.path:
+        parser.print_help()
+        sys.exit(1)
+
+    path = Path(args.path)
+    if path.is_dir():
+        for f in sorted(path.glob("*.md")):
+            if f.stem.endswith("_zh"):
+                continue
+            print(f"\n📄 翻译: {f.name}")
+            out = translate_markdown(f, args.engine, args.lang)
+            if args.srt and out:
+                md_to_srt(Path(out))
+    else:
+        out = translate_markdown(path, args.engine, args.lang, args.output)
+        if args.srt and out:
+            md_to_srt(Path(out))
+
+
+if __name__ == "__main__":
+    main()

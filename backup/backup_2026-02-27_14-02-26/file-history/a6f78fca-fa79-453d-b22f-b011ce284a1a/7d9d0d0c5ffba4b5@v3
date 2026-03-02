@@ -1,0 +1,133 @@
+package com.multilanglearner.domain.model
+
+import kotlinx.serialization.Serializable
+
+// 14 supported languages (from main.js LANGUAGES)
+data class Language(
+    val code: String,
+    val name: String,
+    val subCode: String,
+    val ttsLocale: String
+)
+
+val LANGUAGES = listOf(
+    Language("en", "英语", "en", "en-US"),
+    Language("ja", "日语", "ja", "ja-JP"),
+    Language("ko", "韩语", "ko", "ko-KR"),
+    Language("ru", "俄语", "ru", "ru-RU"),
+    Language("th", "泰语", "th", "th-TH"),
+    Language("vi", "越南语", "vi", "vi-VN"),
+    Language("ms", "马来语", "ms", "ms-MY"),
+    Language("id", "印尼语", "id", "id-ID"),
+    Language("ar", "阿拉伯语", "ar", "ar-SA"),
+    Language("pt", "葡萄牙语", "pt", "pt-BR"),
+    Language("es", "西班牙语", "es", "es-ES"),
+    Language("fr", "法语", "fr", "fr-FR"),
+    Language("de", "德语", "de", "de-DE"),
+    Language("hi", "印地语", "hi", "hi-IN")
+)
+
+// VTT subtitle cue
+data class SubtitleCue(
+    val index: Int,
+    val startMs: Long,
+    val endMs: Long,
+    val text: String,
+    val translation: String? = null
+)
+
+// Word-level timestamp (from .wordts.json)
+@Serializable
+data class WordTimestamp(
+    val w: String,
+    val s: Double,
+    val e: Double
+)
+
+// AI provider preset (from main.js AI_PROVIDERS)
+data class AIProvider(
+    val id: String,
+    val name: String,
+    val defaultBaseUrl: String,
+    val defaultModel: String
+)
+
+val AI_PROVIDERS = listOf(
+    AIProvider("openai", "OpenAI", "https://api.openai.com/v1", "gpt-4o-mini"),
+    AIProvider("claude", "Claude", "https://api.anthropic.com/v1", "claude-sonnet-4-20250514"),
+    AIProvider("groq", "Groq", "https://api.groq.com/openai/v1", "llama-3.3-70b-versatile"),
+    AIProvider("deepseek", "DeepSeek(深度求索)", "https://api.deepseek.com/v1", "deepseek-chat"),
+    AIProvider("qwen", "Qwen(通义千问)", "https://dashscope.aliyuncs.com/compatible-mode/v1", "qwen-plus"),
+    AIProvider("zhipu", "Zhipu(智谱清言)", "https://open.bigmodel.cn/api/paas/v4", "glm-4-flash"),
+    AIProvider("custom", "自定义(OpenAI兼容)", "", "")
+)
+
+// AI config (from ai_config.json)
+data class AIConfig(
+    val provider: String = "zhipu",
+    val apiKey: String = "bdc78cf3476546019386525e5eb8c756.AqjRKxD0nZwVNTjM",
+    val baseUrl: String = "",
+    val model: String = "",
+    val maxTokens: Int? = null,
+    val temperature: Double? = null,
+    val groqWhisperEnabled: Boolean = true,
+    val whisperModel: String = "whisper-large-v3",
+    val subtitleTranslateMode: String = "none",
+    val groqApiKey: String = "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",  // 专门的 Groq API Key 用于转录
+    val transcribeLanguage: String = ""  // 转录语言代码，空字符串表示自动检测
+)
+
+// Regulation country (from regulations.json)
+@Serializable
+data class RegulationCountry(
+    val code: String,
+    val name: String,
+    val lang: String,
+    val items: List<RegulationItem>
+)
+
+@Serializable
+data class RegulationItem(
+    val id: Long = 0,
+    val title: String,
+    val content: String,
+    val isUser: Boolean = false
+)
+
+// Word card display data
+data class WordCardData(
+    val word: String,
+    val phonetic: String = "",
+    val translation: String = "",
+    val definitions: List<Definition> = emptyList(),
+    val examples: List<String> = emptyList()
+)
+
+data class Definition(
+    val partOfSpeech: String,
+    val definition: String
+)
+
+// Video info
+data class VideoInfo(
+    val name: String,
+    val videoPath: String,
+    val subtitlePath: String? = null
+)
+
+// Baidu translate language map (from main.js BAIDU_LANG_MAP)
+val BAIDU_LANG_MAP = mapOf(
+    "en" to "en", "ja" to "jp", "ko" to "kor", "fr" to "fra",
+    "de" to "de", "ru" to "ru", "es" to "spa", "pt" to "pt",
+    "it" to "it", "ar" to "ara", "th" to "th", "vi" to "vie",
+    "id" to "id", "ms" to "may", "hi" to "hi"
+)
+
+// Whisper detected language name to code (from main.js LANG_NAME_TO_CODE)
+val LANG_NAME_TO_CODE = mapOf(
+    "english" to "en", "japanese" to "ja", "korean" to "ko",
+    "russian" to "ru", "thai" to "th", "vietnamese" to "vi",
+    "malay" to "ms", "indonesian" to "id", "arabic" to "ar",
+    "portuguese" to "pt", "spanish" to "es", "french" to "fr",
+    "german" to "de", "hindi" to "hi", "chinese" to "zh"
+)

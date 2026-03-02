@@ -1,0 +1,186 @@
+import os
+import sys
+import ctypes
+import ctypes.wintypes
+from PyQt5.QtWidgets import (QMainWindow, QWidget, QVBoxLayout, QHBoxLayout,
+                             QPushButton, QLabel, QMessageBox)
+from PyQt5.QtCore import Qt, QTimer, QUrl, QAbstractNativeEventFilter, QByteArray
+from PyQt5.QtWidgets import QApplication
+from app.widgets.import_bar import ImportBar
+from app.widgets.field_selector import FieldSelector
+from app.widgets.field_list import FieldList
+from app.widgets.favorite_dialog import FavoriteDialog, CategoryManagerDialog
+from app.core.nlp_engine import LegalFieldExtractor
+from app.core.field_filler import FieldFiller
+from app.data.db_manager import DBManager
+
+MOD_CONTROL = 0x0002
+MOD_NOREPEAT = 0x4000
+VK_Q = 0x51
+HOTKEY_ID = 1
+WM_HOTKEY = 0x0312
+
+
+class HotkeyFilter(QAbstractNativeEventFilter):
+    def __init__(self, callback):
+        super().__init__()
+        self.callback = callback
+
+    def nativeEventFilter(self, eventType, message):
+        if eventType == b"windows_generic_MSG":
+            msg = ctypes.wintypes.MSG.from_address(int(message))
+            if msg.message == WM_HOTKEY and msg.wParam == HOTKEY_ID:
+                self.callback()
+                return True, 0
+        return False, 0
+
+
+class MainWindow(QMainWindow):
+    def __init__(self):
+        super().__init__()
+        self.setWindowTitle("智能填表助手")
+        self.setMinimumSize(480, 650)
+        self.setWindowFlags(self.windowFlags() | Qt.WindowStaysOnTopHint)
+        self.setAcceptDrops(True)
+
+        self.nlp = LegalFieldExtractor()
+        self.filler = FieldFiller()
+        self.db = DBManager()
+        self.fields = []
+        self.showing_favorites = False
+
+        # 注册全局热键 Ctrl+Q
+        ctypes.windll.user32.RegisterHotKey(None, HOTKEY_ID, MOD_CONTROL | MOD_NOREPEAT, VK_Q)
+        self.hotkey_filter = HotkeyFilter(self._on_hotkey_fill)
+        QApplication.instance().installNativeEventFilter(self.hotkey_filter)
+
+        central = QWidget()
+        self.setCentralWidget(central)
+        layout = QVBoxLayout(central)
+        layout.setSpacing(8)
+
+        # 导入栏
+        self.import_bar = ImportBar()
+        self.import_bar.text_extracted.connect(self._on_text_extracted)
+        layout.addWidget(self.import_bar)
+
+        # 字段选择器
+        self.selector = FieldSelector()
+        self.selector.fill_requested.connect(self._on_fill)
+        layout.addWidget(self.selector)
+
+        # 字段列表
+        self.field_list = FieldList()
+        self.field_list.field_clicked.connect(self.selector.set_index)
+        self.field_list.field_edited.connect(self._on_field_edited)
+        self.field_list.field_deleted.connect(self._on_field_deleted)
+        self.field_list.field_favorited.connect(self._on_field_favorited)
+        layout.addWidget(self.field_list, stretch=1)
+
+        # 底部按钮栏
+        bottom = QHBoxLayout()
+        fav_btn = QPushButton("常用字段")
+        fav_btn.setObjectName("favBtn")
+        fav_btn.clicked.connect(self._on_favorite_btn)
+        bottom.addWidget(fav_btn)
+
+        cat_btn = QPushButton("管理分类")
+        cat_btn.setObjectName("smallBtn")
+        cat_btn.clicked.connect(self._on_manage_categories)
+        bottom.addWidget(cat_btn)
+
+        clear_btn = QPushButton("清空列表")
+        clear_btn.setObjectName("clearBtn")
+        clear_btn.clicked.connect(self._on_clear)
+        bottom.addWidget(clear_btn)
+
+        bottom.addStretch()
+        copyright_label = QLabel("著作权属于单夫纯律师所有")
+        copyright_label.setObjectName("copyright")
+        bottom.addWidget(copyright_label)
+        layout.addLayout(bottom)
+
+    def _on_text_extracted(self, text):
+        self.showing_favorites = False
+        self.fields = self.nlp.extract_fields(text)
+        self.selector.set_fields(self.fields)
+        self.field_list.set_fields(self.fields)
+
+    def _on_fill(self, text):
+        # 延迟让用户把鼠标移到目标位置，然后点击并粘贴
+        QTimer.singleShot(300, lambda: self.filler.click_and_paste(text))
+
+    def _on_hotkey_fill(self):
+        """全局热键 Ctrl+Q 触发：在鼠标当前位置填入当前选中字段"""
+        text = self.selector.current_text()
+        if text:
+            self.filler.click_and_paste(text)
+
+    def _on_field_edited(self, index, new_text):
+        if 0 <= index < len(self.fields):
+            self.fields[index] = new_text
+            self.selector.set_fields(self.fields)
+            self.selector.set_index(index)
+
+    def _on_field_deleted(self, index):
+        if 0 <= index < len(self.fields):
+            self.fields.pop(index)
+            self.selector.set_fields(self.fields)
+            self.field_list.set_fields(self.fields)
+
+    def _on_field_favorited(self, text):
+        dlg = FavoriteDialog(self.db, self)
+        dlg.value_input.setText(text)
+        dlg.exec_()
+
+    def _on_favorite_btn(self):
+        msg = QMessageBox(self)
+        msg.setWindowTitle("常用字段")
+        msg.setText("请选择操作：")
+        show_btn = msg.addButton("显示全部常用字段", QMessageBox.AcceptRole)
+        add_btn = msg.addButton("添加新常用字段", QMessageBox.ActionRole)
+        msg.addButton("取消", QMessageBox.RejectRole)
+        msg.exec_()
+        if msg.clickedButton() == show_btn:
+            self._show_all_favorites()
+        elif msg.clickedButton() == add_btn:
+            dlg = FavoriteDialog(self.db, self)
+            dlg.exec_()
+
+    def _show_all_favorites(self):
+        self.showing_favorites = True
+        favs = self.db.get_all_favorites()
+        self.fields = [f["value"] for f in favs]
+        self.selector.set_fields(self.fields)
+        self.field_list.set_fields(self.fields, title="常用字段列表")
+
+    def _on_manage_categories(self):
+        CategoryManagerDialog(self.db, self).exec_()
+
+    def _on_clear(self):
+        if self.showing_favorites:
+            return
+        self.fields = []
+        self.selector.set_fields([])
+        self.field_list.set_fields([])
+
+    def closeEvent(self, event):
+        ctypes.windll.user32.UnregisterHotKey(None, HOTKEY_ID)
+        super().closeEvent(event)
+
+    # 拖拽支持
+    def dragEnterEvent(self, event):
+        if event.mimeData().hasUrls():
+            event.acceptProposedAction()
+
+    def dropEvent(self, event):
+        from app.core.extractor import DocumentExtractor
+        extractor = DocumentExtractor()
+        for url in event.mimeData().urls():
+            path = url.toLocalFile()
+            ext = os.path.splitext(path)[1].lower()
+            if ext in ('.pdf', '.docx', '.xlsx', '.png', '.jpg', '.jpeg', '.bmp'):
+                text = extractor.extract(path)
+                if text:
+                    self._on_text_extracted(text)
+                break

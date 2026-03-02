@@ -1,0 +1,146 @@
+// 后台服务 Worker - 管理与本地服务的通信
+
+const LOCAL_SERVICE_URL = 'ws://localhost:8765';
+let ws = null;
+let reconnectTimer = null;
+
+// WebSocket 连接管理
+function connectToLocalService() {
+  try {
+    ws = new WebSocket(LOCAL_SERVICE_URL);
+
+    ws.onopen = () => {
+      console.log('已连接到本地服务');
+      clearTimeout(reconnectTimer);
+      updateBadge('online');
+    };
+
+    ws.onmessage = (event) => {
+      const data = JSON.parse(event.data);
+      handleServiceMessage(data);
+    };
+
+    ws.onerror = (error) => {
+      console.error('WebSocket 错误:', error);
+    };
+
+    ws.onclose = () => {
+      console.log('与本地服务断开连接');
+      updateBadge('offline');
+      // 5秒后重连
+      reconnectTimer = setTimeout(connectToLocalService, 5000);
+    };
+  } catch (error) {
+    console.error('连接失败:', error);
+    reconnectTimer = setTimeout(connectToLocalService, 5000);
+  }
+}
+
+// 处理来自本地服务的消息
+function handleServiceMessage(data) {
+  switch (data.type) {
+    case 'progress':
+      // 更新下载进度
+      chrome.storage.local.set({
+        [`task_${data.task_id}`]: data
+      });
+      // 发送通知
+      if (data.percent === '100%') {
+        chrome.notifications.create({
+          type: 'basic',
+          iconUrl: 'icons/icon48.png',
+          title: '下载完成',
+          message: `${data.title} 已下载完成`
+        });
+      }
+      break;
+
+    case 'transcription_complete':
+      chrome.notifications.create({
+        type: 'basic',
+        iconUrl: 'icons/icon48.png',
+        title: '转录完成',
+        message: `${data.title} 转录完成 (${data.engine})`
+      });
+      break;
+
+    case 'error':
+      chrome.notifications.create({
+        type: 'basic',
+        iconUrl: 'icons/icon48.png',
+        title: '错误',
+        message: data.message
+      });
+      break;
+  }
+}
+
+// 更新扩展图标状态
+function updateBadge(status) {
+  const color = status === 'online' ? '#00FF00' : '#FF0000';
+  const text = status === 'online' ? '' : '!';
+  chrome.action.setBadgeBackgroundColor({ color });
+  chrome.action.setBadgeText({ text });
+}
+
+// 监听来自 Content Script 的消息
+chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
+  if (message.action === 'download') {
+    handleDownloadRequest(message.data, sender.tab);
+    sendResponse({ success: true });
+  } else if (message.action === 'getCookies') {
+    getCookiesForDomain(message.domain).then(cookies => {
+      sendResponse({ cookies });
+    });
+    return true; // 异步响应
+  }
+});
+
+// 处理下载请求
+async function handleDownloadRequest(data, tab) {
+  // 获取 Cookie
+  const domain = new URL(data.url).hostname;
+  const cookies = await getCookiesForDomain(domain);
+
+  // 发送到本地服务
+  const payload = {
+    action: 'download',
+    url: data.url,
+    title: data.title,
+    cookies: cookies,
+    tab_id: tab.id
+  };
+
+  if (ws && ws.readyState === WebSocket.OPEN) {
+    ws.send(JSON.stringify(payload));
+
+    // 显示通知
+    chrome.notifications.create({
+      type: 'basic',
+      iconUrl: 'icons/icon48.png',
+      title: '开始下载',
+      message: `正在下载: ${data.title}`
+    });
+  } else {
+    chrome.notifications.create({
+      type: 'basic',
+      iconUrl: 'icons/icon48.png',
+      title: '连接失败',
+      message: '无法连接到本地服务，请确保服务已启动'
+    });
+  }
+}
+
+// 获取指定域名的 Cookie
+async function getCookiesForDomain(domain) {
+  const cookies = await chrome.cookies.getAll({ domain });
+  return cookies.map(cookie => ({
+    name: cookie.name,
+    value: cookie.value,
+    domain: cookie.domain,
+    path: cookie.path
+  }));
+}
+
+// 启动时连接到本地服务
+connectToLocalService();

@@ -1,0 +1,319 @@
+package com.multilanglearner.data.network
+
+import android.util.Log
+import com.multilanglearner.domain.model.AIConfig
+import com.multilanglearner.domain.model.WordTimestamp
+import kotlinx.coroutines.*
+import java.io.File
+import java.util.concurrent.TimeUnit
+import javax.inject.Inject
+import javax.inject.Singleton
+
+/**
+ * 分段转录服务 - 处理大视频文件的分段转录
+ */
+@Singleton
+class SegmentedWhisperService @Inject constructor(
+    private val whisperService: WhisperService
+) {
+    companion object {
+        private const val TAG = "SegmentedWhisper"
+        // 每段最大时长（秒）- Groq API 限制
+        private const val SEGMENT_DURATION_SECONDS = 300L // 5分钟
+        // 段间重叠时间（秒）- 避免遗漏边界语音
+        private const val OVERLAP_SECONDS = 5L
+        // 每段最大文件大小（MB）- 保守估计
+        private const val SEGMENT_MAX_SIZE_MB = 80L
+    }
+
+    private val serviceScope = CoroutineScope(Dispatchers.IO + SupervisorJob())
+
+    /**
+     * 分段转录视频文件
+     * @param videoFile 视频文件
+     * @param config AI配置
+     * @param onProgress 进度回调 (当前段, 总段数, 进度百分比, 状态消息)
+     * @return 转录结果
+     */
+    suspend fun transcribeSegmented(
+        videoFile: File,
+        config: AIConfig,
+        onProgress: (Int, Int, Int, String) -> Unit = { _, _, _, _ -> }
+   ): WhisperResult? = withContext(Dispatchers.IO) {
+        try {
+            val fileSize = videoFile.length()
+            val fileSizeMB = fileSize / (1024.0 * 1024.0)
+
+            Log.d(TAG, "Starting segmented transcription: file=${videoFile.name}, size=$fileSizeMB MB")
+
+            // 检查是否需要分段
+            val maxSingleFileSize = 100 * 1024 * 1024L // 100MB
+            if (fileSize <= maxSingleFileSize) {
+                Log.d(TAG, "File within single segment limit, using normal transcription")
+                onProgress(1, 1, 10, "文件较小，直接转录...")
+                return@withContext whisperService.transcribeGroq(videoFile, config)
+            }
+
+            // 计算视频时长
+            val duration = getVideoDuration(videoFile)
+            if (duration == null) {
+                Log.e(TAG, "Failed to get video duration")
+                return@withContext WhisperResult(
+                    success = false,
+                    error = "❌ 无法获取视频时长\n\n请确保视频文件完整且可播放"
+                )
+            }
+
+            Log.d(TAG, "Video duration: ${duration} seconds")
+
+            // 计算分段策略
+            val segments = calculateSegments(duration, fileSize)
+            val totalSegments = segments.size
+
+            Log.d(TAG, "Will transcribe in $totalSegments segments")
+            onProgress(0, totalSegments, 0, "准备分段转录...")
+
+            // 创建临时目录
+            val tempDir = File(videoFile.parent, ".temp_transcription_${System.currentTimeMillis()}")
+            tempDir.mkdirs()
+
+            try {
+                // 转录所有分段
+                val allWords = mutableListOf<WordTimestamp>()
+                val allText = StringBuilder()
+
+                segments.forEachIndexed { index, segment ->
+                    val segmentFile = extractSegment(videoFile, segment, tempDir, index)
+
+                    if (segmentFile == null || !segmentFile.exists()) {
+                        Log.e(TAG, "Failed to extract segment $index")
+                        onProgress(index + 1, totalSegments, ((index + 1) * 100 / totalSegments),
+                            "第 ${index + 1}/$totalSegments 段提取失败")
+                        return@forEachIndexed
+                    }
+
+                    onProgress(index + 1, totalSegments, ((index + 1) * 100 / totalSegments),
+                        "正在转录第 ${index + 1}/$totalSegments 段...")
+
+                    // 转录该段
+                    val result = whisperService.transcribeGroq(segmentFile, config)
+
+                    if (result?.success == true) {
+                        // 调整时间戳并合并
+                        val adjustedWords = result.words.map { wt ->
+                            wt.copy(s = wt.s + segment.startTime, e = wt.e + segment.startTime)
+                        }
+
+                        // 去除重叠部分的重复转录
+                        if (index > 0) {
+                            val overlapThreshold = segment.startTime - OVERLAP_SECONDS
+                            val filteredWords = adjustedWords.filter { it.s >= overlapThreshold }
+                            allWords.addAll(filteredWords)
+                        } else {
+                            allWords.addAll(adjustedWords)
+                        }
+
+                        allText.append(result.text).append(" ")
+
+                        // 删除临时分段文件
+                        segmentFile.delete()
+
+                        Log.d(TAG, "Segment $index transcribed successfully: ${result.words.size} words")
+                    } else {
+                        Log.e(TAG, "Segment $index transcription failed: ${result?.error}")
+                    }
+                }
+
+                // 清理临时目录
+                tempDir.deleteRecursively()
+
+                if (allWords.isEmpty()) {
+                    return@withContext WhisperResult(
+                        success = false,
+                        error = "❌ 转录失败\n\n所有分段转录均失败，请检查网络连接和 API Key"
+                    )
+                }
+
+                // 构建句子（基于标点符号）
+                val sentences = buildSentencesFromWords(allWords)
+                val fullText = sentences.joinToString(" ")
+
+                Log.d(TAG, "Transcription complete: ${allWords.size} words, ${sentences.size} sentences")
+                onProgress(totalSegments, totalSegments, 100, "转录完成！")
+
+                WhisperResult(
+                    success = true,
+                    text = fullText,
+                    words = allWords,
+                    detectedLang = ""
+                )
+
+            } catch (e: Exception) {
+                tempDir.deleteRecursively()
+                Log.e(TAG, "Segmented transcription error", e)
+                WhisperResult(
+                    success = false,
+                    error = "❌ 转录失败\n\n${e.message}"
+                )
+            }
+
+        } catch (e: Exception) {
+            Log.e(TAG, "Transcription error", e)
+            WhisperResult(
+                success = false,
+                error = "❌ 转录失败\n\n${e.message}"
+            )
+        }
+    }
+
+    /**
+     * 计算分段策略
+     */
+    private fun calculateSegments(duration: Double, fileSize: Long): List<VideoSegment> {
+        val segments = mutableListOf<VideoSegment>()
+        val segmentDuration = SEGMENT_DURATION_SECONDS.toDouble()
+
+        var currentTime = 0.0
+        var segmentIndex = 0
+
+        while (currentTime < duration) {
+            val endTime = (currentTime + segmentDuration).coerceAtMost(duration)
+            segments.add(VideoSegment(segmentIndex, currentTime, endTime))
+
+            currentTime = endTime - OVERLAP_SECONDS // 重叠
+            segmentIndex++
+        }
+
+        return segments
+    }
+
+    /**
+     * 提取视频分段
+     */
+    private suspend fun extractSegment(
+        videoFile: File,
+        segment: VideoSegment,
+        tempDir: File,
+        index: Int
+    ): File? = withContext(Dispatchers.IO) {
+        try {
+            val outputFile = File(tempDir, "segment_${index}_audio.mp4")
+
+            // 使用 ffmpeg 提取音频片段
+            val processBuilder = ProcessBuilder(
+                "ffmpeg",
+                "-y", // 覆盖输出文件
+                "-ss", "${segment.startTime}", // 开始时间
+                "-t", "${segment.endTime - segment.startTime}", // 持续时间
+                "-i", videoFile.absolutePath, // 输入文件
+                "-vn", // 不包含视频
+                "-acodec", "aac", // 音频编码
+                "-b:a", "128k", // 比特率
+                outputFile.absolutePath
+            )
+
+            processBuilder.redirectErrorStream(true)
+            val process = processBuilder.start()
+
+            // 读取输出以避免阻塞
+            process.inputStream.bufferedReader().use { reader ->
+                val output = StringBuilder()
+                var line: String?
+                while (process.isAlive) {
+                    line = reader.readLine()
+                    if (line != null) {
+                        output.appendLine(line)
+                    }
+                }
+                // 读取剩余输出
+                while (reader.readLine().also { line = it } != null) {
+                    output.appendLine(line)
+                }
+                Log.d(TAG, "FFmpeg output for segment $index:\n$output")
+            }
+
+            val exitCode = process.waitFor()
+            if (exitCode == 0 && outputFile.exists() && outputFile.length() > 1024) {
+                Log.d(TAG, "Segment $index extracted successfully: ${outputFile.length()} bytes")
+                outputFile
+            } else {
+                Log.e(TAG, "Failed to extract segment $index, exit code: $exitCode")
+                outputFile.delete()
+                null
+            }
+
+        } catch (e: Exception) {
+            Log.e(TAG, "Error extracting segment $index", e)
+            null
+        }
+    }
+
+    /**
+     * 获取视频时长（秒）
+     */
+    private fun getVideoDuration(videoFile: File): Double? {
+        return try {
+            val processBuilder = ProcessBuilder(
+                "ffmpeg",
+                "-i", videoFile.absolutePath,
+                "-f", "null",
+                "-"
+            )
+            processBuilder.redirectErrorStream(true)
+            val process = processBuilder.start()
+
+            val output = process.inputStream.bufferedReader().use { it.readText() }
+            process.waitFor()
+
+            // 解析时长: Duration: 00:05:23.45
+            val durationPattern = Regex("Duration: (\\d+):(\\d+):(\\d+)\\.(\\d+)")
+            val match = durationPattern.find(output)
+
+            match?.groupValues?.let { groups ->
+                val hours = groups[1].toDoubleOrNull() ?: 0.0
+                val minutes = groups[2].toDoubleOrNull() ?: 0.0
+                val seconds = groups[3].toDoubleOrNull() ?: 0.0
+                val centiseconds = groups[4].toDoubleOrNull() ?: 0.0
+
+                hours * 3600 + minutes * 60 + seconds + centiseconds / 100
+            }
+        } catch (e: Exception) {
+            Log.e(TAG, "Error getting video duration", e)
+            null
+        }
+    }
+
+    /**
+     * 从单词时间戳构建句子
+     */
+    private fun buildSentencesFromWords(words: List<WordTimestamp>): List<String> {
+        val sentences = mutableListOf<String>()
+        val currentSentence = mutableListOf<String>()
+
+        words.forEach { wt ->
+            currentSentence.add(wt.w)
+
+            // 检查句子结束
+            if (wt.w.trim().matches(Regex(".*[.!?。！？]$"))) {
+                sentences.add(currentSentence.joinToString(" "))
+                currentSentence.clear()
+            }
+        }
+
+        // 添加最后一个未完成的句子
+        if (currentSentence.isNotEmpty()) {
+            sentences.add(currentSentence.joinToString(" "))
+        }
+
+        return sentences
+    }
+}
+
+/**
+ * 视频分段数据类
+ */
+data class VideoSegment(
+    val index: Int,
+    val startTime: Double,
+    val endTime: Double
+)

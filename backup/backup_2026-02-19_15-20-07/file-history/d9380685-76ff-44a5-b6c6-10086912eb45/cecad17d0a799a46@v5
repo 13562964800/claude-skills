@@ -1,0 +1,444 @@
+const { ipcRenderer } = require('electron');
+
+// DOM
+const urlInput = document.getElementById('urlInput');
+const pasteBtn = document.getElementById('pasteBtn');
+const langSelect = document.getElementById('langSelect');
+const downloadBtn = document.getElementById('downloadBtn');
+const progressRow = document.getElementById('progressRow');
+const progressFill = document.getElementById('progressFill');
+const statusText = document.getElementById('statusText');
+const videoSelect = document.getElementById('videoSelect');
+const playerArea = document.getElementById('playerArea');
+const videoPlayer = document.getElementById('videoPlayer');
+const subtitleArea = document.getElementById('subtitleArea');
+const subtitleText = document.getElementById('subtitleText');
+const aiAnalyzeBtn = document.getElementById('aiAnalyzeBtn');
+const aiResult = document.getElementById('aiResult');
+const dictationArea = document.getElementById('dictationArea');
+const dictationSentence = document.getElementById('dictationSentence');
+const speakBtn = document.getElementById('speakBtn');
+const checkBtn = document.getElementById('checkBtn');
+const nextBtn = document.getElementById('nextBtn');
+const learnModeBtn = document.getElementById('learnModeBtn');
+const dictationModeBtn = document.getElementById('dictationModeBtn');
+const wordPopup = document.getElementById('wordPopup');
+const popupWord = document.getElementById('popupWord');
+const popupPhonetic = document.getElementById('popupPhonetic');
+const popupSpeak = document.getElementById('popupSpeak');
+const popupClose = document.getElementById('popupClose');
+const popupTranslation = document.getElementById('popupTranslation');
+const popupExamples = document.getElementById('popupExamples');
+const popupAiBtn = document.getElementById('popupAiBtn');
+const popupAiResult = document.getElementById('popupAiResult');
+const aiSettingsBtn = document.getElementById('aiSettingsBtn');
+const aiModal = document.getElementById('aiModal');
+const aiModalClose = document.getElementById('aiModalClose');
+const aiProvider = document.getElementById('aiProvider');
+const aiApiKey = document.getElementById('aiApiKey');
+const aiBaseUrl = document.getElementById('aiBaseUrl');
+const aiModel = document.getElementById('aiModel');
+const aiPresetInfo = document.getElementById('aiPresetInfo');
+const aiSaveBtn = document.getElementById('aiSaveBtn');
+
+let subtitles = [];
+let currentSubIndex = -1;
+let currentMode = 'learn';
+let currentLang = 'en';
+let languages = {};
+let aiProviders = {};
+let dictationIndex = 0;
+let currentSentence = '';
+
+// 初始化
+(async () => {
+  languages = await ipcRenderer.invoke('get-languages');
+  for (const [code, info] of Object.entries(languages)) {
+    const opt = document.createElement('option');
+    opt.value = code; opt.textContent = info.name;
+    langSelect.appendChild(opt);
+  }
+  langSelect.value = 'en';
+
+  aiProviders = await ipcRenderer.invoke('get-ai-providers');
+  for (const [key, info] of Object.entries(aiProviders)) {
+    const opt = document.createElement('option');
+    opt.value = key; opt.textContent = info.name;
+    aiProvider.appendChild(opt);
+  }
+
+  const cfg = await ipcRenderer.invoke('get-ai-config');
+  aiProvider.value = cfg.provider || 'deepseek';
+  aiApiKey.value = cfg.apiKey || '';
+  aiBaseUrl.value = cfg.baseUrl || '';
+  aiModel.value = cfg.model || '';
+  updatePresetInfo();
+
+  refreshVideoList();
+})();
+
+// AI设置
+aiSettingsBtn.addEventListener('click', () => aiModal.classList.add('show'));
+aiModalClose.addEventListener('click', () => aiModal.classList.remove('show'));
+aiModal.addEventListener('click', (e) => { if (e.target === aiModal) aiModal.classList.remove('show'); });
+
+aiProvider.addEventListener('change', updatePresetInfo);
+function updatePresetInfo() {
+  const p = aiProviders[aiProvider.value];
+  if (p) aiPresetInfo.textContent = `默认: ${p.baseUrl} | 模型: ${p.model}`;
+}
+
+aiSaveBtn.addEventListener('click', async () => {
+  await ipcRenderer.invoke('save-ai-config', {
+    provider: aiProvider.value,
+    apiKey: aiApiKey.value.trim(),
+    baseUrl: aiBaseUrl.value.trim(),
+    model: aiModel.value.trim()
+  });
+  aiModal.classList.remove('show');
+});
+
+// 粘贴
+pasteBtn.addEventListener('click', async () => {
+  try {
+    const text = await navigator.clipboard.readText();
+    const m = text.match(/https?:\/\/[^\s"'<>]+/);
+    urlInput.value = m ? m[0] : text.trim();
+  } catch(e) {}
+});
+
+// 下载
+downloadBtn.addEventListener('click', async () => {
+  const url = urlInput.value.trim();
+  if (!url) return;
+  currentLang = langSelect.value;
+  downloadBtn.disabled = true;
+  progressRow.style.display = 'flex';
+  progressFill.style.width = '0%';
+  statusText.textContent = '正在下载...';
+  const result = await ipcRenderer.invoke('download-video', url, currentLang);
+  downloadBtn.disabled = false;
+  if (result.success) {
+    progressFill.style.width = '100%';
+    statusText.textContent = '下载完成!';
+    await refreshVideoList();
+    if (result.videoPath) loadVideo(result.videoPath, result.subtitlePath);
+  } else {
+    statusText.textContent = '失败: ' + result.error;
+  }
+});
+
+ipcRenderer.on('download-progress', (_, p) => {
+  progressFill.style.width = p.percent + '%';
+  statusText.textContent = `下载中 ${p.percent.toFixed(0)}%`;
+});
+
+// 视频列表
+async function refreshVideoList() {
+  const videos = await ipcRenderer.invoke('list-videos');
+  videoSelect.innerHTML = '<option value="">-- 选择视频 --</option>';
+  for (const v of videos) {
+    const opt = document.createElement('option');
+    opt.value = JSON.stringify(v); opt.textContent = v.name;
+    videoSelect.appendChild(opt);
+  }
+}
+
+videoSelect.addEventListener('change', () => {
+  if (!videoSelect.value) return;
+  loadVideo(...(v => [v.videoPath, v.subtitlePath])(JSON.parse(videoSelect.value)));
+});
+
+async function loadVideo(videoPath, subtitlePath) {
+  playerArea.style.display = 'block';
+  videoPlayer.src = 'file:///' + videoPath.replace(/\\/g, '/');
+  subtitles = []; currentSubIndex = -1;
+  subtitleText.textContent = '加载字幕中...';
+  aiAnalyzeBtn.style.display = 'none';
+  aiResult.style.display = 'none';
+  const subtitleList = document.getElementById('subtitleList');
+  subtitleList.innerHTML = '';
+  if (subtitlePath) {
+    const vtt = await ipcRenderer.invoke('read-subtitle', subtitlePath);
+    if (vtt) {
+      subtitles = parseVTT(vtt);
+      buildSubtitleList();
+      subtitleText.textContent = subtitles.length > 0
+        ? `已加载 ${subtitles.length} 条字幕，播放视频即可同步显示`
+        : '未找到有效字幕';
+    } else {
+      subtitleText.textContent = '字幕文件读取失败';
+    }
+  } else {
+    subtitleText.textContent = '该视频没有字幕文件';
+  }
+}
+
+// VTT解析 (处理YouTube自动字幕的双行格式)
+function parseVTT(vtt) {
+  const raw = [];
+  for (const block of vtt.split(/\n\n+/)) {
+    const lines = block.trim().split('\n');
+    for (let i = 0; i < lines.length; i++) {
+      const m = lines[i].match(/(\d{2}):(\d{2}):(\d{2})\.(\d{3})\s*-->\s*(\d{2}):(\d{2}):(\d{2})\.(\d{3})/);
+      if (!m) continue;
+      const start = +m[1]*3600 + +m[2]*60 + +m[3] + +m[4]/1000;
+      const end = +m[5]*3600 + +m[6]*60 + +m[7] + +m[8]/1000;
+      // 跳过极短条目(YouTube自动字幕的过渡帧)
+      if (end - start < 0.05) break;
+      // 取最后一行非空文本(YouTube双行字幕中新内容在最后一行)
+      const textLines = lines.slice(i+1).map(l => l.replace(/<[^>]+>/g, '').trim()).filter(Boolean);
+      const text = textLines.length > 0 ? textLines[textLines.length - 1] : '';
+      if (text) raw.push({ start, end, text });
+      break;
+    }
+  }
+  // 合并连续相同文本，去重
+  const result = [];
+  for (const s of raw) {
+    if (result.length > 0 && result[result.length-1].text === s.text) {
+      result[result.length-1].end = s.end; // 延长时间
+    } else {
+      result.push({ ...s });
+    }
+  }
+  return result;
+}
+
+// 字幕同步 (用setInterval确保可靠触发)
+let syncTimer = null;
+function startSubtitleSync() {
+  if (syncTimer) clearInterval(syncTimer);
+  syncTimer = setInterval(() => {
+    if (!subtitles.length || currentMode !== 'learn' || videoPlayer.paused) return;
+    const t = videoPlayer.currentTime;
+    let idx = subtitles.findIndex(s => t >= s.start && t <= s.end);
+    if (idx < 0) {
+      idx = subtitles.findIndex(s => s.start > t);
+      if (idx < 0) idx = subtitles.length - 1;
+      if (idx > 0 && (t - subtitles[idx-1].end) < (subtitles[idx].start - t)) idx = idx - 1;
+    }
+    if (idx !== currentSubIndex) {
+      currentSubIndex = idx;
+      currentSentence = subtitles[idx].text;
+      renderSubtitle(currentSentence);
+      aiAnalyzeBtn.style.display = 'inline-block';
+      aiResult.style.display = 'none';
+      highlightSubtitleList(idx);
+    }
+  }, 200);
+}
+videoPlayer.addEventListener('play', startSubtitleSync);
+videoPlayer.addEventListener('seeked', () => { currentSubIndex = -1; });
+
+function renderSubtitle(text) {
+  subtitleText.innerHTML = '';
+  for (const w of text.split(/(\s+)/)) {
+    if (/^\s+$/.test(w)) { subtitleText.appendChild(document.createTextNode(' ')); continue; }
+    const span = document.createElement('span');
+    span.className = 'word'; span.textContent = w;
+    span.addEventListener('click', (e) => {
+      e.stopPropagation();
+      const clean = cleanWord(w);
+      if (clean) showWordPopup(clean, e.clientX, e.clientY);
+    });
+    subtitleText.appendChild(span);
+  }
+}
+
+function cleanWord(w) {
+  return w.replace(/[^\p{L}\p{M}'-]/gu, '');
+}
+
+// 字幕滚动列表
+function formatTime(s) {
+  const m = Math.floor(s / 60), sec = Math.floor(s % 60);
+  return m + ':' + String(sec).padStart(2, '0');
+}
+
+function buildSubtitleList() {
+  const list = document.getElementById('subtitleList');
+  list.innerHTML = '';
+  subtitles.forEach((s, i) => {
+    const row = document.createElement('div');
+    row.className = 'sub-list-item';
+    row.dataset.idx = i;
+    row.innerHTML = `<span class="sub-time">${formatTime(s.start)}</span><span class="sub-content">${s.text}</span>`;
+    row.addEventListener('click', () => {
+      videoPlayer.currentTime = s.start;
+      videoPlayer.play();
+    });
+    list.appendChild(row);
+  });
+}
+
+function highlightSubtitleList(idx) {
+  const list = document.getElementById('subtitleList');
+  list.querySelectorAll('.sub-list-item').forEach(el => el.classList.remove('active'));
+  const active = list.querySelector(`[data-idx="${idx}"]`);
+  if (active) {
+    active.classList.add('active');
+    active.scrollIntoView({ behavior: 'smooth', block: 'center' });
+  }
+}
+
+// AI分析句子
+aiAnalyzeBtn.addEventListener('click', async () => {
+  if (!currentSentence) return;
+  aiResult.style.display = 'block';
+  aiResult.textContent = '🤖 AI分析中...';
+  const result = await ipcRenderer.invoke('ai-analyze-sentence', currentSentence, currentLang);
+  aiResult.textContent = result || 'AI未配置或请求失败，请在设置中配置API Key';
+});
+
+// 模式切换
+learnModeBtn.addEventListener('click', () => switchMode('learn'));
+dictationModeBtn.addEventListener('click', () => switchMode('dictation'));
+
+function switchMode(mode) {
+  currentMode = mode;
+  learnModeBtn.classList.toggle('active', mode === 'learn');
+  dictationModeBtn.classList.toggle('active', mode === 'dictation');
+  subtitleArea.style.display = mode === 'learn' ? 'block' : 'none';
+  document.getElementById('subtitleList').style.display = mode === 'learn' ? 'block' : 'none';
+  dictationArea.style.display = mode === 'dictation' ? 'block' : 'none';
+  aiResult.style.display = 'none';
+  if (mode === 'dictation') {
+    dictationIndex = currentSubIndex >= 0 ? currentSubIndex : 0;
+    renderDictation();
+  } else if (mode === 'learn') {
+    // 切回学习模式时强制刷新字幕
+    currentSubIndex = -1;
+  }
+}
+
+// 听写模式
+function renderDictation() {
+  dictationSentence.innerHTML = '';
+  if (dictationIndex < 0 || dictationIndex >= subtitles.length) {
+    dictationSentence.textContent = '没有字幕可用'; return;
+  }
+  const text = subtitles[dictationIndex].text;
+  for (const w of text.split(/\s+/).filter(Boolean)) {
+    const group = document.createElement('div');
+    group.className = 'dict-word-group';
+    const input = document.createElement('input');
+    input.type = 'text';
+    input.dataset.answer = cleanWord(w);
+    input.style.width = Math.max(50, w.length * 12) + 'px';
+    group.appendChild(input);
+    const clickable = document.createElement('span');
+    clickable.className = 'word-clickable'; clickable.textContent = '查词';
+    clickable.addEventListener('click', (e) => {
+      e.stopPropagation();
+      const clean = cleanWord(w);
+      if (clean) showWordPopup(clean, e.clientX, e.clientY);
+    });
+    group.appendChild(clickable);
+    dictationSentence.appendChild(group);
+  }
+}
+
+speakBtn.addEventListener('click', () => {
+  if (dictationIndex >= 0 && dictationIndex < subtitles.length) speak(subtitles[dictationIndex].text);
+});
+
+checkBtn.addEventListener('click', () => {
+  dictationSentence.querySelectorAll('input').forEach(input => {
+    const answer = input.dataset.answer.toLowerCase();
+    const val = input.value.trim().toLowerCase();
+    if (val === answer) {
+      input.className = 'correct';
+    } else {
+      input.className = 'wrong';
+      let hint = input.parentElement.querySelector('.answer-hint');
+      if (!hint) { hint = document.createElement('div'); hint.className = 'answer-hint'; input.parentElement.appendChild(hint); }
+      hint.textContent = input.dataset.answer;
+    }
+  });
+});
+
+nextBtn.addEventListener('click', () => {
+  dictationIndex = Math.min(dictationIndex + 1, subtitles.length - 1);
+  renderDictation();
+  if (subtitles[dictationIndex]) videoPlayer.currentTime = subtitles[dictationIndex].start;
+});
+
+// TTS
+function speak(text, lang) {
+  speechSynthesis.cancel();
+  const u = new SpeechSynthesisUtterance(text);
+  u.lang = lang || (languages[currentLang]?.tts || 'en-US');
+  u.rate = 0.9;
+  speechSynthesis.speak(u);
+}
+
+// 单词弹窗
+async function showWordPopup(word, x, y) {
+  popupWord.textContent = word;
+  popupPhonetic.textContent = '';
+  popupTranslation.textContent = '查询中...';
+  popupExamples.innerHTML = '';
+  popupAiResult.style.display = 'none';
+  wordPopup.style.display = 'block';
+
+  let left = x + 10, top = y + 10;
+  if (left + 340 > window.innerWidth) left = window.innerWidth - 350;
+  if (top + 300 > window.innerHeight) top = y - 310;
+  if (left < 10) left = 10; if (top < 10) top = 10;
+  wordPopup.style.left = left + 'px'; wordPopup.style.top = top + 'px';
+
+  speak(word);
+
+  if (currentLang === 'en') {
+    const [ecdict, online] = await Promise.all([
+      ipcRenderer.invoke('lookup-word', word),
+      ipcRenderer.invoke('fetch-examples', word)
+    ]);
+    let trans = '';
+    if (ecdict?.translation) {
+      trans = ecdict.translation;
+      if (ecdict.phonetic) popupPhonetic.textContent = '/' + ecdict.phonetic + '/';
+    } else if (online?.definitions) {
+      trans = online.definitions.map(d => d.definition).join('\n');
+    } else {
+      const tr = await ipcRenderer.invoke('translate-word', word, 'en');
+      trans = tr?.translation || '未找到释义';
+    }
+    popupTranslation.textContent = trans;
+    if (online) {
+      if (online.phonetic && !popupPhonetic.textContent) popupPhonetic.textContent = online.phonetic;
+      let html = '';
+      if (online.definitions) html += online.definitions.map(d => `<div class="def-item"><span class="pos">${d.partOfSpeech||''}</span>${d.definition}</div>`).join('');
+      if (online.examples) html += online.examples.map(e => `<div class="example">${e}</div>`).join('');
+      popupExamples.innerHTML = html;
+    }
+  } else {
+    const tr = await ipcRenderer.invoke('translate-word', word, currentLang);
+    popupTranslation.textContent = tr?.translation || '未找到释义';
+    if (tr?.matches?.length) {
+      popupExamples.innerHTML = tr.matches.map(m => `<div class="example">${m.segment} → ${m.translation}</div>`).join('');
+    }
+  }
+}
+
+// AI智能释义按钮
+popupAiBtn.addEventListener('click', async () => {
+  const word = popupWord.textContent;
+  if (!word) return;
+  popupAiResult.style.display = 'block';
+  popupAiResult.textContent = '🤖 AI分析中...';
+  const result = await ipcRenderer.invoke('ai-lookup', word, currentLang, currentSentence);
+  popupAiResult.textContent = result || 'AI未配置，请点击右上角 ⚙AI 设置';
+});
+
+popupSpeak.addEventListener('click', () => speak(popupWord.textContent));
+popupClose.addEventListener('click', () => wordPopup.style.display = 'none');
+
+document.addEventListener('click', (e) => {
+  if (!wordPopup.contains(e.target) && !e.target.classList.contains('word') && !e.target.classList.contains('word-clickable')) {
+    wordPopup.style.display = 'none';
+  }
+});
+
+langSelect.addEventListener('change', () => { currentLang = langSelect.value; });

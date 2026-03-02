@@ -1,0 +1,44 @@
+package com.court.assistant.ui.theme
+
+import androidx.compose.material3.*
+import androidx.compose.runtime.Composable
+import androidx.compose.ui.graphics.Color
+
+// 宋式美学配色 - 素雅中式风格
+val Ivory = Color(0xFFFFF8F0)          // 米白底色
+val WarmWhite = Color(0xFFFFFDF5)      // 暖白
+val InkBlack = Color(0xFF1A1A1A)       // 墨色文字（更深黑）
+val CharcoalGray = Color(0xFF3A3A3A)   // 深灰（加深）
+val CinnabarRed = Color(0xFFC04851)    // 朱红点缀
+val LightCinnabar = Color(0xFFE8939A)  // 浅朱红
+val MistGray = Color(0xFFE8E4DF)       // 雾灰分割线
+val ParchmentBg = Color(0xFFF5F0E8)    // 羊皮纸背景
+val JadeGreen = Color(0xFF5B8C5A)      // 玉绿（成功色）
+val AmberGold = Color(0xFFD4A843)      // 琥珀金
+
+private val CourtColorScheme = lightColorScheme(
+    primary = CinnabarRed,
+    onPrimary = Color.White,
+    primaryContainer = LightCinnabar.copy(alpha = 0.3f),
+    onPrimaryContainer = CinnabarRed,
+    secondary = CharcoalGray,
+    onSecondary = Color.White,
+    background = Ivory,
+    onBackground = InkBlack,
+    surface = WarmWhite,
+    onSurface = InkBlack,
+    surfaceVariant = ParchmentBg,
+    onSurfaceVariant = CharcoalGray,
+    outline = MistGray,
+    tertiary = JadeGreen,
+    tertiaryContainer = AmberGold
+)
+
+@Composable
+fun CourtAssistantTheme(content: @Composable () -> Unit) {
+    MaterialTheme(
+        colorScheme = CourtColorScheme,
+        typography = CourtTypography,
+        content = content
+    )
+}

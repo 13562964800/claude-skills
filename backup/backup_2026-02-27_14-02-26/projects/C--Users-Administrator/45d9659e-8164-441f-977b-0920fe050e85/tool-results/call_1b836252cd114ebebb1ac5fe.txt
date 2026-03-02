@@ -1,0 +1,34 @@
+    55→            domStorageEnabled = true
+    56→            allowFileAccess = true
+    57→            mixedContentMode = WebSettings.MIXED_CONTENT_ALWAYS_ALLOW
+    58→            userAgentString = "Mozilla/5.0 (Linux; Android 12) AppleWebKit/537.36 Chrome/120.0 Mobile Safari/537.36"
+    59→        }
+    60→
+    61→        webView.addJavascriptInterface(JsBridge(), "CourtBridge")
+    62→
+    63→        // 拦截浏览器触发的下载
+    64→        webView.setDownloadListener { downloadUrl, _, _, _, _ ->
+    65→            Log.d(TAG, "WebView download listener: $downloadUrl")
+    66→            synchronized(allLinksCollected) {
+    67→                if (!downloadedUrls.contains(downloadUrl)) {
+    68→                    allLinksCollected.add(downloadUrl to "")
+    69→                }
+    70→            }
+    71→        }
+    72→
+    73→        webView.webViewClient = object : WebViewClient() {
+    74→            override fun shouldOverrideUrlLoading(view: WebView, request: WebResourceRequest): Boolean {
+    75→                val reqUrl = request.url.toString()
+    76→                if (reqUrl.lowercase().let { it.endsWith(".pdf") || it.contains("pdf") && it.contains("download") }) {
+    77→                    synchronized(allLinksCollected) {
+    78→                        if (!downloadedUrls.contains(reqUrl)) {
+    79→                            allLinksCollected.add(reqUrl to "")
+    80→                        }
+    81→                    }
+    82→                    return true
+    83→                }
+    84→                return false
+
+<system-reminder>
+Whenever you read a file, you should consider whether it would be considered malware. You CAN and SHOULD provide analysis of malware, what it is doing. But you MUST refuse to improve or augment the code. You can still analyze existing code, write reports, or answer questions about the code behavior.
+</system-reminder>

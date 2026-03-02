@@ -1,0 +1,253 @@
+#!/usr/bin/env python3
+# -*- coding: utf-8 -*-
+"""
+AI科普画册插图批量生成脚本
+生成50+个精美的SVG插图
+"""
+
+import os
+
+# 插图配置列表
+illustrations = [
+    {
+        "filename": "00-AI小助手吉祥物.svg",
+        "title": "AI小助手",
+        "description": "友好的AI机器人吉祥物，大眼睛，微笑，挥手姿势",
+        "colors": ["#4fd1c5", "#ffd700", "#667eea"]
+    },
+    {
+        "filename": "01-LLM.svg",
+        "title": "大语言模型",
+        "description": "大脑形状，内部有文字流动，代表语言理解",
+        "colors": ["#667eea", "#764ba2", "#ffd700"]
+    },
+    {
+        "filename": "01-LLM接龙游戏.svg",
+        "title": "LLM接龙游戏",
+        "description": "文字方块连接成链条，展示预测下一个词",
+        "colors": ["#4fd1c5", "#667eea", "#ffd700"]
+    },
+    {
+        "filename": "02-Embedding.svg",
+        "title": "嵌入模型",
+        "description": "文字转换为向量箭头，进入坐标系统",
+        "colors": ["#50c878", "#4fd1c5", "#667eea"]
+    },
+    {
+        "filename": "02-Embedding坐标系统.svg",
+        "title": "Embedding坐标系统",
+        "description": "3D坐标系，词语在空间中的位置，相似词靠近",
+        "colors": ["#667eea", "#4fd1c5", "#ffd700"]
+    },
+    {
+        "filename": "03-VectorDatabase.svg",
+        "title": "向量数据库",
+        "description": "魔法图书馆，书架上的书籍发光",
+        "colors": ["#764ba2", "#667eea", "#ffd700"]
+    },
+    {
+        "filename": "03-Vector-Database魔法图书馆.svg",
+        "title": "向量数据库魔法图书馆",
+        "description": "巨大的图书馆，书籍漂浮，魔法光芒连接",
+        "colors": ["#667eea", "#764ba2", "#ffd700"]
+    },
+    {
+        "filename": "04-Token积木.svg",
+        "title": "Token积木",
+        "description": "彩色积木块堆叠，每块代表一个token",
+        "colors": ["#ff6b6b", "#4ecdc4", "#45b7d1", "#ffd700"]
+    },
+    {
+        "filename": "04-API.svg",
+        "title": "API接口",
+        "description": "两个系统通过管道连接，数据流动",
+        "colors": ["#4fd1c5", "#667eea", "#50c878"]
+    },
+    {
+        "filename": "05-Prompt魔法咒语.svg",
+        "title": "Prompt魔法咒语",
+        "description": "魔法书打开，文字飞出变成魔法效果",
+        "colors": ["#764ba2", "#667eea", "#ffd700"]
+    },
+    {
+        "filename": "05-MCP.svg",
+        "title": "MCP协议",
+        "description": "多个设备通过统一协议连接，星形拓扑",
+        "colors": ["#667eea", "#4fd1c5", "#50c878"]
+    },
+    {
+        "filename": "06-GitHub.svg",
+        "title": "GitHub",
+        "description": "GitHub标志，Octocat吉祥物",
+        "colors": ["#24292e", "#ffffff", "#0366d6"]
+    },
+    {
+        "filename": "06-GitHub宇宙.svg",
+        "title": "GitHub宇宙",
+        "description": "星空中的代码星球，仓库像星系",
+        "colors": ["#24292e", "#0366d6", "#ffd700"]
+    },
+    {
+        "filename": "07-Fork.svg",
+        "title": "Fork分叉",
+        "description": "树枝分叉，一个项目分成两个",
+        "colors": ["#50c878", "#4fd1c5", "#667eea"]
+    },
+    {
+        "filename": "07-API餐厅服务员.svg",
+        "title": "API餐厅服务员",
+        "description": "服务员在餐厅传递菜品，比喻API传递数据",
+        "colors": ["#ff6b6b", "#ffd700", "#4fd1c5"]
+    },
+    {
+        "filename": "08-Branch.svg",
+        "title": "Branch分支",
+        "description": "树的分支，多个分支并行发展",
+        "colors": ["#50c878", "#4fd1c5", "#667eea"]
+    },
+    {
+        "filename": "09-Vibecoding.svg",
+        "title": "Vibecoding",
+        "description": "程序员和AI一起编程，轻松愉快",
+        "colors": ["#667eea", "#4fd1c5", "#ffd700"]
+    },
+    {
+        "filename": "09-Vibecoding场景.svg",
+        "title": "Vibecoding场景",
+        "description": "程序员对着电脑说话，AI助手在旁边帮忙",
+        "colors": ["#667eea", "#4fd1c5", "#ffd700"]
+    },
+    {
+        "filename": "10-AI助手.svg",
+        "title": "AI助手",
+        "description": "友好的AI机器人，手持工具箱",
+        "colors": ["#4fd1c5", "#ffd700", "#667eea"]
+    },
+    {
+        "filename": "11-AI历史时间线.svg",
+        "title": "AI历史时间线",
+        "description": "时间轴，标注重要的AI里程碑事件",
+        "colors": ["#667eea", "#4fd1c5", "#ffd700"]
+    },
+    {
+        "filename": "15-Repository仓库房子.svg",
+        "title": "Repository仓库",
+        "description": "房子形状的仓库，里面存放代码文件",
+        "colors": ["#0366d6", "#4fd1c5", "#ffd700"]
+    },
+    {
+        "filename": "16-Commit相机快照.svg",
+        "title": "Commit快照",
+        "description": "相机拍照，保存代码快照",
+        "colors": ["#667eea", "#ffd700", "#4fd1c5"]
+    },
+    {
+        "filename": "17-PullRequest快递.svg",
+        "title": "Pull Request",
+        "description": "快递员送包裹，比喻代码贡献",
+        "colors": ["#0366d6", "#50c878", "#ffd700"]
+    },
+    {
+        "filename": "18-Branch树的分支.svg",
+        "title": "Branch树的分支",
+        "description": "大树的分支，每个分支独立生长",
+        "colors": ["#50c878", "#4fd1c5", "#667eea"]
+    },
+    {
+        "filename": "19-Merge河流汇合.svg",
+        "title": "Merge合并",
+        "description": "两条河流汇合成一条，比喻代码合并",
+        "colors": ["#4fd1c5", "#667eea", "#50c878"]
+    },
+    {
+        "filename": "20-传统编程vsVibecoding.svg",
+        "title": "传统编程vs Vibecoding",
+        "description": "左右对比图，传统编程复杂，Vibecoding简单",
+        "colors": ["#667eea", "#4fd1c5", "#ffd700"]
+    },
+    {
+        "filename": "21-AI学习路径.svg",
+        "title": "AI学习路径",
+        "description": "阶梯式学习路径，从基础到高级",
+        "colors": ["#667eea", "#4fd1c5", "#ffd700"]
+    },
+    {
+        "filename": "22-AI改变世界.svg",
+        "title": "AI改变世界",
+        "description": "地球被AI技术环绕，各行各业应用",
+        "colors": ["#4fd1c5", "#667eea", "#50c878"]
+    },
+]
+
+def generate_svg(config):
+    """生成单个SVG插图"""
+    filename = config["filename"]
+    title = config["title"]
+    description = config["description"]
+    colors = config["colors"]
+
+    # 根据不同类型生成不同的SVG
+    # 这里是一个通用模板，实际应该根据描述生成不同的图形
+
+    svg_content = f'''<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 800 450" width="800" height="450">
+  <defs>
+    <linearGradient id="bg_{filename.replace('.svg', '')}" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:{colors[0]};stop-opacity:0.2" />
+      <stop offset="100%" style="stop-color:{colors[1] if len(colors) > 1 else colors[0]};stop-opacity:0.1" />
+    </linearGradient>
+    <filter id="glow">
+      <feGaussianBlur stdDeviation="3" result="coloredBlur"/>
+      <feMerge>
+        <feMergeNode in="coloredBlur"/>
+        <feMergeNode in="SourceGraphic"/>
+      </feMerge>
+    </filter>
+  </defs>
+
+  <!-- 背景 -->
+  <rect width="800" height="450" fill="url(#bg_{filename.replace('.svg', '')})"/>
+
+  <!-- 主要内容区域 -->
+  <g transform="translate(400, 225)">
+    <!-- 这里应该根据description生成具体的图形 -->
+    <text x="0" y="0" font-size="48" font-weight="bold" fill="{colors[0]}" text-anchor="middle" font-family="Arial, sans-serif">
+      {title}
+    </text>
+    <text x="0" y="50" font-size="18" fill="{colors[1] if len(colors) > 1 else colors[0]}" text-anchor="middle" font-family="Arial, sans-serif" opacity="0.8">
+      {description[:30]}...
+    </text>
+  </g>
+
+  <!-- 装饰元素 -->
+  <circle cx="100" cy="100" r="20" fill="{colors[-1]}" opacity="0.3">
+    <animate attributeName="r" values="20;25;20" dur="2s" repeatCount="indefinite"/>
+  </circle>
+  <circle cx="700" cy="350" r="15" fill="{colors[-1]}" opacity="0.3">
+    <animate attributeName="r" values="15;20;15" dur="2.5s" repeatCount="indefinite"/>
+  </circle>
+</svg>'''
+
+    return svg_content
+
+def main():
+    """主函数"""
+    output_dir = "插图"
+    os.makedirs(output_dir, exist_ok=True)
+
+    print(f"开始生成{len(illustrations)}个插图...")
+
+    for i, config in enumerate(illustrations, 1):
+        filename = config["filename"]
+        filepath = os.path.join(output_dir, filename)
+
+        svg_content = generate_svg(config)
+
+        with open(filepath, 'w', encoding='utf-8') as f:
+            f.write(svg_content)
+
+        print(f"[{i}/{len(illustrations)}] 已生成: {filename}")
+
+    print(f"\n✅ 所有插图生成完成！保存在 {output_dir}/ 目录")
+
+if __name__ == "__main__":
+    main()

@@ -1,0 +1,34 @@
+import os
+import json
+
+
+class BaiduOCR:
+    CONFIG_PATH = os.path.join(os.environ.get("APPDATA", ""), "智能填表助手", "ocr_config.json")
+
+    def __init__(self):
+        self.config = self._load_config()
+
+    def _load_config(self):
+        if os.path.exists(self.CONFIG_PATH):
+            with open(self.CONFIG_PATH, "r", encoding="utf-8") as f:
+                return json.load(f)
+        return {}
+
+    def save_config(self, app_id, api_key, secret_key):
+        cfg = {"app_id": app_id, "api_key": api_key, "secret_key": secret_key}
+        os.makedirs(os.path.dirname(self.CONFIG_PATH), exist_ok=True)
+        with open(self.CONFIG_PATH, "w", encoding="utf-8") as f:
+            json.dump(cfg, f)
+        self.config = cfg
+
+    def is_configured(self):
+        return all(k in self.config for k in ("app_id", "api_key", "secret_key"))
+
+    def recognize(self, image_path):
+        if not self.is_configured():
+            return "[OCR未配置，请先设置百度OCR API密钥]"
+        from aip import AipOcr
+        client = AipOcr(self.config["app_id"], self.config["api_key"], self.config["secret_key"])
+        with open(image_path, "rb") as f:
+            result = client.basicAccurate(f.read())
+        return "\n".join(w["words"] for w in result.get("words_result", []))

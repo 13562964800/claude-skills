@@ -1,0 +1,85 @@
+#!/usr/bin/env python3
+# -*- coding: utf-8 -*-
+"""
+Word文档字体一致性修正脚本
+修正字体深浅不一的问题
+"""
+
+from docx import Document
+from docx.shared import RGBColor, Pt
+from pathlib import Path
+
+def fix_font_consistency(docx_path):
+    """修正Word文档中的字体一致性问题"""
+    print(f"📝 正在修正字体一致性: {docx_path}")
+
+    doc = Document(docx_path)
+
+    # 定义标准字体颜色
+    COLORS = {
+        "标题1": RGBColor(0, 102, 204),      # 蓝色
+        "标题2": RGBColor(255, 51, 153),     # 粉色
+        "标题3": RGBColor(0, 153, 76),       # 绿色
+        "正文": RGBColor(0, 0, 0),           # 黑色
+    }
+
+    # 统计修正数量
+    fixed_count = 0
+
+    # 遍历所有段落
+    for para in doc.paragraphs:
+        style_name = para.style.name
+
+        # 根据样式设置标准颜色
+        target_color = None
+        if "Heading 1" in style_name or "标题 1" in style_name:
+            target_color = COLORS["标题1"]
+        elif "Heading 2" in style_name or "标题 2" in style_name:
+            target_color = COLORS["标题2"]
+        elif "Heading 3" in style_name or "标题 3" in style_name:
+            target_color = COLORS["标题3"]
+        else:
+            target_color = COLORS["正文"]
+
+        # 修正段落中的所有文本
+        for run in para.runs:
+            if run.font.color.rgb != target_color:
+                run.font.color.rgb = target_color
+                fixed_count += 1
+
+    # 保存修正后的文档
+    output_path = docx_path.replace(".docx", "-字体修正版.docx")
+    doc.save(output_path)
+
+    print(f"✅ 修正完成！共修正 {fixed_count} 处")
+    print(f"📁 输出文件: {output_path}")
+
+    return output_path
+
+def main():
+    """主函数"""
+    print("🎨 Word文档字体一致性修正工具")
+    print("=" * 60)
+
+    # 查找所有需要修正的Word文档
+    base_dir = Path("AI科普画册")
+    docx_files = [
+        base_dir / "AI前沿知识儿童科普画册-漫画书.docx",
+        base_dir / "AI前沿知识儿童科普画册-精品版.docx",
+    ]
+
+    for docx_file in docx_files:
+        if docx_file.exists():
+            try:
+                fix_font_consistency(str(docx_file))
+            except Exception as e:
+                print(f"❌ 处理失败: {docx_file}")
+                print(f"   错误: {e}")
+        else:
+            print(f"⚠️  文件不存在: {docx_file}")
+
+    print("\n" + "=" * 60)
+    print("✅ 所有文档处理完成！")
+
+if __name__ == "__main__":
+    main()

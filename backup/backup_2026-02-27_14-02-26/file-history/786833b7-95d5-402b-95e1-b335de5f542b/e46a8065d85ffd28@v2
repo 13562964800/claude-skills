@@ -1,0 +1,46 @@
+package com.court.assistant.data.db
+
+import androidx.room.*
+import kotlinx.coroutines.flow.Flow
+
+@Dao
+interface CourtDao {
+    @Query("SELECT * FROM court_sms ORDER BY receivedAt DESC")
+    fun getAllSms(): Flow<List<CourtSmsEntity>>
+
+    @Query("SELECT * FROM court_sms WHERE id = :id")
+    suspend fun getSmsById(id: Long): CourtSmsEntity?
+
+    @Insert(onConflict = OnConflictStrategy.IGNORE)
+    suspend fun insertSms(sms: CourtSmsEntity): Long
+
+    @Update
+    suspend fun updateSms(sms: CourtSmsEntity)
+
+    @Query("SELECT * FROM pdf_documents WHERE smsId = :smsId ORDER BY downloadedAt")
+    fun getPdfsBySmsId(smsId: Long): Flow<List<PdfDocumentEntity>>
+
+    @Query("SELECT * FROM pdf_documents ORDER BY downloadedAt DESC")
+    fun getAllPdfs(): Flow<List<PdfDocumentEntity>>
+
+    @Insert(onConflict = OnConflictStrategy.IGNORE)
+    suspend fun insertPdf(pdf: PdfDocumentEntity): Long
+
+    @Update
+    suspend fun updatePdf(pdf: PdfDocumentEntity)
+
+    @Query("SELECT * FROM pdf_documents WHERE id = :id")
+    suspend fun getPdfById(id: Long): PdfDocumentEntity?
+
+    @Query("SELECT EXISTS(SELECT 1 FROM court_sms WHERE bodyHash = :hash)")
+    suspend fun smsExists(hash: Int): Boolean
+
+    @Query("DELETE FROM pdf_documents WHERE id = :id")
+    suspend fun deletePdf(id: Long)
+
+    @Query("DELETE FROM court_sms")
+    suspend fun clearAllSms()
+
+    @Query("DELETE FROM pdf_documents")
+    suspend fun clearAllPdfs()
+}

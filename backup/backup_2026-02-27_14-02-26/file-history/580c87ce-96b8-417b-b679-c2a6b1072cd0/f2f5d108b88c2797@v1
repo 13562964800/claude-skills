@@ -1,0 +1,30 @@
+package com.court.assistant.data.db
+
+import androidx.room.*
+
+@Entity(
+    tableName = "pdf_documents",
+    foreignKeys = [ForeignKey(
+        entity = CourtSmsEntity::class,
+        parentColumns = ["id"],
+        childColumns = ["smsId"],
+        onDelete = ForeignKey.CASCADE
+    )],
+    indices = [
+        Index(value = ["smsId"]),
+        Index(value = ["smsId", "fileMd5"], unique = true)
+    ]
+)
+data class PdfDocumentEntity(
+    @PrimaryKey(autoGenerate = true) val id: Long = 0,
+    val smsId: Long,
+    val fileName: String,           // 原始文件名
+    val filePath: String,
+    val fileSize: Long,
+    val fileMd5: String,            // MD5哈希用于去重
+    val ocrTitle: String? = null,   // OCR提取的标题（首页前15个字）
+    val downloadedAt: Long,
+    val isSubpoena: Boolean = false,
+    val hearingInfo: String? = null,
+    val calendarEventId: Long? = null
+)

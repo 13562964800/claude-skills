@@ -1,0 +1,376 @@
+const { app, BrowserWindow, ipcMain } = require('electron');
+const path = require('path');
+const { spawn } = require('child_process');
+const fs = require('fs');
+const https = require('https');
+const http = require('http');
+
+let mainWindow;
+let db = null;
+
+const BIN_DIR = app.isPackaged
+  ? path.join(process.resourcesPath, 'bin')
+  : path.join('E:', '视频下载器具', 'bin');
+const YTDLP = path.join(BIN_DIR, 'yt-dlp.exe');
+const FFMPEG_DIR = BIN_DIR;
+const USER_DATA = app.isPackaged ? path.join(app.getPath('userData')) : __dirname;
+const DOWNLOADS = path.join(USER_DATA, 'downloads');
+const AI_CONFIG_FILE = path.join(USER_DATA, 'ai_config.json');
+
+// 6家AI预设: 国外3家 + 国内3家
+const AI_PROVIDERS = {
+  openai:   { name: 'OpenAI',        baseUrl: 'https://api.openai.com/v1',              model: 'gpt-4o-mini' },
+  claude:   { name: 'Claude',        baseUrl: 'https://api.anthropic.com/v1',           model: 'claude-sonnet-4-20250514' },
+  groq:     { name: 'Groq',          baseUrl: 'https://api.groq.com/openai/v1',         model: 'llama-3.3-70b-versatile' },
+  deepseek: { name: 'DeepSeek(深度求索)', baseUrl: 'https://api.deepseek.com/v1',            model: 'deepseek-chat' },
+  qwen:     { name: 'Qwen(通义千问)',    baseUrl: 'https://dashscope.aliyuncs.com/compatible-mode/v1', model: 'qwen-plus' },
+  zhipu:    { name: 'Zhipu(智谱清言)',   baseUrl: 'https://open.bigmodel.cn/api/paas/v4',  model: 'glm-4-flash' }
+};
+
+function loadAIConfig() {
+  try {
+    if (fs.existsSync(AI_CONFIG_FILE)) return JSON.parse(fs.readFileSync(AI_CONFIG_FILE, 'utf-8'));
+  } catch(e) {}
+  return { provider: 'deepseek', apiKey: '', baseUrl: '', model: '' };
+}
+function saveAIConfig(cfg) { fs.writeFileSync(AI_CONFIG_FILE, JSON.stringify(cfg, null, 2)); }
+
+// 通用AI调用 (OpenAI兼容格式, Claude单独处理)
+function callAI(prompt) {
+  return new Promise((resolve) => {
+    const cfg = loadAIConfig();
+    if (!cfg.apiKey) { resolve(null); return; }
+
+    const preset = AI_PROVIDERS[cfg.provider] || {};
+    const baseUrl = cfg.baseUrl || preset.baseUrl || '';
+    const model = cfg.model || preset.model || '';
+    if (!baseUrl) { resolve(null); return; }
+
+    const isClaude = cfg.provider === 'claude';
+    const urlObj = new URL(isClaude ? baseUrl + '/messages' : baseUrl + '/chat/completions');
+    const isHttps = urlObj.protocol === 'https:';
+
+    let body, headers;
+    if (isClaude) {
+      body = JSON.stringify({
+        model, max_tokens: 1024,
+        messages: [{ role: 'user', content: prompt }]
+      });
+      headers = {
+        'Content-Type': 'application/json',
+        'x-api-key': cfg.apiKey,
+        'anthropic-version': '2023-06-01'
+      };
+    } else {
+      body = JSON.stringify({
+        model, max_tokens: 1024,
+        messages: [
+          { role: 'system', content: '你是一个专业的多语言词典和语言学习助手。所有释义、翻译、解释必须使用准确的中文。对英语单词，请给出准确的中文对应词义，不要音译。' },
+          { role: 'user', content: prompt }
+        ]
+      });
+      headers = {
+        'Content-Type': 'application/json',
+        'Authorization': 'Bearer ' + cfg.apiKey
+      };
+    }
+
+    const opts = {
+      hostname: urlObj.hostname, port: urlObj.port || (isHttps ? 443 : 80),
+      path: urlObj.pathname, method: 'POST', headers
+    };
+
+    const client = isHttps ? https : http;
+    const req = client.request(opts, (res) => {
+      let data = '';
+      res.on('data', d => data += d);
+      res.on('end', () => {
+        try {
+          const json = JSON.parse(data);
+          if (isClaude) {
+            resolve(json.content?.[0]?.text || null);
+          } else {
+            resolve(json.choices?.[0]?.message?.content || null);
+          }
+        } catch(e) { resolve(null); }
+      });
+    });
+    req.on('error', () => resolve(null));
+    req.setTimeout(15000, () => { req.destroy(); resolve(null); });
+    req.write(body);
+    req.end();
+  });
+}
+
+const LANGUAGES = {
+  en: { name: '英语', sub: 'en', tts: 'en-US' },
+  ja: { name: '日语', sub: 'ja', tts: 'ja-JP' },
+  ko: { name: '韩语', sub: 'ko', tts: 'ko-KR' },
+  ru: { name: '俄语', sub: 'ru', tts: 'ru-RU' },
+  th: { name: '泰语', sub: 'th', tts: 'th-TH' },
+  vi: { name: '越南语', sub: 'vi', tts: 'vi-VN' },
+  ms: { name: '马来语', sub: 'ms', tts: 'ms-MY' },
+  id: { name: '印尼语', sub: 'id', tts: 'id-ID' },
+  ar: { name: '阿拉伯语', sub: 'ar', tts: 'ar-SA' },
+  pt: { name: '葡萄牙语', sub: 'pt', tts: 'pt-BR' },
+  es: { name: '西班牙语', sub: 'es', tts: 'es-ES' },
+  fr: { name: '法语', sub: 'fr', tts: 'fr-FR' },
+  de: { name: '德语', sub: 'de', tts: 'de-DE' },
+  hi: { name: '印地语', sub: 'hi', tts: 'hi-IN' }
+};
+
+function initDB() {
+  const dbPath = path.join(__dirname, 'stardict.db');
+  if (fs.existsSync(dbPath)) {
+    try {
+      const Database = require('better-sqlite3');
+      db = new Database(dbPath, { readonly: true });
+      db.pragma('journal_mode = WAL');
+    } catch (e) { console.error('ECDICT加载失败:', e.message); }
+  }
+}
+
+function createWindow() {
+  mainWindow = new BrowserWindow({
+    width: 1100, height: 850, minWidth: 900, minHeight: 700,
+    backgroundColor: '#0a0a1a',
+    webPreferences: { nodeIntegration: true, contextIsolation: false, webSecurity: false }
+  });
+  mainWindow.loadFile('index.html');
+}
+
+app.whenReady().then(() => {
+  initDB();
+  if (!fs.existsSync(DOWNLOADS)) fs.mkdirSync(DOWNLOADS, { recursive: true });
+  createWindow();
+});
+app.on('window-all-closed', () => { if (process.platform !== 'darwin') app.quit(); });
+
+// ===== IPC =====
+
+ipcMain.handle('get-languages', () => LANGUAGES);
+ipcMain.handle('get-ai-providers', () => AI_PROVIDERS);
+ipcMain.handle('get-ai-config', () => loadAIConfig());
+ipcMain.handle('save-ai-config', (_, cfg) => { saveAIConfig(cfg); return true; });
+
+// 下载视频+字幕
+ipcMain.handle('download-video', async (_, url, lang) => {
+  const subLang = LANGUAGES[lang]?.sub || 'en';
+  return new Promise((resolve) => {
+    const infoArgs = ['--dump-json', '--no-playlist', url];
+    if (fs.existsSync(path.join(FFMPEG_DIR, 'ffmpeg.exe'))) infoArgs.unshift('--ffmpeg-location', FFMPEG_DIR);
+    const infoProc = spawn(YTDLP, infoArgs);
+    let infoOut = '';
+    infoProc.stdout.on('data', d => infoOut += d);
+    infoProc.on('close', (code) => {
+      let title = 'video_' + Date.now();
+      if (code === 0) { try { title = JSON.parse(infoOut).title || title; } catch(e) {} }
+      const safeName = title.replace(/[<>:"/\\|?*]/g, '_').substring(0, 60);
+      const outTemplate = path.join(DOWNLOADS, safeName + '.%(ext)s');
+      const args = [
+        '--ffmpeg-location', FFMPEG_DIR,
+        '-f', 'bestvideo[height<=720]+bestaudio/best[height<=720]/best',
+        '--merge-output-format', 'mp4',
+        '--write-sub', '--write-auto-sub', '--sub-lang', subLang,
+        '--sub-format', 'vtt', '--convert-subs', 'vtt',
+        '--no-playlist', '-o', outTemplate, url
+      ];
+      const proc = spawn(YTDLP, args);
+      let stderr = '', maxPercent = 0, streamCount = 0;
+      proc.stdout.on('data', (data) => {
+        const output = data.toString();
+        if (output.includes('Destination:')) streamCount++;
+        const matches = output.match(/(\d+\.?\d*)%/g);
+        if (matches) {
+          let percent = parseFloat(matches[matches.length - 1]);
+          if (streamCount >= 2) percent = 50 + percent / 2;
+          else if (streamCount === 1) percent = percent / 2;
+          if (percent > maxPercent) { maxPercent = percent; mainWindow.webContents.send('download-progress', { percent }); }
+        }
+        if (output.includes('Merging')) mainWindow.webContents.send('download-progress', { percent: 99 });
+      });
+      proc.stderr.on('data', d => stderr += d);
+      proc.on('close', (code2) => {
+        if (code2 !== 0) { resolve({ success: false, error: stderr || '下载失败' }); return; }
+        const videoFile = path.join(DOWNLOADS, safeName + '.mp4');
+        let subFile = null;
+        const possibleSubs = [
+          path.join(DOWNLOADS, safeName + '.' + subLang + '.vtt'),
+          path.join(DOWNLOADS, safeName + '.vtt'),
+        ];
+        try {
+          for (const f of fs.readdirSync(DOWNLOADS)) {
+            if (f.startsWith(safeName) && f.endsWith('.vtt')) possibleSubs.push(path.join(DOWNLOADS, f));
+          }
+        } catch(e) {}
+        for (const p of possibleSubs) { if (fs.existsSync(p)) { subFile = p; break; } }
+        resolve({ success: true, videoPath: fs.existsSync(videoFile) ? videoFile : null, subtitlePath: subFile, title: safeName });
+      });
+      proc.on('error', () => resolve({ success: false, error: 'yt-dlp未找到' }));
+    });
+  });
+});
+
+// ECDICT查词
+ipcMain.handle('lookup-word', (_, word) => {
+  if (!db) return null;
+  try {
+    return db.prepare('SELECT word, phonetic, translation, exchange FROM stardict WHERE word = ? COLLATE NOCASE').get(word.toLowerCase().trim()) || null;
+  } catch(e) { return null; }
+});
+
+// 在线翻译
+ipcMain.handle('translate-word', (_, word, fromLang) => {
+  return new Promise((resolve) => {
+    const url = `https://api.mymemory.translated.net/get?q=${encodeURIComponent(word)}&langpair=${fromLang}|zh`;
+    https.get(url, (res) => {
+      let data = '';
+      res.on('data', d => data += d);
+      res.on('end', () => {
+        try {
+          const json = JSON.parse(data);
+          resolve({
+            translation: json.responseData?.translatedText || null,
+            matches: (json.matches || []).slice(0, 3).map(m => ({ segment: m.segment, translation: m.translation }))
+          });
+        } catch(e) { resolve(null); }
+      });
+    }).on('error', () => resolve(null));
+  });
+});
+
+// 在线例句
+ipcMain.handle('fetch-examples', (_, word) => {
+  return new Promise((resolve) => {
+    const url = `https://api.dictionaryapi.dev/api/v2/entries/en/${encodeURIComponent(word)}`;
+    https.get(url, (res) => {
+      let data = '';
+      res.on('data', d => data += d);
+      res.on('end', () => {
+        try {
+          const json = JSON.parse(data);
+          if (!Array.isArray(json)) { resolve(null); return; }
+          const entry = json[0], examples = [], definitions = [];
+          for (const meaning of (entry.meanings || [])) {
+            for (const def of (meaning.definitions || [])) {
+              definitions.push({ partOfSpeech: meaning.partOfSpeech, definition: def.definition });
+              if (def.example) examples.push(def.example);
+            }
+          }
+          resolve({
+            phonetic: entry.phonetic || '',
+            audio: entry.phonetics?.find(p => p.audio)?.audio || '',
+            definitions: definitions.slice(0, 5),
+            examples: examples.slice(0, 5)
+          });
+        } catch(e) { resolve(null); }
+      });
+    }).on('error', () => resolve(null));
+  });
+});
+
+// AI精准翻译单词为中文
+ipcMain.handle('ai-translate-word', async (_, word, context) => {
+  const prompt = `将英文单词「${word}」翻译为准确的中文含义。${context ? '上下文: "' + context + '"' : ''}只回复中文释义，不要其他内容。多个义项用/分隔。`;
+  return await callAI(prompt);
+});
+
+// AI智能释义 (根据上下文生成释义+例句)
+ipcMain.handle('ai-lookup', async (_, word, lang, context) => {
+  const langName = LANGUAGES[lang]?.name || lang;
+  const prompt = `请解释${langName}单词/词组「${word}」的含义。
+${context ? '该词出现在以下句子中: "' + context + '"' : ''}
+请用以下格式回答:
+【释义】中文释义(如有多个义项用序号标注)
+【发音】用国际音标标注发音
+【例句】给出2个实用例句(附中文翻译)
+【助记】一个简短的记忆技巧`;
+  const result = await callAI(prompt);
+  return result;
+});
+
+// AI智能分析字幕句子
+ipcMain.handle('ai-analyze-sentence', async (_, sentence, lang) => {
+  const langName = LANGUAGES[lang]?.name || lang;
+  const prompt = `请分析以下${langName}句子，帮助学习者理解:
+"${sentence}"
+请用以下格式简洁回答:
+【翻译】中文翻译
+【语法】关键语法点(1-2个)
+【重点词汇】列出2-3个重要词汇及释义`;
+  return await callAI(prompt);
+});
+
+// 列出已下载视频
+ipcMain.handle('list-videos', () => {
+  try {
+    const files = fs.readdirSync(DOWNLOADS);
+    return files.filter(f => f.endsWith('.mp4')).map(f => {
+      const name = f.replace('.mp4', '');
+      const subFile = files.find(s => s.startsWith(name) && s.endsWith('.vtt'));
+      return { name, videoPath: path.join(DOWNLOADS, f), subtitlePath: subFile ? path.join(DOWNLOADS, subFile) : null };
+    });
+  } catch(e) { return []; }
+});
+
+ipcMain.handle('read-subtitle', (_, filePath) => {
+  try { return fs.readFileSync(filePath, 'utf-8'); } catch(e) { return null; }
+});
+
+// 语音识别生成字幕 (调用本地 funasr 服务)
+ipcMain.handle('generate-subtitle', async (_, videoPath) => {
+  // 先用 ffprobe 获取时长
+  const duration = await new Promise((resolve) => {
+    const ffprobe = path.join(FFMPEG_DIR, 'ffprobe.exe');
+    const p = spawn(ffprobe, ['-v', 'quiet', '-print_format', 'json', '-show_format', videoPath]);
+    let out = '';
+    p.stdout.on('data', d => out += d);
+    p.on('close', () => {
+      try { resolve(parseFloat(JSON.parse(out).format.duration) || 0); } catch(e) { resolve(0); }
+    });
+    p.on('error', () => resolve(0));
+  });
+  if (!duration) return null;
+
+  return new Promise((resolve) => {
+    const data = JSON.stringify({ file_path: videoPath });
+    const req = http.request({
+      hostname: '127.0.0.1', port: 8765, path: '/transcribe',
+      method: 'POST', headers: { 'Content-Type': 'application/json' }
+    }, (res) => {
+      let body = '';
+      res.on('data', d => body += d);
+      res.on('end', () => {
+        try {
+          const json = JSON.parse(body);
+          if (!json.success || !json.text) { resolve(null); return; }
+          // 按句子切分，过滤空句子
+          const sentences = (json.text.match(/[^.!?。！？]+[.!?。！？]+/g) || [json.text])
+            .map(s => s.trim()).filter(s => s.length > 0);
+          if (!sentences.length) { resolve(null); return; }
+          const totalLen = sentences.reduce((a, s) => a + s.length, 0);
+          let vtt = 'WEBVTT\n\n', t = 0;
+          for (const s of sentences) {
+            const seg = (s.length / totalLen) * duration;
+            const start = fmtVTT(t);
+            t += seg;
+            const end = fmtVTT(t);
+            vtt += `${start} --> ${end}\n${s.trim()}\n\n`;
+          }
+          const vttPath = videoPath.replace(/\.[^.]+$/, '.vtt');
+          fs.writeFileSync(vttPath, vtt, 'utf-8');
+          resolve(vttPath);
+        } catch(e) { resolve(null); }
+      });
+    });
+    req.on('error', () => resolve(null));
+    req.setTimeout(300000, () => { req.destroy(); resolve(null); });
+    req.write(data);
+    req.end();
+  });
+});
+
+function fmtVTT(sec) {
+  const h = Math.floor(sec / 3600), m = Math.floor((sec % 3600) / 60), s = sec % 60;
+  return String(h).padStart(2,'0') + ':' + String(m).padStart(2,'0') + ':' + s.toFixed(3).padStart(6,'0');
+}

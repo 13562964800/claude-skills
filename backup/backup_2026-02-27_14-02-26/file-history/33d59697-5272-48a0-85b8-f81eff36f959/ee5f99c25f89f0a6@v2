@@ -1,0 +1,217 @@
+"""核心对比算法 - 移植自桌面版 compare.py，适配Android"""
+import re
+from difflib import SequenceMatcher
+from typing import List, Dict, Any
+
+# 填充词过滤
+FILLER_WORDS = {'嗯', '呃', '啊', '哦', '呢', '吧', '嘛', '哈', '噢', '诶',
+                '那个', '就是', '就是说', '然后', '对吧', '对的', '这个'}
+
+CN_NUMBERS_READING = {
+    '0': '零', '1': '一', '2': '二', '3': '三', '4': '四',
+    '5': '五', '6': '六', '7': '七', '8': '八', '9': '九'
+}
+
+_RE_PUNCT = re.compile(r'[，。！？；：、\u201c\u201d\u2018\u2019（）【】《》…—·\s,.!?;:\'"()\[\]{}\-]')
+
+
+def _normalize(text):
+    return _RE_PUNCT.sub('', text)
+
+
+def _is_punct(ch):
+    return bool(_RE_PUNCT.match(ch))
+
+
+def _segment(text):
+    """分词：优先用jieba，不可用时按字切分"""
+    try:
+        import jieba
+        return [w for w in jieba.cut(text) if w.strip()]
+    except ImportError:
+        # Android上jieba可能不可用，按字切分
+        return [c for c in text if c.strip()]
+
+
+def _same_pinyin(a, b):
+    """拼音比较：字数相同且每个字读音（含声调）一致则视为合格
+    支持中文同音字、数字读音、英语大小写等场景
+    """
+    if not a or not b:
+        return False
+    a_clean = _normalize(a)
+    b_clean = _normalize(b)
+    if not a_clean or not b_clean:
+        return False
+    if a_clean == b_clean:
+        return True
+    # 英语大小写不敏感
+    if a_clean.lower() == b_clean.lower():
+        return True
+    # 数字规范化后比较
+    a_num = _normalize_number_reading(a_clean)
+    b_num = _normalize_number_reading(b_clean)
+    if a_num == b_num:
+        return True
+    # 字数不同直接返回False
+    if len(a_clean) != len(b_clean):
+        # 但数字展开后字数可能不同，用拼音再试
+        pass
+    try:
+        from pypinyin import pinyin, Style
+        # 用TONE3风格：带声调数字 (如 zhong1, guo2)
+        # 先用原始文本比较
+        pa = pinyin(a_clean, style=Style.TONE3, neutral_tone_with_five=True)
+        pb = pinyin(b_clean, style=Style.TONE3, neutral_tone_with_five=True)
+        if pa == pb:
+            return True
+        # 数字规范化后再用拼音比较
+        pa_num = pinyin(a_num, style=Style.TONE3, neutral_tone_with_five=True)
+        pb_num = pinyin(b_num, style=Style.TONE3, neutral_tone_with_five=True)
+        if pa_num == pb_num:
+            return True
+    except ImportError:
+        pass
+    return False
+
+
+def _arabic_to_chinese(num_str, is_year=False):
+    if not num_str or not num_str.isdigit():
+        return num_str
+    if is_year:
+        return ''.join(CN_NUMBERS_READING.get(d, d) for d in num_str)
+    try:
+        num = int(num_str)
+        if num < 10:
+            return CN_NUMBERS_READING[num_str]
+        elif num < 20:
+            return '十' + (CN_NUMBERS_READING[num_str[1]] if num_str[1] != '0' else '')
+        elif num < 100:
+            t, o = num // 10, num % 10
+            r = CN_NUMBERS_READING[str(t)] + '十'
+            if o > 0:
+                r += CN_NUMBERS_READING[str(o)]
+            return r
+        else:
+            return ''.join(CN_NUMBERS_READING.get(d, d) for d in num_str)
+    except:
+        return num_str
+
+
+def _normalize_number_reading(text):
+    result = re.sub(r'(\d{4})年', lambda m: ''.join(CN_NUMBERS_READING.get(d, d) for d in m.group(1)) + '年', text)
+    result = re.sub(r'(\d+)%', lambda m: '百分之' + _arabic_to_chinese(m.group(1)), result)
+    result = re.sub(r'(\d+)', lambda m: _arabic_to_chinese(m.group(1)), result)
+    return re.sub(r'\s+', '', result)
+
+
+def _find_paragraph(doc_paragraphs, word_pos, doc_words):
+    char_offset = sum(len(w) for w in doc_words[:word_pos])
+    running = 0
+    for idx, p in enumerate(doc_paragraphs):
+        plen = len(_normalize(p))
+        if running + plen > char_offset:
+            return idx
+        running += plen
+    return len(doc_paragraphs) - 1
+
+
+def compare_texts(audio_text, doc_text, word_timestamps=None, confidence_threshold=0.0):
+    """核心对比算法：jieba分词 + SequenceMatcher + 拼音同音字识别"""
+    doc_paragraphs = [p.strip() for p in doc_text.split('\n') if p.strip()]
+
+    audio_norm = _normalize(audio_text)
+    doc_norm = _normalize(doc_text)
+    audio_words = _segment(audio_norm)
+    doc_words = _segment(doc_norm)
+
+    # 时间戳映射
+    ts_map = {}
+    if word_timestamps:
+        offset = 0
+        for wt in word_timestamps:
+            w_norm = _normalize(wt['word'])
+            for i in range(len(w_norm)):
+                ts_map[offset + i] = {'start': wt['start'], 'end': wt['end'], 'confidence': wt.get('confidence', 1.0)}
+            offset += len(w_norm)
+
+    # 序列比对
+    matcher = SequenceMatcher(None, doc_words, audio_words)
+    raw_diffs = []
+
+    audio_char_offsets = []
+    off = 0
+    for w in audio_words:
+        audio_char_offsets.append(off)
+        off += len(w)
+
+    for tag, i1, i2, j1, j2 in matcher.get_opcodes():
+        if tag == 'equal':
+            continue
+
+        doc_frag = ''.join(doc_words[i1:i2])
+        audio_frag = ''.join(audio_words[j1:j2])
+
+        # 过滤填充词
+        if tag == 'insert' and audio_frag in FILLER_WORDS:
+            continue
+        if tag == 'delete' and doc_frag in FILLER_WORDS:
+            continue
+        if tag == 'replace':
+            if doc_frag in FILLER_WORDS and audio_frag in FILLER_WORDS:
+                continue
+            if _same_pinyin(doc_frag, audio_frag):
+                continue
+
+        # 跳过纯标点差异
+        if all(_is_punct(c) or not c.strip() for c in doc_frag) and all(_is_punct(c) or not c.strip() for c in audio_frag):
+            continue
+
+        pos = _find_paragraph(doc_paragraphs, i1, doc_words)
+
+        # 获取时间戳
+        ts_start = ts_end = None
+        confidence = 1.0
+        if ts_map and j1 < len(audio_char_offsets):
+            char_off = audio_char_offsets[j1]
+            if char_off in ts_map:
+                ts_start = ts_map[char_off]['start']
+                confidence = ts_map[char_off]['confidence']
+            if j2 > 0 and j2 - 1 < len(audio_char_offsets):
+                end_off = audio_char_offsets[j2 - 1]
+                if end_off in ts_map:
+                    ts_end = ts_map[end_off]['end']
+
+        diff_entry = {
+            'docText': doc_frag,
+            'audioText': audio_frag,
+            'type': 'mismatch' if tag == 'replace' else ('missing_in_audio' if tag == 'delete' else 'extra_in_audio'),
+            'position': pos,
+            'confidence': confidence,
+        }
+        if ts_start is not None:
+            diff_entry['time_start'] = ts_start
+        if ts_end is not None:
+            diff_entry['time_end'] = ts_end
+        raw_diffs.append(diff_entry)
+
+    # 统计
+    n_mismatch = sum(1 for d in raw_diffs if d['type'] == 'mismatch')
+    n_missing = sum(1 for d in raw_diffs if d['type'] == 'missing_in_audio')
+    n_extra = sum(1 for d in raw_diffs if d['type'] == 'extra_in_audio')
+
+    # 字准确率
+    total = max(len(doc_norm), 1)
+    diff_chars = sum(max(len(d['docText']), len(d['audioText'])) for d in raw_diffs)
+    accuracy = max(0, (1 - diff_chars / total) * 100)
+
+    summary = f'共{len(raw_diffs)}处差异：{n_mismatch}处误读，{n_missing}处漏读，{n_extra}处多读\n字准确率 {accuracy:.1f}%'
+
+    return {
+        'diffs': raw_diffs,
+        'summary': summary,
+        'accuracy': accuracy,
+        'n_mismatch': n_mismatch,
+        'n_missing': n_missing,
+        'n_extra': n_extra,
+    }

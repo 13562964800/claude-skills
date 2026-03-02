@@ -1,0 +1,56 @@
+"""
+yt-dlp 下载器
+"""
+
+import yt_dlp
+import os
+from pathlib import Path
+from typing import Callable, Optional, List, Dict
+
+class YtdlpDownloader:
+    def __init__(self, output_dir: str):
+        self.output_dir = Path(output_dir)
+        self.output_dir.mkdir(parents=True, exist_ok=True)
+
+    async def download(
+        self,
+        url: str,
+        title: str,
+        progress_callback: Optional[Callable] = None,
+        cookies: Optional[List[Dict]] = None
+    ) -> str:
+        """下载视频"""
+
+        output_template = str(self.output_dir / f"{title}.%(ext)s")
+
+        ydl_opts = {
+            'outtmpl': output_template,
+            'format': 'bestvideo[height<=720]+bestaudio/best[height<=720]',
+            'merge_output_format': 'mp4',
+            'postprocessors': [{
+                'key': 'FFmpegVideoConvertor',
+                'preferedformat': 'mp4',
+            }],
+        }
+
+        # 添加进度回调
+        if progress_callback:
+            ydl_opts['progress_hooks'] = [progress_callback]
+
+        # 添加 Cookie
+        if cookies:
+            from parsers.ytdlp_parser import YtdlpParser
+            parser = YtdlpParser()
+            cookie_file = parser._save_cookies(cookies)
+            ydl_opts['cookiefile'] = cookie_file
+
+        try:
+            with yt_dlp.YoutubeDL(ydl_opts) as ydl:
+                ydl.download([url])
+
+            # 返回下载的文件路径
+            output_path = str(self.output_dir / f"{title}.mp4")
+            return output_path
+
+        except Exception as e:
+            raise Exception(f"下载失败: {str(e)}")

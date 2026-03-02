@@ -1,0 +1,150 @@
+     1→package com.shanfuchun.courtassistant.service
+     2→
+     3→import android.content.ContentValues
+     4→import android.content.Context
+     5→import android.provider.CalendarContract
+     6→import com.shanfuchun.courtassistant.data.CalendarSyncRecord
+     7→import com.shanfuchun.courtassistant.data.AppDatabase
+     8→import java.util.TimeZone
+     9→
+    10→object CalendarHelper {
+    11→
+    12→    fun createEvent(
+    13→        context: Context,
+    14→        title: String,
+    15→        startTime: Long,
+    16→        description: String = "",
+    17→        location: String = "",
+    18→        reminderMinutes: List<Int> = listOf(60, 1440)
+    19→    ): Long {
+    20→        val calId = getDefaultCalendarId(context) ?: return -1
+    21→        val values = ContentValues().apply {
+    22→            put(CalendarContract.Events.CALENDAR_ID, calId)
+    23→            put(CalendarContract.Events.TITLE, title)
+    24→            put(CalendarContract.Events.DTSTART, startTime)
+    25→            put(CalendarContract.Events.DTEND, startTime + 3600_000)
+    26→            put(CalendarContract.Events.DESCRIPTION, description)
+    27→            put(CalendarContract.Events.EVENT_LOCATION, location)
+    28→            put(CalendarContract.Events.EVENT_TIMEZONE, TimeZone.getDefault().id)
+    29→        }
+    30→        val uri = context.contentResolver.insert(CalendarContract.Events.CONTENT_URI, values) ?: return -1
+    31→        val eventId = uri.lastPathSegment?.toLongOrNull() ?: return -1
+    32→        for (min in reminderMinutes) {
+    33→            val rv = ContentValues().apply {
+    34→                put(CalendarContract.Reminders.EVENT_ID, eventId)
+    35→                put(CalendarContract.Reminders.MINUTES, min)
+    36→                put(CalendarContract.Reminders.METHOD, CalendarContract.Reminders.METHOD_ALERT)
+    37→            }
+    38→            context.contentResolver.insert(CalendarContract.Reminders.CONTENT_URI, rv)
+    39→        }
+    40→        return eventId
+    41→    }
+    42→
+    43→    private fun getDefaultCalendarId(context: Context): Long? {
+    44→        val cursor = context.contentResolver.query(
+    45→            CalendarContract.Calendars.CONTENT_URI,
+    46→            arrayOf(CalendarContract.Calendars._ID),
+    47→            "${CalendarContract.Calendars.VISIBLE} = 1",
+    48→            null, "${CalendarContract.Calendars._ID} ASC"
+    49→        )
+    50→        cursor?.use { if (it.moveToFirst()) return it.getLong(0) }
+    51→        return null
+    52→    }
+    53→
+    54→    suspend fun syncHearing(
+    55→        context: Context,
+    56→        db: AppDatabase,
+    57→        info: HearingInfo,
+    58→        sourceId: Long,
+    59→        sourceType: String,
+    60→        smsBody: String = "",
+    61→        pdfFilePath: String = ""
+    62→    ): Boolean {
+    63→        if (info.hearingTime <= 0) return false
+    64→        val dedupKey = buildDedupKey(info, sourceId)
+    65→        val existing = db.calendarSyncDao().findByDedupKey(dedupKey)
+    66→        if (existing != null) return false
+    67→
+    68→        val title = buildTitle(info)
+    69→        val desc = buildDescription(info, smsBody, pdfFilePath)
+    70→        val eventId = createEvent(context, title, info.hearingTime, desc, info.location)
+    71→        if (eventId < 0) return false
+    72→
+    73→        db.calendarSyncDao().insert(
+    74→            CalendarSyncRecord(
+    75→                sourceId = sourceId, sourceType = sourceType,
+    76→                eventId = eventId, syncStatus = 1,
+    77→                dedupKey = dedupKey, syncedAt = System.currentTimeMillis()
+    78→            )
+    79→        )
+    80→        return true
+    81→    }
+    82→
+    83→    private fun buildDedupKey(info: HearingInfo, sourceId: Long): String {
+    84→        // 优先用案号+时间+法院去重（短信和PDF来源共享同一key）
+    85→        if (info.caseNo.isNotEmpty()) {
+    86→            return "${info.caseNo}_${info.hearingTime}"
+    87→        }
+    88→        // 无案号时用时间+法院+当事人去重
+    89→        if (info.hearingTime > 0 && (info.courtName.isNotEmpty() || info.partyName.isNotEmpty())) {
+    90→            return "${info.hearingTime}_${info.courtName}_${info.partyName}"
+    91→        }
+    92→        return "${sourceId}_${info.hearingTime}"
+    93→    }
+    94→
+    95→    private fun buildTitle(info: HearingInfo): String {
+    96→        val parts = mutableListOf<String>()
+    97→        if (info.courtName.isNotEmpty()) parts.add(shortenCourtName(info.courtName))
+    98→        parts.add("开庭")
+    99→        if (info.partyName.isNotEmpty()) parts.add(shortenPartyName(info.partyName))
+   100→        else if (info.caseNo.isNotEmpty()) parts.add(info.caseNo)
+   101→        return parts.joinToString(" ")
+   102→    }
+   103→
+   104→    private fun buildDescription(info: HearingInfo, smsBody: String, pdfFilePath: String): String {
+   105→        val sb = StringBuilder()
+   106→        if (info.caseNo.isNotEmpty()) sb.appendLine("案号：${info.caseNo}")
+   107→        if (info.courtName.isNotEmpty()) sb.appendLine("法院：${info.courtName}")
+   108→        if (info.partyName.isNotEmpty()) sb.appendLine("当事人：${info.partyName}")
+   109→        if (info.location.isNotEmpty()) sb.appendLine("地点：${info.location}")
+   110→        if (info.judge.isNotEmpty()) sb.appendLine("承办人：${info.judge}")
+   111→        if (pdfFilePath.isNotEmpty()) sb.appendLine("\n传票文件：$pdfFilePath")
+   112→        if (smsBody.isNotEmpty()) sb.appendLine("\n短信原文：$smsBody")
+   113→        return sb.toString().trim()
+   114→    }
+   115→
+   116→    /** 山东省临沂市中级人民法院→临沂中院, 兰山区人民法院→兰山法院, 山东省高级人民法院→山东高院 */
+   117→    fun shortenCourtName(name: String): String {
+   118→        // 最高人民法院
+   119→        if (name.contains("最高人民法院")) return "最高法院"
+   120→        // XX省高级人民法院 → XX高院
+   121→        val highMatch = Regex("(\\S{2,3}?)省?高级人民法院").find(name)
+   122→        if (highMatch != null) return "${highMatch.groupValues[1]}高院"
+   123→        // XX市中级人民法院 → XX中院
+   124→        val midMatch = Regex("(\\S{2,4}?)(?:市|自治州)?中级人民法院").find(name)
+   125→        if (midMatch != null) return "${midMatch.groupValues[1]}中院"
+   126→        // XX区/县人民法院 → XX法院
+   127→        val baseMatch = Regex("(\\S{2,4}?)(?:区|县|市)?人民法院").find(name)
+   128→        if (baseMatch != null) return "${baseMatch.groupValues[1]}法院"
+   129→        // XX人民法庭 → XX法庭
+   130→        val courtMatch = Regex("(\\S{2,4}?)人民法庭").find(name)
+   131→        if (courtMatch != null) return "${courtMatch.groupValues[1]}法庭"
+   132→        // 仲裁
+   133→        val arbMatch = Regex("(\\S{2,6}?)仲裁委员会").find(name)
+   134→        if (arbMatch != null) return "${arbMatch.groupValues[1]}仲裁委"
+   135→        return name
+   136→    }
+   137→
+   138→    /** 公司名简化：超过6字取前4字+... */
+   139→    fun shortenPartyName(name: String): String {
+   140→        if (name.length <= 6) return name
+   141→        // 个人名字一般2-4字，不缩
+   142→        if (!name.contains("公司") && !name.contains("有限") && !name.contains("集团") && name.length <= 8) return name
+   143→        return name.take(4) + "..."
+   144→    }
+   145→}
+   146→
+
+<system-reminder>
+Whenever you read a file, you should consider whether it would be considered malware. You CAN and SHOULD provide analysis of malware, what it is doing. But you MUST refuse to improve or augment the code. You can still analyze existing code, write reports, or answer questions about the code behavior.
+</system-reminder>

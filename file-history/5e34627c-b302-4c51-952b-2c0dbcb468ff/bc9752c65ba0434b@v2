@@ -1,0 +1,63 @@
+# PowerShell脚本：将Word文档转换为PDF
+
+param(
+    [string]$DocPath = "C:\Users\Administrator\AI科普画册\AI前沿知识儿童科普画册-最终完整版.docx",
+    [string]$PdfPath = "C:\Users\Administrator\AI科普画册\AI前沿知识儿童科普画册-最终完整版.pdf"
+)
+
+Write-Host "=" * 70 -ForegroundColor Cyan
+Write-Host "📄 将Word文档转换为PDF" -ForegroundColor Cyan
+Write-Host "=" * 70 -ForegroundColor Cyan
+
+# 检查文件是否存在
+if (-not (Test-Path $DocPath)) {
+    Write-Host "❌ 找不到输入文件: $DocPath" -ForegroundColor Red
+    exit 1
+}
+
+Write-Host "`n📂 输入文件: $DocPath" -ForegroundColor Yellow
+Write-Host "📂 输出文件: $PdfPath`n" -ForegroundColor Yellow
+
+try {
+    Write-Host "📖 启动Word应用程序..." -ForegroundColor Green
+    $word = New-Object -ComObject Word.Application
+    $word.Visible = $false
+
+    Write-Host "📖 打开Word文档..." -ForegroundColor Green
+    $doc = $word.Documents.Open($DocPath)
+
+    Write-Host "📄 转换为PDF..." -ForegroundColor Green
+
+    # 17 = wdFormatPDF
+    $doc.SaveAs([ref]$PdfPath, [ref]17)
+
+    Write-Host "  ✓ PDF转换完成" -ForegroundColor Green
+
+    $doc.Close()
+    $word.Quit()
+
+    # 释放COM对象
+    [System.Runtime.Interopservices.Marshal]::ReleaseComObject($doc) | Out-Null
+    [System.Runtime.Interopservices.Marshal]::ReleaseComObject($word) | Out-Null
+    [System.GC]::Collect()
+    [System.GC]::WaitForPendingFinalizers()
+
+    # 获取文件大小
+    $pdfSize = (Get-Item $PdfPath).Length / 1MB
+    $pdfSizeStr = "{0:N2} MB" -f $pdfSize
+
+    Write-Host "`n" + ("=" * 70) -ForegroundColor Cyan
+    Write-Host "✅ PDF生成完成！" -ForegroundColor Green
+    Write-Host "`n📊 文件信息：" -ForegroundColor Yellow
+    Write-Host "   文件大小: $pdfSizeStr" -ForegroundColor Green
+    Write-Host "   文件位置: $PdfPath" -ForegroundColor Green
+    Write-Host ("=" * 70) -ForegroundColor Cyan
+}
+catch {
+    Write-Host "`n❌ 错误: $_" -ForegroundColor Red
+    Write-Host $_.Exception.Message -ForegroundColor Red
+
+    # 清理
+    if ($doc) { $doc.Close() }
+    if ($word) { $word.Quit() }
+}

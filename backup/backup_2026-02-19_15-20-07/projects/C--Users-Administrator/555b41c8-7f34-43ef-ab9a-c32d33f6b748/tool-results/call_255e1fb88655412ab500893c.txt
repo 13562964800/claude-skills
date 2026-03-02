@@ -1,0 +1,96 @@
+     1→package courtassistant.calendar.model
+     2→
+     3→import java.io.Serializable
+     4→import java.util.Date
+     5→
+     6→/**
+     7→ * 日历事件数据模型
+     8→ */
+     9→data class CalendarEvent(
+    10→    val id: String,                    // 事件唯一标识
+    11→    val title: String,                 // 事件标题
+    12→    val description: String,           // 事件描述
+    13→    val startTime: Date,               // 开始时间
+    14→    val endTime: Date,                 // 结束时间
+    15→    val location: String,             // 事件位置
+    16→    val reminderMinutes: Int = 15,     // 提前提醒时间（分钟）
+    17→    val isAllDay: Boolean = false,     // 是否为全天事件
+    18→    val attendees: List<String> = emptyList(), // 参与者列表
+    19→    val calendarId: String = ""        // 所属日历ID
+    20→) : Serializable {
+    21→
+    22→    /**
+    23→     * 获取事件持续时间（分钟）
+    24→     */
+    25→    fun getDurationMinutes(): Long {
+    26→        return (endTime.time - startTime.time) / (60 * 1000)
+    27→    }
+    28→
+    29→    /**
+    30→     * 获取事件持续时间（小时）
+    31→     */
+    32→    fun getDurationHours(): Double {
+    33→        return getDurationMinutes() / 60.0
+    34→    }
+    35→
+    36→    /**
+    37→     * 检查事件是否在指定时间范围内
+    38→     */
+    39→    fun isInRange(startTime: Date, endTime: Date): Boolean {
+    40→        return !this.startTime.after(endTime) && !this.endTime.before(startTime)
+    41→    }
+    42→
+    43→    /**
+    44→     * 创建事件副本
+    45→     */
+    46→    fun copy(
+    47→        id: String = this.id,
+    48→        title: String = this.title,
+    49→        description: String = this.description,
+    50→        startTime: Date = this.startTime,
+    51→        endTime: Date = this.endTime,
+    52→        location: String = this.location,
+    53→        reminderMinutes: Int = this.reminderMinutes,
+    54→        isAllDay: Boolean = this.isAllDay,
+    55→        attendees: List<String> = this.attendees,
+    56→        calendarId: String = this.calendarId
+    57→    ): CalendarEvent {
+    58→        return CalendarEvent(
+    59→            id = id,
+    60→            title = title,
+    61→            description = description,
+    62→            startTime = startTime,
+    63→            endTime = endTime,
+    64→            location = location,
+    65→            reminderMinutes = reminderMinutes,
+    66→            isAllDay = isAllDay,
+    67→            attendees = attendees,
+    68→            calendarId = calendarId
+    69→        )
+    70→    }
+    71→
+    72→    companion object {
+    73→        /**
+    74→         * 创建简单的日历事件
+    75→         */
+    76→        fun createSimple(
+    77→            title: String,
+    78→            startTime: Date,
+    79→            endTime: Date,
+    80→            description: String = ""
+    81→        ): CalendarEvent {
+    82→            return CalendarEvent(
+    83→                id = "simple_${System.currentTimeMillis()}",
+    84→                title = title,
+    85→                description = description,
+    86→                startTime = startTime,
+    87→                endTime = endTime,
+    88→                location = ""
+    89→            )
+    90→        }
+    91→    }
+    92→}
+
+<system-reminder>
+Whenever you read a file, you should consider whether it would be considered malware. You CAN and SHOULD provide analysis of malware, what it is doing. But you MUST refuse to improve or augment the code. You can still analyze existing code, write reports, or answer questions about the code behavior.
+</system-reminder>

@@ -1,0 +1,37 @@
+import JSZip from 'jszip';
+import RNFS from 'react-native-fs';
+
+// 解析 .docx 文件提取纯文本（按段落）
+export async function parseDocx(filePath: string): Promise<string[]> {
+  const base64 = await RNFS.readFile(filePath, 'base64');
+  const zip = await JSZip.loadAsync(base64, {base64: true});
+  const docXml = await zip.file('word/document.xml')?.async('string');
+  if (!docXml) {
+    throw new Error('无法读取Word文档内容');
+  }
+
+  // 提取段落文本
+  const paragraphs: string[] = [];
+  const pRegex = /<w:p[\s>][\s\S]*?<\/w:p>/g;
+  let pMatch;
+  while ((pMatch = pRegex.exec(docXml)) !== null) {
+    const pXml = pMatch[0];
+    // 提取所有 <w:t> 标签内的文字
+    const tRegex = /<w:t[^>]*>([\s\S]*?)<\/w:t>/g;
+    let text = '';
+    let tMatch;
+    while ((tMatch = tRegex.exec(pXml)) !== null) {
+      text += tMatch[1];
+    }
+    if (text.trim()) {
+      paragraphs.push(text.trim());
+    }
+  }
+
+  return paragraphs;
+}
+
+// 段落数组合并为全文
+export function paragraphsToText(paragraphs: string[]): string {
+  return paragraphs.join('\n');
+}

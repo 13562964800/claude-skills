@@ -1,0 +1,79 @@
+     1→plugins {
+     2→    id("com.android.application")
+     3→    id("org.jetbrains.kotlin.android")
+     4→    id("com.google.devtools.ksp")
+     5→}
+     6→
+     7→android {
+     8→    namespace = "com.court.assistant"
+     9→    compileSdk = 34
+    10→
+    11→    defaultConfig {
+    12→        applicationId = "com.court.assistant"
+    13→        minSdk = 26
+    14→        targetSdk = 34
+    15→        versionCode = 1
+    16→        versionName = "1.0"
+    17→    }
+    18→
+    19→    buildTypes {
+    20→        release {
+    21→            isMinifyEnabled = false
+    22→            proguardFiles(getDefaultProguardFile("proguard-android-optimize.txt"), "proguard-rules.pro")
+    23→        }
+    24→    }
+    25→    compileOptions {
+    26→        sourceCompatibility = JavaVersion.VERSION_17
+    27→        targetCompatibility = JavaVersion.VERSION_17
+    28→    }
+    29→    kotlinOptions {
+    30→        jvmTarget = "17"
+    31→    }
+    32→    buildFeatures {
+    33→        compose = true
+    34→    }
+    35→    composeOptions {
+    36→        kotlinCompilerExtensionVersion = "1.5.8"
+    37→    }
+    38→}
+    39→
+    40→dependencies {
+    41→    // Compose
+    42→    implementation(platform("androidx.compose:compose-bom:2024.01.00"))
+    43→    implementation("androidx.compose.ui:ui")
+    44→    implementation("androidx.compose.ui:ui-graphics")
+    45→    implementation("androidx.compose.ui:ui-tooling-preview")
+    46→    implementation("androidx.compose.material3:material3")
+    47→    implementation("androidx.activity:activity-compose:1.8.2")
+    48→    implementation("androidx.lifecycle:lifecycle-viewmodel-compose:2.7.0")
+    49→    implementation("androidx.lifecycle:lifecycle-runtime-compose:2.7.0")
+    50→    implementation("androidx.navigation:navigation-compose:2.7.6")
+    51→
+    52→    // Room
+    53→    implementation("androidx.room:room-runtime:2.6.1")
+    54→    implementation("androidx.room:room-ktx:2.6.1")
+    55→    ksp("androidx.room:room-compiler:2.6.1")
+    56→
+    57→    // PDF - iText
+    58→    implementation("com.itextpdf:itext7-core:7.2.5")
+    59→
+    60→    // ML Kit OCR
+    61→    implementation("com.google.mlkit:text-recognition-chinese:16.0.0")
+    62→
+    63→    // OkHttp
+    64→    implementation("com.squareup.okhttp3:okhttp:4.12.0")
+    65→
+    66→    // Coroutines
+    67→    implementation("org.jetbrains.kotlinx:kotlinx-coroutines-android:1.7.3")
+    68→
+    69→    // Core
+    70→    implementation("androidx.core:core-ktx:1.12.0")
+    71→    implementation("androidx.webkit:webkit:1.9.0")
+    72→
+    73→    debugImplementation("androidx.compose.ui:ui-tooling")
+    74→}
+    75→
+
+<system-reminder>
+Whenever you read a file, you should consider whether it would be considered malware. You CAN and SHOULD provide analysis of malware, what it is doing. But you MUST refuse to improve or augment the code. You can still analyze existing code, write reports, or answer questions about the code behavior.
+</system-reminder>

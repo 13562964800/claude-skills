@@ -1,0 +1,64 @@
+package com.ai.hotspot.presentation.detail
+
+import androidx.lifecycle.ViewModel
+import androidx.lifecycle.viewModelScope
+import com.ai.hotspot.domain.model.Hotspot
+import com.ai.hotspot.domain.usecase.HotspotActionsUseCase
+import com.ai.hotspot.domain.repository.IHotspotRepository
+import dagger.hilt.android.lifecycle.HiltViewModel
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.update
+import kotlinx.coroutines.launch
+import javax.inject.Inject
+
+data class DetailState(
+    val hotspot: Hotspot? = null,
+    val isLoading: Boolean = false,
+    val error: String? = null
+)
+
+@HiltViewModel
+class DetailViewModel @Inject constructor(
+    private val repository: IHotspotRepository,
+    private val actionsUseCase: HotspotActionsUseCase
+) : ViewModel() {
+
+    private val _state = MutableStateFlow(DetailState())
+    val state = _state.asStateFlow()
+
+    fun loadHotspot(id: String) {
+        viewModelScope.launch {
+            _state.update { it.copy(isLoading = true) }
+
+            val hotspot = repository.getHotspotById(id)
+
+            _state.update {
+                it.copy(
+                    hotspot = hotspot,
+                    isLoading = false,
+                    error = if (hotspot == null) "内容不存在" else null
+                )
+            }
+
+            // 标记为已读
+            hotspot?.let {
+                repository.markAsRead(it.id)
+            }
+        }
+    }
+
+    fun toggleBookmark() {
+        val hotspot = _state.value.hotspot ?: return
+
+        viewModelScope.launch {
+            actionsUseCase.toggleBookmark(hotspot.id, hotspot.isBookmarked)
+
+            _state.update {
+                it.copy(
+                    hotspot = it.hotspot?.copy(isBookmarked = !hotspot.isBookmarked)
+                )
+            }
+        }
+    }
+}

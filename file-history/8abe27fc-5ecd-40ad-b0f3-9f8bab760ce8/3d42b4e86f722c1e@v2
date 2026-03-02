@@ -1,0 +1,194 @@
+#!/usr/bin/env python3
+"""生成最后4个插图"""
+
+def svg_ecosystem():
+    """8个概念的拼图，组成完整的AI生态系统"""
+    return '''
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 800 450">
+  <rect width="800" height="450" fill="#F0F4F8"/>
+  <text x="400" y="60" font-size="32" text-anchor="middle" fill="#333" font-weight="bold">AI生态系统</text>
+  <g id="puzzle">
+    <rect x="200" y="120" width="150" height="100" rx="10" fill="#E8F4F8" stroke="#4A90E2" stroke-width="3"/>
+    <text x="275" y="165" font-size="40" text-anchor="middle">🤖</text>
+    <text x="275" y="200" font-size="16" text-anchor="middle" fill="#333">LLM</text>
+    <rect x="450" y="120" width="150" height="100" rx="10" fill="#F3E8F8" stroke="#9B59B6" stroke-width="3"/>
+    <text x="525" y="165" font-size="40" text-anchor="middle">📊</text>
+    <text x="525" y="200" font-size="16" text-anchor="middle" fill="#333">Vector DB</text>
+    <rect x="200" y="250" width="150" height="100" rx="10" fill="#E8F5E8" stroke="#4CAF50" stroke-width="3"/>
+    <text x="275" y="295" font-size="40" text-anchor="middle">🔧</text>
+    <text x="275" y="330" font-size="16" text-anchor="middle" fill="#333">Skill</text>
+    <rect x="450" y="250" width="150" height="100" rx="10" fill="#FFF3E0" stroke="#FF9800" stroke-width="3"/>
+    <text x="525" y="295" font-size="40" text-anchor="middle">🔗</text>
+    <text x="525" y="330" font-size="16" text-anchor="middle" fill="#333">Hook</text>
+    <circle cx="100" cy="170" r="40" fill="#E8F4F8" stroke="#4A90E2" stroke-width="2"/>
+    <text x="100" y="180" font-size="30" text-anchor="middle">📱</text>
+    <circle cx="700" cy="170" r="40" fill="#F3E8F8" stroke="#9B59B6" stroke-width="2"/>
+    <text x="700" y="180" font-size="30" text-anchor="middle">🌐</text>
+    <circle cx="100" cy="300" r="40" fill="#E8F5E8" stroke="#4CAF50" stroke-width="2"/>
+    <text x="100" y="310" font-size="30" text-anchor="middle">🔌</text>
+    <circle cx="700" cy="300" r="40" fill="#FFF3E0" stroke="#FF9800" stroke-width="2"/>
+    <text x="700" y="310" font-size="30" text-anchor="middle">⚙️</text>
+  </g>
+  <g>
+    <circle cx="400" cy="400" r="60" fill="#FFD700" opacity="0.3">
+      <animate attributeName="r" values="60;80;60" dur="3s" repeatCount="indefinite"/>
+      <animate attributeName="opacity" values="0.3;0.1;0.3" dur="3s" repeatCount="indefinite"/>
+    </circle>
+  </g>
+</svg>'''
+
+def svg_github_map():
+    """GitHub知识地图"""
+    return '''
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 800 450">
+  <rect width="800" height="450" fill="#E8F4F8"/>
+  <text x="400" y="60" font-size="32" text-anchor="middle" fill="#333" font-weight="bold">GitHub知识地图</text>
+  <circle cx="400" cy="225" r="60" fill="#333"/>
+  <text x="400" y="240" font-size="50" text-anchor="middle">🐙</text>
+  <g>
+    <rect x="150" y="140" width="120" height="70" rx="8" fill="#E8F4F8" stroke="#4A90E2" stroke-width="2"/>
+    <text x="210" y="170" font-size="30" text-anchor="middle">📦</text>
+    <text x="210" y="195" font-size="14" text-anchor="middle" fill="#333">Repository</text>
+    <animateTransform attributeName="transform" type="translate"
+      values="0,0; 0,-8; 0,0" dur="3s" repeatCount="indefinite"/>
+  </g>
+  <g>
+    <rect x="530" y="140" width="120" height="70" rx="8" fill="#E8F4F8" stroke="#4A90E2" stroke-width="2"/>
+    <text x="590" y="170" font-size="30" text-anchor="middle">🔀</text>
+    <text x="590" y="195" font-size="14" text-anchor="middle" fill="#333">Branch</text>
+    <animateTransform attributeName="transform" type="translate"
+      values="0,0; 0,-8; 0,0" dur="3s" begin="0.5s" repeatCount="indefinite"/>
+  </g>
+  <g>
+    <rect x="150" y="280" width="120" height="70" rx="8" fill="#E8F4F8" stroke="#4A90E2" stroke-width="2"/>
+    <text x="210" y="310" font-size="30" text-anchor="middle">💾</text>
+    <text x="210" y="335" font-size="14" text-anchor="middle" fill="#333">Commit</text>
+    <animateTransform attributeName="transform" type="translate"
+      values="0,0; 0,-8; 0,0" dur="3s" begin="1s" repeatCount="indefinite"/>
+  </g>
+  <g>
+    <rect x="530" y="280" width="120" height="70" rx="8" fill="#E8F4F8" stroke="#4A90E2" stroke-width="2"/>
+    <text x="590" y="310" font-size="30" text-anchor="middle">🔄</text>
+    <text x="590" y="335" font-size="14" text-anchor="middle" fill="#333">Pull Request</text>
+    <animateTransform attributeName="transform" type="translate"
+      values="0,0; 0,-8; 0,0" dur="3s" begin="1.5s" repeatCount="indefinite"/>
+  </g>
+  <line x1="270" y1="175" x2="340" y2="200" stroke="#4A90E2" stroke-width="2" stroke-dasharray="5,5"/>
+  <line x1="530" y1="175" x2="460" y2="200" stroke="#4A90E2" stroke-width="2" stroke-dasharray="5,5"/>
+  <line x1="270" y1="315" x2="340" y2="250" stroke="#4A90E2" stroke-width="2" stroke-dasharray="5,5"/>
+  <line x1="530" y1="315" x2="460" y2="250" stroke="#4A90E2" stroke-width="2" stroke-dasharray="5,5"/>
+</svg>'''
+
+def svg_vibecoding_map():
+    """Vibecoding知识地图"""
+    return '''
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 800 450">
+  <rect width="800" height="450" fill="#F0F4F8"/>
+  <text x="400" y="60" font-size="32" text-anchor="middle" fill="#333" font-weight="bold">Vibecoding知识地图</text>
+  <circle cx="400" cy="225" r="70" fill="#4A90E2"/>
+  <text x="400" y="240" font-size="50" text-anchor="middle">✨</text>
+  <g>
+    <circle cx="250" cy="150" r="45" fill="#E8F4F8" stroke="#4A90E2" stroke-width="2"/>
+    <text x="250" y="160" font-size="35" text-anchor="middle">💭</text>
+    <text x="250" y="120" font-size="16" text-anchor="middle" fill="#333">想法</text>
+    <animateTransform attributeName="transform" type="translate"
+      values="0,0; 0,-8; 0,0" dur="3s" repeatCount="indefinite"/>
+  </g>
+  <g>
+    <circle cx="550" cy="150" r="45" fill="#E8F4F8" stroke="#4A90E2" stroke-width="2"/>
+    <text x="550" y="160" font-size="35" text-anchor="middle">🤖</text>
+    <text x="550" y="120" font-size="16" text-anchor="middle" fill="#333">AI助手</text>
+    <animateTransform attributeName="transform" type="translate"
+      values="0,0; 0,-8; 0,0" dur="3s" begin="0.5s" repeatCount="indefinite"/>
+  </g>
+  <g>
+    <circle cx="250" cy="300" r="45" fill="#E8F4F8" stroke="#4A90E2" stroke-width="2"/>
+    <text x="250" y="310" font-size="35" text-anchor="middle">💬</text>
+    <text x="250" y="355" font-size="16" text-anchor="middle" fill="#333">对话</text>
+    <animateTransform attributeName="transform" type="translate"
+      values="0,0; 0,-8; 0,0" dur="3s" begin="1s" repeatCount="indefinite"/>
+  </g>
+  <g>
+    <circle cx="550" cy="300" r="45" fill="#E8F4F8" stroke="#4A90E2" stroke-width="2"/>
+    <text x="550" y="310" font-size="35" text-anchor="middle">💻</text>
+    <text x="550" y="355" font-size="16" text-anchor="middle" fill="#333">代码</text>
+    <animateTransform attributeName="transform" type="translate"
+      values="0,0; 0,-8; 0,0" dur="3s" begin="1.5s" repeatCount="indefinite"/>
+  </g>
+  <line x1="295" y1="165" x2="340" y2="200" stroke="#4A90E2" stroke-width="3" stroke-dasharray="5,5"/>
+  <line x1="505" y1="165" x2="460" y2="200" stroke="#4A90E2" stroke-width="3" stroke-dasharray="5,5"/>
+  <line x1="295" y1="285" x2="340" y2="250" stroke="#4A90E2" stroke-width="3" stroke-dasharray="5,5"/>
+  <line x1="505" y1="285" x2="460" y2="250" stroke="#4A90E2" stroke-width="3" stroke-dasharray="5,5"/>
+  <text x="400" y="400" font-size="20" text-anchor="middle" fill="#666">用自然语言编程</text>
+</svg>'''
+
+def svg_back_cover():
+    """封底设计 - AI小助手挥手告别"""
+    return '''
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 800 450">
+  <rect width="800" height="450" fill="#E8F4F8"/>
+  <text x="400" y="80" font-size="36" text-anchor="middle" fill="#333" font-weight="bold">再见,小朋友们!</text>
+  <g id="robot">
+    <rect x="320" y="180" width="160" height="180" rx="15" fill="#4A90E2" stroke="#2E5C8A" stroke-width="3"/>
+    <rect x="360" y="120" width="80" height="80" rx="10" fill="#5BA3F5" stroke="#2E5C8A" stroke-width="3"/>
+    <circle cx="380" cy="145" r="10" fill="#FFF"/>
+    <circle cx="420" cy="145" r="10" fill="#FFF"/>
+    <circle cx="382" cy="147" r="5" fill="#333"/>
+    <circle cx="422" cy="147" r="5" fill="#333"/>
+    <path d="M 375 165 Q 400 175 425 165" stroke="#333" stroke-width="3" fill="none" stroke-linecap="round"/>
+    <line x1="400" y1="120" x2="400" y2="100" stroke="#2E5C8A" stroke-width="3"/>
+    <circle cx="400" cy="95" r="8" fill="#FF6B6B">
+      <animate attributeName="opacity" values="1;0.3;1" dur="1.5s" repeatCount="indefinite"/>
+    </circle>
+    <rect x="260" y="220" width="60" height="20" rx="10" fill="#4A90E2" stroke="#2E5C8A" stroke-width="2"/>
+    <g transform="translate(480, 215)">
+      <rect width="60" height="20" rx="10" fill="#4A90E2" stroke="#2E5C8A" stroke-width="2"/>
+      <animateTransform attributeName="transform" type="rotate"
+        values="0 30 10; -30 30 10; 0 30 10" dur="2s" repeatCount="indefinite"/>
+    </g>
+    <rect x="360" y="360" width="35" height="60" rx="5" fill="#4A90E2" stroke="#2E5C8A" stroke-width="2"/>
+    <rect x="405" y="360" width="35" height="60" rx="5" fill="#4A90E2" stroke="#2E5C8A" stroke-width="2"/>
+  </g>
+  <g>
+    <text x="200" y="300" font-size="40">✨</text>
+    <animateTransform attributeName="transform" type="translate"
+      values="0,0; -10,-10; 0,0" dur="3s" repeatCount="indefinite"/>
+  </g>
+  <g>
+    <text x="600" y="300" font-size="40">✨</text>
+    <animateTransform attributeName="transform" type="translate"
+      values="0,0; 10,-10; 0,0" dur="3s" begin="0.5s" repeatCount="indefinite"/>
+  </g>
+  <text x="400" y="430" font-size="20" text-anchor="middle" fill="#666">继续探索AI的奇妙世界吧!</text>
+</svg>'''
+
+def insert_final_svgs():
+    file_path = 'AI前沿知识儿童科普画册-带全部插图.md'
+    with open(file_path, 'r', encoding='utf-8') as f:
+        content = f.read()
+
+    svgs = [
+        ('【插图：8个概念的拼图，组成完整的AI生态系统】', svg_ecosystem()),
+        ('【插图：GitHub知识地图】', svg_github_map()),
+        ('【插图：Vibecoding知识地图】', svg_vibecoding_map()),
+        ('【插图：封底设计 - AI小助手挥手告别】', svg_back_cover()),
+    ]
+
+    count = 0
+    for marker, svg in svgs:
+        if marker in content:
+            pos = content.find(marker)
+            next_300 = content[pos:pos+300]
+            if '<svg' not in next_300:
+                content = content.replace(marker, marker + '\n' + svg + '\n')
+                count += 1
+                print(f'✓ 已插入 {marker}')
+
+    with open(file_path, 'w', encoding='utf-8') as f:
+        f.write(content)
+
+    print(f'\n最后一批完成! 共插入 {count} 个SVG')
+    print(f'\n🎉 全部215个插图生成完成!')
+
+if __name__ == '__main__':
+    insert_final_svgs()

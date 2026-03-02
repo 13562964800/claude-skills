@@ -1,0 +1,203 @@
+"""语音转录模块 - Android版，使用云端ASR API"""
+import os, json, base64, tempfile, subprocess
+import requests
+from typing import Optional, Callable
+
+
+def _convert_silk_to_wav(silk_path, output_path=None):
+    """将微信SILK/AMR格式音频转为WAV
+    微信语音消息格式：.amr 或 .silk（实际是silk v3编码）
+    """
+    if output_path is None:
+        output_path = silk_path.rsplit('.', 1)[0] + '.wav'
+
+    # 尝试用ffmpeg转换（支持amr和大部分格式）
+    try:
+        subprocess.run([
+            'ffmpeg', '-y', '-i', silk_path,
+            '-ac', '1', '-ar', '16000', '-acodec', 'pcm_s16le',
+            output_path
+        ], capture_output=True, timeout=30)
+        if os.path.exists(output_path) and os.path.getsize(output_path) > 100:
+            return output_path
+    except:
+        pass
+
+    # 尝试用silk-decoder（针对silk v3格式）
+    try:
+        subprocess.run(['silk_decoder', silk_path, output_path.replace('.wav', '.pcm')],
+                       capture_output=True, timeout=10)
+        pcm_path = output_path.replace('.wav', '.pcm')
+        if os.path.exists(pcm_path):
+            subprocess.run([
+                'ffmpeg', '-y', '-f', 's16le', '-ar', '24000', '-ac', '1',
+                '-i', pcm_path, output_path
+            ], capture_output=True, timeout=10)
+            os.remove(pcm_path)
+            if os.path.exists(output_path):
+                return output_path
+    except:
+        pass
+
+    return silk_path  # 返回原文件，让ASR尝试处理
+
+
+def preprocess_audio(filepath, progress_cb=None):
+    """音频预处理：格式转换 + 重采样"""
+    ext = os.path.splitext(filepath)[1].lower()
+
+    # 微信语音格式需要特殊处理
+    if ext in ('.silk', '.amr', '.slk'):
+        if progress_cb:
+            progress_cb('正在转换微信语音格式...')
+        wav_path = filepath.rsplit('.', 1)[0] + '_converted.wav'
+        return _convert_silk_to_wav(filepath, wav_path)
+
+    # 其他格式用ffmpeg统一转为16kHz WAV
+    if progress_cb:
+        progress_cb('正在预处理音频...')
+    out = filepath.rsplit('.', 1)[0] + '_preprocessed.wav'
+    try:
+        subprocess.run([
+            'ffmpeg', '-y', '-i', filepath,
+            '-ac', '1', '-ar', '16000', '-acodec', 'pcm_s16le', out
+        ], capture_output=True, timeout=60)
+        if os.path.exists(out) and os.path.getsize(out) > 100:
+            return out
+    except:
+        pass
+    return filepath
+
+
+def transcribe_baidu(filepath, api_key, secret_key, app_id='', progress_cb=None):
+    """百度语音识别API"""
+    if progress_cb:
+        progress_cb('正在获取百度Token...')
+
+    # 获取token
+    resp = requests.post('https://aip.baidubce.com/oauth/2.0/token',
+        params={'grant_type': 'client_credentials', 'client_id': api_key, 'client_secret': secret_key}, timeout=10)
+    token = resp.json().get('access_token')
+    if not token:
+        raise Exception('百度Token获取失败')
+
+    # 读取音频
+    with open(filepath, 'rb') as f:
+        audio_data = f.read()
+
+    if len(audio_data) > 2 * 1024 * 1024:
+        # 长音频分段处理
+        return _transcribe_baidu_chunked(filepath, token, app_id, progress_cb)
+
+    if progress_cb:
+        progress_cb('正在识别语音...')
+
+    payload = {
+        'format': 'wav', 'rate': 16000, 'channel': 1,
+        'cuid': app_id or 'voice_doc_compare_apk',
+        'token': token,
+        'speech': base64.b64encode(audio_data).decode(),
+        'len': len(audio_data),
+        'dev_pid': 1537
+    }
+    resp = requests.post('https://vop.baidu.com/server_api', json=payload, timeout=60)
+    result = resp.json()
+    if result.get('err_no', -1) == 0:
+        return ''.join(result.get('result', []))
+    raise Exception(f'百度识别失败[{result.get("err_no")}]: {result.get("err_msg", "未知错误")}')
+
+
+def _transcribe_baidu_chunked(filepath, token, app_id, progress_cb=None):
+    """长音频分段百度识别"""
+    tmpdir = tempfile.mkdtemp()
+    chunk_pattern = os.path.join(tmpdir, 'chunk_%03d.wav')
+    subprocess.run([
+        'ffmpeg', '-i', filepath, '-f', 'segment', '-segment_time', '55',
+        '-ac', '1', '-ar', '16000', '-y', chunk_pattern
+    ], capture_output=True, timeout=120)
+
+    chunks = sorted([os.path.join(tmpdir, f) for f in os.listdir(tmpdir) if f.startswith('chunk_')])
+    if not chunks:
+        raise Exception('音频分段失败')
+
+    results = []
+    for i, chunk in enumerate(chunks):
+        if progress_cb:
+            progress_cb(f'转写分块 {i+1}/{len(chunks)}...')
+        with open(chunk, 'rb') as f:
+            audio_data = f.read()
+        payload = {
+            'format': 'wav', 'rate': 16000, 'channel': 1,
+            'cuid': app_id or 'voice_doc_compare_apk',
+            'token': token,
+            'speech': base64.b64encode(audio_data).decode(),
+            'len': len(audio_data),
+            'dev_pid': 1537
+        }
+        try:
+            resp = requests.post('https://vop.baidu.com/server_api', json=payload, timeout=60)
+            r = resp.json()
+            if r.get('err_no', -1) == 0:
+                results.append(''.join(r.get('result', [])))
+        except:
+            pass
+        os.remove(chunk)
+    os.rmdir(tmpdir)
+    return ''.join(results)
+
+
+def transcribe_groq(filepath, api_key, progress_cb=None):
+    """Groq Whisper API转录"""
+    if progress_cb:
+        progress_cb('正在使用Groq Whisper转写...')
+    with open(filepath, 'rb') as f:
+        resp = requests.post('https://api.groq.com/openai/v1/audio/transcriptions',
+            headers={'Authorization': f'Bearer {api_key}'},
+            files={'file': (os.path.basename(filepath), f, 'audio/wav')},
+            data={'model': 'whisper-large-v3', 'language': 'zh', 'response_format': 'verbose_json',
+                  'timestamp_granularities': ['word']},
+            timeout=180)
+    data = resp.json()
+    if 'text' not in data:
+        raise Exception(f'Groq识别失败: {json.dumps(data, ensure_ascii=False)[:200]}')
+
+    text = data['text']
+    words = []
+    if 'words' in data:
+        for w in data['words']:
+            words.append({'word': w['word'], 'start': w['start'], 'end': w['end'], 'confidence': 0.0})
+    return text, words or None
+
+
+def transcribe_audio(filepath, provider='baidu_builtin', keys=None, progress_cb=None):
+    """统一转录入口"""
+    keys = keys or {}
+    filepath = preprocess_audio(filepath, progress_cb)
+
+    if provider in ('baidu', 'baidu_builtin'):
+        api_key = keys.get('key', 'WRNGMiXLtsPvIAeh9pFhnM2W')
+        secret = keys.get('secret', 'e6nlIRVT25qSuABjRmx21kRoHha2w4t4')
+        app_id = keys.get('app_id', '122105243')
+        text = transcribe_baidu(filepath, api_key, secret, app_id, progress_cb)
+        return text, None
+
+    elif provider == 'groq_whisper':
+        return transcribe_groq(filepath, keys['key'], progress_cb)
+
+    elif provider == 'openai_whisper':
+        if progress_cb:
+            progress_cb('正在使用OpenAI Whisper转写...')
+        with open(filepath, 'rb') as f:
+            resp = requests.post('https://api.openai.com/v1/audio/transcriptions',
+                headers={'Authorization': f'Bearer {keys["key"]}'},
+                files={'file': (os.path.basename(filepath), f, 'audio/wav')},
+                data={'model': 'whisper-1', 'response_format': 'verbose_json',
+                      'timestamp_granularities': ['word']},
+                timeout=120)
+        data = resp.json()
+        text = data.get('text', '')
+        words = [{'word': w['word'], 'start': w['start'], 'end': w['end'], 'confidence': 0.0}
+                 for w in data.get('words', [])] or None
+        return text, words
+
+    raise Exception(f'不支持的ASR服务: {provider}')

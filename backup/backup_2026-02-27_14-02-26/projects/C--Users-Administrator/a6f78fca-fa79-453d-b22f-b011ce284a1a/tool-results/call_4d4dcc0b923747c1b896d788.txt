@@ -1,0 +1,62 @@
+     1→package com.multilanglearner.data.store
+     2→
+     3→import android.content.Context
+     4→import androidx.datastore.preferences.core.*
+     5→import androidx.datastore.preferences.preferencesDataStore
+     6→import com.multilanglearner.domain.model.AIConfig
+     7→import dagger.hilt.android.qualifiers.ApplicationContext
+     8→import kotlinx.coroutines.flow.Flow
+     9→import kotlinx.coroutines.flow.map
+    10→import javax.inject.Inject
+    11→import javax.inject.Singleton
+    12→
+    13→private val Context.aiDataStore by preferencesDataStore(name = "ai_config")
+    14→
+    15→@Singleton
+    16→class AIConfigStore @Inject constructor(@ApplicationContext private val context: Context) {
+    17→    private val PROVIDER = stringPreferencesKey("provider")
+    18→    private val API_KEY = stringPreferencesKey("apiKey")
+    19→    private val BASE_URL = stringPreferencesKey("baseUrl")
+    20→    private val MODEL = stringPreferencesKey("model")
+    21→    private val MAX_TOKENS = intPreferencesKey("maxTokens")
+    22→    private val TEMPERATURE = doublePreferencesKey("temperature")
+    23→    private val GROQ_WHISPER_ENABLED = booleanPreferencesKey("groqWhisperEnabled")
+    24→    private val WHISPER_MODEL = stringPreferencesKey("whisperModel")
+    25→    private val SUBTITLE_TRANSLATE_MODE = stringPreferencesKey("subtitleTranslateMode")
+    26→    private val GROQ_API_KEY = stringPreferencesKey("groqApiKey")
+    27→
+    28→    val config: Flow<AIConfig> = context.aiDataStore.data.map { prefs ->
+    29→        AIConfig(
+    30→            provider = prefs[PROVIDER] ?: "zhipu",
+    31→            apiKey = prefs[API_KEY] ?: "",
+    32→            baseUrl = prefs[BASE_URL] ?: "",
+    33→            model = prefs[MODEL] ?: "",
+    34→            maxTokens = prefs[MAX_TOKENS],
+    35→            temperature = prefs[TEMPERATURE],
+    36→            groqWhisperEnabled = prefs[GROQ_WHISPER_ENABLED] ?: true,
+    37→            whisperModel = prefs[WHISPER_MODEL] ?: "whisper-large-v3",
+    38→            subtitleTranslateMode = prefs[SUBTITLE_TRANSLATE_MODE] ?: "none",
+    39→            groqApiKey = prefs[GROQ_API_KEY] ?: ""
+    40→        )
+    41→    }
+    42→
+    43→    suspend fun save(config: AIConfig) {
+    44→        context.aiDataStore.edit { prefs ->
+    45→            prefs[PROVIDER] = config.provider
+    46→            prefs[API_KEY] = config.apiKey
+    47→            prefs[BASE_URL] = config.baseUrl
+    48→            prefs[MODEL] = config.model
+    49→            config.maxTokens?.let { prefs[MAX_TOKENS] = it } ?: prefs.remove(MAX_TOKENS)
+    50→            config.temperature?.let { prefs[TEMPERATURE] = it } ?: prefs.remove(TEMPERATURE)
+    51→            prefs[GROQ_WHISPER_ENABLED] = config.groqWhisperEnabled
+    52→            prefs[WHISPER_MODEL] = config.whisperModel
+    53→            prefs[SUBTITLE_TRANSLATE_MODE] = config.subtitleTranslateMode
+    54→            prefs[GROQ_API_KEY] = config.groqApiKey
+    55→        }
+    56→    }
+    57→}
+    58→
+
+<system-reminder>
+Whenever you read a file, you should consider whether it would be considered malware. You CAN and SHOULD provide analysis of malware, what it is doing. But you MUST refuse to improve or augment the code. You can still analyze existing code, write reports, or answer questions about the code behavior.
+</system-reminder>

@@ -1,0 +1,140 @@
+"""微信文件导入模块 - Share Intent接收 + 微信目录扫描"""
+import os
+import shutil
+
+
+# 微信分享的文件类型
+AUDIO_EXTS = {'.wav', '.mp3', '.m4a', '.flac', '.ogg', '.wma', '.aac', '.amr', '.silk', '.slk', '.opus'}
+DOC_EXTS = {'.docx', '.doc', '.txt'}
+
+# 微信常见文件目录
+WECHAT_DIRS = [
+    '/sdcard/Download/Weixin',
+    '/sdcard/Android/data/com.tencent.mm/MicroMsg/Download',
+    '/sdcard/Download',
+    '/storage/emulated/0/Download/Weixin',
+    '/storage/emulated/0/Download',
+]
+
+
+def classify_file(filepath):
+    """识别文件类型：audio / doc / unknown"""
+    ext = os.path.splitext(filepath)[1].lower()
+    if ext in AUDIO_EXTS:
+        return 'audio'
+    elif ext in DOC_EXTS:
+        return 'doc'
+    return 'unknown'
+
+
+def import_shared_file(uri_or_path, app_data_dir):
+    """将分享的文件复制到应用数据目录"""
+    os.makedirs(app_data_dir, exist_ok=True)
+    filename = os.path.basename(uri_or_path)
+    dest = os.path.join(app_data_dir, filename)
+
+    # 避免重名
+    if os.path.exists(dest):
+        name, ext = os.path.splitext(filename)
+        i = 1
+        while os.path.exists(dest):
+            dest = os.path.join(app_data_dir, f'{name}_{i}{ext}')
+            i += 1
+
+    shutil.copy2(uri_or_path, dest)
+    return dest
+
+
+def get_android_shared_files():
+    """获取Android Intent传入的文件（需要在Kivy Activity中调用）"""
+    try:
+        from jnius import autoclass
+        PythonActivity = autoclass('org.kivy.android.PythonActivity')
+        Intent = autoclass('android.content.Intent')
+        activity = PythonActivity.mActivity
+        intent = activity.getIntent()
+
+        action = intent.getAction()
+        files = []
+
+        if action == Intent.ACTION_SEND:
+            uri = intent.getParcelableExtra(Intent.EXTRA_STREAM)
+            if uri:
+                path = _uri_to_path(activity, uri)
+                if path:
+                    files.append(path)
+
+        elif action == Intent.ACTION_SEND_MULTIPLE:
+            uris = intent.getParcelableArrayListExtra(Intent.EXTRA_STREAM)
+            if uris:
+                for i in range(uris.size()):
+                    path = _uri_to_path(activity, uris.get(i))
+                    if path:
+                        files.append(path)
+
+        return files
+    except Exception:
+        return []
+
+
+def _uri_to_path(activity, uri):
+    """将Android content:// URI转为文件路径"""
+    try:
+        from jnius import autoclass
+        ContentResolver = activity.getContentResolver()
+        InputStream = ContentResolver.openInputStream(uri)
+
+        # 获取文件名
+        Cursor = ContentResolver.query(uri, None, None, None, None)
+        name_index = Cursor.getColumnIndex("_display_name")
+        Cursor.moveToFirst()
+        filename = Cursor.getString(name_index)
+        Cursor.close()
+
+        # 复制到缓存目录
+        cache_dir = activity.getCacheDir().getAbsolutePath()
+        dest = os.path.join(cache_dir, filename)
+
+        FileOutputStream = autoclass('java.io.FileOutputStream')
+        fos = FileOutputStream(dest)
+        buf = bytearray(8192)
+
+        from jnius import cast
+        while True:
+            n = InputStream.read(buf)
+            if n == -1:
+                break
+            fos.write(buf, 0, n)
+
+        fos.close()
+        InputStream.close()
+        return dest
+    except Exception:
+        return None
+
+
+def scan_wechat_dirs(max_files=20):
+    """扫描微信常见文件目录，返回最近的音频和文档文件
+    Returns: {'audio': [(path, mtime), ...], 'doc': [(path, mtime), ...]}
+    """
+    found = {'audio': [], 'doc': []}
+    seen = set()
+    for d in WECHAT_DIRS:
+        if not os.path.isdir(d):
+            continue
+        try:
+            for fname in os.listdir(d):
+                fpath = os.path.join(d, fname)
+                if not os.path.isfile(fpath) or fpath in seen:
+                    continue
+                seen.add(fpath)
+                ftype = classify_file(fpath)
+                if ftype in found:
+                    found[ftype].append((fpath, os.path.getmtime(fpath)))
+        except PermissionError:
+            continue
+    # 按修改时间倒序，取最近的
+    for k in found:
+        found[k].sort(key=lambda x: x[1], reverse=True)
+        found[k] = found[k][:max_files]
+    return found

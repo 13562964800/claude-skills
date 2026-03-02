@@ -1,0 +1,341 @@
+<?xml version="1.0" encoding="utf-8"?>
+<ScrollView xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="#F5F5F5">
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="vertical"
+        android:padding="16dp">
+
+        <!-- 标题栏 -->
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal"
+            android:gravity="center_vertical"
+            android:layout_marginBottom="16dp">
+
+            <Button
+                android:id="@+id/btnBack"
+                android:layout_width="wrap_content"
+                android:layout_height="40dp"
+                android:text="返回"
+                android:textSize="14sp"
+                android:backgroundTint="#757575" />
+
+            <TextView
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:text="引擎与大模型配置"
+                android:textSize="20sp"
+                android:textStyle="bold"
+                android:textColor="#333"
+                android:gravity="center"
+                android:paddingEnd="48dp" />
+        </LinearLayout>
+
+        <!-- ===== 语音转写引擎 ===== -->
+        <TextView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="语音转写引擎"
+            android:textSize="17sp"
+            android:textStyle="bold"
+            android:textColor="#1565C0"
+            android:layout_marginBottom="8dp" />
+
+        <!-- Card: 引擎选择 -->
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="vertical"
+            android:background="#FFF"
+            android:padding="14dp"
+            android:layout_marginBottom="10dp"
+            android:elevation="2dp">
+
+            <TextView
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="默认识别引擎"
+                android:textSize="14sp"
+                android:textColor="#555"
+                android:paddingBottom="6dp" />
+
+            <Spinner
+                android:id="@+id/spinnerAsr"
+                android:layout_width="match_parent"
+                android:layout_height="44dp"
+                android:background="#F0F0F0"
+                android:paddingStart="8dp" />
+
+            <TextView
+                android:id="@+id/tvAsrDesc"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="Paraformer 中英文语音识别，无需联网"
+                android:textSize="12sp"
+                android:textColor="#888"
+                android:paddingTop="6dp" />
+        </LinearLayout>
+
+        <!-- Card: FunASR 配置 -->
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="vertical"
+            android:background="#FFF"
+            android:padding="14dp"
+            android:layout_marginBottom="10dp"
+            android:elevation="2dp">
+
+            <TextView
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="FunASR 局域网服务器"
+                android:textSize="14sp"
+                android:textStyle="bold"
+                android:textColor="#1565C0"
+                android:paddingBottom="4dp" />
+
+            <TextView
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="手机和电脑需在同一WiFi，电脑需运行FunASR服务"
+                android:textSize="11sp"
+                android:textColor="#888"
+                android:paddingBottom="6dp" />
+
+            <EditText
+                android:id="@+id/etFunasrServer"
+                android:layout_width="match_parent"
+                android:layout_height="44dp"
+                android:hint="如 192.168.1.100:8765"
+                android:textSize="14sp"
+                android:inputType="textUri"
+                android:background="#F8F8F8"
+                android:paddingStart="10dp"
+                android:singleLine="true" />
+        </LinearLayout>
+
+        <!-- Card: 云端API密钥 -->
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="vertical"
+            android:background="#FFF"
+            android:padding="14dp"
+            android:layout_marginBottom="10dp"
+            android:elevation="2dp">
+
+            <TextView
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="云端转写API密钥"
+                android:textSize="14sp"
+                android:textStyle="bold"
+                android:textColor="#1565C0"
+                android:paddingBottom="4dp" />
+
+            <TextView
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="百度语音使用内置密钥，无需配置"
+                android:textSize="11sp"
+                android:textColor="#4CAF50"
+                android:paddingBottom="8dp" />
+
+            <TextView
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="Groq API Key"
+                android:textSize="13sp"
+                android:textColor="#555"
+                android:paddingBottom="4dp" />
+
+            <EditText
+                android:id="@+id/etGroqKey"
+                android:layout_width="match_parent"
+                android:layout_height="44dp"
+                android:hint="输入 Groq API 密钥"
+                android:textSize="13sp"
+                android:inputType="textPassword"
+                android:background="#F8F8F8"
+                android:paddingStart="10dp"
+                android:singleLine="true" />
+
+            <TextView
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="OpenAI API Key"
+                android:textSize="13sp"
+                android:textColor="#555"
+                android:paddingTop="10dp"
+                android:paddingBottom="4dp" />
+
+            <EditText
+                android:id="@+id/etOpenaiKey"
+                android:layout_width="match_parent"
+                android:layout_height="44dp"
+                android:hint="输入 OpenAI API 密钥"
+                android:textSize="13sp"
+                android:inputType="textPassword"
+                android:background="#F8F8F8"
+                android:paddingStart="10dp"
+                android:singleLine="true" />
+
+            <Button
+                android:id="@+id/btnSaveAsr"
+                android:layout_width="match_parent"
+                android:layout_height="40dp"
+                android:text="保存ASR配置"
+                android:textSize="13sp"
+                android:backgroundTint="#2196F3"
+                android:layout_marginTop="10dp" />
+
+            <Button
+                android:id="@+id/btnTestAsr"
+                android:layout_width="match_parent"
+                android:layout_height="40dp"
+                android:text="测试ASR连通性"
+                android:textSize="13sp"
+                android:backgroundTint="#FF9800"
+                android:layout_marginTop="6dp" />
+
+            <TextView
+                android:id="@+id/tvAsrTestResult"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:textSize="12sp"
+                android:textColor="#666"
+                android:paddingTop="6dp" />
+        </LinearLayout>
+
+        <!-- ===== 大模型配置 ===== -->
+        <TextView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="大模型配置"
+            android:textSize="17sp"
+            android:textStyle="bold"
+            android:textColor="#1565C0"
+            android:layout_marginTop="8dp"
+            android:layout_marginBottom="8dp" />
+
+        <!-- Card: LLM 选择 -->
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="vertical"
+            android:background="#FFF"
+            android:padding="14dp"
+            android:layout_marginBottom="10dp"
+            android:elevation="2dp">
+
+            <TextView
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="选择大模型服务商"
+                android:textSize="14sp"
+                android:textStyle="bold"
+                android:textColor="#1565C0"
+                android:paddingBottom="4dp" />
+
+            <TextView
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="用于智能纠错、内容总结等AI增强功能"
+                android:textSize="11sp"
+                android:textColor="#888"
+                android:paddingBottom="8dp" />
+
+            <Spinner
+                android:id="@+id/spinnerLlm"
+                android:layout_width="match_parent"
+                android:layout_height="44dp"
+                android:background="#F0F0F0"
+                android:paddingStart="8dp" />
+
+            <TextView
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="API Key"
+                android:textSize="13sp"
+                android:textColor="#555"
+                android:paddingTop="10dp"
+                android:paddingBottom="4dp" />
+
+            <EditText
+                android:id="@+id/etLlmKey"
+                android:layout_width="match_parent"
+                android:layout_height="44dp"
+                android:hint="输入大模型 API 密钥"
+                android:textSize="13sp"
+                android:inputType="textPassword"
+                android:background="#F8F8F8"
+                android:paddingStart="10dp"
+                android:singleLine="true" />
+
+            <TextView
+                android:id="@+id/tvLlmModel"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="默认模型: glm-4"
+                android:textSize="12sp"
+                android:textColor="#888"
+                android:paddingTop="6dp" />
+
+            <Button
+                android:id="@+id/btnSaveLlm"
+                android:layout_width="match_parent"
+                android:layout_height="40dp"
+                android:text="保存大模型配置"
+                android:textSize="13sp"
+                android:backgroundTint="#2196F3"
+                android:layout_marginTop="10dp" />
+
+            <Button
+                android:id="@+id/btnTestLlm"
+                android:layout_width="match_parent"
+                android:layout_height="40dp"
+                android:text="测试大模型连通性"
+                android:textSize="13sp"
+                android:backgroundTint="#FF9800"
+                android:layout_marginTop="6dp" />
+
+            <TextView
+                android:id="@+id/tvLlmTestResult"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:textSize="12sp"
+                android:textColor="#666"
+                android:paddingTop="6dp" />
+
+            <CheckBox
+                android:id="@+id/checkLlmEnabled"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="启用大模型交叉核对（核对模式自动过滤同音字，转写模式自动校对）"
+                android:textSize="13sp"
+                android:checked="true"
+                android:paddingTop="8dp" />
+        </LinearLayout>
+
+        <!-- 保存按钮 -->
+        <Button
+            android:id="@+id/btnSaveAll"
+            android:layout_width="match_parent"
+            android:layout_height="52dp"
+            android:text="完成并返回"
+            android:textSize="16sp"
+            android:textStyle="bold"
+            android:backgroundTint="#2196F3"
+            android:layout_marginTop="8dp"
+            android:layout_marginBottom="24dp" />
+
+    </LinearLayout>
+</ScrollView>

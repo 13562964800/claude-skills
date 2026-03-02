@@ -1,0 +1,23 @@
+817-            activeDownloadTasks.remove(taskId)
+818-            activeDownloadJobs.remove(taskId)
+819-            updateActiveDownloads()
+820-
+821-            // 保存到数据库
+822:            val entity = VideoEntity(
+823-                title = task.title,
+824-                filePath = file.absolutePath,
+825-                vttPath = null,
+826-                language = _uiState.value.selectedLang,
+827-                sourceUrl = task.url
+--
+1012-                    outputStream.use { output ->
+1013-                        input.copyTo(output)
+1014-                    }
+1015-                }
+1016-
+1017:                val entity = VideoEntity(
+1018-                    title = tempFile.nameWithoutExtension,
+1019-                    filePath = tempFile.absolutePath,
+1020-                    vttPath = null,
+1021-                    language = _uiState.value.selectedLang,
+1022-                    sourceUrl = null

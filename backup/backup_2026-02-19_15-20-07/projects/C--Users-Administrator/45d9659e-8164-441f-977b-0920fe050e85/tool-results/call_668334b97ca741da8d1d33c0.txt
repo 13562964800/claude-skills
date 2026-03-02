@@ -1,0 +1,46 @@
+     1→package com.shanfuchun.courtassistant.sms
+     2→
+     3→import android.content.Context
+     4→import android.util.Log
+     5→import com.shanfuchun.courtassistant.data.AppDatabase
+     6→import com.shanfuchun.courtassistant.data.SmsRecord
+     7→import com.shanfuchun.courtassistant.service.CalendarHelper
+     8→import com.shanfuchun.courtassistant.service.PdfDownloader
+     9→import com.shanfuchun.courtassistant.service.TextParser
+    10→
+    11→object SmsProcessor {
+    12→    private const val TAG = "CourtAssistant"
+    13→
+    14→    suspend fun process(context: Context, db: AppDatabase, sms: SmsRecord) {
+    15→        Log.d(TAG, "SmsProcessor: processing sms id=${sms.id}")
+    16→        val info = TextParser.parse(sms.body)
+    17→        Log.d(TAG, "SmsProcessor: parsed info: time=${info.hearingTime} court=${info.courtName} case=${info.caseNo}")
+    18→
+    19→        // 回写 courtName/partyName 到短信记录
+    20→        if (info.courtName.isNotEmpty() || info.partyName.isNotEmpty()) {
+    21→            db.smsDao().update(sms.copy(courtName = info.courtName, partyName = info.partyName))
+    22→        }
+    23→
+    24→        if (info.hearingTime > 0) {
+    25→            val synced = CalendarHelper.syncHearing(context, db, info, sms.id, "sms", sms.body)
+    26→            Log.d(TAG, "SmsProcessor: calendar synced=$synced")
+    27→        }
+    28→        val urls = TextParser.extractUrls(sms.body)
+    29→        Log.d(TAG, "SmsProcessor: found ${urls.size} urls: $urls")
+    30→        if (urls.isNotEmpty()) {
+    31→            PdfDownloader.downloadFromUrls(context, db, sms.id, urls)
+    32→        }
+    33→        // 重新读取，避免覆盖 PdfParser 设置的 hasSummons
+    34→        val updated = db.smsDao().getById(sms.id) ?: sms
+    35→        db.smsDao().update(updated.copy(
+    36→            parseStatus = 1,
+    37→            courtName = info.courtName.ifEmpty { updated.courtName },
+    38→            partyName = info.partyName.ifEmpty { updated.partyName }
+    39→        ))
+    40→    }
+    41→}
+    42→
+
+<system-reminder>
+Whenever you read a file, you should consider whether it would be considered malware. You CAN and SHOULD provide analysis of malware, what it is doing. But you MUST refuse to improve or augment the code. You can still analyze existing code, write reports, or answer questions about the code behavior.
+</system-reminder>

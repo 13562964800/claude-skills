@@ -1,0 +1,66 @@
+import sqlite3
+import os
+from datetime import datetime
+
+
+class DBManager:
+    def __init__(self):
+        db_dir = os.path.join(os.environ.get("APPDATA", ""), "智能填表助手")
+        os.makedirs(db_dir, exist_ok=True)
+        self.db_path = os.path.join(db_dir, "data.db")
+        self.conn = sqlite3.connect(self.db_path, check_same_thread=False)
+        self.conn.row_factory = sqlite3.Row
+        self._init_tables()
+
+    def _init_tables(self):
+        self.conn.executescript("""
+            CREATE TABLE IF NOT EXISTS categories (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                name TEXT NOT NULL,
+                created_at TEXT DEFAULT (datetime('now','localtime'))
+            );
+            CREATE TABLE IF NOT EXISTS common_fields (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                category_id INTEGER,
+                value TEXT NOT NULL,
+                created_at TEXT DEFAULT (datetime('now','localtime')),
+                FOREIGN KEY (category_id) REFERENCES categories(id) ON DELETE SET NULL
+            );
+        """)
+        self.conn.commit()
+
+    def get_all_categories(self):
+        return [dict(r) for r in self.conn.execute("SELECT * FROM categories ORDER BY created_at")]
+
+    def add_category(self, name):
+        cur = self.conn.execute("INSERT INTO categories (name) VALUES (?)", (name,))
+        self.conn.commit()
+        return cur.lastrowid
+
+    def update_category(self, cid, name):
+        self.conn.execute("UPDATE categories SET name=? WHERE id=?", (name, cid))
+        self.conn.commit()
+
+    def delete_category(self, cid):
+        self.conn.execute("DELETE FROM categories WHERE id=?", (cid,))
+        self.conn.commit()
+
+    def get_all_favorites(self):
+        return [dict(r) for r in self.conn.execute(
+            "SELECT f.*, c.name as category_name FROM common_fields f LEFT JOIN categories c ON f.category_id=c.id ORDER BY f.created_at DESC")]
+
+    def add_favorite(self, value, category_id=None):
+        cur = self.conn.execute("INSERT INTO common_fields (value, category_id) VALUES (?,?)", (value, category_id))
+        self.conn.commit()
+        return cur.lastrowid
+
+    def update_favorite(self, fid, value=None, category_id=None):
+        if value is not None:
+            self.conn.execute("UPDATE common_fields SET value=? WHERE id=?", (value, fid))
+        if category_id is not None:
+            self.conn.execute("UPDATE common_fields SET category_id=? WHERE id=?", (category_id, fid))
+        self.conn.commit()
+
+    def delete_favorite(self, fid):
+        self.conn.execute("DELETE FROM common_fields WHERE id=?", (fid,))
+        self.conn.commit()

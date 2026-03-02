@@ -1,0 +1,57 @@
+package com.court.assistant.data.db
+
+import android.content.Context
+import androidx.room.migration.Migration
+import androidx.sqlite.db.SupportSQLiteDatabase
+import androidx.room.*
+
+val MIGRATION_1_2 = object : Migration(1, 2) {
+    override fun migrate(database: SupportSQLiteDatabase) {
+        // 删除旧表并重建，添加 fileMd5 和 ocrTitle 列
+        database.execSQL("DROP TABLE IF EXISTS pdf_documents")
+        database.execSQL("""
+            CREATE TABLE IF NOT EXISTS pdf_documents (
+                id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
+                smsId INTEGER NOT NULL,
+                fileName TEXT NOT NULL,
+                filePath TEXT NOT NULL,
+                fileSize INTEGER NOT NULL,
+                fileMd5 TEXT NOT NULL,
+                ocrTitle TEXT,
+                downloadedAt INTEGER NOT NULL,
+                isSubpoena INTEGER NOT NULL DEFAULT 0,
+                hearingInfo TEXT,
+                calendarEventId INTEGER,
+                FOREIGN KEY(smsId) REFERENCES court_sms(id) ON DELETE CASCADE
+            )
+        """)
+        database.execSQL("CREATE INDEX IF NOT EXISTS INDEX_pdf_documents_smsId ON pdf_documents(smsId)")
+        database.execSQL("CREATE UNIQUE INDEX IF NOT EXISTS INDEX_pdf_documents_fileMd5 ON pdf_documents(fileMd5)")
+    }
+}
+
+@Database(
+    entities = [CourtSmsEntity::class, PdfDocumentEntity::class],
+    version = 2,
+    exportSchema = false
+)
+abstract class CourtDatabase : RoomDatabase() {
+    abstract fun courtDao(): CourtDao
+
+    companion object {
+        @Volatile
+        private var INSTANCE: CourtDatabase? = null
+
+        fun getInstance(context: Context): CourtDatabase {
+            return INSTANCE ?: synchronized(this) {
+                Room.databaseBuilder(
+                    context.applicationContext,
+                    CourtDatabase::class.java,
+                    "court_assistant.db"
+                )
+                .addMigrations(MIGRATION_1_2)
+                .build().also { INSTANCE = it }
+            }
+        }
+    }
+}

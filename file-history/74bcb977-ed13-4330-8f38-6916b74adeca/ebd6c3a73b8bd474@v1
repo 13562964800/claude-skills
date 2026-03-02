@@ -1,0 +1,11 @@
+import os
+
+WEB = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), 'apps', 'web')
+
+def test_dashboard_imports_api():
+    content = open(os.path.join(WEB, 'app', 'dashboard', 'page.tsx'), encoding='utf-8').read()
+    assert 'listProjects' in content or 'api' in content.lower()
+
+def test_dashboard_has_link_to_projects():
+    content = open(os.path.join(WEB, 'app', 'dashboard', 'page.tsx'), encoding='utf-8').read()
+    assert '/projects' in content

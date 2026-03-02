@@ -1,0 +1,100 @@
+import re
+
+# 全部诉讼参与人角色关键词
+_ROLES = (
+    "原告", "被告", "第三人",
+    "上诉人", "被上诉人",
+    "申请人", "被申请人",
+    "申请执行人", "被执行人",
+    "再审申请人", "再审被申请人",
+    "抗诉申请人",
+    "答辩人", "被答辩人",
+    "异议人", "被异议人",
+    "反诉原告", "反诉被告",
+    "原审原告", "原审被告", "原审第三人",
+    "委托诉讼代理人", "委托代理人", "诉讼代理人",
+    "法定代理人", "指定代理人",
+    "法定代表人", "负责人",
+)
+
+# 键名集合：冒号前面的键名不作为字段
+_KEY_NAMES = set(_ROLES) | {
+    "姓名", "性别", "民族", "出生日期", "出生年月", "年龄", "职业", "工作单位",
+    "联系电话", "电话", "手机", "电话号码", "手机号码", "手机号",
+    "身份证号", "身份证号码", "公民身份号码", "身份证",
+    "律师事务所", "统一社会信用代码", "企业信用代码", "社会信用代码", "信用代码",
+    "住所地", "地址", "住址", "联系地址", "住所", "住",
+    "邮政编码", "邮编", "案号", "合同编号", "职务", "电子邮箱", "名称",
+    "公司名称", "企业名称", "单位名称", "组织机构代码",
+    "民事起诉状", "民事答辩状", "起诉状", "答辩状",
+    "诉讼请求", "事实和理由",
+}
+
+# 当事人区域终止标记
+_PARTY_END = re.compile(r'诉讼请求|事实和理由|审理查明|本院认为|判决如下|裁定如下')
+
+# 标点切分
+_SPLIT = re.compile(r'[，。；、！？,.\n\r\t]+')
+
+# 冒号切分（键：值）
+_COLON = re.compile(r'[：:]\s*')
+
+
+class LegalFieldExtractor:
+    def extract_fields(self, text, custom_keys=None):
+        if not text:
+            return []
+
+        # 合并自定义键名到过滤集合
+        skip = set(_KEY_NAMES)
+        if custom_keys:
+            skip.update(custom_keys)
+
+        # 截取当事人区域
+        m = _PARTY_END.search(text)
+        party_text = text[:m.start()] if m else text
+
+        fields = []
+        # 按标点切分
+        segments = _SPLIT.split(party_text)
+        for seg in segments:
+            seg = seg.strip()
+            if not seg:
+                continue
+            # 如果含冒号，取冒号后面的值
+            if _COLON.search(seg):
+                parts = _COLON.split(seg)
+                # 可能有多个冒号：key1:val1 key2:val2
+                for i, part in enumerate(parts):
+                    part = part.strip()
+                    if not part:
+                        continue
+                    if i == 0:
+                        # 第一个部分是键名，跳过
+                        continue
+                    # 后续部分可能是 "值 键名" 混合，再拆
+                    # 检查末尾是否粘连了下一个键名
+                    added = False
+                    for key in sorted(skip, key=len, reverse=True):
+                        if part.endswith(key) and len(part) > len(key):
+                            val = part[:-len(key)].strip()
+                            if val and len(val) <= 40:
+                                fields.append(val)
+                            added = True
+                            break
+                    if not added and part not in skip and len(part) <= 40:
+                        fields.append(part)
+            else:
+                # 无冒号的片段，如果不是键名就保留
+                if seg not in skip and len(seg) <= 40:
+                    fields.append(seg)
+
+        # 去重
+        seen = set()
+        result = []
+        for f in fields:
+            f = f.strip()
+            if f and f not in seen:
+                seen.add(f)
+                result.append(f)
+        return result

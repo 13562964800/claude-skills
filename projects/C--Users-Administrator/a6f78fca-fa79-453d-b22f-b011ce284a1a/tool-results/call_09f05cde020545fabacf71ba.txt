@@ -1,0 +1,43 @@
+d:\llapk\app\src\main\java\com\multilanglearner\ui\player\PlayerViewModel.kt.part:10:            // Also check language-suffixed vtt
+d:\llapk\app\src\main\java\com\multilanglearner\ui\player\PlayerViewModel.kt.part:99:    fun setLang(lang: String) {
+d:\llapk\app\src\main\java\com\multilanglearner\ui\player\PlayerViewModel.kt.part:100:        _uiState.update { it.copy(currentLang = lang) }
+d:\llapk\app\src\main\java\com\multilanglearner\ui\player\PlayerViewModel.kt.part:101:        val locale = LANGUAGES.find { it.code == lang }?.ttsLocale ?: "en-US"
+d:\llapk\app\src\main\java\com\multilanglearner\ui\player\PlayerViewModel.kt:1:package com.multilanglearner.ui.player
+d:\llapk\app\src\main\java\com\multilanglearner\ui\player\PlayerViewModel.kt:8:import com.multilanglearner.data.network.AIService
+d:\llapk\app\src\main\java\com\multilanglearner\ui\player\PlayerViewModel.kt:9:import com.multilanglearner.data.network.DictionaryService
+d:\llapk\app\src\main\java\com\multilanglearner\ui\player\PlayerViewModel.kt:10:import com.multilanglearner.data.network.WhisperService
+d:\llapk\app\src\main\java\com\multilanglearner\ui\player\PlayerViewModel.kt:11:import com.multilanglearner.data.network.SegmentedWhisperService
+d:\llapk\app\src\main\java\com\multilanglearner\ui\player\PlayerViewModel.kt:12:import com.multilanglearner.data.network.FFmpegSegmentedTranscriptionService
+d:\llapk\app\src\main\java\com\multilanglearner\ui\player\PlayerViewModel.kt:13:import com.multilanglearner.data.repository.FavoriteRepository
+d:\llapk\app\src\main\java\com\multilanglearner\ui\player\PlayerViewModel.kt:14:import com.multilanglearner.data.store.AIConfigStore
+d:\llapk\app\src\main\java\com\multilanglearner\ui\player\PlayerViewModel.kt:15:import com.multilanglearner.domain.model.*
+d:\llapk\app\src\main\java\com\multilanglearner\ui\player\PlayerViewModel.kt:16:import com.multilanglearner.domain.util.VttParser
+d:\llapk\app\src\main\java\com\multilanglearner\ui\player\PlayerViewModel.kt:17:import com.multilanglearner.domain.util.WordAligner
+d:\llapk\app\src\main\java\com\multilanglearner\ui\player\PlayerViewModel.kt:35:    val currentLang: String = "en",
+d:\llapk\app\src\main\java\com\multilanglearner\ui\player\PlayerViewModel.kt:75:                tts?.language = Locale.US
+d:\llapk\app\src\main\java\com\multilanglearner\ui\player\PlayerViewModel.kt:110:        // Check with language suffix
+d:\llapk\app\src\main\java\com\multilanglearner\ui\player\PlayerViewModel.kt:294:    fun setLang(lang: String) {
+d:\llapk\app\src\main\java\com\multilanglearner\ui\player\PlayerViewModel.kt:295:        _uiState.update { it.copy(currentLang = lang) }
+d:\llapk\app\src\main\java\com\multilanglearner\ui\player\PlayerViewModel.kt:296:        val locale = LANGUAGES.find { it.code == lang }?.ttsLocale ?: "en-US"
+d:\llapk\app\src\main\java\com\multilanglearner\ui\player\PlayerViewModel.kt:297:        tts?.language = Locale.forLanguageTag(locale)
+d:\llapk\app\src\main\java\com\multilanglearner\ui\player\PlayerViewModel.kt:306:            val lang = _uiState.value.currentLang
+d:\llapk\app\src\main\java\com\multilanglearner\ui\player\PlayerViewModel.kt:311:            val aiTransPromise = launch { aiTranslateWord(word, context, lang, aiConfig) }
+d:\llapk\app\src\main\java\com\multilanglearner\ui\player\PlayerViewModel.kt:313:            val cardData = when (lang) {
+d:\llapk\app\src\main\java\com\multilanglearner\ui\player\PlayerViewModel.kt:317:                    val aiTrans = aiTranslateWord(word, context, lang, aiConfig)
+d:\llapk\app\src\main\java\com\multilanglearner\ui\player\PlayerViewModel.kt:329:                    val aiTrans = aiTranslateWord(word, context, lang, aiConfig)
+d:\llapk\app\src\main\java\com\multilanglearner\ui\player\PlayerViewModel.kt:338:                    val translation = dictionaryService.translate(word, lang)
+d:\llapk\app\src\main\java\com\multilanglearner\ui\player\PlayerViewModel.kt:339:                    val aiTrans = aiTranslateWord(word, context, lang, aiConfig)
+d:\llapk\app\src\main\java\com\multilanglearner\ui\player\PlayerViewModel.kt:350:    private suspend fun aiTranslateWord(word: String, context: String, lang: String, config: AIConfig): String? {
+d:\llapk\app\src\main\java\com\multilanglearner\ui\player\PlayerViewModel.kt:351:        val langName = LANGUAGES.find { it.code == lang }?.name ?: "英语"
+d:\llapk\app\src\main\java\com\multilanglearner\ui\player\PlayerViewModel.kt:352:        val prompt = "将${langName}「${word}」翻译为中文。${if (context.isNotBlank()) "语境:\"$context\"。" else ""}只回复中文释义，多义项用/分隔，不要音译。"
+d:\llapk\app\src\main\java\com\multilanglearner\ui\player\PlayerViewModel.kt:365:            val lang = _uiState.value.currentLang
+d:\llapk\app\src\main\java\com\multilanglearner\ui\player\PlayerViewModel.kt:366:            val langName = LANGUAGES.find { it.code == lang }?.name ?: lang
+d:\llapk\app\src\main\java\com\multilanglearner\ui\player\PlayerViewModel.kt:368:            val prompt = """分析${langName}句子："$sentence"
+d:\llapk\app\src\main\java\com\multilanglearner\ui\player\PlayerViewModel.kt:382:        return favoriteRepository.isFavorite(word, _uiState.value.currentLang)
+d:\llapk\app\src\main\java\com\multilanglearner\ui\player\PlayerViewModel.kt:387:            val lang = _uiState.value.currentLang
+d:\llapk\app\src\main\java\com\multilanglearner\ui\player\PlayerViewModel.kt:388:            if (favoriteRepository.isFavorite(word, lang)) {
+d:\llapk\app\src\main\java\com\multilanglearner\ui\player\PlayerViewModel.kt:389:                favoriteRepository.remove(word, lang)
+d:\llapk\app\src\main\java\com\multilanglearner\ui\player\PlayerViewModel.kt:391:                favoriteRepository.add(word, lang, phonetic, translation, _uiState.value.currentSentence)
+d:\llapk\app\src\main\java\com\multilanglearner\ui\player\PlayerScreen.kt:1:package com.multilanglearner.ui.player
+d:\llapk\app\src\main\java\com\multilanglearner\ui\player\PlayerScreen.kt:34:import com.multilanglearner.domain.model.WordCardData
+d:\llapk\app\src\main\java\com\multilanglearner\ui\player\PlayerScreen.kt:35:import com.multilanglearner.domain.model.SubtitleCue

@@ -1,0 +1,37 @@
+C:\Users\Administrator\Desktop\CourtAssistant\app\src\main\AndroidManifest.xml:24:            android:name=".MainActivity"
+C:\Users\Administrator\Desktop\CourtAssistant\app\src\main\java\com\court\assistant\webview\CourtWebViewClient.kt:4:import android.webkit.WebView
+C:\Users\Administrator\Desktop\CourtAssistant\app\src\main\java\com\court\assistant\webview\CourtWebViewClient.kt:5:import android.webkit.WebViewClient
+C:\Users\Administrator\Desktop\CourtAssistant\app\src\main\java\com\court\assistant\webview\CourtWebViewClient.kt:7:class CourtWebViewClient(
+C:\Users\Administrator\Desktop\CourtAssistant\app\src\main\java\com\court\assistant\webview\CourtWebViewClient.kt:10:) : WebViewClient() {
+C:\Users\Administrator\Desktop\CourtAssistant\app\src\main\java\com\court\assistant\webview\CourtWebViewClient.kt:12:    override fun shouldOverrideUrlLoading(view: WebView?, request: WebResourceRequest?): Boolean {
+C:\Users\Administrator\Desktop\CourtAssistant\app\src\main\java\com\court\assistant\webview\CourtWebViewClient.kt:21:    override fun onPageFinished(view: WebView?, url: String?) {
+C:\Users\Administrator\Desktop\CourtAssistant\app\src\main\java\com\court\assistant\MainActivity.kt:7:import androidx.activity.ComponentActivity
+C:\Users\Administrator\Desktop\CourtAssistant\app\src\main\java\com\court\assistant\MainActivity.kt:9:import androidx.activity.result.contract.ActivityResultContracts
+C:\Users\Administrator\Desktop\CourtAssistant\app\src\main\java\com\court\assistant\MainActivity.kt:19:class MainActivity : ComponentActivity() {
+C:\Users\Administrator\Desktop\CourtAssistant\app\src\main\java\com\court\assistant\MainActivity.kt:24:    private val permissionLauncher = registerForActivityResult(
+C:\Users\Administrator\Desktop\CourtAssistant\app\src\main\java\com\court\assistant\MainActivity.kt:25:        ActivityResultContracts.RequestMultiplePermissions()
+C:\Users\Administrator\Desktop\CourtAssistant\app\src\main\java\com\court\assistant\ui\MainScreen.kt:43:    onOpenWebView: (smsId: Long, url: String) -> Unit,
+C:\Users\Administrator\Desktop\CourtAssistant\app\src\main\java\com\court\assistant\ui\MainScreen.kt:182:                            onOpenWebView = onOpenWebView,
+C:\Users\Administrator\Desktop\CourtAssistant\app\src\main\java\com\court\assistant\ui\MainScreen.kt:196:    onOpenWebView: (smsId: Long, url: String) -> Unit,
+C:\Users\Administrator\Desktop\CourtAssistant\app\src\main\java\com\court\assistant\ui\MainScreen.kt:288:                            onClick = { onOpenWebView(item.sms.id, item.sms.webUrl!!) },
+C:\Users\Administrator\Desktop\CourtAssistant\app\src\main\java\com\court\assistant\ui\Navigation.kt:3:import android.content.Intent
+C:\Users\Administrator\Desktop\CourtAssistant\app\src\main\java\com\court\assistant\ui\Navigation.kt:44:                        val intent = Intent(Intent.ACTION_SEND).apply {
+C:\Users\Administrator\Desktop\CourtAssistant\app\src\main\java\com\court\assistant\ui\Navigation.kt:46:                            putExtra(Intent.EXTRA_STREAM, uri)
+C:\Users\Administrator\Desktop\CourtAssistant\app\src\main\java\com\court\assistant\ui\Navigation.kt:47:                            addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+C:\Users\Administrator\Desktop\CourtAssistant\app\src\main\java\com\court\assistant\ui\Navigation.kt:50:                        context.startActivity(Intent.createChooser(intent, "分享文书压缩包"))
+C:\Users\Administrator\Desktop\CourtAssistant\app\src\main\java\com\court\assistant\ui\Navigation.kt:60:                onOpenWebView = { smsId, url ->
+C:\Users\Administrator\Desktop\CourtAssistant\app\src\main\java\com\court\assistant\ui\Navigation.kt:89:            WebViewScreen(
+C:\Users\Administrator\Desktop\CourtAssistant\app\src\main\java\com\court\assistant\ui\SettingsScreen.kt:45:        androidx.activity.compose.rememberLauncherForActivityResult(
+C:\Users\Administrator\Desktop\CourtAssistant\app\src\main\java\com\court\assistant\ui\SettingsScreen.kt:46:            contract = androidx.activity.result.contract.ActivityResultContracts.CreateDocument("text/csv")
+C:\Users\Administrator\Desktop\CourtAssistant\app\src\main\java\com\court\assistant\ui\PdfPreviewScreen.kt:39:        androidx.activity.compose.rememberLauncherForActivityResult(
+C:\Users\Administrator\Desktop\CourtAssistant\app\src\main\java\com\court\assistant\ui\PdfPreviewScreen.kt:40:            contract = androidx.activity.result.contract.ActivityResultContracts.StartActivityForResult()
+C:\Users\Administrator\Desktop\CourtAssistant\app\src\main\java\com\court\assistant\ui\PdfPreviewScreen.kt:53:        val intent = android.content.Intent(android.content.Intent.ACTION_SEND).apply {
+C:\Users\Administrator\Desktop\CourtAssistant\app\src\main\java\com\court\assistant\ui\PdfPreviewScreen.kt:55:            putExtra(android.content.Intent.EXTRA_STREAM, uri)
+C:\Users\Administrator\Desktop\CourtAssistant\app\src\main\java\com\court\assistant\ui\PdfPreviewScreen.kt:56:            addFlags(android.content.Intent.FLAG_GRANT_READ_URI_PERMISSION)
+C:\Users\Administrator\Desktop\CourtAssistant\app\src\main\java\com\court\assistant\ui\PdfPreviewScreen.kt:59:        context.startActivity(android.content.Intent.createChooser(intent, "分享文书"))
+C:\Users\Administrator\Desktop\CourtAssistant\app\src\main\java\com\court\assistant\ui\WebViewScreen.kt:20:import com.court.assistant.webview.CourtWebViewClient
+C:\Users\Administrator\Desktop\CourtAssistant\app\src\main\java\com\court\assistant\ui\WebViewScreen.kt:26:fun WebViewScreen(
+C:\Users\Administrator\Desktop\CourtAssistant\app\src\main\java\com\court\assistant\ui\WebViewScreen.kt:122:            // WebView
+C:\Users\Administrator\Desktop\CourtAssistant\app\src\main\java\com\court\assistant\ui\WebViewScreen.kt:126:                    WebView(context).apply {
+C:\Users\Administrator\Desktop\CourtAssistant\app\src\main\java\com\court\assistant\ui\WebViewScreen.kt:141:                        webViewClient = CourtWebViewClient(
+C:\Users\Administrator\Desktop\CourtAssistant\app\src\main\java\com\court\assistant\ui\WebViewScreen.kt:150:                            override fun onProgressChanged(view: WebView?, newProgress: Int) {

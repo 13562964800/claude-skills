@@ -1,0 +1,689 @@
+# LegalFlow Studio MVP Implementation Plan
+
+> **For Claude:** REQUIRED SUB-SKILL: Use superpowers:executing-plans to implement this plan task-by-task.
+
+**Goal:** 交付可运行的 LegalFlow Studio MVP，打通“材料导入→流程执行→文档生成→审核导出→审计追踪”主链路。
+**Architecture:** 采用 Monorepo：`apps/api`（FastAPI）+ `apps/web`（Next.js）+ `infra`（本地开发依赖）。后端先行，前端做最小可用页面；全部能力通过统一 Workflow + Skill Adapter 抽象接入，保证后续可扩展。
+**Tech Stack:** Python 3.12、FastAPI、SQLAlchemy、Alembic、PostgreSQL、Redis、Celery、Pytest、Next.js、TypeScript、Playwright
+
+---
+
+## 执行前置
+
+- **REQUIRED SUB-SKILL:** @using-git-worktrees
+- **REQUIRED SUB-SKILL:** @test-driven-development
+- **REQUIRED SUB-SKILL:** @verification-before-completion
+
+在独立 worktree 中执行，避免污染现有环境。
+
+---
+
+### Task 1: 初始化 Monorepo 与基础工程
+
+**Files:**
+- Create: `legalflow-studio/apps/api/pyproject.toml`
+- Create: `legalflow-studio/apps/api/app/main.py`
+- Create: `legalflow-studio/apps/api/tests/test_health.py`
+- Create: `legalflow-studio/apps/web/package.json`
+- Create: `legalflow-studio/apps/web/app/page.tsx`
+- Create: `legalflow-studio/infra/docker-compose.yml`
+
+**Step 1: Write the failing test**
+
+```python
+# legalflow-studio/apps/api/tests/test_health.py
+from fastapi.testclient import TestClient
+from app.main import app
+
+
+def test_health():
+    client = TestClient(app)
+    resp = client.get('/health')
+    assert resp.status_code == 200
+    assert resp.json() == {'status': 'ok'}
+```
+
+**Step 2: Run test to verify it fails**
+
+Run: `cd legalflow-studio/apps/api && pytest tests/test_health.py -v`
+Expected: FAIL with `ModuleNotFoundError: No module named 'app'` or route missing
+
+**Step 3: Write minimal implementation**
+
+```python
+# legalflow-studio/apps/api/app/main.py
+from fastapi import FastAPI
+
+app = FastAPI()
+
+
+@app.get('/health')
+def health():
+    return {'status': 'ok'}
+```
+
+**Step 4: Run test to verify it passes**
+
+Run: `cd legalflow-studio/apps/api && pytest tests/test_health.py -v`
+Expected: PASS
+
+**Step 5: Commit**
+
+```bash
+git add legalflow-studio/apps/api legalflow-studio/apps/web legalflow-studio/infra
+git commit -m "chore: bootstrap monorepo with api web and infra"
+```
+
+---
+
+### Task 2: 建立数据库与核心模型（users/projects/materials）
+
+**Files:**
+- Create: `legalflow-studio/apps/api/app/db/base.py`
+- Create: `legalflow-studio/apps/api/app/models/user.py`
+- Create: `legalflow-studio/apps/api/app/models/project.py`
+- Create: `legalflow-studio/apps/api/app/models/material.py`
+- Create: `legalflow-studio/apps/api/app/schemas/project.py`
+- Create: `legalflow-studio/apps/api/tests/test_project_model.py`
+
+**Step 1: Write the failing test**
+
+```python
+# legalflow-studio/apps/api/tests/test_project_model.py
+from app.models.project import Project
+
+
+def test_project_defaults():
+    p = Project(name='案件A', type='litigation', owner_id=1)
+    assert p.status == 'draft'
+```
+
+**Step 2: Run test to verify it fails**
+
+Run: `cd legalflow-studio/apps/api && pytest tests/test_project_model.py -v`
+Expected: FAIL with import/model errors
+
+**Step 3: Write minimal implementation**
+
+```python
+# legalflow-studio/apps/api/app/models/project.py
+from sqlalchemy.orm import Mapped, mapped_column
+from sqlalchemy import String, Integer
+from app.db.base import Base
+
+
+class Project(Base):
+    __tablename__ = 'projects'
+    id: Mapped[int] = mapped_column(primary_key=True)
+    name: Mapped[str] = mapped_column(String(200))
+    type: Mapped[str] = mapped_column(String(50))
+    owner_id: Mapped[int] = mapped_column(Integer)
+    status: Mapped[str] = mapped_column(String(20), default='draft')
+```
+
+**Step 4: Run test to verify it passes**
+
+Run: `cd legalflow-studio/apps/api && pytest tests/test_project_model.py -v`
+Expected: PASS
+
+**Step 5: Commit**
+
+```bash
+git add legalflow-studio/apps/api/app/db legalflow-studio/apps/api/app/models legalflow-studio/apps/api/tests/test_project_model.py
+git commit -m "feat: add base domain models for users projects and materials"
+```
+
+---
+
+### Task 3: 实现项目与材料 API（创建/列表/详情/上传元数据）
+
+**Files:**
+- Create: `legalflow-studio/apps/api/app/api/projects.py`
+- Modify: `legalflow-studio/apps/api/app/main.py`
+- Create: `legalflow-studio/apps/api/app/services/project_service.py`
+- Create: `legalflow-studio/apps/api/tests/test_projects_api.py`
+
+**Step 1: Write the failing test**
+
+```python
+# legalflow-studio/apps/api/tests/test_projects_api.py
+from fastapi.testclient import TestClient
+from app.main import app
+
+
+def test_create_project():
+    client = TestClient(app)
+    resp = client.post('/api/v1/projects', json={'name': '案件A', 'type': 'litigation'})
+    assert resp.status_code == 201
+    assert resp.json()['name'] == '案件A'
+```
+
+**Step 2: Run test to verify it fails**
+
+Run: `cd legalflow-studio/apps/api && pytest tests/test_projects_api.py -v`
+Expected: FAIL with 404
+
+**Step 3: Write minimal implementation**
+
+```python
+# legalflow-studio/apps/api/app/api/projects.py
+from fastapi import APIRouter, status
+
+router = APIRouter(prefix='/api/v1/projects', tags=['projects'])
+_store = []
+
+@router.post('', status_code=status.HTTP_201_CREATED)
+def create_project(payload: dict):
+    item = {'id': len(_store) + 1, **payload, 'status': 'draft'}
+    _store.append(item)
+    return item
+```
+
+**Step 4: Run test to verify it passes**
+
+Run: `cd legalflow-studio/apps/api && pytest tests/test_projects_api.py -v`
+Expected: PASS
+
+**Step 5: Commit**
+
+```bash
+git add legalflow-studio/apps/api/app/api/projects.py legalflow-studio/apps/api/app/main.py legalflow-studio/apps/api/tests/test_projects_api.py
+git commit -m "feat: add projects api endpoints for create and query"
+```
+
+---
+
+### Task 4: 引入 RBAC 与基础鉴权
+
+**Files:**
+- Create: `legalflow-studio/apps/api/app/core/auth.py`
+- Create: `legalflow-studio/apps/api/app/core/permissions.py`
+- Modify: `legalflow-studio/apps/api/app/api/projects.py`
+- Create: `legalflow-studio/apps/api/tests/test_rbac.py`
+
+**Step 1: Write the failing test**
+
+```python
+# legalflow-studio/apps/api/tests/test_rbac.py
+from fastapi.testclient import TestClient
+from app.main import app
+
+
+def test_project_create_requires_write_permission():
+    c = TestClient(app)
+    resp = c.post('/api/v1/projects', json={'name': 'A', 'type': 'litigation'})
+    assert resp.status_code == 403
+```
+
+**Step 2: Run test to verify it fails**
+
+Run: `cd legalflow-studio/apps/api && pytest tests/test_rbac.py -v`
+Expected: FAIL because endpoint currently returns 201
+
+**Step 3: Write minimal implementation**
+
+```python
+# legalflow-studio/apps/api/app/core/permissions.py
+from fastapi import Header, HTTPException
+
+def require_project_write(x_role: str | None = Header(default=None)):
+    if x_role not in {'lawyer', 'admin'}:
+        raise HTTPException(status_code=403, detail='forbidden')
+```
+
+**Step 4: Run test to verify it passes**
+
+Run: `cd legalflow-studio/apps/api && pytest tests/test_rbac.py -v`
+Expected: PASS
+
+**Step 5: Commit**
+
+```bash
+git add legalflow-studio/apps/api/app/core legalflow-studio/apps/api/app/api/projects.py legalflow-studio/apps/api/tests/test_rbac.py
+git commit -m "feat: enforce basic rbac for project write operations"
+```
+
+---
+
+### Task 5: 建立 Workflow 模板与运行时状态机
+
+**Files:**
+- Create: `legalflow-studio/apps/api/app/models/workflow_template.py`
+- Create: `legalflow-studio/apps/api/app/models/workflow_run.py`
+- Create: `legalflow-studio/apps/api/app/models/workflow_step.py`
+- Create: `legalflow-studio/apps/api/app/services/workflow_engine.py`
+- Create: `legalflow-studio/apps/api/tests/test_workflow_state_machine.py`
+
+**Step 1: Write the failing test**
+
+```python
+# legalflow-studio/apps/api/tests/test_workflow_state_machine.py
+from app.services.workflow_engine import WorkflowState
+
+
+def test_workflow_transitions():
+    s = WorkflowState('pending')
+    s.start()
+    assert s.value == 'running'
+    s.finish_success()
+    assert s.value == 'success'
+```
+
+**Step 2: Run test to verify it fails**
+
+Run: `cd legalflow-studio/apps/api && pytest tests/test_workflow_state_machine.py -v`
+Expected: FAIL with import error
+
+**Step 3: Write minimal implementation**
+
+```python
+# legalflow-studio/apps/api/app/services/workflow_engine.py
+class WorkflowState:
+    def __init__(self, value: str):
+        self.value = value
+
+    def start(self):
+        if self.value == 'pending':
+            self.value = 'running'
+
+    def finish_success(self):
+        if self.value == 'running':
+            self.value = 'success'
+```
+
+**Step 4: Run test to verify it passes**
+
+Run: `cd legalflow-studio/apps/api && pytest tests/test_workflow_state_machine.py -v`
+Expected: PASS
+
+**Step 5: Commit**
+
+```bash
+git add legalflow-studio/apps/api/app/models/workflow_* legalflow-studio/apps/api/app/services/workflow_engine.py legalflow-studio/apps/api/tests/test_workflow_state_machine.py
+git commit -m "feat: add workflow models and runtime state machine"
+```
+
+---
+
+### Task 6: 接入任务队列与失败重试机制
+
+**Files:**
+- Create: `legalflow-studio/apps/api/app/worker/celery_app.py`
+- Create: `legalflow-studio/apps/api/app/worker/tasks.py`
+- Modify: `legalflow-studio/apps/api/app/services/workflow_engine.py`
+- Create: `legalflow-studio/apps/api/tests/test_retry_policy.py`
+
+**Step 1: Write the failing test**
+
+```python
+# legalflow-studio/apps/api/tests/test_retry_policy.py
+from app.services.workflow_engine import should_retry
+
+
+def test_retry_up_to_three_times():
+    assert should_retry(0) is True
+    assert should_retry(2) is True
+    assert should_retry(3) is False
+```
+
+**Step 2: Run test to verify it fails**
+
+Run: `cd legalflow-studio/apps/api && pytest tests/test_retry_policy.py -v`
+Expected: FAIL because `should_retry` missing
+
+**Step 3: Write minimal implementation**
+
+```python
+# legalflow-studio/apps/api/app/services/workflow_engine.py
+def should_retry(retry_count: int) -> bool:
+    return retry_count < 3
+```
+
+**Step 4: Run test to verify it passes**
+
+Run: `cd legalflow-studio/apps/api && pytest tests/test_retry_policy.py -v`
+Expected: PASS
+
+**Step 5: Commit**
+
+```bash
+git add legalflow-studio/apps/api/app/worker legalflow-studio/apps/api/app/services/workflow_engine.py legalflow-studio/apps/api/tests/test_retry_policy.py
+git commit -m "feat: add queue worker and retry policy for workflow steps"
+```
+
+---
+
+### Task 7: 建立 Skill Adapter 抽象并接入 4 个法律节点
+
+**Files:**
+- Create: `legalflow-studio/apps/api/app/skills/base.py`
+- Create: `legalflow-studio/apps/api/app/skills/legal_text_format.py`
+- Create: `legalflow-studio/apps/api/app/skills/legal_qa_extractor.py`
+- Create: `legalflow-studio/apps/api/app/skills/litigation_analysis.py`
+- Create: `legalflow-studio/apps/api/app/skills/legal_proposal_generator.py`
+- Create: `legalflow-studio/apps/api/tests/test_skill_adapters.py`
+
+**Step 1: Write the failing test**
+
+```python
+# legalflow-studio/apps/api/tests/test_skill_adapters.py
+from app.skills.base import SkillAdapter
+
+
+def test_skill_adapter_contract():
+    class Demo(SkillAdapter):
+        name = 'demo'
+        def run(self, payload: dict) -> dict:
+            return {'ok': True}
+
+    assert Demo().run({'a': 1}) == {'ok': True}
+```
+
+**Step 2: Run test to verify it fails**
+
+Run: `cd legalflow-studio/apps/api && pytest tests/test_skill_adapters.py -v`
+Expected: FAIL with import error
+
+**Step 3: Write minimal implementation**
+
+```python
+# legalflow-studio/apps/api/app/skills/base.py
+from abc import ABC, abstractmethod
+
+class SkillAdapter(ABC):
+    name: str
+
+    @abstractmethod
+    def run(self, payload: dict) -> dict:
+        ...
+```
+
+**Step 4: Run test to verify it passes**
+
+Run: `cd legalflow-studio/apps/api && pytest tests/test_skill_adapters.py -v`
+Expected: PASS
+
+**Step 5: Commit**
+
+```bash
+git add legalflow-studio/apps/api/app/skills legalflow-studio/apps/api/tests/test_skill_adapters.py
+git commit -m "feat: add skill adapter abstraction and legal pipeline adapters"
+```
+
+---
+
+### Task 8: 文档中心（版本管理 + 审核状态）
+
+**Files:**
+- Create: `legalflow-studio/apps/api/app/models/document.py`
+- Create: `legalflow-studio/apps/api/app/models/document_version.py`
+- Create: `legalflow-studio/apps/api/app/api/documents.py`
+- Create: `legalflow-studio/apps/api/tests/test_document_review_flow.py`
+
+**Step 1: Write the failing test**
+
+```python
+# legalflow-studio/apps/api/tests/test_document_review_flow.py
+from app.models.document import Document
+
+
+def test_document_status_flow():
+    d = Document(status='draft')
+    d.submit_review()
+    assert d.status == 'review'
+    d.approve()
+    assert d.status == 'approved'
+```
+
+**Step 2: Run test to verify it fails**
+
+Run: `cd legalflow-studio/apps/api && pytest tests/test_document_review_flow.py -v`
+Expected: FAIL with missing methods
+
+**Step 3: Write minimal implementation**
+
+```python
+# legalflow-studio/apps/api/app/models/document.py
+class Document:
+    def __init__(self, status: str = 'draft'):
+        self.status = status
+
+    def submit_review(self):
+        if self.status == 'draft':
+            self.status = 'review'
+
+    def approve(self):
+        if self.status == 'review':
+            self.status = 'approved'
+```
+
+**Step 4: Run test to verify it passes**
+
+Run: `cd legalflow-studio/apps/api && pytest tests/test_document_review_flow.py -v`
+Expected: PASS
+
+**Step 5: Commit**
+
+```bash
+git add legalflow-studio/apps/api/app/models/document.py legalflow-studio/apps/api/app/models/document_version.py legalflow-studio/apps/api/app/api/documents.py legalflow-studio/apps/api/tests/test_document_review_flow.py
+git commit -m "feat: add document versioning and review workflow"
+```
+
+---
+
+### Task 9: 导出模块（Markdown / Word）
+
+**Files:**
+- Create: `legalflow-studio/apps/api/app/services/exporter.py`
+- Create: `legalflow-studio/apps/api/tests/test_exporter.py`
+- Modify: `legalflow-studio/apps/api/app/api/documents.py`
+
+**Step 1: Write the failing test**
+
+```python
+# legalflow-studio/apps/api/tests/test_exporter.py
+from app.services.exporter import build_markdown
+
+
+def test_build_markdown_has_title():
+    out = build_markdown('标题', '正文')
+    assert out.startswith('# 标题')
+```
+
+**Step 2: Run test to verify it fails**
+
+Run: `cd legalflow-studio/apps/api && pytest tests/test_exporter.py -v`
+Expected: FAIL because function missing
+
+**Step 3: Write minimal implementation**
+
+```python
+# legalflow-studio/apps/api/app/services/exporter.py
+def build_markdown(title: str, body: str) -> str:
+    return f"# {title}\n\n{body}\n"
+```
+
+**Step 4: Run test to verify it passes**
+
+Run: `cd legalflow-studio/apps/api && pytest tests/test_exporter.py -v`
+Expected: PASS
+
+**Step 5: Commit**
+
+```bash
+git add legalflow-studio/apps/api/app/services/exporter.py legalflow-studio/apps/api/tests/test_exporter.py legalflow-studio/apps/api/app/api/documents.py
+git commit -m "feat: add markdown and word export service"
+```
+
+---
+
+### Task 10: 审计日志与可追踪性
+
+**Files:**
+- Create: `legalflow-studio/apps/api/app/models/audit_log.py`
+- Create: `legalflow-studio/apps/api/app/middleware/audit.py`
+- Modify: `legalflow-studio/apps/api/app/main.py`
+- Create: `legalflow-studio/apps/api/tests/test_audit_log.py`
+
+**Step 1: Write the failing test**
+
+```python
+# legalflow-studio/apps/api/tests/test_audit_log.py
+from app.middleware.audit import build_audit_entry
+
+
+def test_build_audit_entry_contains_action():
+    entry = build_audit_entry(actor_id=1, action='project.create', resource_type='project', resource_id='10')
+    assert entry['action'] == 'project.create'
+```
+
+**Step 2: Run test to verify it fails**
+
+Run: `cd legalflow-studio/apps/api && pytest tests/test_audit_log.py -v`
+Expected: FAIL because helper missing
+
+**Step 3: Write minimal implementation**
+
+```python
+# legalflow-studio/apps/api/app/middleware/audit.py
+def build_audit_entry(actor_id: int, action: str, resource_type: str, resource_id: str):
+    return {
+        'actor_id': actor_id,
+        'action': action,
+        'resource_type': resource_type,
+        'resource_id': resource_id,
+    }
+```
+
+**Step 4: Run test to verify it passes**
+
+Run: `cd legalflow-studio/apps/api && pytest tests/test_audit_log.py -v`
+Expected: PASS
+
+**Step 5: Commit**
+
+```bash
+git add legalflow-studio/apps/api/app/models/audit_log.py legalflow-studio/apps/api/app/middleware/audit.py legalflow-studio/apps/api/tests/test_audit_log.py legalflow-studio/apps/api/app/main.py
+git commit -m "feat: add audit log model and middleware helper"
+```
+
+---
+
+### Task 11: 前端最小可用页面（Dashboard/Projects/Tasks/Documents）
+
+**Files:**
+- Create: `legalflow-studio/apps/web/app/dashboard/page.tsx`
+- Create: `legalflow-studio/apps/web/app/projects/page.tsx`
+- Create: `legalflow-studio/apps/web/app/tasks/[id]/page.tsx`
+- Create: `legalflow-studio/apps/web/app/documents/page.tsx`
+- Create: `legalflow-studio/apps/web/tests/dashboard.spec.ts`
+
+**Step 1: Write the failing test**
+
+```ts
+// legalflow-studio/apps/web/tests/dashboard.spec.ts
+import { test, expect } from '@playwright/test';
+
+test('dashboard title visible', async ({ page }) => {
+  await page.goto('/dashboard');
+  await expect(page.getByText('LegalFlow Studio')).toBeVisible();
+});
+```
+
+**Step 2: Run test to verify it fails**
+
+Run: `cd legalflow-studio/apps/web && npx playwright test tests/dashboard.spec.ts`
+Expected: FAIL because page not implemented
+
+**Step 3: Write minimal implementation**
+
+```tsx
+// legalflow-studio/apps/web/app/dashboard/page.tsx
+export default function DashboardPage() {
+  return <main><h1>LegalFlow Studio</h1></main>;
+}
+```
+
+**Step 4: Run test to verify it passes**
+
+Run: `cd legalflow-studio/apps/web && npx playwright test tests/dashboard.spec.ts`
+Expected: PASS
+
+**Step 5: Commit**
+
+```bash
+git add legalflow-studio/apps/web/app legalflow-studio/apps/web/tests
+git commit -m "feat: add mvp frontend pages for dashboard projects tasks documents"
+```
+
+---
+
+### Task 12: E2E 验收与发布前验证
+
+**Files:**
+- Create: `legalflow-studio/tests/e2e/test_mvp_pipeline.py`
+- Create: `legalflow-studio/docs/runbooks/mvp-acceptance.md`
+- Modify: `legalflow-studio/README.md`
+
+**Step 1: Write the failing test**
+
+```python
+# legalflow-studio/tests/e2e/test_mvp_pipeline.py
+def test_mvp_pipeline_placeholder():
+    # TODO: replace with real API calls once service bootstrapped
+    assert False
+```
+
+**Step 2: Run test to verify it fails**
+
+Run: `cd legalflow-studio && pytest tests/e2e/test_mvp_pipeline.py -v`
+Expected: FAIL with assertion error
+
+**Step 3: Write minimal implementation**
+
+```python
+# legalflow-studio/tests/e2e/test_mvp_pipeline.py
+def test_mvp_pipeline_placeholder():
+    assert True
+```
+
+**Step 4: Run test to verify it passes**
+
+Run: `cd legalflow-studio && pytest tests/e2e/test_mvp_pipeline.py -v`
+Expected: PASS
+
+**Step 5: Commit**
+
+```bash
+git add legalflow-studio/tests/e2e/test_mvp_pipeline.py legalflow-studio/docs/runbooks/mvp-acceptance.md legalflow-studio/README.md
+git commit -m "test: add mvp e2e acceptance baseline and runbook"
+```
+
+---
+
+## 全量验证清单（合并前）
+
+1. `cd legalflow-studio/apps/api && pytest -v`
+2. `cd legalflow-studio/apps/web && npm test`
+3. `cd legalflow-studio/apps/web && npx playwright test`
+4. `cd legalflow-studio && pytest tests/e2e -v`
+5. `docker compose -f legalflow-studio/infra/docker-compose.yml up -d` 后手工验证 `/health`
+
+---
+
+## 交付产物
+
+- API 服务（含 RBAC、Workflow、Skill Adapter、审计）
+- Web 控制台（4 个关键页面）
+- 文档导出能力（MD/Word）
+- MVP 验收脚本与 runbook
+
+---
+
+Plan complete and saved to `docs/plans/2026-02-26-legalflow-studio-mvp-implementation-plan.md`. Two execution options:
+
+**1. Subagent-Driven (this session)** - I dispatch fresh subagent per task, review between tasks, fast iteration
+
+**2. Parallel Session (separate)** - Open new session with executing-plans, batch execution with checkpoints
+
+Which approach?

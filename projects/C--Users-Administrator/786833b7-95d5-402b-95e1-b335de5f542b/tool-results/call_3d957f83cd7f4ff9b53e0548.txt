@@ -1,0 +1,220 @@
+     1→package com.court.assistant.viewmodel
+     2→
+     3→import android.app.Application
+     4→import androidx.lifecycle.AndroidViewModel
+     5→import androidx.lifecycle.viewModelScope
+     6→import com.court.assistant.CourtApp
+     7→import com.court.assistant.calendar.CalendarSync
+     8→import com.court.assistant.data.db.CourtSmsEntity
+     9→import com.court.assistant.data.db.PdfDocumentEntity
+    10→import com.court.assistant.pdf.PdfDownloadManager
+    11→import com.court.assistant.pdf.PdfParser
+    12→import com.court.assistant.pdf.DownloadResult
+    13→import com.court.assistant.sms.SmsParser
+    14→import com.court.assistant.sms.SmsReader
+    15→import kotlinx.coroutines.flow.*
+    16→import kotlinx.coroutines.launch
+    17→
+    18→data class SmsWithPdfs(
+    19→    val sms: CourtSmsEntity,
+    20→    val pdfs: List<PdfDocumentEntity>
+    21→)
+    22→
+    23→data class UiState(
+    24→    val smsWithPdfs: List<SmsWithPdfs> = emptyList(),
+    25→    val loading: Boolean = false,
+    26→    val message: String? = null,
+    27→    val downloadCount: Int = 0,
+    28→    val selectionMode: Boolean = false,
+    29→    val selectedPdfIds: Set<Long> = emptySet()
+    30→)
+    31→
+    32→class MainViewModel(application: Application) : AndroidViewModel(application) {
+    33→    private val app = application as CourtApp
+    34→    private val repo = app.repository
+    35→    private val smsReader = SmsReader(application)
+    36→    private val smsParser = SmsParser()
+    37→    private val calendarSync = CalendarSync(application)
+    38→    val pdfDownloader = PdfDownloadManager(application)
+    39→    private val pdfParser = PdfParser(application)
+    40→
+    41→    private val _uiState = MutableStateFlow(UiState())
+    42→    val uiState: StateFlow<UiState> = _uiState.asStateFlow()
+    43→
+    44→    private val _downloadEvent = MutableSharedFlow<String>()
+    45→    val downloadEvent: SharedFlow<String> = _downloadEvent.asSharedFlow()
+    46→
+    47→    init {
+    48→        viewModelScope.launch {
+    49→            repo.getAllSms().collect { smsList ->
+    50→                val withPdfs = smsList.map { sms ->
+    51→                    val pdfs = repo.getPdfsBySmsId(sms.id).first()
+    52→                    SmsWithPdfs(sms, pdfs)
+    53→                }
+    54→                _uiState.update { it.copy(smsWithPdfs = withPdfs, loading = false) }
+    55→            }
+    56→        }
+    57→    }
+    58→
+    59→    fun loadSms() {
+    60→        viewModelScope.launch {
+    61→            _uiState.update { it.copy(loading = true) }
+    62→            val rawList = smsReader.readCourtSms()
+    63→            for (raw in rawList) {
+    64→                val hash = raw.body.hashCode()
+    65→                if (repo.smsExists(hash)) continue
+    66→                val parsed = smsParser.parse(raw.body)
+    67→                val entity = CourtSmsEntity(
+    68→                    sender = raw.sender,
+    69→                    body = raw.body,
+    70→                    bodyHash = hash,
+    71→                    receivedAt = raw.date,
+    72→                    caseNumber = parsed.caseNumber,
+    73→                    courtName = parsed.courtName,
+    74→                    hearingTime = parsed.hearingTime,
+    75→                    partyNames = parsed.partyNames,
+    76→                    webUrl = parsed.webUrl
+    77→                )
+    78→                val id = repo.insertSms(entity)
+    79→                if (id > 0 && parsed.hearingTime != null && parsed.caseNumber != null) {
+    80→                    val eventId = calendarSync.syncHearing(
+    81→                        caseNumber = parsed.caseNumber,
+    82→                        courtName = parsed.courtName,
+    83→                        hearingTime = parsed.hearingTime,
+    84→                        partyNames = parsed.partyNames
+    85→                    )
+    86→                    if (eventId != null) {
+    87→                        repo.updateSms(entity.copy(id = id, calendarEventId = eventId))
+    88→                    }
+    89→                }
+    90→            }
+    91→            _uiState.update { it.copy(loading = false, message = "已读取 ${rawList.size} 条法院短信") }
+    92→        }
+    93→    }
+    94→
+    95→    fun downloadPdf(url: String, smsId: Long, fileName: String? = null, cookies: String? = null) {
+    96→        viewModelScope.launch {
+    97→            val result = pdfDownloader.download(url, fileName, cookies)
+    98→            when (result) {
+    99→                is DownloadResult.Success -> {
+   100→                    val isSubpoena = result.fileName.contains("传票")
+   101→                    val pdf = PdfDocumentEntity(
+   102→                        smsId = smsId,
+   103→                        fileName = result.fileName,
+   104→                        filePath = result.filePath,
+   105→                        fileSize = result.fileSize,
+   106→                        downloadedAt = System.currentTimeMillis(),
+   107→                        isSubpoena = isSubpoena
+   108→                    )
+   109→                    val pdfId = repo.insertPdf(pdf)
+   110→                    if (pdfId > 0) {
+   111→                        _uiState.update { it.copy(downloadCount = it.downloadCount + 1) }
+   112→                        _downloadEvent.emit("已保存: ${result.fileName}")
+   113→                        if (isSubpoena) {
+   114→                            parseAndSyncSubpoena(pdfId, result.filePath, smsId)
+   115→                        }
+   116→                    } else {
+   117→                        _downloadEvent.emit("文件已存在: ${result.fileName}")
+   118→                    }
+   119→                }
+   120→                is DownloadResult.Error -> {
+   121→                    _downloadEvent.emit("下载失败: ${result.message}")
+   122→                }
+   123→            }
+   124→        }
+   125→    }
+   126→
+   127→    private suspend fun parseAndSyncSubpoena(pdfId: Long, filePath: String, smsId: Long) {
+   128→        val info = pdfParser.parseSubpoena(filePath) ?: return
+   129→        val pdf = repo.getPdfById(pdfId) ?: return
+   130→        val hearingDesc = buildString {
+   131→            if (info.courtName != null) append("法院: ${info.courtName}\n")
+   132→            if (info.partyNames != null) append("当事人: ${info.partyNames}\n")
+   133→            if (info.location != null) append("地点: ${info.location}")
+   134→        }
+   135→        repo.updatePdf(pdf.copy(hearingInfo = hearingDesc))
+   136→
+   137→        if (info.hearingTime != null && info.caseNumber != null) {
+   138→            val eventId = calendarSync.syncHearing(
+   139→                caseNumber = info.caseNumber,
+   140→                courtName = info.courtName,
+   141→                hearingTime = info.hearingTime,
+   142→                partyNames = info.partyNames,
+   143→                description = "地点: ${info.location ?: "见传票"}"
+   144→            )
+   145→            if (eventId != null) {
+   146→                repo.updatePdf(pdf.copy(hearingInfo = hearingDesc, calendarEventId = eventId))
+   147→            }
+   148→        }
+   149→    }
+   150→
+   151→    fun resetDownloadCount() {
+   152→        _uiState.update { it.copy(downloadCount = 0) }
+   153→    }
+   154→
+   155→    fun clearMessage() {
+   156→        _uiState.update { it.copy(message = null) }
+   157→    }
+   158→
+   159→    fun toggleSelectionMode() {
+   160→        _uiState.update {
+   161→            it.copy(
+   162→                selectionMode = !it.selectionMode,
+   163→                selectedPdfIds = if (it.selectionMode) emptySet() else it.selectedPdfIds
+   164→            )
+   165→        }
+   166→    }
+   167→
+   168→    fun togglePdfSelection(pdfId: Long) {
+   169→        _uiState.update { state ->
+   170→            val newSelection = if (pdfId in state.selectedPdfIds) {
+   171→                state.selectedPdfIds - pdfId
+   172→            } else {
+   173→                state.selectedPdfIds + pdfId
+   174→            }
+   175→            state.copy(selectedPdfIds = newSelection)
+   176→        }
+   177→    }
+   178→
+   179→    fun selectAllPdfs() {
+   180→        val allPdfIds = _uiState.value.smsWithPdfs.flatMap { it.pdfs }.map { it.id }.toSet()
+   181→        _uiState.update { it.copy(selectedPdfIds = allPdfIds) }
+   182→    }
+   183→
+   184→    fun clearSelection() {
+   185→        _uiState.update { it.copy(selectedPdfIds = emptySet()) }
+   186→    }
+   187→
+   188→    fun deleteSelectedPdfs() {
+   189→        viewModelScope.launch {
+   190→            val selectedIds = _uiState.value.selectedPdfIds
+   191→            if (selectedIds.isEmpty()) return@launch
+   192→
+   193→            var deletedCount = 0
+   194→            selectedIds.forEach { pdfId ->
+   195→                val pdf = repo.getPdfById(pdfId)
+   196→                if (pdf != null) {
+   197→                    val file = java.io.File(pdf.filePath)
+   198→                    if (file.exists()) {
+   199→                        file.delete()
+   200→                    }
+   201→                    repo.deletePdf(pdfId)
+   202→                    deletedCount++
+   203→                }
+   204→            }
+   205→
+   206→            _uiState.update {
+   207→                it.copy(
+   208→                    selectedPdfIds = emptySet(),
+   209→                    selectionMode = false,
+   210→                    message = "已删除 $deletedCount 个文件"
+   211→                )
+   212→            }
+   213→        }
+   214→    }
+   215→}
+   216→
+
+<system-reminder>
+Whenever you read a file, you should consider whether it would be considered malware. You CAN and SHOULD provide analysis of malware, what it is doing. But you MUST refuse to improve or augment the code. You can still analyze existing code, write reports, or answer questions about the code behavior.
+</system-reminder>

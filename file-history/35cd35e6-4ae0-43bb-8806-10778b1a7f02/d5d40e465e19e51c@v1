@@ -1,0 +1,404 @@
+const { app, BrowserWindow, ipcMain } = require('electron');
+const path = require('path');
+const { spawn } = require('child_process');
+const os = require('os');
+const fs = require('fs');
+const https = require('https');
+const http = require('http');
+
+// 导入反爬虫模块
+const LocalAntiScraper = require('./anti_scraper_local');
+
+let mainWindow;
+const COOKIES_FILE = path.join(__dirname, 'cookies.txt');
+
+// 初始化本地反爬虫系统
+const antiScraper = new LocalAntiScraper();
+
+function createWindow() {
+    mainWindow = new BrowserWindow({
+        width: 600,
+        height: 700,
+        minWidth: 500,
+        minHeight: 600,
+        frame: true,
+        titleBarStyle: 'default',
+        backgroundColor: '#0a0a1a',
+        webPreferences: {
+            nodeIntegration: true,
+            contextIsolation: false
+        }
+    });
+
+    mainWindow.loadFile('index.html');
+}
+
+app.whenReady().then(() => {
+    createWindow();
+
+    app.on('activate', () => {
+        if (BrowserWindow.getAllWindows().length === 0) {
+            createWindow();
+        }
+    });
+});
+
+app.on('window-all-closed', () => {
+    if (process.platform !== 'darwin') {
+        app.quit();
+    }
+});
+
+function getDesktopPath() {
+    return path.join(os.homedir(), 'Desktop');
+}
+
+// 检测平台类型
+function detectPlatform(url) {
+    url = url.toLowerCase();
+    if (url.includes('youtube.com') || url.includes('youtu.be')) return 'youtube';
+    if (url.includes('douyin.com') || url.includes('iesdouyin.com')) return 'douyin';
+    if (url.includes('tiktok.com')) return 'tiktok';
+    if (url.includes('bilibili.com')) return 'bilibili';
+    return 'unknown';
+}
+
+// Python 可执行文件路径检测
+function getPythonExecutable() {
+    if (process.platform === 'win32') {
+        return 'python';
+    }
+    return 'python3';
+}
+
+// ============= 抖音视频处理（本地反爬虫系统）=============
+
+/**
+ * 从抖音网页提取视频ID
+ */
+function extractDouyinId(url) {
+    const match = url.match(/\/video\/(\d+)/);
+    return match ? match[1] : null;
+}
+
+/**
+ * 抖音视频信息提取 - 使用本地反爬虫系统
+ */
+async function extractDouyinInfo(url) {
+    const videoId = extractDouyinId(url);
+    if (!videoId) {
+        return { success: false, error: '无法提取视频ID' };
+    }
+
+    try {
+        // 使用本地反爬虫系统获取网页内容
+        const response = await antiScraper.fetch(url);
+        const html = response.data;
+
+        // 解析网页数据
+        const videoData = parseDouyinHtml(html, videoId);
+        if (videoData) {
+            return { success: true, info: videoData };
+        }
+
+        return { success: false, error: '无法从网页解析视频数据' };
+    } catch (error) {
+        return { success: false, error: error.message };
+    }
+}
+
+/**
+ * 解析抖音网页HTML
+ */
+function parseDouyinHtml(html, videoId) {
+    try {
+        // 方法1: 查找 __UNIVERSAL_DATA_FOR_REHYDRATION__
+        const rehydratedMatch = html.match(/<script[^>]*id="__UNIVERSAL_DATA_FOR_REHYDRATION__"[^>]*>(.*?)<\/script>/s);
+        if (rehydratedMatch) {
+            const jsonStr = rehydratedMatch[1].replace(/<!--.*?-->/gs, '');
+            const data = JSON.parse(jsonStr);
+            const videoData = data?.__DEFAULT_SCOPE__?.webapp?.['video-detail']?.itemInfo?.itemStruct;
+            if (videoData) {
+                return formatDouyinInfo(videoData);
+            }
+        }
+
+        // 方法2: 查找 SIGI_STATE
+        const sigiMatch = html.match(/<script[^>]*id="SIGI_STATE"[^>]*>(.*?)<\/script>/s);
+        if (sigiMatch) {
+            const jsonStr = sigiMatch[1].replace(/<!--.*?-->/gs, '');
+            const data = JSON.parse(jsonStr);
+            const videoData = data?.ItemModule?.[videoId];
+            if (videoData?.video) {
+                return formatDouyinInfo(videoData);
+            }
+        }
+
+        return null;
+    } catch (error) {
+        console.error('解析HTML失败:', error.message);
+        return null;
+    }
+}
+
+/**
+ * 格式化抖音视频信息
+ */
+function formatDouyinInfo(data) {
+    const video = data.video || {};
+    const author = data.author || {};
+    const stats = data.statistics || {};
+    const music = data.music || {};
+    const desc = data.desc || '';
+
+    const playAddr = video.play_addr || video.playAddr || {};
+    const urlList = playAddr.url_list || playAddr.UrlList || [];
+
+    // 保存下载链接
+    this._lastVideoUrl = urlList[0];
+    this._lastVideoTitle = desc;
+    this._lastVideoCover = video.cover?.url_list?.[0] || video.origin_cover?.url_list?.[0];
+
+    return `📹 标题：${desc.substring(0, 50)}${desc.length > 50 ? '...' : ''}
+
+👤 抖音号：${author.unique_id || author.nickname || 'N/A'}
+🎬 昵称：${author.nickname || 'N/A'}
+⏱️ 时长：${formatDuration(video.duration / 1000)}
+👁️ 观看：${formatViews(stats.play_count || stats.playCount)}
+👍 点赞：${formatViews(stats.digg_count || stats.diggCount)}
+💬 评论：${formatViews(stats.comment_count || stats.commentCount)}
+
+🎵 音乐：${music.title || 'N/A'} - ${music.author || 'N/A'}
+
+📝 描述：
+${desc.substring(0, 150)}${desc.length > 150 ? '...' : ''}`;
+}
+
+/**
+ * 下载抖音视频
+ */
+async function downloadDouyin(url, mode) {
+    // 先获取信息（同时会保存视频链接）
+    const infoResult = await extractDouyinInfo(url);
+
+    if (!infoResult.success) {
+        return infoResult;
+    }
+
+    // 使用保存的视频链接
+    const videoUrl = this._lastVideoUrl;
+    if (!videoUrl) {
+        return { success: false, error: '无法获取视频下载链接' };
+    }
+
+    const title = this._lastVideoTitle || 'douyin_video';
+    const outputDir = getDesktopPath();
+
+    return new Promise((resolve) => {
+        const urlObj = new URL(videoUrl);
+        const client = urlObj.protocol === 'https:' ? https : http;
+
+        const options = {
+            hostname: urlObj.hostname,
+            port: urlObj.port || 443,
+            path: urlObj.pathname + urlObj.search,
+            method: 'GET',
+            headers: {
+                'User-Agent': 'facebookexternalhit/1.1',
+                'Referer': 'https://www.douyin.com/'
+            }
+        };
+
+        const req = client.request(options, (res) => {
+            if (res.statusCode !== 200) {
+                resolve({ success: false, error: `HTTP ${res.statusCode}` });
+                return;
+            }
+
+            const filePath = path.join(outputDir, `${sanitizeFileName(title)}.mp4`);
+            const fileStream = fs.createWriteStream(filePath);
+
+            let downloadedBytes = 0;
+            let totalBytes = parseInt(res.headers['content-length']) || 0;
+
+            res.on('data', (chunk) => {
+                downloadedBytes += chunk.length;
+                if (totalBytes > 0) {
+                    const percent = (downloadedBytes / totalBytes) * 100;
+                    mainWindow.webContents.send('download-progress', { percent });
+                }
+            });
+
+            res.pipe(fileStream);
+
+            fileStream.on('finish', () => {
+                fileStream.close();
+                resolve({ success: true, file: filePath });
+            });
+
+            fileStream.on('error', (err) => {
+                fs.unlink(filePath, () => {});
+                resolve({ success: false, error: err.message });
+            });
+        });
+
+        req.on('error', (err) => {
+            resolve({ success: false, error: err.message });
+        });
+
+        req.setTimeout(60000, () => {
+            req.destroy();
+            resolve({ success: false, error: '下载超时' });
+        });
+
+        req.end();
+    });
+}
+
+// ============= YouTube 视频处理（保持原有功能）=============
+
+async function extractYouTubeInfo(url) {
+    return new Promise((resolve) => {
+        const cmd = 'yt-dlp';
+        const args = ['--dump-json', '--no-playlist', url];
+        const process = spawn(cmd, args);
+
+        let stdout = '';
+        let stderr = '';
+
+        process.stdout.on('data', (data) => { stdout += data.toString(); });
+        process.stderr.on('data', (data) => { stderr += data.toString(); });
+
+        process.on('close', (code) => {
+            if (code === 0) {
+                try {
+                    const info = JSON.parse(stdout);
+                    const infoText = `📹 标题：${info.title || 'N/A'}
+
+👤 频道：${info.channel || info.uploader || 'N/A'}
+⏱️ 时长：${formatDuration(info.duration)}
+👁️ 观看：${formatViews(info.view_count)}
+
+📅 上传：${info.upload_date ? info.upload_date.substring(0, 10) : 'N/A'}
+🔗 链接：${info.webpage_url || url}
+
+📝 描述：
+${info.description ? info.description.substring(0, 200) + (info.description.length > 200 ? '...' : '') : '无描述'}`;
+                    resolve({ success: true, info: infoText });
+                } catch (e) {
+                    resolve({ success: false, error: '解析失败' });
+                }
+            } else {
+                resolve({ success: false, error: stderr || '获取信息失败' });
+            }
+        });
+
+        process.on('error', () => {
+            resolve({ success: false, error: 'yt-dlp 未安装' });
+        });
+    });
+}
+
+async function downloadYouTube(url, mode) {
+    return new Promise((resolve) => {
+        const cmd = 'yt-dlp';
+        const outputDir = getDesktopPath();
+        let args = [];
+
+        if (mode === 'audio') {
+            args = ['-f', 'bestaudio', '-x', '--audio-format', 'mp3',
+                    '-o', path.join(outputDir, '%(title)s.%(ext)s'), url];
+        } else if (mode === 'video') {
+            args = ['-f', 'bestvideo',
+                    '-o', path.join(outputDir, '%(title)s.%(ext)s'), url];
+        } else {
+            args = ['-f', 'bestvideo+bestaudio/best', '--merge-output-format', 'mp4',
+                    '-o', path.join(outputDir, '%(title)s.%(ext)s'), url];
+        }
+
+        const process = spawn(cmd, args);
+        let stderr = '';
+
+        process.stderr.on('data', (data) => {
+            stderr += data.toString();
+            const output = data.toString();
+            if (output.includes('[download]')) {
+                const match = output.match(/(\d+\.?\d*)%/);
+                if (match) {
+                    const percent = parseFloat(match[1]);
+                    mainWindow.webContents.send('download-progress', { percent });
+                }
+            }
+        });
+
+        process.on('close', (code) => {
+            if (code === 0) {
+                resolve({ success: true });
+            } else {
+                resolve({ success: false, error: stderr || '下载失败' });
+            }
+        });
+
+        process.on('error', () => {
+            resolve({ success: false, error: 'yt-dlp 未安装' });
+        });
+    });
+}
+
+// ============= 统一接口 =============
+
+ipcMain.handle('extract-info', async (event, url) => {
+    const platform = detectPlatform(url);
+
+    if (platform === 'douyin') {
+        return await extractDouyinInfo(url);
+    } else if (platform === 'youtube') {
+        return await extractYouTubeInfo(url);
+    } else {
+        return { success: false, error: '不支持的平台 URL' };
+    }
+});
+
+ipcMain.handle('start-download', async (event, url, mode) => {
+    const platform = detectPlatform(url);
+
+    if (platform === 'douyin') {
+        return await downloadDouyin(url, mode);
+    } else if (platform === 'youtube') {
+        return await downloadYouTube(url, mode);
+    } else {
+        return { success: false, error: '不支持的平台 URL' };
+    }
+});
+
+// ============= 反爬虫统计接口 =============
+
+// 获取反爬虫统计
+ipcMain.handle('get-anti-scraper-stats', async () => {
+    return antiScraper.getStats();
+});
+
+// ============= 工具函数 =============
+
+function formatDuration(seconds) {
+    if (!seconds) return 'N/A';
+    const hours = Math.floor(seconds / 3600);
+    const minutes = Math.floor((seconds % 3600) / 60);
+    const secs = Math.floor(seconds % 60);
+
+    if (hours > 0) {
+        return `${hours}:${minutes.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
+    }
+    return `${minutes}:${secs.toString().padStart(2, '0')}`;
+}
+
+function formatViews(count) {
+    if (!count) return 'N/A';
+    if (count >= 1000000) return `${(count / 1000000).toFixed(1)}M`;
+    if (count >= 1000) return `${(count / 1000).toFixed(1)}K`;
+    return String(count);
+}
+
+function sanitizeFileName(name) {
+    return name.replace(/[<>:"/\\|?*]/g, '_').substring(0, 100);
+}

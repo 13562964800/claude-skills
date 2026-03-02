@@ -1,0 +1,91 @@
+Exit code 1
+Configuration on demand is an incubating feature.
+> Task :app:preBuild UP-TO-DATE
+> Task :app:preDebugBuild UP-TO-DATE
+> Task :app:mergeDebugNativeDebugMetadata NO-SOURCE
+> Task :app:checkKotlinGradlePluginConfigurationErrors
+> Task :app:checkDebugAarMetadata UP-TO-DATE
+> Task :app:generateDebugResValues UP-TO-DATE
+> Task :app:mapDebugSourceSetPaths UP-TO-DATE
+> Task :app:generateDebugResources UP-TO-DATE
+> Task :app:mergeDebugResources UP-TO-DATE
+> Task :app:packageDebugResources UP-TO-DATE
+> Task :app:parseDebugLocalResources UP-TO-DATE
+> Task :app:createDebugCompatibleScreenManifests UP-TO-DATE
+> Task :app:extractDeepLinksDebug UP-TO-DATE
+> Task :app:processDebugMainManifest UP-TO-DATE
+> Task :app:processDebugManifest UP-TO-DATE
+> Task :app:processDebugManifestForPackage UP-TO-DATE
+> Task :app:processDebugResources UP-TO-DATE
+> Task :app:javaPreCompileDebug UP-TO-DATE
+> Task :app:mergeDebugShaders UP-TO-DATE
+> Task :app:compileDebugShaders NO-SOURCE
+> Task :app:generateDebugAssets UP-TO-DATE
+> Task :app:mergeDebugAssets UP-TO-DATE
+> Task :app:compressDebugAssets UP-TO-DATE
+> Task :app:desugarDebugFileDependencies UP-TO-DATE
+> Task :app:checkDebugDuplicateClasses UP-TO-DATE
+> Task :app:mergeExtDexDebug UP-TO-DATE
+> Task :app:mergeLibDexDebug UP-TO-DATE
+> Task :app:mergeDebugJniLibFolders UP-TO-DATE
+> Task :app:mergeDebugNativeLibs UP-TO-DATE
+> Task :app:stripDebugDebugSymbols UP-TO-DATE
+> Task :app:validateSigningDebug UP-TO-DATE
+> Task :app:writeDebugAppMetadata UP-TO-DATE
+> Task :app:writeDebugSigningConfigVersions UP-TO-DATE
+> Task :app:kspDebugKotlin
+
+> Task :app:compileDebugKotlin FAILED
+e: file:///C:/Users/Administrator/Desktop/CourtAssistant/app/src/main/java/com/court/assistant/data/db/CourtDatabase.kt:52:47 Unresolved reference: MIGRATION_2_3
+e: file:///C:/Users/Administrator/Desktop/CourtAssistant/app/src/main/java/com/court/assistant/ui/MainScreen.kt:49:28 Unresolved reference: uiState
+e: file:///C:/Users/Administrator/Desktop/CourtAssistant/app/src/main/java/com/court/assistant/ui/MainScreen.kt:55:44 Unresolved reference: it
+e: file:///C:/Users/Administrator/Desktop/CourtAssistant/app/src/main/java/com/court/assistant/ui/MainScreen.kt:91:77 Unresolved reference: it
+e: file:///C:/Users/Administrator/Desktop/CourtAssistant/app/src/main/java/com/court/assistant/ui/MainScreen.kt:92:45 @Composable invocations can only happen from the context of a @Composable function
+e: file:///C:/Users/Administrator/Desktop/CourtAssistant/app/src/main/java/com/court/assistant/ui/MainScreen.kt:213:65 Unresolved reference: sms
+e: file:///C:/Users/Administrator/Desktop/CourtAssistant/app/src/main/java/com/court/assistant/ui/MainScreen.kt:215:36 Type mismatch: inferred type is Int but SmsWithPdfs was expected
+e: file:///C:/Users/Administrator/Desktop/CourtAssistant/app/src/main/java/com/court/assistant/ui/SettingsScreen.kt:35:28 Unresolved reference: uiState
+e: file:///C:/Users/Administrator/Desktop/CourtAssistant/app/src/main/java/com/court/assistant/ui/SettingsScreen.kt:39:52 Unresolved reference: it
+e: file:///C:/Users/Administrator/Desktop/CourtAssistant/app/src/main/java/com/court/assistant/ui/SettingsScreen.kt:157:61 Unresolved reference: it
+e: file:///C:/Users/Administrator/Desktop/CourtAssistant/app/src/main/java/com/court/assistant/ui/WebViewScreen.kt:33:28 Unresolved reference: uiState
+e: file:///C:/Users/Administrator/Desktop/CourtAssistant/app/src/main/java/com/court/assistant/ui/WebViewScreen.kt:43:19 Unresolved reference: downloadEvent
+e: file:///C:/Users/Administrator/Desktop/CourtAssistant/app/src/main/java/com/court/assistant/ui/WebViewScreen.kt:43:43 Cannot infer a type for this parameter. Please specify it explicitly.
+e: file:///C:/Users/Administrator/Desktop/CourtAssistant/app/src/main/java/com/court/assistant/ui/WebViewScreen.kt:44:31 Suspension functions can be called only within coroutine body
+e: file:///C:/Users/Administrator/Desktop/CourtAssistant/app/src/main/java/com/court/assistant/ui/WebViewScreen.kt:50:42 Cannot infer a type for this parameter. Please specify it explicitly.
+e: file:///C:/Users/Administrator/Desktop/CourtAssistant/app/src/main/java/com/court/assistant/viewmodel/MainViewModel.kt:79:28 Unresolved reference: filterSms
+e: file:///C:/Users/Administrator/Desktop/CourtAssistant/app/src/main/java/com/court/assistant/viewmodel/MainViewModel.kt:134:13 'when' expression must be exhaustive, add necessary 'is Error', 'is Success' branches or 'else' branch instead
+e: file:///C:/Users/Administrator/Desktop/CourtAssistant/app/src/main/java/com/court/assistant/viewmodel/MainViewModel.kt:135:20 Unresolved reference: DownloadResult
+e: file:///C:/Users/Administrator/Desktop/CourtAssistant/app/src/main/java/com/court/assistant/viewmodel/MainViewModel.kt:137:63 Unresolved reference: fileMd5
+e: file:///C:/Users/Administrator/Desktop/CourtAssistant/app/src/main/java/com/court/assistant/viewmodel/MainViewModel.kt:139:62 Unresolved reference: fileName
+e: file:///C:/Users/Administrator/Desktop/CourtAssistant/app/src/main/java/com/court/assistant/viewmodel/MainViewModel.kt:144:45 Unresolved reference: fileName
+e: file:///C:/Users/Administrator/Desktop/CourtAssistant/app/src/main/java/com/court/assistant/viewmodel/MainViewModel.kt:147:43 Unresolved reference: fileName
+e: file:///C:/Users/Administrator/Desktop/CourtAssistant/app/src/main/java/com/court/assistant/viewmodel/MainViewModel.kt:148:43 Unresolved reference: filePath
+e: file:///C:/Users/Administrator/Desktop/CourtAssistant/app/src/main/java/com/court/assistant/viewmodel/MainViewModel.kt:149:43 Unresolved reference: fileSize
+e: file:///C:/Users/Administrator/Desktop/CourtAssistant/app/src/main/java/com/court/assistant/viewmodel/MainViewModel.kt:150:42 Unresolved reference: fileMd5
+e: file:///C:/Users/Administrator/Desktop/CourtAssistant/app/src/main/java/com/court/assistant/viewmodel/MainViewModel.kt:158:60 Unresolved reference: fileName
+e: file:///C:/Users/Administrator/Desktop/CourtAssistant/app/src/main/java/com/court/assistant/viewmodel/MainViewModel.kt:161:64 Unresolved reference: filePath
+e: file:///C:/Users/Administrator/Desktop/CourtAssistant/app/src/main/java/com/court/assistant/viewmodel/MainViewModel.kt:164:62 Unresolved reference: fileName
+e: file:///C:/Users/Administrator/Desktop/CourtAssistant/app/src/main/java/com/court/assistant/viewmodel/MainViewModel.kt:168:20 Unresolved reference: DownloadResult
+e: file:///C:/Users/Administrator/Desktop/CourtAssistant/app/src/main/java/com/court/assistant/viewmodel/MainViewModel.kt:169:57 Unresolved reference: message
+e: file:///C:/Users/Administrator/Desktop/CourtAssistant/app/src/main/java/com/court/assistant/viewmodel/MainViewModel.kt:275:39 Unresolved reference: filterSms
+e: file:///C:/Users/Administrator/Desktop/CourtAssistant/app/src/main/java/com/court/assistant/viewmodel/MainViewModel.kt:291:39 Unresolved reference: filterSms
+e: file:///C:/Users/Administrator/Desktop/CourtAssistant/app/src/main/java/com/court/assistant/viewmodel/MainViewModel.kt:300:39 Unresolved reference: filterSms
+e: file:///C:/Users/Administrator/Desktop/CourtAssistant/app/src/main/java/com/court/assistant/viewmodel/MainViewModel.kt:432:21 Too many arguments for public inline fun kotlin.text.StringBuilder /* = java.lang.StringBuilder */.appendLine(): kotlin.text.StringBuilder /* = java.lang.StringBuilder */ defined in kotlin.text
+e: file:///C:/Users/Administrator/Desktop/CourtAssistant/app/src/main/java/com/court/assistant/viewmodel/MainViewModel.kt:439:21 Too many arguments for public inline fun kotlin.text.StringBuilder /* = java.lang.StringBuilder */.appendLine(): kotlin.text.StringBuilder /* = java.lang.StringBuilder */ defined in kotlin.text
+e: file:///C:/Users/Administrator/Desktop/CourtAssistant/app/src/main/java/com/court/assistant/viewmodel/MainViewModel.kt:501:44 Only safe (?.) or non-null asserted (!!.) calls are allowed on a nullable receiver of type List<PdfDocumentEntity>?
+e: file:///C:/Users/Administrator/Desktop/CourtAssistant/app/src/main/java/com/court/assistant/viewmodel/MainViewModel.kt:502:33 Only safe (?.) or non-null asserted (!!.) calls are allowed on a nullable receiver of type List<PdfDocumentEntity>?
+
+FAILURE: Build failed with an exception.
+
+* What went wrong:
+Execution failed for task ':app:compileDebugKotlin'.
+> A failure occurred while executing org.jetbrains.kotlin.compilerRunner.GradleCompilerRunnerWithWorkers$GradleKotlinCompilerWorkAction
+   > Compilation error. See log for more details
+
+* Try:
+> Run with --stacktrace option to get the stack trace.
+> Run with --info or --debug option to get more log output.
+> Run with --scan to get full insights.
+> Get more help at https://help.gradle.org.
+
+BUILD FAILED in 8s
+29 actionable tasks: 3 executed, 26 up-to-date

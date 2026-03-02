@@ -1,0 +1,58 @@
+"""构建APK的说明和辅助脚本
+
+构建环境要求（Linux/WSL）：
+    sudo apt install python3-pip openjdk-17-jdk autoconf automake libtool
+    pip install buildozer cython kivy
+
+构建步骤：
+    1. 在Linux/WSL中进入项目目录
+    2. 运行: buildozer android debug
+    3. APK输出到: bin/voicedoccompare-1.0.0-arm64-v8a-debug.apk
+
+也可以用GitHub Actions自动构建（见 .github/workflows/build.yml）
+"""
+import os
+import sys
+import subprocess
+
+
+def check_env():
+    """检查构建环境"""
+    checks = {
+        'Python': sys.version,
+        'buildozer': None,
+        'java': None,
+    }
+    try:
+        r = subprocess.run(['buildozer', '--version'], capture_output=True, text=True)
+        checks['buildozer'] = r.stdout.strip() or r.stderr.strip()
+    except FileNotFoundError:
+        checks['buildozer'] = 'NOT INSTALLED - pip install buildozer'
+
+    try:
+        r = subprocess.run(['java', '-version'], capture_output=True, text=True)
+        checks['java'] = r.stderr.strip().split('\n')[0]
+    except FileNotFoundError:
+        checks['java'] = 'NOT INSTALLED - apt install openjdk-17-jdk'
+
+    for k, v in checks.items():
+        status = 'OK' if v and 'NOT INSTALLED' not in str(v) else 'MISSING'
+        print(f'  [{status}] {k}: {v}')
+
+    return all('NOT INSTALLED' not in str(v) for v in checks.values())
+
+
+def build_debug():
+    """构建debug APK"""
+    if not check_env():
+        print('\n环境检查未通过，请安装缺失的依赖')
+        return
+    print('\n开始构建APK...')
+    subprocess.run(['buildozer', 'android', 'debug'], cwd=os.path.dirname(__file__))
+
+
+if __name__ == '__main__':
+    if len(sys.argv) > 1 and sys.argv[1] == 'check':
+        check_env()
+    else:
+        build_debug()

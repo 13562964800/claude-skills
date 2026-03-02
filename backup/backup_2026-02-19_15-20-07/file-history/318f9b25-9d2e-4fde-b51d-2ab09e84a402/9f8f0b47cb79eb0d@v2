@@ -1,0 +1,83 @@
+import JSZip from 'jszip';
+import RNFS from 'react-native-fs';
+import {DiffItem} from './zhipuCompare';
+
+// 生成标红差异的 .docx 文件
+export async function generateDiffDocx(
+  originalFilePath: string,
+  diffs: DiffItem[],
+): Promise<string> {
+  const base64 = await RNFS.readFile(originalFilePath, 'base64');
+  const zip = await JSZip.loadAsync(base64, {base64: true});
+  let docXml = (await zip.file('word/document.xml')?.async('string')) || '';
+
+  // 构建差异位置索引
+  const diffByPosition = new Map<number, DiffItem[]>();
+  for (const diff of diffs) {
+    const pos = diff.position;
+    if (!diffByPosition.has(pos)) {
+      diffByPosition.set(pos, []);
+    }
+    diffByPosition.get(pos)!.push(diff);
+  }
+
+  // 找到所有段落并在有差异的段落后插入红色标注
+  const pRegex = /<w:p[\s>][\s\S]*?<\/w:p>/g;
+  let paragraphIndex = 0;
+  let offset = 0;
+  let match;
+  const insertions: {pos: number; text: string}[] = [];
+
+  // 先收集所有非空段落的位置
+  const pMatches: {index: number; length: number; pIdx: number}[] = [];
+  while ((match = pRegex.exec(docXml)) !== null) {
+    const tRegex = /<w:t[^>]*>([\s\S]*?)<\/w:t>/g;
+    let hasText = false;
+    let t;
+    while ((t = tRegex.exec(match[0])) !== null) {
+      if (t[1].trim()) {hasText = true; break;}
+    }
+    if (hasText) {
+      pMatches.push({index: match.index, length: match[0].length, pIdx: paragraphIndex});
+      paragraphIndex++;
+    }
+  }
+
+  // 在有差异的段落后插入红色注释段落
+  for (let i = pMatches.length - 1; i >= 0; i--) {
+    const pm = pMatches[i];
+    const itemDiffs = diffByPosition.get(pm.pIdx);
+    if (!itemDiffs || itemDiffs.length === 0) continue;
+
+    for (const diff of itemDiffs) {
+      let label = '';
+      if (diff.type === 'mismatch') {
+        label = `【差异】文档: "${diff.docText}" → 录音: "${diff.audioText}"`;
+      } else if (diff.type === 'missing_in_audio') {
+        label = `【录音缺失】"${diff.docText}"`;
+      } else {
+        label = `【录音多出】"${diff.audioText}"`;
+      }
+
+      const redParagraph = `<w:p><w:pPr><w:rPr><w:color w:val="FF0000"/><w:b/></w:rPr></w:pPr><w:r><w:rPr><w:color w:val="FF0000"/><w:b/></w:rPr><w:t xml:space="preserve">${escapeXml(label)}</w:t></w:r></w:p>`;
+
+      const insertPos = pm.index + pm.length;
+      docXml = docXml.slice(0, insertPos) + redParagraph + docXml.slice(insertPos);
+    }
+  }
+
+  zip.file('word/document.xml', docXml);
+  const outputBase64 = await zip.generateAsync({type: 'base64'});
+  const outputPath = `${RNFS.CachesDirectoryPath}/对比结果_${Date.now()}.docx`;
+  await RNFS.writeFile(outputPath, outputBase64, 'base64');
+  return outputPath;
+}
+
+function escapeXml(str: string): string {
+  return str
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&apos;');
+}

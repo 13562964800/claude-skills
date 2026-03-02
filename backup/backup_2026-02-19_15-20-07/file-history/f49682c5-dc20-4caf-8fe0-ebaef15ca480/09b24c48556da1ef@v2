@@ -1,0 +1,68 @@
+#!/usr/bin/env python3
+# -*- coding: utf-8 -*-
+"""测试数字读音规范化功能"""
+
+import sys
+import os
+import io
+
+# 设置标准输出为 UTF-8
+if sys.platform == 'win32':
+    sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding='utf-8')
+
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+
+from compare import _normalize_number_reading, _same_pinyin
+
+# 测试用例
+test_cases = [
+    # (原文, 预期规范化结果, 说明)
+    ("2023年", "二零二三年", "年份逐位读"),
+    ("15", "十五", "两位数完整读"),
+    ("25", "二十五", "两位数完整读"),
+    ("60", "六十", "整十数"),
+    ("100", "一百", "整百数"),
+    ("15%", "百分之十五", "百分比"),
+    ("12%-20%", "百分之十二到百分之二十", "百分比范围"),
+    ("5-10年", "五到十年", "数字范围带单位"),
+    ("15亿至25亿美元", "十五亿至二十五亿美元", "带单位的数字"),
+]
+
+# 测试规范化函数
+print("=" * 50)
+print("测试数字规范化函数")
+print("=" * 50)
+for original, expected, desc in test_cases:
+    result = _normalize_number_reading(original)
+    status = "✓" if result == expected else "✗"
+    print(f"{status} {desc}")
+    print(f"  原文: {original}")
+    print(f"  结果: {result}")
+    if result != expected:
+        print(f"  预期: {expected}")
+    print()
+
+# 测试拼音比较函数
+print("=" * 50)
+print("测试拼音比较（数字读音相同应该返回True）")
+print("=" * 50)
+pinyin_tests = [
+    ("15", "十五", "阿拉伯数字 vs 中文数字"),
+    ("2023年", "二零二三年", "年份：阿拉伯数字 vs 中文数字"),
+    ("12%-20%", "百分之十二到百分之二十", "百分比范围"),
+    ("5-10年", "五到十年", "数字范围"),
+    ("15亿至25亿美元", "十五亿至二十五亿美元", "带单位数字"),
+]
+
+for a, b, desc in pinyin_tests:
+    result = _same_pinyin(a, b)
+    status = "✓" if result else "✗"
+    print(f"{status} {desc}")
+    print(f"  A: {a}")
+    print(f"  B: {b}")
+    print(f"  拼音相同: {result}")
+    print()
+
+print("=" * 50)
+print("测试完成")
+print("=" * 50)

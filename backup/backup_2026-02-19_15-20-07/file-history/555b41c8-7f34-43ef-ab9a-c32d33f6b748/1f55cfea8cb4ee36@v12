@@ -1,0 +1,112 @@
+package com.shanfuchun.courtassistant.util.ui
+
+import android.content.Context
+import android.widget.Toast
+import androidx.annotation.StringRes
+
+/**
+ * Toast 显示工具类
+ *
+ * 统一管理所有 Toast 显示操作，消除重复代码
+ * 提供：
+ * - showSuccess(): 显示成功消息
+ * - showError(): 显示错误消息
+ * - showInfo(): 显示信息消息
+ */
+object ToastUtils {
+
+    private var context: Context? = null
+
+    /**
+     * 初始化 Context（必须在 Application 类中调用）
+     * @param context 上下文对象
+     */
+    fun init(context: Context) {
+        this.context = context.applicationContext
+    }
+
+    /**
+     * 显示成功消息
+     * @param message 消息内容
+     */
+    fun showSuccess(message: String) {
+        show(message, Toast.LENGTH_SHORT)
+    }
+
+    /**
+     * 显示成功消息（资源ID）
+     * @param resId 消息资源ID
+     */
+    fun showSuccess(@StringRes resId: Int) {
+        context?.let { show(it.getString(resId), Toast.LENGTH_SHORT) }
+    }
+
+    /**
+     * 显示错误消息
+     * @param message 消息内容
+     */
+    fun showError(message: String) {
+        show(message, Toast.LENGTH_LONG)
+    }
+
+    /**
+     * 显示错误消息（资源ID）
+     * @param resId 消息资源ID
+     */
+    fun showError(@StringRes resId: Int) {
+        context?.let { show(it.getString(resId), Toast.LENGTH_LONG) }
+    }
+
+    /**
+     * 显示信息消息
+     * @param message 消息内容
+     */
+    fun showInfo(message: String) {
+        show(message, Toast.LENGTH_SHORT)
+    }
+
+    /**
+     * 显示信息消息（资源ID）
+     * @param resId 消息资源ID
+     */
+    fun showInfo(@StringRes resId: Int) {
+        context?.let { show(it.getString(resId), Toast.LENGTH_SHORT) }
+    }
+
+    /**
+     * 显示警告消息
+     * @param message 消息内容
+     */
+    fun showWarning(message: String) {
+        show(message, Toast.LENGTH_SHORT)
+    }
+
+    /**
+     * 使用指定上下文显示 Toast
+     * @param context 上下文对象
+     * @param message 消息内容
+     * @param duration 显示时长
+     */
+    fun show(context: Context, message: String, duration: Int = Toast.LENGTH_SHORT) {
+        Toast.makeText(context.applicationContext, message, duration).show()
+    }
+
+    /**
+     * 内部 Toast 显示方法
+     * @param message 消息内容
+     * @param duration 显示时长
+     */
+    private fun show(message: String, duration: Int) {
+        context?.let {
+            Toast.makeText(it, message, duration).show()
+        }
+    }
+
+    /**
+     * 检查是否已初始化
+     * @return 是否已初始化
+     */
+    fun isInitialized(): Boolean {
+        return context != null
+    }
+}

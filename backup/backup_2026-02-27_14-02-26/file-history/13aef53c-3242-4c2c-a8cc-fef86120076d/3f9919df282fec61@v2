@@ -1,0 +1,171 @@
+#!/usr/bin/env python3
+"""
+华为手机 ADB 授权助手
+自动检测设备、提示授权步骤、验证连接
+"""
+
+import subprocess
+import time
+import sys
+import os
+
+def run_command(cmd):
+    """执行命令并返回输出"""
+    try:
+        result = subprocess.run(
+            cmd,
+            shell=True,
+            capture_output=True,
+            text=True,
+            encoding='utf-8',
+            timeout=5
+        )
+        return result.stdout.strip(), result.stderr.strip(), result.returncode
+    except Exception as e:
+        return "", str(e), 1
+
+def check_adb_installed():
+    """检查 ADB 是否已安装"""
+    print("🔍 检查 ADB 安装状态...")
+    stdout, stderr, code = run_command("adb version")
+    if code == 0:
+        print("✅ ADB 已安装")
+        print(f"   {stdout.split()[1]}")
+        return True
+    else:
+        print("❌ ADB 未安装")
+        print("\n请安装 ADB:")
+        print("   Windows: 下载 Android Platform Tools")
+        print("   https://developer.android.com/tools/releases/platform-tools")
+        return False
+
+def list_devices():
+    """列出连接的设备"""
+    stdout, stderr, code = run_command("adb devices")
+    return stdout
+
+def check_authorization():
+    """检查设备授权状态"""
+    print("\n🔍 检查设备连接状态...")
+    output = list_devices()
+
+    lines = output.split('\n')[1:]  # 跳过第一行标题
+
+    devices = []
+    unauthorized = []
+
+    for line in lines:
+        if '\t' in line:
+            device_id, status = line.split('\t')
+            if status == 'device':
+                devices.append(device_id)
+            elif status in ['unauthorized', 'no permissions']:
+                unauthorized.append(device_id)
+
+    return devices, unauthorized
+
+def show_phone_instructions():
+    """显示手机端操作指引"""
+    print("\n" + "="*50)
+    print("📱 请在华为手机上操作：")
+    print("="*50)
+    print("\n1️⃣  打开【设置】")
+    print("2️⃣  进入【系统和更新】")
+    print("3️⃣  点击【开发人员选项】")
+    print("     (如没有，请先开启：")
+    print("     设置 → 关于手机 → 连续点击【版本号】7次)")
+    print("\n4️⃣  开启【USB调试】开关")
+    print("\n5️⃣  手机会弹出【允许USB调试】提示")
+    print("     ✅ 勾选【始终允许使用这台计算机调试】")
+    print("     ✅ 点击【允许】")
+    print("\n" + "="*50)
+    print("\n⏳ 完成后按回车键继续...")
+    input()
+
+def wait_for_authorization(max_wait=60):
+    """等待用户授权"""
+    print("\n⏳ 等待设备授权...")
+
+    for i in range(max_wait):
+        devices, unauthorized = check_authorization()
+
+        if devices:
+            print(f"\n✅ 授权成功！检测到 {len(devices)} 台设备")
+            for dev in devices:
+                print(f"   📱 {dev}")
+            return True
+
+        if unauthorized:
+            print(f"⚠️  检测到设备但未授权: {unauthorized}")
+            print("   请在手机上点击【允许】")
+
+        time.sleep(1)
+        if i % 5 == 0:
+            print(f"   等待中... ({i}/{max_wait}秒)")
+
+    print("\n❌ 等待超时")
+    return False
+
+def get_device_info():
+    """获取设备信息"""
+    print("\n📋 获取设备信息...")
+
+    commands = {
+        "型号": "adb shell getprop ro.product.model",
+        "制造商": "adb shell getprop ro.product.manufacturer",
+        "Android版本": "adb shell getprop ro.build.version.release",
+        "SDK版本": "adb shell getprop ro.build.version.sdk",
+    }
+
+    for name, cmd in commands.items():
+        stdout, _, _ = run_command(cmd)
+        if stdout:
+            print(f"   {name}: {stdout}")
+
+def main():
+    print("="*50)
+    print("🔧 华为手机 ADB 授权助手")
+    print("="*50)
+
+    # 检查 ADB
+    if not check_adb_installed():
+        return
+
+    # 重启 ADB 服务
+    print("\n🔄 重启 ADB 服务...")
+    run_command("adb kill-server")
+    time.sleep(1)
+    run_command("adb start-server")
+    time.sleep(2)
+
+    # 检查初始状态
+    devices, unauthorized = check_authorization()
+
+    if devices:
+        print("\n✅ 设备已授权！")
+        get_device_info()
+        return
+
+    # 显示指引并等待授权
+    show_phone_instructions()
+
+    if wait_for_authorization():
+        get_device_info()
+        print("\n🎉 ADB 授权完成！现在可以使用以下功能：")
+        print("   • 投屏: scrcpy")
+        print("   • 截图: adb shell screencap -p /sdcard/screen.png")
+        print("   • 录屏: adb shell screenrecord /sdcard/video.mp4")
+    else:
+        print("\n💡 提示：")
+        print("   1. 确保 USB 线连接正常")
+        print("   2. 检查手机 USB 调试是否开启")
+        print("   3. 尝试重新插拔 USB 线")
+        print("   4. 运行: adb devices 查看状态")
+
+if __name__ == "__main__":
+    try:
+        main()
+    except KeyboardInterrupt:
+        print("\n\n👋 用户取消操作")
+    except Exception as e:
+        print(f"\n❌ 发生错误: {e}")

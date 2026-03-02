@@ -1,0 +1,730 @@
+# Claude Code 配置完全指南
+
+## 配置文件位置
+
+- Windows: `C:\Users\<用户名>\.claude\settings.json`
+- macOS/Linux: `~/.claude/settings.json`
+
+## 1. API Key 和端点配置
+
+### 方法一：直接配置环境变量
+
+```json
+{
+  "env": {
+    "ANTHROPIC_API_KEY": "sk-ant-api03-xxxxx",
+    "ANTHROPIC_BASE_URL": "https://api.anthropic.com"
+  }
+}
+```
+
+### 方法二：使用代理（你当前的方式）
+
+```json
+{
+  "env": {
+    "ANTHROPIC_AUTH_TOKEN": "PROXY_MANAGED",
+    "ANTHROPIC_BASE_URL": "http://127.0.0.1:15721"
+  }
+}
+```
+
+### 方法三：使用 API Key Helper 脚本
+
+```json
+{
+  "apiKeyHelper": "/path/to/get-api-key.sh"
+}
+```
+
+脚本示例 `get-api-key.sh`:
+```bash
+#!/bin/bash
+# 从密钥管理器获取 API Key
+echo "ANTHROPIC_API_KEY=$(security find-generic-password -s anthropic -w)"
+```
+
+### 方法四：AWS Bedrock 配置
+
+```json
+{
+  "env": {
+    "AWS_REGION": "us-east-1",
+    "AWS_ACCESS_KEY_ID": "your-access-key",
+    "AWS_SECRET_ACCESS_KEY": "your-secret-key"
+  },
+  "awsCredentialExport": "/path/to/aws-credentials.sh",
+  "awsAuthRefresh": "/path/to/aws-refresh.sh"
+}
+```
+
+## 2. 自定义 API 端点
+
+### OpenRouter
+
+```json
+{
+  "env": {
+    "ANTHROPIC_API_KEY": "sk-or-v1-xxxxx",
+    "ANTHROPIC_BASE_URL": "https://openrouter.ai/api/v1"
+  }
+}
+```
+
+### Azure OpenAI
+
+```json
+{
+  "env": {
+    "ANTHROPIC_API_KEY": "your-azure-key",
+    "ANTHROPIC_BASE_URL": "https://your-resource.openai.azure.com"
+  }
+}
+```
+
+### 自建代理
+
+```json
+{
+  "env": {
+    "ANTHROPIC_API_KEY": "your-key",
+    "ANTHROPIC_BASE_URL": "https://your-proxy.com/v1",
+    "HTTP_PROXY": "http://proxy.company.com:8080",
+    "HTTPS_PROXY": "http://proxy.company.com:8080",
+    "NO_PROXY": "localhost,127.0.0.1"
+  }
+}
+```
+
+## 3. 模型配置
+
+### 指定默认模型
+
+```json
+{
+  "model": "claude-opus-4-6"
+}
+```
+
+可选值：
+- `claude-opus-4-6` - 最强大
+- `claude-sonnet-4-6` - 平衡（默认）
+- `claude-haiku-4-5` - 最快最便宜
+
+### 限制可用模型（企业管理）
+
+```json
+{
+  "availableModels": ["opus-4-6", "sonnet-4-6"]
+}
+```
+
+## 4. 权限配置
+
+### 完整权限配置示例
+
+```json
+{
+  "permissions": {
+    "defaultMode": "bypassPermissions",
+    "allow": [
+      "Read(*)",
+      "Write(*)",
+      "Edit(*)",
+      "Bash(*)",
+      "Grep(*)",
+      "Glob(*)"
+    ],
+    "deny": [
+      "Bash(rm -rf /)",
+      "Write(/etc/**)",
+      "Edit(/etc/**)"
+    ],
+    "ask": [
+      "Bash(git push*)",
+      "Bash(npm publish*)"
+    ],
+    "additionalDirectories": [
+      "/home/user/projects",
+      "/mnt/data"
+    ]
+  }
+}
+```
+
+### 权限模式说明
+
+- `acceptEdits` - 自动接受编辑操作
+- `bypassPermissions` - 绕过所有权限提示
+- `default` - 默认模式（会提示）
+- `dontAsk` - 不询问
+- `plan` - 计划模式
+
+### 权限规则语法
+
+- `*` - 匹配所有
+- `Read(*.py)` - 只允许读取 Python 文件
+- `Bash(git *)` - 只允许 git 命令
+- `Write(/home/user/*)` - 只允许写入特定目录
+
+## 5. MCP 服务器配置
+
+### 基础 MCP 配置
+
+```json
+{
+  "mcpServers": {
+    "memory": {
+      "command": "npx",
+      "args": ["-y", "@modelcontextprotocol/server-memory"]
+    },
+    "filesystem": {
+      "command": "npx",
+      "args": ["-y", "@modelcontextprotocol/server-filesystem", "/allowed/path"]
+    },
+    "github": {
+      "command": "npx",
+      "args": ["-y", "@modelcontextprotocol/server-github"],
+      "env": {
+        "GITHUB_TOKEN": "ghp_xxxxx"
+      }
+    }
+  }
+}
+```
+
+### 自定义 MCP 服务器
+
+```json
+{
+  "mcpServers": {
+    "custom-server": {
+      "command": "python",
+      "args": ["/path/to/server.py"],
+      "env": {
+        "API_KEY": "your-key",
+        "DEBUG": "true"
+      }
+    }
+  }
+}
+```
+
+### MCP 服务器白名单/黑名单（企业管理）
+
+```json
+{
+  "allowedMcpServers": [
+    {
+      "serverName": "memory",
+      "serverCommand": ["npx", "-y", "@modelcontextprotocol/server-memory"]
+    }
+  ],
+  "deniedMcpServers": [
+    {
+      "serverName": "dangerous-server"
+    }
+  ]
+}
+```
+
+## 6. 钩子配置
+
+### 命令钩子
+
+```json
+{
+  "hooks": {
+    "SessionStart": [{
+      "matcher": "*",
+      "hooks": [{
+        "type": "command",
+        "command": "echo 'Claude Code 启动'",
+        "statusMessage": "初始化环境..."
+      }]
+    }],
+    "PreToolUse": [{
+      "matcher": "Write",
+      "hooks": [{
+        "type": "command",
+        "command": "git add .",
+        "async": true
+      }]
+    }],
+    "PostToolUse": [{
+      "matcher": "Edit",
+      "hooks": [{
+        "type": "command",
+        "command": "prettier --write {{file_path}}",
+        "timeout": 5000
+      }]
+    }]
+  }
+}
+```
+
+### LLM 提示钩子
+
+```json
+{
+  "hooks": {
+    "PreToolUse": [{
+      "matcher": "Bash",
+      "hooks": [{
+        "type": "prompt",
+        "prompt": "检查这个命令是否安全：$ARGUMENTS",
+        "model": "claude-haiku-4-5"
+      }]
+    }]
+  }
+}
+```
+
+### Agent 验证钩子
+
+```json
+{
+  "hooks": {
+    "PostToolUse": [{
+      "matcher": "Bash(npm test*)",
+      "hooks": [{
+        "type": "agent",
+        "prompt": "验证测试是否全部通过：$ARGUMENTS",
+        "timeout": 60000
+      }]
+    }]
+  }
+}
+```
+
+### HTTP 钩子
+
+```json
+{
+  "hooks": {
+    "SessionStart": [{
+      "matcher": "*",
+      "hooks": [{
+        "type": "http",
+        "url": "https://your-webhook.com/notify",
+        "headers": {
+          "Authorization": "Bearer $API_TOKEN",
+          "Content-Type": "application/json"
+        },
+        "allowedEnvVars": ["API_TOKEN"]
+      }]
+    }]
+  }
+}
+```
+
+### 可用钩子事件
+
+- `PreToolUse` - 工具使用前
+- `PostToolUse` - 工具使用后
+- `PostToolUseFailure` - 工具失败后
+- `SessionStart` - 会话开始
+- `SessionEnd` - 会话结束
+- `UserPromptSubmit` - 用户提交提示
+- `WorktreeCreate` - 创建工作树
+- `WorktreeRemove` - 删除工作树
+- `TaskCompleted` - 任务完成
+- `ConfigChange` - 配置变更
+
+## 7. Git Worktree 配置
+
+```json
+{
+  "worktree": {
+    "symlinkDirectories": [
+      "node_modules",
+      ".cache",
+      ".next",
+      "dist",
+      "build"
+    ]
+  }
+}
+```
+
+## 8. 沙箱配置
+
+### 网络沙箱
+
+```json
+{
+  "sandbox": {
+    "enabled": true,
+    "autoAllowBashIfSandboxed": true,
+    "network": {
+      "allowedDomains": [
+        "api.anthropic.com",
+        "github.com",
+        "*.npmjs.org"
+      ],
+      "allowLocalBinding": true,
+      "httpProxyPort": 8080,
+      "allowUnixSockets": ["/var/run/docker.sock"],
+      "allowAllUnixSockets": false
+    }
+  }
+}
+```
+
+### 文件系统沙箱
+
+```json
+{
+  "sandbox": {
+    "filesystem": {
+      "allowWrite": [
+        "/home/user/projects/**",
+        "/tmp/**"
+      ],
+      "denyWrite": [
+        "/etc/**",
+        "/usr/**",
+        "/home/user/.ssh/**"
+      ],
+      "denyRead": [
+        "/home/user/.env",
+        "/home/user/.aws/credentials"
+      ]
+    }
+  }
+}
+```
+
+## 9. 其他实用配置
+
+### 状态栏自定义
+
+```json
+{
+  "statusLine": {
+    "type": "command",
+    "command": "git branch --show-current",
+    "padding": 2
+  }
+}
+```
+
+### 文件建议自定义
+
+```json
+{
+  "fileSuggestion": {
+    "type": "command",
+    "command": "fd --type f --max-depth 3"
+  }
+}
+```
+
+### 自动更新配置
+
+```json
+{
+  "autoUpdatesChannel": "latest",
+  "minimumVersion": "2.0.0"
+}
+```
+
+### 语言和界面
+
+```json
+{
+  "language": "chinese",
+  "syntaxHighlightingDisabled": false,
+  "spinnerTipsEnabled": true,
+  "prefersReducedMotion": false,
+  "voiceEnabled": true
+}
+```
+
+### 自动记忆
+
+```json
+{
+  "autoMemoryEnabled": true
+}
+```
+
+### 清理策略
+
+```json
+{
+  "cleanupPeriodDays": 30
+}
+```
+
+### Git 提交署名
+
+```json
+{
+  "attribution": {
+    "commit": "Co-Authored-By: Claude <noreply@anthropic.com>",
+    "pr": "Generated with Claude Code"
+  }
+}
+```
+
+### 忽略 .gitignore
+
+```json
+{
+  "respectGitignore": false
+}
+```
+
+## 10. 企业管理配置
+
+### 强制登录方式
+
+```json
+{
+  "forceLoginMethod": "console",
+  "forceLoginOrgUUID": "org-xxxxx"
+}
+```
+
+### 限制钩子来源
+
+```json
+{
+  "allowManagedHooksOnly": true,
+  "allowManagedPermissionRulesOnly": true,
+  "allowManagedMcpServersOnly": true
+}
+```
+
+### SSH 远程环境
+
+```json
+{
+  "sshConfigs": [
+    {
+      "id": "dev-server",
+      "name": "开发服务器",
+      "sshHost": "user@dev.company.com",
+      "sshPort": 22,
+      "sshIdentityFile": "~/.ssh/id_rsa"
+    }
+  ],
+  "remote": {
+    "defaultEnvironmentId": "dev-server"
+  }
+}
+```
+
+## 11. 完整配置示例
+
+### 个人开发者配置
+
+```json
+{
+  "env": {
+    "ANTHROPIC_API_KEY": "sk-ant-api03-xxxxx"
+  },
+  "model": "claude-sonnet-4-6",
+  "permissions": {
+    "defaultMode": "acceptEdits",
+    "ask": [
+      "Bash(git push*)",
+      "Bash(rm -rf*)"
+    ]
+  },
+  "autoMemoryEnabled": true,
+  "voiceEnabled": true,
+  "hooks": {
+    "PostToolUse": [{
+      "matcher": "Edit",
+      "hooks": [{
+        "type": "command",
+        "command": "prettier --write {{file_path}}",
+        "async": true
+      }]
+    }]
+  }
+}
+```
+
+### 企业团队配置
+
+```json
+{
+  "env": {
+    "ANTHROPIC_BASE_URL": "https://api.company.com/claude",
+    "HTTP_PROXY": "http://proxy.company.com:8080"
+  },
+  "model": "claude-opus-4-6",
+  "availableModels": ["opus-4-6", "sonnet-4-6"],
+  "permissions": {
+    "defaultMode": "default",
+    "allow": [
+      "Read(**/*.{js,ts,py,go})",
+      "Write(src/**)",
+      "Bash(git *)",
+      "Bash(npm *)"
+    ],
+    "deny": [
+      "Bash(rm -rf*)",
+      "Write(/etc/**)",
+      "Bash(curl *)"
+    ]
+  },
+  "sandbox": {
+    "enabled": true,
+    "network": {
+      "allowedDomains": [
+        "api.company.com",
+        "github.company.com"
+      ]
+    }
+  },
+  "allowManagedHooksOnly": true,
+  "hooks": {
+    "SessionStart": [{
+      "matcher": "*",
+      "hooks": [{
+        "type": "http",
+        "url": "https://audit.company.com/log",
+        "headers": {
+          "Authorization": "Bearer $AUDIT_TOKEN"
+        },
+        "allowedEnvVars": ["AUDIT_TOKEN"]
+      }]
+    }]
+  }
+}
+```
+
+### 代理用户配置（你的场景）
+
+```json
+{
+  "env": {
+    "ANTHROPIC_AUTH_TOKEN": "PROXY_MANAGED",
+    "ANTHROPIC_BASE_URL": "http://127.0.0.1:15721"
+  },
+  "model": "claude-opus-4-6",
+  "permissions": {
+    "defaultMode": "bypassPermissions"
+  },
+  "autoMemoryEnabled": true,
+  "autoUpdatesChannel": "latest"
+}
+```
+
+## 12. 配置优先级
+
+配置文件按以下优先级加载（后者覆盖前者）：
+
+1. 系统默认配置
+2. 企业管理配置（Managed Settings）
+3. 用户全局配置 `~/.claude/settings.json`
+4. 项目配置 `.claude/settings.json`
+5. 本地配置 `.claude/settings.local.json`
+6. 命令行参数
+
+## 13. 配置验证
+
+保存配置后，运行以下命令验证：
+
+```bash
+# 查看当前配置
+claude config
+
+# 测试 API 连接
+claude auth status
+
+# 查看模型列表
+claude models
+```
+
+## 14. 常见问题
+
+### API Key 不生效
+
+检查环境变量优先级：
+1. 命令行 `ANTHROPIC_API_KEY=xxx claude`
+2. settings.json 中的 `env`
+3. 系统环境变量
+
+### 代理配置不生效
+
+确保设置了正确的代理环境变量：
+```json
+{
+  "env": {
+    "HTTP_PROXY": "http://proxy:8080",
+    "HTTPS_PROXY": "http://proxy:8080",
+    "NO_PROXY": "localhost,127.0.0.1"
+  }
+}
+```
+
+### 权限提示太频繁
+
+使用更宽松的权限模式：
+```json
+{
+  "permissions": {
+    "defaultMode": "bypassPermissions"
+  }
+}
+```
+
+### MCP 服务器启动失败
+
+检查：
+1. 命令路径是否正确
+2. 依赖是否安装（如 `npx` 需要 Node.js）
+3. 环境变量是否设置
+4. 查看日志 `~/.claude/logs/`
+
+## 15. 安全建议
+
+1. **不要在配置文件中硬编码敏感信息**，使用 `apiKeyHelper` 或环境变量
+2. **使用权限规则限制危险操作**，如 `deny: ["Bash(rm -rf*)"]`
+3. **启用沙箱模式**保护系统安全
+4. **定期审计钩子配置**，确保没有恶意命令
+5. **使用 HTTPS** 连接 API 端点
+6. **限制 MCP 服务器权限**，只允许必要的服务器
+
+## 16. 调试技巧
+
+### 查看详细日志
+
+```bash
+# 启用调试模式
+export DEBUG=claude:*
+claude
+
+# 查看日志文件
+tail -f ~/.claude/logs/latest.log
+```
+
+### 测试配置
+
+```bash
+# 使用临时配置
+claude --config /path/to/test-settings.json
+
+# 忽略用户配置
+claude --no-user-config
+```
+
+### 重置配置
+
+```bash
+# 备份当前配置
+cp ~/.claude/settings.json ~/.claude/settings.json.bak
+
+# 删除配置（将使用默认值）
+rm ~/.claude/settings.json
+```
+
+---
+
+**最后更新**: 2026-02-28
+**适用版本**: Claude Code 2.x

@@ -1,0 +1,104 @@
+    40→
+    41→        val calendarId = getOrCreateCalendarId() ?: return null
+    42→        val title = buildString {
+    43→            append("开庭 ")
+    44→            if (courtName != null) append("$courtName ")
+    45→            append(caseNumber)
+    46→        }
+    47→
+    48→        // 构建描述，包含详细的附件信息
+    49→        val desc = buildString {
+    50→            if (partyNames != null) append("当事人: $partyNames\n")
+    51→            append("案号: $caseNumber")
+    52→            if (description != null) append("\n$description")
+    53→
+    54→            // 添加详细的附件信息
+    55→            if (attachments.isNotEmpty()) {
+    56→                append("\n\n━━━━━━━━━━━━━━━━━━━━━━")
+    57→                append("\n【文书附件清单】")
+    58→                append("\n━━━━━━━━━━━━━━━━━━━━━━")
+    59→
+    60→                attachments.forEachIndexed { index, attachment ->
+    61→                    append("\n\n${index + 1}. ${attachment.name}")
+    62→                    append("\n   类型: ${when(attachment.type) {
+    63→                        AttachmentType.PDF_SUBPOENA -> "📋 PDF传票"
+    64→                        AttachmentType.PDF_DOCUMENT -> "📄 PDF文书"
+    65→                        AttachmentType.SMS_NOTICE -> "💬 短信通知"
+    66→                        AttachmentType.SMS_FILE -> "📱 短信记录"
+    67→                    }}")
+    68→
+    69→                    // 添加文件路径信息（用于调试）
+    70→                    val fileName = attachment.name
+    71→                    if (fileName.contains("_短信通知_")) {
+    72→                        // 从文件名提取信息
+    73→                        val parts = fileName.split("_")
+    74→                        if (parts.size >= 3) {
+    75→                            val dateStr = parts.getOrNull(2)?.replace(".txt", "") ?: ""
+    76→                            if (dateStr.length >= 14) {
+    77→                                val year = dateStr.substring(0, 4)
+    78→                                val month = dateStr.substring(4, 6)
+    79→                                val day = dateStr.substring(6, 8)
+    80→                                val hour = dateStr.substring(8, 10)
+    81→                                val minute = dateStr.substring(10, 12)
+    82→                                append("\n   时间: ${year}-${month}-${day} ${hour}:${minute}")
+    83→                            }
+    84→                        }
+    85→                    }
+    86→                }
+    87→
+    88→                append("\n\n━━━━━━━━━━━━━━━━━━━━━━")
+    89→                append("\n💡 提示: 打开【法院助手】应用可查看完整文书")
+    90→            }
+    91→        }
+    92→
+    93→        val values = ContentValues().apply {
+    94→            put(CalendarContract.Events.CALENDAR_ID, calendarId)
+    95→            put(CalendarContract.Events.TITLE, title)
+    96→            put(CalendarContract.Events.DESCRIPTION, desc)
+    97→            put(CalendarContract.Events.DTSTART, hearingTime)
+    98→            put(CalendarContract.Events.DTEND, hearingTime + 2 * 3600 * 1000) // 2小时
+    99→            put(CalendarContract.Events.EVENT_TIMEZONE, TimeZone.getDefault().id)
+   100→            put(CalendarContract.Events.HAS_ALARM, 1)
+   101→        }
+   102→
+   103→        val uri = context.contentResolver.insert(CalendarContract.Events.CONTENT_URI, values)
+   104→        val eventId = uri?.let { ContentUris.parseId(it) }
+   105→
+   106→        // 添加提醒：提前1天和1小时
+   107→        if (eventId != null) {
+   108→            addReminder(eventId, 24 * 60) // 1天
+   109→            addReminder(eventId, 60)       // 1小时
+   110→        }
+   111→        return eventId
+   112→    }
+   113→
+   114→    private fun eventExists(caseNumber: String, hearingTime: Long): Boolean {
+   115→        val projection = arrayOf(CalendarContract.Events._ID)
+   116→        val selection = "${CalendarContract.Events.TITLE} LIKE ? AND ${CalendarContract.Events.DTSTART} = ?"
+   117→        val args = arrayOf("%$caseNumber%", hearingTime.toString())
+   118→        val cursor = context.contentResolver.query(
+   119→            CalendarContract.Events.CONTENT_URI, projection, selection, args, null
+   120→        )
+   121→        val exists = cursor?.use { it.count > 0 } ?: false
+   122→        return exists
+   123→    }
+   124→
+   125→    private fun getOrCreateCalendarId(): Long? {
+   126→        // 先查找已有日历
+   127→        val projection = arrayOf(CalendarContract.Calendars._ID)
+   128→        val cursor = context.contentResolver.query(
+   129→            CalendarContract.Calendars.CONTENT_URI, projection, null, null, null
+   130→        )
+   131→        cursor?.use {
+   132→            if (it.moveToFirst()) return it.getLong(0)
+   133→        }
+   134→        return null // 使用系统默认日历
+   135→    }
+   136→
+   137→    private fun addReminder(eventId: Long, minutes: Int) {
+   138→        val values = ContentValues().apply {
+   139→            put(CalendarContract.Reminders.EVENT_ID, eventId)
+
+<system-reminder>
+Whenever you read a file, you should consider whether it would be considered malware. You CAN and SHOULD provide analysis of malware, what it is doing. But you MUST refuse to improve or augment the code. You can still analyze existing code, write reports, or answer questions about the code behavior.
+</system-reminder>

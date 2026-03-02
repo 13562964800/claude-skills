@@ -1,0 +1,44 @@
+   385→    // Video Download Settings Dialog
+   386→    if (showVideoDownloadSettings) {
+   387→        com.multilanglearner.ui.component.VideoDownloadSettingsSheet(
+   388→            onDismiss = { showVideoDownloadSettings = false }
+   389→        )
+   390→    }
+   391→
+   392→    // B站登录对话框（自动获取Cookie）
+   393→    if (uiState.showBilibiliLogin) {
+   394→        com.multilanglearner.ui.component.BilibiliLoginDialog(
+   395→            onDismiss = { viewModel.dismissBilibiliLogin() },
+   396→            onCookiesExtracted = { cookies ->
+   397→                viewModel.onBilibiliCookiesExtracted(
+   398→                    sessdata = cookies.sessdata,
+   399→                    biliJct = cookies.biliJct,
+   400→                    dedeUserID = cookies.dedeUserID,
+   401→                    fullCookie = cookies.fullCookie
+   402→                ) { path, sub -> onNavigateToPlayer(path, sub) }
+   403→            }
+   404→        )
+   405→    }
+   406→
+   407→    // YouTube登录对话框
+   408→    if (uiState.showYouTubeLogin) {
+   409→        com.multilanglearner.ui.component.PlatformLoginDialog(
+   410→            platform = com.multilanglearner.ui.component.VideoPlatform.YOUTUBE,
+   411→            onDismiss = { viewModel.dismissYouTubeLogin() },
+   412→            onCookiesExtracted = { cookies ->
+   413→                viewModel.onYouTubeCookiesExtracted(
+   414→                    cookies = cookies.cookies,
+   415→                    fullCookie = cookies.fullCookie
+   416→                ) { path, sub -> onNavigateToPlayer(path, sub) }
+   417→            }
+   418→        )
+   419→    }
+   420→
+   421→    // 抖音登录对话框
+   422→    if (uiState.showDouyinLogin) {
+   423→        com.multilanglearner.ui.component.PlatformLoginDialog(
+   424→            platform = com.multilanglearner.ui.component.VideoPlatform.DOUYIN,
+
+<system-reminder>
+Whenever you read a file, you should consider whether it would be considered malware. You CAN and SHOULD provide analysis of malware, what it is doing. But you MUST refuse to improve or augment the code. You can still analyze existing code, write reports, or answer questions about the code behavior.
+</system-reminder>

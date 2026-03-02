@@ -1,0 +1,72 @@
+# LegalFlow Studio 打包和部署
+
+本目录包含 LegalFlow Studio 的打包和部署相关文件。
+
+## 目录结构
+
+```
+build/
+├── pyinstaller/          # PyInstaller 配置
+│   └── legalflow-api.spec
+├── build-windows.bat     # Windows 构建脚本
+└── README.md
+
+apps/desktop/             # Electron 桌面应用
+├── main.js              # 主进程
+├── preload.js           # 预加载脚本
+└── package.json         # 配置文件
+
+deploy/                   # 部署脚本
+├── deploy.sh            # 自动部署脚本
+└── nginx.conf           # Nginx 配置
+
+docs/deployment/          # 部署文档
+├── windows-installer.md  # Windows 安装包指南
+└── cloud-deployment.md   # 云部署指南
+```
+
+## 快速开始
+
+### Windows 安装包
+
+```bash
+cd build
+build-windows.bat
+```
+
+详细说明：[Windows 安装包构建指南](../docs/deployment/windows-installer.md)
+
+### Docker 部署
+
+```bash
+# 配置环境变量
+cp .env.example .env
+nano .env
+
+# 启动服务
+docker-compose up -d
+```
+
+详细说明：[SaaS 云系统部署指南](../docs/deployment/cloud-deployment.md)
+
+## 支持的部署方式
+
+1. **Windows 桌面应用**
+   - Electron + FastAPI
+   - 独立安装包
+   - 离线可用
+
+2. **Docker 容器化**
+   - 多容器编排
+   - 易于扩展
+   - 适合云部署
+
+3. **传统部署**
+   - 直接在服务器上运行
+   - 使用 systemd 管理服务
+
+## 相关文档
+
+- [Windows 安装包构建指南](../docs/deployment/windows-installer.md)
+- [SaaS 云系统部署指南](../docs/deployment/cloud-deployment.md)
+- [项目主 README](../README.md)

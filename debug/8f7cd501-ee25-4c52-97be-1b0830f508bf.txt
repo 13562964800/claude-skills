@@ -1,0 +1,3967 @@
+2026-02-13T15:23:01.404Z [DEBUG] [init] configureGlobalMTLS starting
+2026-02-13T15:23:01.406Z [DEBUG] [init] configureGlobalMTLS complete
+2026-02-13T15:23:01.406Z [DEBUG] [init] configureGlobalAgents starting
+2026-02-13T15:23:01.406Z [DEBUG] [init] configureGlobalAgents complete
+2026-02-13T15:23:01.463Z [DEBUG] Using bash path: "C:\Program Files\Git\bin\bash.exe"
+2026-02-13T15:23:01.488Z [DEBUG] [STARTUP] Loading MCP configs...
+2026-02-13T15:23:01.497Z [DEBUG] [ToolSearch:optimistic] mode=tst-auto, ENABLE_TOOL_SEARCH=undefined, result=true
+2026-02-13T15:23:01.498Z [DEBUG] [STARTUP] Running setup()...
+2026-02-13T15:23:01.498Z [DEBUG] Found 0 plugins (0 enabled, 0 disabled)
+2026-02-13T15:23:01.515Z [DEBUG] Loading skills from: managed=C:\ProgramData\ClaudeCode\.claude\skills, user=C:\Users\Administrator\.claude\skills, project=[]
+2026-02-13T15:23:01.516Z [DEBUG] Error log sink initialized
+2026-02-13T15:23:01.518Z [DEBUG] getPluginSkills: Processing 0 enabled plugins
+2026-02-13T15:23:01.518Z [DEBUG] Total plugin skills loaded: 0
+2026-02-13T15:23:01.518Z [DEBUG] Total plugin commands loaded: 0
+2026-02-13T15:23:01.519Z [DEBUG] [STARTUP] setup() completed in 21ms
+2026-02-13T15:23:01.519Z [DEBUG] [STARTUP] Loading commands and agents...
+2026-02-13T15:23:01.522Z [DEBUG] Registered 0 hooks from 0 plugins
+2026-02-13T15:23:01.523Z [DEBUG] Total plugin agents loaded: 0
+2026-02-13T15:23:01.524Z [DEBUG] Loaded 0 unique skills (0 unconditional, 0 conditional, managed: 0, user: 0, project: 0, additional: 0, legacy commands: 0)
+2026-02-13T15:23:01.529Z [DEBUG] Writing to temp file: C:\Users\Administrator\.claude.json.tmp.26628.1770996181529
+2026-02-13T15:23:01.529Z [DEBUG] Preserving file permissions: 100666
+2026-02-13T15:23:01.530Z [DEBUG] Temp file written successfully, size: 2755 bytes
+2026-02-13T15:23:01.530Z [DEBUG] Applied original permissions to temp file
+2026-02-13T15:23:01.530Z [DEBUG] Renaming C:\Users\Administrator\.claude.json.tmp.26628.1770996181529 to C:\Users\Administrator\.claude.json
+2026-02-13T15:23:01.530Z [DEBUG] File C:\Users\Administrator\.claude.json written atomically
+2026-02-13T15:23:01.532Z [DEBUG] getSkills returning: 0 skill dir commands, 0 plugin skills, 2 bundled skills
+2026-02-13T15:23:01.534Z [DEBUG] [STARTUP] Commands and agents loaded in 15ms
+2026-02-13T15:23:01.546Z [DEBUG] [STARTUP] Running showSetupScreens()...
+2026-02-13T15:23:01.558Z [DEBUG] [keybindings] KeybindingSetup initialized with 102 bindings, 0 warnings
+2026-02-13T15:23:01.633Z [DEBUG] [keybindings] Skipping file watcher - user customization disabled
+2026-02-13T15:23:01.636Z [DEBUG] [Claude in Chrome] Found edge profiles: Default
+2026-02-13T15:23:01.638Z [DEBUG] [Claude in Chrome] Extension not found in any browser
+2026-02-13T15:23:02.391Z [DEBUG] [Perfetto] initializePerfettoTracing called, env value: undefined
+2026-02-13T15:23:02.396Z [DEBUG] [STARTUP] showSetupScreens() completed in 850ms
+2026-02-13T15:23:02.397Z [DEBUG] [LSP MANAGER] initializeLspServerManager() called
+2026-02-13T15:23:02.397Z [DEBUG] [LSP MANAGER] Created manager instance, state=pending
+2026-02-13T15:23:02.397Z [DEBUG] [LSP MANAGER] Starting async initialization (generation 1)
+2026-02-13T15:23:02.425Z [DEBUG] Total LSP servers loaded: 0
+2026-02-13T15:23:02.436Z [DEBUG] [LSP SERVER MANAGER] getAllLspServers returned 0 server(s)
+2026-02-13T15:23:02.436Z [DEBUG] LSP manager initialized with 0 servers
+2026-02-13T15:23:02.436Z [DEBUG] LSP server manager initialized successfully
+2026-02-13T15:23:02.436Z [DEBUG] LSP notification handlers registered successfully for all 0 server(s)
+2026-02-13T15:23:02.436Z [DEBUG] Git remote URL: null
+2026-02-13T15:23:02.436Z [DEBUG] No git remote URL found
+2026-02-13T15:23:02.436Z [DEBUG] Not in a GitHub repository, skipping path mapping update
+2026-02-13T15:23:03.051Z [DEBUG] [STARTUP] MCP configs loaded in 1563ms
+2026-02-13T15:23:03.067Z [DEBUG] MCP server "zai-mcp-server": Starting connection with timeout of 30000ms
+2026-02-13T15:23:03.093Z [DEBUG] MCP server "web-search-prime": Initializing HTTP transport to https://api.z.ai/api/mcp/web_search_prime/mcp
+2026-02-13T15:23:03.093Z [DEBUG] MCP server "web-search-prime": Node version: v25.5.0, Platform: win32
+2026-02-13T15:23:03.093Z [DEBUG] MCP server "web-search-prime": Environment: {"NODE_OPTIONS":"not set","UV_THREADPOOL_SIZE":"default","HTTP_PROXY":"not set","HTTPS_PROXY":"not set","NO_PROXY":"not set"}
+2026-02-13T15:23:03.095Z [DEBUG] MCP server "web-reader": Initializing HTTP transport to https://api.z.ai/api/mcp/web_reader/mcp
+2026-02-13T15:23:03.095Z [DEBUG] MCP server "web-reader": Node version: v25.5.0, Platform: win32
+2026-02-13T15:23:03.095Z [DEBUG] MCP server "web-reader": Environment: {"NODE_OPTIONS":"not set","UV_THREADPOOL_SIZE":"default","HTTP_PROXY":"not set","HTTPS_PROXY":"not set","NO_PROXY":"not set"}
+2026-02-13T15:23:03.096Z [DEBUG] MCP server "zread": Initializing HTTP transport to https://api.z.ai/api/mcp/zread/mcp
+2026-02-13T15:23:03.096Z [DEBUG] MCP server "zread": Node version: v25.5.0, Platform: win32
+2026-02-13T15:23:03.096Z [DEBUG] MCP server "zread": Environment: {"NODE_OPTIONS":"not set","UV_THREADPOOL_SIZE":"default","HTTP_PROXY":"not set","HTTPS_PROXY":"not set","NO_PROXY":"not set"}
+2026-02-13T15:23:03.114Z [DEBUG] [Reconnection] computeInitialTeamContext: No teammate context set (not a teammate)
+2026-02-13T15:23:03.118Z [DEBUG] Writing to temp file: C:\Users\Administrator\.claude.json.tmp.26628.1770996183118
+2026-02-13T15:23:03.118Z [DEBUG] Preserving file permissions: 100666
+2026-02-13T15:23:03.118Z [DEBUG] Temp file written successfully, size: 2755 bytes
+2026-02-13T15:23:03.118Z [DEBUG] Applied original permissions to temp file
+2026-02-13T15:23:03.118Z [DEBUG] Renaming C:\Users\Administrator\.claude.json.tmp.26628.1770996183118 to C:\Users\Administrator\.claude.json
+2026-02-13T15:23:03.119Z [DEBUG] File C:\Users\Administrator\.claude.json written atomically
+2026-02-13T15:23:03.126Z [DEBUG] Getting matching hook commands for SessionStart with query: startup
+2026-02-13T15:23:03.126Z [DEBUG] Found 0 hook matchers in settings
+2026-02-13T15:23:03.126Z [DEBUG] Matched 0 unique hooks for query "startup" (0 before deduplication)
+2026-02-13T15:23:03.128Z [DEBUG] Loaded 3 installed plugins from C:\Users\Administrator\.claude\plugins\installed_plugins.json
+2026-02-13T15:23:03.128Z [DEBUG] Initialized versioned plugins system with 3 plugins
+2026-02-13T15:23:03.147Z [DEBUG] MCP server "web-search-prime": Proxy options: default
+2026-02-13T15:23:03.147Z [DEBUG] MCP server "web-search-prime": HTTP transport options: {"url":"https://api.z.ai/api/mcp/web_search_prime/mcp","headers":{"User-Agent":"claude-code/2.1.41 (cli)","Authorization":"[REDACTED]"},"hasAuthProvider":true,"timeoutMs":60000}
+2026-02-13T15:23:03.148Z [DEBUG] MCP server "web-search-prime": HTTP transport created successfully
+2026-02-13T15:23:03.149Z [DEBUG] MCP server "web-search-prime": Client created, setting up request handler
+2026-02-13T15:23:03.149Z [DEBUG] MCP server "web-search-prime": Starting connection with timeout of 30000ms
+2026-02-13T15:23:03.149Z [DEBUG] MCP server "web-search-prime": Testing basic HTTP connectivity to https://api.z.ai/api/mcp/web_search_prime/mcp
+2026-02-13T15:23:03.149Z [DEBUG] MCP server "web-search-prime": Parsed URL: host=api.z.ai, port=default, protocol=https:
+2026-02-13T15:23:03.149Z [DEBUG] MCP server "web-reader": Proxy options: default
+2026-02-13T15:23:03.149Z [DEBUG] MCP server "web-reader": HTTP transport options: {"url":"https://api.z.ai/api/mcp/web_reader/mcp","headers":{"User-Agent":"claude-code/2.1.41 (cli)","Authorization":"[REDACTED]"},"hasAuthProvider":true,"timeoutMs":60000}
+2026-02-13T15:23:03.149Z [DEBUG] MCP server "web-reader": HTTP transport created successfully
+2026-02-13T15:23:03.150Z [DEBUG] MCP server "web-reader": Client created, setting up request handler
+2026-02-13T15:23:03.150Z [DEBUG] MCP server "web-reader": Starting connection with timeout of 30000ms
+2026-02-13T15:23:03.150Z [DEBUG] MCP server "web-reader": Testing basic HTTP connectivity to https://api.z.ai/api/mcp/web_reader/mcp
+2026-02-13T15:23:03.150Z [DEBUG] MCP server "web-reader": Parsed URL: host=api.z.ai, port=default, protocol=https:
+2026-02-13T15:23:03.150Z [DEBUG] MCP server "zread": Proxy options: default
+2026-02-13T15:23:03.150Z [DEBUG] MCP server "zread": HTTP transport options: {"url":"https://api.z.ai/api/mcp/zread/mcp","headers":{"User-Agent":"claude-code/2.1.41 (cli)","Authorization":"[REDACTED]"},"hasAuthProvider":true,"timeoutMs":60000}
+2026-02-13T15:23:03.150Z [DEBUG] MCP server "zread": HTTP transport created successfully
+2026-02-13T15:23:03.150Z [DEBUG] MCP server "zread": Client created, setting up request handler
+2026-02-13T15:23:03.150Z [DEBUG] MCP server "zread": Starting connection with timeout of 30000ms
+2026-02-13T15:23:03.150Z [DEBUG] MCP server "zread": Testing basic HTTP connectivity to https://api.z.ai/api/mcp/zread/mcp
+2026-02-13T15:23:03.150Z [DEBUG] MCP server "zread": Parsed URL: host=api.z.ai, port=default, protocol=https:
+2026-02-13T15:23:03.154Z [DEBUG] MCP server "web-search-prime": No token data found
+2026-02-13T15:23:03.154Z [DEBUG] MCP server "web-reader": No token data found
+2026-02-13T15:23:03.154Z [DEBUG] MCP server "zread": No token data found
+2026-02-13T15:23:03.168Z [DEBUG] [keybindings] KeybindingSetup initialized with 102 bindings, 0 warnings
+2026-02-13T15:23:03.213Z [DEBUG] [keybindings] Skipping file watcher - user customization disabled
+2026-02-13T15:23:03.213Z [DEBUG] [REPL:mount] REPL mounted, disabled=false
+2026-02-13T15:23:03.218Z [DEBUG] Official marketplace auto-install skipped: already_attempted
+2026-02-13T15:23:03.219Z [DEBUG] performStartupChecks called
+2026-02-13T15:23:03.223Z [DEBUG] Starting background plugin installations
+2026-02-13T15:23:03.224Z [DEBUG] performBackgroundPluginInstallations called
+2026-02-13T15:23:03.229Z [DEBUG] No CLAUDE.md/rules files found
+2026-02-13T15:23:03.265Z [DEBUG] Watching for changes in setting files C:\Users\Administrator\.claude\settings.json, C:\Users\Administrator\.claude\settings.local.json...
+2026-02-13T15:23:03.270Z [DEBUG] AutoUpdaterWrapper: Installation type: npm-global
+2026-02-13T15:23:03.289Z [DEBUG] [claudeai-mcp] Checking gate (cached)...
+2026-02-13T15:23:03.289Z [DEBUG] [claudeai-mcp] Gate returned: false
+2026-02-13T15:23:03.289Z [DEBUG] [claudeai-mcp] Disabled via gate
+2026-02-13T15:23:03.306Z [DEBUG] Setting installation status: 0 marketplaces, 0 installable plugins, 0 uninstallable plugins
+2026-02-13T15:23:03.307Z [DEBUG] Loaded plugins - Enabled: 0, Disabled: 0, Commands: 0, Agents: 0, Errors: 0
+2026-02-13T15:23:04.593Z [DEBUG] MCP server "web-reader": HTTP Connection failed after 1498ms: [
+  {
+    "code": "invalid_union",
+    "errors": [
+      [
+        {
+          "code": "invalid_value",
+          "values": [
+            "2.0"
+          ],
+          "path": [
+            "jsonrpc"
+          ],
+          "message": "Invalid input: expected \"2.0\""
+        },
+        {
+          "code": "invalid_union",
+          "errors": [
+            [
+              {
+                "expected": "string",
+                "code": "invalid_type",
+                "path": [],
+                "message": "Invalid input: expected string, received undefined"
+              }
+            ],
+            [
+              {
+                "expected": "number",
+                "code": "invalid_type",
+                "path": [],
+                "message": "Invalid input: expected number, received undefined"
+              }
+            ]
+          ],
+          "path": [
+            "id"
+          ],
+          "message": "Invalid input"
+        },
+        {
+          "expected": "string",
+          "code": "invalid_type",
+          "path": [
+            "method"
+          ],
+          "message": "Invalid input: expected string, received undefined"
+        },
+        {
+          "code": "unrecognized_keys",
+          "keys": [
+            "code",
+            "msg",
+            "success"
+          ],
+          "path": [],
+          "message": "Unrecognized keys: \"code\", \"msg\", \"success\""
+        }
+      ],
+      [
+        {
+          "code": "invalid_value",
+          "values": [
+            "2.0"
+          ],
+          "path": [
+            "jsonrpc"
+          ],
+          "message": "Invalid input: expected \"2.0\""
+        },
+        {
+          "expected": "string",
+          "code": "invalid_type",
+          "path": [
+            "method"
+          ],
+          "message": "Invalid input: expected string, received undefined"
+        },
+        {
+          "code": "unrecognized_keys",
+          "keys": [
+            "code",
+            "msg",
+            "success"
+          ],
+          "path": [],
+          "message": "Unrecognized keys: \"code\", \"msg\", \"success\""
+        }
+      ],
+      [
+        {
+          "code": "invalid_value",
+          "values": [
+            "2.0"
+          ],
+          "path": [
+            "jsonrpc"
+          ],
+          "message": "Invalid input: expected \"2.0\""
+        },
+        {
+          "code": "invalid_union",
+          "errors": [
+            [
+              {
+                "expected": "string",
+                "code": "invalid_type",
+                "path": [],
+                "message": "Invalid input: expected string, received undefined"
+              }
+            ],
+            [
+              {
+                "expected": "number",
+                "code": "invalid_type",
+                "path": [],
+                "message": "Invalid input: expected number, received undefined"
+              }
+            ]
+          ],
+          "path": [
+            "id"
+          ],
+          "message": "Invalid input"
+        },
+        {
+          "expected": "object",
+          "code": "invalid_type",
+          "path": [
+            "result"
+          ],
+          "message": "Invalid input: expected object, received undefined"
+        },
+        {
+          "code": "unrecognized_keys",
+          "keys": [
+            "code",
+            "msg",
+            "success"
+          ],
+          "path": [],
+          "message": "Unrecognized keys: \"code\", \"msg\", \"success\""
+        }
+      ],
+      [
+        {
+          "code": "invalid_value",
+          "values": [
+            "2.0"
+          ],
+          "path": [
+            "jsonrpc"
+          ],
+          "message": "Invalid input: expected \"2.0\""
+        },
+        {
+          "code": "invalid_union",
+          "errors": [
+            [
+              {
+                "expected": "string",
+                "code": "invalid_type",
+                "path": [],
+                "message": "Invalid input: expected string, received undefined"
+              }
+            ],
+            [
+              {
+                "expected": "number",
+                "code": "invalid_type",
+                "path": [],
+                "message": "Invalid input: expected number, received undefined"
+              }
+            ]
+          ],
+          "path": [
+            "id"
+          ],
+          "message": "Invalid input"
+        },
+        {
+          "expected": "object",
+          "code": "invalid_type",
+          "path": [
+            "error"
+          ],
+          "message": "Invalid input: expected object, received undefined"
+        },
+        {
+          "code": "unrecognized_keys",
+          "keys": [
+            "code",
+            "msg",
+            "success"
+          ],
+          "path": [],
+          "message": "Unrecognized keys: \"code\", \"msg\", \"success\""
+        }
+      ]
+    ],
+    "path": [],
+    "message": "Invalid input"
+  }
+] (code: none, errno: none)
+2026-02-13T15:23:04.593Z [ERROR] MCP server "web-reader" ZodError: [
+  {
+    "code": "invalid_union",
+    "errors": [
+      [
+        {
+          "code": "invalid_value",
+          "values": [
+            "2.0"
+          ],
+          "path": [
+            "jsonrpc"
+          ],
+          "message": "Invalid input: expected \"2.0\""
+        },
+        {
+          "code": "invalid_union",
+          "errors": [
+            [
+              {
+                "expected": "string",
+                "code": "invalid_type",
+                "path": [],
+                "message": "Invalid input: expected string, received undefined"
+              }
+            ],
+            [
+              {
+                "expected": "number",
+                "code": "invalid_type",
+                "path": [],
+                "message": "Invalid input: expected number, received undefined"
+              }
+            ]
+          ],
+          "path": [
+            "id"
+          ],
+          "message": "Invalid input"
+        },
+        {
+          "expected": "string",
+          "code": "invalid_type",
+          "path": [
+            "method"
+          ],
+          "message": "Invalid input: expected string, received undefined"
+        },
+        {
+          "code": "unrecognized_keys",
+          "keys": [
+            "code",
+            "msg",
+            "success"
+          ],
+          "path": [],
+          "message": "Unrecognized keys: \"code\", \"msg\", \"success\""
+        }
+      ],
+      [
+        {
+          "code": "invalid_value",
+          "values": [
+            "2.0"
+          ],
+          "path": [
+            "jsonrpc"
+          ],
+          "message": "Invalid input: expected \"2.0\""
+        },
+        {
+          "expected": "string",
+          "code": "invalid_type",
+          "path": [
+            "method"
+          ],
+          "message": "Invalid input: expected string, received undefined"
+        },
+        {
+          "code": "unrecognized_keys",
+          "keys": [
+            "code",
+            "msg",
+            "success"
+          ],
+          "path": [],
+          "message": "Unrecognized keys: \"code\", \"msg\", \"success\""
+        }
+      ],
+      [
+        {
+          "code": "invalid_value",
+          "values": [
+            "2.0"
+          ],
+          "path": [
+            "jsonrpc"
+          ],
+          "message": "Invalid input: expected \"2.0\""
+        },
+        {
+          "code": "invalid_union",
+          "errors": [
+            [
+              {
+                "expected": "string",
+                "code": "invalid_type",
+                "path": [],
+                "message": "Invalid input: expected string, received undefined"
+              }
+            ],
+            [
+              {
+                "expected": "number",
+                "code": "invalid_type",
+                "path": [],
+                "message": "Invalid input: expected number, received undefined"
+              }
+            ]
+          ],
+          "path": [
+            "id"
+          ],
+          "message": "Invalid input"
+        },
+        {
+          "expected": "object",
+          "code": "invalid_type",
+          "path": [
+            "result"
+          ],
+          "message": "Invalid input: expected object, received undefined"
+        },
+        {
+          "code": "unrecognized_keys",
+          "keys": [
+            "code",
+            "msg",
+            "success"
+          ],
+          "path": [],
+          "message": "Unrecognized keys: \"code\", \"msg\", \"success\""
+        }
+      ],
+      [
+        {
+          "code": "invalid_value",
+          "values": [
+            "2.0"
+          ],
+          "path": [
+            "jsonrpc"
+          ],
+          "message": "Invalid input: expected \"2.0\""
+        },
+        {
+          "code": "invalid_union",
+          "errors": [
+            [
+              {
+                "expected": "string",
+                "code": "invalid_type",
+                "path": [],
+                "message": "Invalid input: expected string, received undefined"
+              }
+            ],
+            [
+              {
+                "expected": "number",
+                "code": "invalid_type",
+                "path": [],
+                "message": "Invalid input: expected number, received undefined"
+              }
+            ]
+          ],
+          "path": [
+            "id"
+          ],
+          "message": "Invalid input"
+        },
+        {
+          "expected": "object",
+          "code": "invalid_type",
+          "path": [
+            "error"
+          ],
+          "message": "Invalid input: expected object, received undefined"
+        },
+        {
+          "code": "unrecognized_keys",
+          "keys": [
+            "code",
+            "msg",
+            "success"
+          ],
+          "path": [],
+          "message": "Unrecognized keys: \"code\", \"msg\", \"success\""
+        }
+      ]
+    ],
+    "path": [],
+    "message": "Invalid input"
+  }
+]
+2026-02-13T15:23:04.614Z [DEBUG] MCP server "web-reader": Connection failed after 1518ms: [
+  {
+    "code": "invalid_union",
+    "errors": [
+      [
+        {
+          "code": "invalid_value",
+          "values": [
+            "2.0"
+          ],
+          "path": [
+            "jsonrpc"
+          ],
+          "message": "Invalid input: expected \"2.0\""
+        },
+        {
+          "code": "invalid_union",
+          "errors": [
+            [
+              {
+                "expected": "string",
+                "code": "invalid_type",
+                "path": [],
+                "message": "Invalid input: expected string, received undefined"
+              }
+            ],
+            [
+              {
+                "expected": "number",
+                "code": "invalid_type",
+                "path": [],
+                "message": "Invalid input: expected number, received undefined"
+              }
+            ]
+          ],
+          "path": [
+            "id"
+          ],
+          "message": "Invalid input"
+        },
+        {
+          "expected": "string",
+          "code": "invalid_type",
+          "path": [
+            "method"
+          ],
+          "message": "Invalid input: expected string, received undefined"
+        },
+        {
+          "code": "unrecognized_keys",
+          "keys": [
+            "code",
+            "msg",
+            "success"
+          ],
+          "path": [],
+          "message": "Unrecognized keys: \"code\", \"msg\", \"success\""
+        }
+      ],
+      [
+        {
+          "code": "invalid_value",
+          "values": [
+            "2.0"
+          ],
+          "path": [
+            "jsonrpc"
+          ],
+          "message": "Invalid input: expected \"2.0\""
+        },
+        {
+          "expected": "string",
+          "code": "invalid_type",
+          "path": [
+            "method"
+          ],
+          "message": "Invalid input: expected string, received undefined"
+        },
+        {
+          "code": "unrecognized_keys",
+          "keys": [
+            "code",
+            "msg",
+            "success"
+          ],
+          "path": [],
+          "message": "Unrecognized keys: \"code\", \"msg\", \"success\""
+        }
+      ],
+      [
+        {
+          "code": "invalid_value",
+          "values": [
+            "2.0"
+          ],
+          "path": [
+            "jsonrpc"
+          ],
+          "message": "Invalid input: expected \"2.0\""
+        },
+        {
+          "code": "invalid_union",
+          "errors": [
+            [
+              {
+                "expected": "string",
+                "code": "invalid_type",
+                "path": [],
+                "message": "Invalid input: expected string, received undefined"
+              }
+            ],
+            [
+              {
+                "expected": "number",
+                "code": "invalid_type",
+                "path": [],
+                "message": "Invalid input: expected number, received undefined"
+              }
+            ]
+          ],
+          "path": [
+            "id"
+          ],
+          "message": "Invalid input"
+        },
+        {
+          "expected": "object",
+          "code": "invalid_type",
+          "path": [
+            "result"
+          ],
+          "message": "Invalid input: expected object, received undefined"
+        },
+        {
+          "code": "unrecognized_keys",
+          "keys": [
+            "code",
+            "msg",
+            "success"
+          ],
+          "path": [],
+          "message": "Unrecognized keys: \"code\", \"msg\", \"success\""
+        }
+      ],
+      [
+        {
+          "code": "invalid_value",
+          "values": [
+            "2.0"
+          ],
+          "path": [
+            "jsonrpc"
+          ],
+          "message": "Invalid input: expected \"2.0\""
+        },
+        {
+          "code": "invalid_union",
+          "errors": [
+            [
+              {
+                "expected": "string",
+                "code": "invalid_type",
+                "path": [],
+                "message": "Invalid input: expected string, received undefined"
+              }
+            ],
+            [
+              {
+                "expected": "number",
+                "code": "invalid_type",
+                "path": [],
+                "message": "Invalid input: expected number, received undefined"
+              }
+            ]
+          ],
+          "path": [
+            "id"
+          ],
+          "message": "Invalid input"
+        },
+        {
+          "expected": "object",
+          "code": "invalid_type",
+          "path": [
+            "error"
+          ],
+          "message": "Invalid input: expected object, received undefined"
+        },
+        {
+          "code": "unrecognized_keys",
+          "keys": [
+            "code",
+            "msg",
+            "success"
+          ],
+          "path": [],
+          "message": "Unrecognized keys: \"code\", \"msg\", \"success\""
+        }
+      ]
+    ],
+    "path": [],
+    "message": "Invalid input"
+  }
+]
+2026-02-13T15:23:04.614Z [ERROR] MCP server "web-reader" Connection failed: [
+  {
+    "code": "invalid_union",
+    "errors": [
+      [
+        {
+          "code": "invalid_value",
+          "values": [
+            "2.0"
+          ],
+          "path": [
+            "jsonrpc"
+          ],
+          "message": "Invalid input: expected \"2.0\""
+        },
+        {
+          "code": "invalid_union",
+          "errors": [
+            [
+              {
+                "expected": "string",
+                "code": "invalid_type",
+                "path": [],
+                "message": "Invalid input: expected string, received undefined"
+              }
+            ],
+            [
+              {
+                "expected": "number",
+                "code": "invalid_type",
+                "path": [],
+                "message": "Invalid input: expected number, received undefined"
+              }
+            ]
+          ],
+          "path": [
+            "id"
+          ],
+          "message": "Invalid input"
+        },
+        {
+          "expected": "string",
+          "code": "invalid_type",
+          "path": [
+            "method"
+          ],
+          "message": "Invalid input: expected string, received undefined"
+        },
+        {
+          "code": "unrecognized_keys",
+          "keys": [
+            "code",
+            "msg",
+            "success"
+          ],
+          "path": [],
+          "message": "Unrecognized keys: \"code\", \"msg\", \"success\""
+        }
+      ],
+      [
+        {
+          "code": "invalid_value",
+          "values": [
+            "2.0"
+          ],
+          "path": [
+            "jsonrpc"
+          ],
+          "message": "Invalid input: expected \"2.0\""
+        },
+        {
+          "expected": "string",
+          "code": "invalid_type",
+          "path": [
+            "method"
+          ],
+          "message": "Invalid input: expected string, received undefined"
+        },
+        {
+          "code": "unrecognized_keys",
+          "keys": [
+            "code",
+            "msg",
+            "success"
+          ],
+          "path": [],
+          "message": "Unrecognized keys: \"code\", \"msg\", \"success\""
+        }
+      ],
+      [
+        {
+          "code": "invalid_value",
+          "values": [
+            "2.0"
+          ],
+          "path": [
+            "jsonrpc"
+          ],
+          "message": "Invalid input: expected \"2.0\""
+        },
+        {
+          "code": "invalid_union",
+          "errors": [
+            [
+              {
+                "expected": "string",
+                "code": "invalid_type",
+                "path": [],
+                "message": "Invalid input: expected string, received undefined"
+              }
+            ],
+            [
+              {
+                "expected": "number",
+                "code": "invalid_type",
+                "path": [],
+                "message": "Invalid input: expected number, received undefined"
+              }
+            ]
+          ],
+          "path": [
+            "id"
+          ],
+          "message": "Invalid input"
+        },
+        {
+          "expected": "object",
+          "code": "invalid_type",
+          "path": [
+            "result"
+          ],
+          "message": "Invalid input: expected object, received undefined"
+        },
+        {
+          "code": "unrecognized_keys",
+          "keys": [
+            "code",
+            "msg",
+            "success"
+          ],
+          "path": [],
+          "message": "Unrecognized keys: \"code\", \"msg\", \"success\""
+        }
+      ],
+      [
+        {
+          "code": "invalid_value",
+          "values": [
+            "2.0"
+          ],
+          "path": [
+            "jsonrpc"
+          ],
+          "message": "Invalid input: expected \"2.0\""
+        },
+        {
+          "code": "invalid_union",
+          "errors": [
+            [
+              {
+                "expected": "string",
+                "code": "invalid_type",
+                "path": [],
+                "message": "Invalid input: expected string, received undefined"
+              }
+            ],
+            [
+              {
+                "expected": "number",
+                "code": "invalid_type",
+                "path": [],
+                "message": "Invalid input: expected number, received undefined"
+              }
+            ]
+          ],
+          "path": [
+            "id"
+          ],
+          "message": "Invalid input"
+        },
+        {
+          "expected": "object",
+          "code": "invalid_type",
+          "path": [
+            "error"
+          ],
+          "message": "Invalid input: expected object, received undefined"
+        },
+        {
+          "code": "unrecognized_keys",
+          "keys": [
+            "code",
+            "msg",
+            "success"
+          ],
+          "path": [],
+          "message": "Unrecognized keys: \"code\", \"msg\", \"success\""
+        }
+      ]
+    ],
+    "path": [],
+    "message": "Invalid input"
+  }
+]
+2026-02-13T15:23:04.627Z [DEBUG] MCP server "web-search-prime": HTTP Connection failed after 1533ms: [
+  {
+    "code": "invalid_union",
+    "errors": [
+      [
+        {
+          "code": "invalid_value",
+          "values": [
+            "2.0"
+          ],
+          "path": [
+            "jsonrpc"
+          ],
+          "message": "Invalid input: expected \"2.0\""
+        },
+        {
+          "code": "invalid_union",
+          "errors": [
+            [
+              {
+                "expected": "string",
+                "code": "invalid_type",
+                "path": [],
+                "message": "Invalid input: expected string, received undefined"
+              }
+            ],
+            [
+              {
+                "expected": "number",
+                "code": "invalid_type",
+                "path": [],
+                "message": "Invalid input: expected number, received undefined"
+              }
+            ]
+          ],
+          "path": [
+            "id"
+          ],
+          "message": "Invalid input"
+        },
+        {
+          "expected": "string",
+          "code": "invalid_type",
+          "path": [
+            "method"
+          ],
+          "message": "Invalid input: expected string, received undefined"
+        },
+        {
+          "code": "unrecognized_keys",
+          "keys": [
+            "code",
+            "msg",
+            "success"
+          ],
+          "path": [],
+          "message": "Unrecognized keys: \"code\", \"msg\", \"success\""
+        }
+      ],
+      [
+        {
+          "code": "invalid_value",
+          "values": [
+            "2.0"
+          ],
+          "path": [
+            "jsonrpc"
+          ],
+          "message": "Invalid input: expected \"2.0\""
+        },
+        {
+          "expected": "string",
+          "code": "invalid_type",
+          "path": [
+            "method"
+          ],
+          "message": "Invalid input: expected string, received undefined"
+        },
+        {
+          "code": "unrecognized_keys",
+          "keys": [
+            "code",
+            "msg",
+            "success"
+          ],
+          "path": [],
+          "message": "Unrecognized keys: \"code\", \"msg\", \"success\""
+        }
+      ],
+      [
+        {
+          "code": "invalid_value",
+          "values": [
+            "2.0"
+          ],
+          "path": [
+            "jsonrpc"
+          ],
+          "message": "Invalid input: expected \"2.0\""
+        },
+        {
+          "code": "invalid_union",
+          "errors": [
+            [
+              {
+                "expected": "string",
+                "code": "invalid_type",
+                "path": [],
+                "message": "Invalid input: expected string, received undefined"
+              }
+            ],
+            [
+              {
+                "expected": "number",
+                "code": "invalid_type",
+                "path": [],
+                "message": "Invalid input: expected number, received undefined"
+              }
+            ]
+          ],
+          "path": [
+            "id"
+          ],
+          "message": "Invalid input"
+        },
+        {
+          "expected": "object",
+          "code": "invalid_type",
+          "path": [
+            "result"
+          ],
+          "message": "Invalid input: expected object, received undefined"
+        },
+        {
+          "code": "unrecognized_keys",
+          "keys": [
+            "code",
+            "msg",
+            "success"
+          ],
+          "path": [],
+          "message": "Unrecognized keys: \"code\", \"msg\", \"success\""
+        }
+      ],
+      [
+        {
+          "code": "invalid_value",
+          "values": [
+            "2.0"
+          ],
+          "path": [
+            "jsonrpc"
+          ],
+          "message": "Invalid input: expected \"2.0\""
+        },
+        {
+          "code": "invalid_union",
+          "errors": [
+            [
+              {
+                "expected": "string",
+                "code": "invalid_type",
+                "path": [],
+                "message": "Invalid input: expected string, received undefined"
+              }
+            ],
+            [
+              {
+                "expected": "number",
+                "code": "invalid_type",
+                "path": [],
+                "message": "Invalid input: expected number, received undefined"
+              }
+            ]
+          ],
+          "path": [
+            "id"
+          ],
+          "message": "Invalid input"
+        },
+        {
+          "expected": "object",
+          "code": "invalid_type",
+          "path": [
+            "error"
+          ],
+          "message": "Invalid input: expected object, received undefined"
+        },
+        {
+          "code": "unrecognized_keys",
+          "keys": [
+            "code",
+            "msg",
+            "success"
+          ],
+          "path": [],
+          "message": "Unrecognized keys: \"code\", \"msg\", \"success\""
+        }
+      ]
+    ],
+    "path": [],
+    "message": "Invalid input"
+  }
+] (code: none, errno: none)
+2026-02-13T15:23:04.627Z [ERROR] MCP server "web-search-prime" ZodError: [
+  {
+    "code": "invalid_union",
+    "errors": [
+      [
+        {
+          "code": "invalid_value",
+          "values": [
+            "2.0"
+          ],
+          "path": [
+            "jsonrpc"
+          ],
+          "message": "Invalid input: expected \"2.0\""
+        },
+        {
+          "code": "invalid_union",
+          "errors": [
+            [
+              {
+                "expected": "string",
+                "code": "invalid_type",
+                "path": [],
+                "message": "Invalid input: expected string, received undefined"
+              }
+            ],
+            [
+              {
+                "expected": "number",
+                "code": "invalid_type",
+                "path": [],
+                "message": "Invalid input: expected number, received undefined"
+              }
+            ]
+          ],
+          "path": [
+            "id"
+          ],
+          "message": "Invalid input"
+        },
+        {
+          "expected": "string",
+          "code": "invalid_type",
+          "path": [
+            "method"
+          ],
+          "message": "Invalid input: expected string, received undefined"
+        },
+        {
+          "code": "unrecognized_keys",
+          "keys": [
+            "code",
+            "msg",
+            "success"
+          ],
+          "path": [],
+          "message": "Unrecognized keys: \"code\", \"msg\", \"success\""
+        }
+      ],
+      [
+        {
+          "code": "invalid_value",
+          "values": [
+            "2.0"
+          ],
+          "path": [
+            "jsonrpc"
+          ],
+          "message": "Invalid input: expected \"2.0\""
+        },
+        {
+          "expected": "string",
+          "code": "invalid_type",
+          "path": [
+            "method"
+          ],
+          "message": "Invalid input: expected string, received undefined"
+        },
+        {
+          "code": "unrecognized_keys",
+          "keys": [
+            "code",
+            "msg",
+            "success"
+          ],
+          "path": [],
+          "message": "Unrecognized keys: \"code\", \"msg\", \"success\""
+        }
+      ],
+      [
+        {
+          "code": "invalid_value",
+          "values": [
+            "2.0"
+          ],
+          "path": [
+            "jsonrpc"
+          ],
+          "message": "Invalid input: expected \"2.0\""
+        },
+        {
+          "code": "invalid_union",
+          "errors": [
+            [
+              {
+                "expected": "string",
+                "code": "invalid_type",
+                "path": [],
+                "message": "Invalid input: expected string, received undefined"
+              }
+            ],
+            [
+              {
+                "expected": "number",
+                "code": "invalid_type",
+                "path": [],
+                "message": "Invalid input: expected number, received undefined"
+              }
+            ]
+          ],
+          "path": [
+            "id"
+          ],
+          "message": "Invalid input"
+        },
+        {
+          "expected": "object",
+          "code": "invalid_type",
+          "path": [
+            "result"
+          ],
+          "message": "Invalid input: expected object, received undefined"
+        },
+        {
+          "code": "unrecognized_keys",
+          "keys": [
+            "code",
+            "msg",
+            "success"
+          ],
+          "path": [],
+          "message": "Unrecognized keys: \"code\", \"msg\", \"success\""
+        }
+      ],
+      [
+        {
+          "code": "invalid_value",
+          "values": [
+            "2.0"
+          ],
+          "path": [
+            "jsonrpc"
+          ],
+          "message": "Invalid input: expected \"2.0\""
+        },
+        {
+          "code": "invalid_union",
+          "errors": [
+            [
+              {
+                "expected": "string",
+                "code": "invalid_type",
+                "path": [],
+                "message": "Invalid input: expected string, received undefined"
+              }
+            ],
+            [
+              {
+                "expected": "number",
+                "code": "invalid_type",
+                "path": [],
+                "message": "Invalid input: expected number, received undefined"
+              }
+            ]
+          ],
+          "path": [
+            "id"
+          ],
+          "message": "Invalid input"
+        },
+        {
+          "expected": "object",
+          "code": "invalid_type",
+          "path": [
+            "error"
+          ],
+          "message": "Invalid input: expected object, received undefined"
+        },
+        {
+          "code": "unrecognized_keys",
+          "keys": [
+            "code",
+            "msg",
+            "success"
+          ],
+          "path": [],
+          "message": "Unrecognized keys: \"code\", \"msg\", \"success\""
+        }
+      ]
+    ],
+    "path": [],
+    "message": "Invalid input"
+  }
+]
+2026-02-13T15:23:04.627Z [DEBUG] MCP server "web-search-prime": Connection failed after 1534ms: [
+  {
+    "code": "invalid_union",
+    "errors": [
+      [
+        {
+          "code": "invalid_value",
+          "values": [
+            "2.0"
+          ],
+          "path": [
+            "jsonrpc"
+          ],
+          "message": "Invalid input: expected \"2.0\""
+        },
+        {
+          "code": "invalid_union",
+          "errors": [
+            [
+              {
+                "expected": "string",
+                "code": "invalid_type",
+                "path": [],
+                "message": "Invalid input: expected string, received undefined"
+              }
+            ],
+            [
+              {
+                "expected": "number",
+                "code": "invalid_type",
+                "path": [],
+                "message": "Invalid input: expected number, received undefined"
+              }
+            ]
+          ],
+          "path": [
+            "id"
+          ],
+          "message": "Invalid input"
+        },
+        {
+          "expected": "string",
+          "code": "invalid_type",
+          "path": [
+            "method"
+          ],
+          "message": "Invalid input: expected string, received undefined"
+        },
+        {
+          "code": "unrecognized_keys",
+          "keys": [
+            "code",
+            "msg",
+            "success"
+          ],
+          "path": [],
+          "message": "Unrecognized keys: \"code\", \"msg\", \"success\""
+        }
+      ],
+      [
+        {
+          "code": "invalid_value",
+          "values": [
+            "2.0"
+          ],
+          "path": [
+            "jsonrpc"
+          ],
+          "message": "Invalid input: expected \"2.0\""
+        },
+        {
+          "expected": "string",
+          "code": "invalid_type",
+          "path": [
+            "method"
+          ],
+          "message": "Invalid input: expected string, received undefined"
+        },
+        {
+          "code": "unrecognized_keys",
+          "keys": [
+            "code",
+            "msg",
+            "success"
+          ],
+          "path": [],
+          "message": "Unrecognized keys: \"code\", \"msg\", \"success\""
+        }
+      ],
+      [
+        {
+          "code": "invalid_value",
+          "values": [
+            "2.0"
+          ],
+          "path": [
+            "jsonrpc"
+          ],
+          "message": "Invalid input: expected \"2.0\""
+        },
+        {
+          "code": "invalid_union",
+          "errors": [
+            [
+              {
+                "expected": "string",
+                "code": "invalid_type",
+                "path": [],
+                "message": "Invalid input: expected string, received undefined"
+              }
+            ],
+            [
+              {
+                "expected": "number",
+                "code": "invalid_type",
+                "path": [],
+                "message": "Invalid input: expected number, received undefined"
+              }
+            ]
+          ],
+          "path": [
+            "id"
+          ],
+          "message": "Invalid input"
+        },
+        {
+          "expected": "object",
+          "code": "invalid_type",
+          "path": [
+            "result"
+          ],
+          "message": "Invalid input: expected object, received undefined"
+        },
+        {
+          "code": "unrecognized_keys",
+          "keys": [
+            "code",
+            "msg",
+            "success"
+          ],
+          "path": [],
+          "message": "Unrecognized keys: \"code\", \"msg\", \"success\""
+        }
+      ],
+      [
+        {
+          "code": "invalid_value",
+          "values": [
+            "2.0"
+          ],
+          "path": [
+            "jsonrpc"
+          ],
+          "message": "Invalid input: expected \"2.0\""
+        },
+        {
+          "code": "invalid_union",
+          "errors": [
+            [
+              {
+                "expected": "string",
+                "code": "invalid_type",
+                "path": [],
+                "message": "Invalid input: expected string, received undefined"
+              }
+            ],
+            [
+              {
+                "expected": "number",
+                "code": "invalid_type",
+                "path": [],
+                "message": "Invalid input: expected number, received undefined"
+              }
+            ]
+          ],
+          "path": [
+            "id"
+          ],
+          "message": "Invalid input"
+        },
+        {
+          "expected": "object",
+          "code": "invalid_type",
+          "path": [
+            "error"
+          ],
+          "message": "Invalid input: expected object, received undefined"
+        },
+        {
+          "code": "unrecognized_keys",
+          "keys": [
+            "code",
+            "msg",
+            "success"
+          ],
+          "path": [],
+          "message": "Unrecognized keys: \"code\", \"msg\", \"success\""
+        }
+      ]
+    ],
+    "path": [],
+    "message": "Invalid input"
+  }
+]
+2026-02-13T15:23:04.627Z [ERROR] MCP server "web-search-prime" Connection failed: [
+  {
+    "code": "invalid_union",
+    "errors": [
+      [
+        {
+          "code": "invalid_value",
+          "values": [
+            "2.0"
+          ],
+          "path": [
+            "jsonrpc"
+          ],
+          "message": "Invalid input: expected \"2.0\""
+        },
+        {
+          "code": "invalid_union",
+          "errors": [
+            [
+              {
+                "expected": "string",
+                "code": "invalid_type",
+                "path": [],
+                "message": "Invalid input: expected string, received undefined"
+              }
+            ],
+            [
+              {
+                "expected": "number",
+                "code": "invalid_type",
+                "path": [],
+                "message": "Invalid input: expected number, received undefined"
+              }
+            ]
+          ],
+          "path": [
+            "id"
+          ],
+          "message": "Invalid input"
+        },
+        {
+          "expected": "string",
+          "code": "invalid_type",
+          "path": [
+            "method"
+          ],
+          "message": "Invalid input: expected string, received undefined"
+        },
+        {
+          "code": "unrecognized_keys",
+          "keys": [
+            "code",
+            "msg",
+            "success"
+          ],
+          "path": [],
+          "message": "Unrecognized keys: \"code\", \"msg\", \"success\""
+        }
+      ],
+      [
+        {
+          "code": "invalid_value",
+          "values": [
+            "2.0"
+          ],
+          "path": [
+            "jsonrpc"
+          ],
+          "message": "Invalid input: expected \"2.0\""
+        },
+        {
+          "expected": "string",
+          "code": "invalid_type",
+          "path": [
+            "method"
+          ],
+          "message": "Invalid input: expected string, received undefined"
+        },
+        {
+          "code": "unrecognized_keys",
+          "keys": [
+            "code",
+            "msg",
+            "success"
+          ],
+          "path": [],
+          "message": "Unrecognized keys: \"code\", \"msg\", \"success\""
+        }
+      ],
+      [
+        {
+          "code": "invalid_value",
+          "values": [
+            "2.0"
+          ],
+          "path": [
+            "jsonrpc"
+          ],
+          "message": "Invalid input: expected \"2.0\""
+        },
+        {
+          "code": "invalid_union",
+          "errors": [
+            [
+              {
+                "expected": "string",
+                "code": "invalid_type",
+                "path": [],
+                "message": "Invalid input: expected string, received undefined"
+              }
+            ],
+            [
+              {
+                "expected": "number",
+                "code": "invalid_type",
+                "path": [],
+                "message": "Invalid input: expected number, received undefined"
+              }
+            ]
+          ],
+          "path": [
+            "id"
+          ],
+          "message": "Invalid input"
+        },
+        {
+          "expected": "object",
+          "code": "invalid_type",
+          "path": [
+            "result"
+          ],
+          "message": "Invalid input: expected object, received undefined"
+        },
+        {
+          "code": "unrecognized_keys",
+          "keys": [
+            "code",
+            "msg",
+            "success"
+          ],
+          "path": [],
+          "message": "Unrecognized keys: \"code\", \"msg\", \"success\""
+        }
+      ],
+      [
+        {
+          "code": "invalid_value",
+          "values": [
+            "2.0"
+          ],
+          "path": [
+            "jsonrpc"
+          ],
+          "message": "Invalid input: expected \"2.0\""
+        },
+        {
+          "code": "invalid_union",
+          "errors": [
+            [
+              {
+                "expected": "string",
+                "code": "invalid_type",
+                "path": [],
+                "message": "Invalid input: expected string, received undefined"
+              }
+            ],
+            [
+              {
+                "expected": "number",
+                "code": "invalid_type",
+                "path": [],
+                "message": "Invalid input: expected number, received undefined"
+              }
+            ]
+          ],
+          "path": [
+            "id"
+          ],
+          "message": "Invalid input"
+        },
+        {
+          "expected": "object",
+          "code": "invalid_type",
+          "path": [
+            "error"
+          ],
+          "message": "Invalid input: expected object, received undefined"
+        },
+        {
+          "code": "unrecognized_keys",
+          "keys": [
+            "code",
+            "msg",
+            "success"
+          ],
+          "path": [],
+          "message": "Unrecognized keys: \"code\", \"msg\", \"success\""
+        }
+      ]
+    ],
+    "path": [],
+    "message": "Invalid input"
+  }
+]
+2026-02-13T15:23:04.629Z [DEBUG] MCP server "zread": HTTP Connection failed after 1532ms: [
+  {
+    "code": "invalid_union",
+    "errors": [
+      [
+        {
+          "code": "invalid_value",
+          "values": [
+            "2.0"
+          ],
+          "path": [
+            "jsonrpc"
+          ],
+          "message": "Invalid input: expected \"2.0\""
+        },
+        {
+          "code": "invalid_union",
+          "errors": [
+            [
+              {
+                "expected": "string",
+                "code": "invalid_type",
+                "path": [],
+                "message": "Invalid input: expected string, received undefined"
+              }
+            ],
+            [
+              {
+                "expected": "number",
+                "code": "invalid_type",
+                "path": [],
+                "message": "Invalid input: expected number, received undefined"
+              }
+            ]
+          ],
+          "path": [
+            "id"
+          ],
+          "message": "Invalid input"
+        },
+        {
+          "expected": "string",
+          "code": "invalid_type",
+          "path": [
+            "method"
+          ],
+          "message": "Invalid input: expected string, received undefined"
+        },
+        {
+          "code": "unrecognized_keys",
+          "keys": [
+            "code",
+            "msg",
+            "success"
+          ],
+          "path": [],
+          "message": "Unrecognized keys: \"code\", \"msg\", \"success\""
+        }
+      ],
+      [
+        {
+          "code": "invalid_value",
+          "values": [
+            "2.0"
+          ],
+          "path": [
+            "jsonrpc"
+          ],
+          "message": "Invalid input: expected \"2.0\""
+        },
+        {
+          "expected": "string",
+          "code": "invalid_type",
+          "path": [
+            "method"
+          ],
+          "message": "Invalid input: expected string, received undefined"
+        },
+        {
+          "code": "unrecognized_keys",
+          "keys": [
+            "code",
+            "msg",
+            "success"
+          ],
+          "path": [],
+          "message": "Unrecognized keys: \"code\", \"msg\", \"success\""
+        }
+      ],
+      [
+        {
+          "code": "invalid_value",
+          "values": [
+            "2.0"
+          ],
+          "path": [
+            "jsonrpc"
+          ],
+          "message": "Invalid input: expected \"2.0\""
+        },
+        {
+          "code": "invalid_union",
+          "errors": [
+            [
+              {
+                "expected": "string",
+                "code": "invalid_type",
+                "path": [],
+                "message": "Invalid input: expected string, received undefined"
+              }
+            ],
+            [
+              {
+                "expected": "number",
+                "code": "invalid_type",
+                "path": [],
+                "message": "Invalid input: expected number, received undefined"
+              }
+            ]
+          ],
+          "path": [
+            "id"
+          ],
+          "message": "Invalid input"
+        },
+        {
+          "expected": "object",
+          "code": "invalid_type",
+          "path": [
+            "result"
+          ],
+          "message": "Invalid input: expected object, received undefined"
+        },
+        {
+          "code": "unrecognized_keys",
+          "keys": [
+            "code",
+            "msg",
+            "success"
+          ],
+          "path": [],
+          "message": "Unrecognized keys: \"code\", \"msg\", \"success\""
+        }
+      ],
+      [
+        {
+          "code": "invalid_value",
+          "values": [
+            "2.0"
+          ],
+          "path": [
+            "jsonrpc"
+          ],
+          "message": "Invalid input: expected \"2.0\""
+        },
+        {
+          "code": "invalid_union",
+          "errors": [
+            [
+              {
+                "expected": "string",
+                "code": "invalid_type",
+                "path": [],
+                "message": "Invalid input: expected string, received undefined"
+              }
+            ],
+            [
+              {
+                "expected": "number",
+                "code": "invalid_type",
+                "path": [],
+                "message": "Invalid input: expected number, received undefined"
+              }
+            ]
+          ],
+          "path": [
+            "id"
+          ],
+          "message": "Invalid input"
+        },
+        {
+          "expected": "object",
+          "code": "invalid_type",
+          "path": [
+            "error"
+          ],
+          "message": "Invalid input: expected object, received undefined"
+        },
+        {
+          "code": "unrecognized_keys",
+          "keys": [
+            "code",
+            "msg",
+            "success"
+          ],
+          "path": [],
+          "message": "Unrecognized keys: \"code\", \"msg\", \"success\""
+        }
+      ]
+    ],
+    "path": [],
+    "message": "Invalid input"
+  }
+] (code: none, errno: none)
+2026-02-13T15:23:04.629Z [ERROR] MCP server "zread" ZodError: [
+  {
+    "code": "invalid_union",
+    "errors": [
+      [
+        {
+          "code": "invalid_value",
+          "values": [
+            "2.0"
+          ],
+          "path": [
+            "jsonrpc"
+          ],
+          "message": "Invalid input: expected \"2.0\""
+        },
+        {
+          "code": "invalid_union",
+          "errors": [
+            [
+              {
+                "expected": "string",
+                "code": "invalid_type",
+                "path": [],
+                "message": "Invalid input: expected string, received undefined"
+              }
+            ],
+            [
+              {
+                "expected": "number",
+                "code": "invalid_type",
+                "path": [],
+                "message": "Invalid input: expected number, received undefined"
+              }
+            ]
+          ],
+          "path": [
+            "id"
+          ],
+          "message": "Invalid input"
+        },
+        {
+          "expected": "string",
+          "code": "invalid_type",
+          "path": [
+            "method"
+          ],
+          "message": "Invalid input: expected string, received undefined"
+        },
+        {
+          "code": "unrecognized_keys",
+          "keys": [
+            "code",
+            "msg",
+            "success"
+          ],
+          "path": [],
+          "message": "Unrecognized keys: \"code\", \"msg\", \"success\""
+        }
+      ],
+      [
+        {
+          "code": "invalid_value",
+          "values": [
+            "2.0"
+          ],
+          "path": [
+            "jsonrpc"
+          ],
+          "message": "Invalid input: expected \"2.0\""
+        },
+        {
+          "expected": "string",
+          "code": "invalid_type",
+          "path": [
+            "method"
+          ],
+          "message": "Invalid input: expected string, received undefined"
+        },
+        {
+          "code": "unrecognized_keys",
+          "keys": [
+            "code",
+            "msg",
+            "success"
+          ],
+          "path": [],
+          "message": "Unrecognized keys: \"code\", \"msg\", \"success\""
+        }
+      ],
+      [
+        {
+          "code": "invalid_value",
+          "values": [
+            "2.0"
+          ],
+          "path": [
+            "jsonrpc"
+          ],
+          "message": "Invalid input: expected \"2.0\""
+        },
+        {
+          "code": "invalid_union",
+          "errors": [
+            [
+              {
+                "expected": "string",
+                "code": "invalid_type",
+                "path": [],
+                "message": "Invalid input: expected string, received undefined"
+              }
+            ],
+            [
+              {
+                "expected": "number",
+                "code": "invalid_type",
+                "path": [],
+                "message": "Invalid input: expected number, received undefined"
+              }
+            ]
+          ],
+          "path": [
+            "id"
+          ],
+          "message": "Invalid input"
+        },
+        {
+          "expected": "object",
+          "code": "invalid_type",
+          "path": [
+            "result"
+          ],
+          "message": "Invalid input: expected object, received undefined"
+        },
+        {
+          "code": "unrecognized_keys",
+          "keys": [
+            "code",
+            "msg",
+            "success"
+          ],
+          "path": [],
+          "message": "Unrecognized keys: \"code\", \"msg\", \"success\""
+        }
+      ],
+      [
+        {
+          "code": "invalid_value",
+          "values": [
+            "2.0"
+          ],
+          "path": [
+            "jsonrpc"
+          ],
+          "message": "Invalid input: expected \"2.0\""
+        },
+        {
+          "code": "invalid_union",
+          "errors": [
+            [
+              {
+                "expected": "string",
+                "code": "invalid_type",
+                "path": [],
+                "message": "Invalid input: expected string, received undefined"
+              }
+            ],
+            [
+              {
+                "expected": "number",
+                "code": "invalid_type",
+                "path": [],
+                "message": "Invalid input: expected number, received undefined"
+              }
+            ]
+          ],
+          "path": [
+            "id"
+          ],
+          "message": "Invalid input"
+        },
+        {
+          "expected": "object",
+          "code": "invalid_type",
+          "path": [
+            "error"
+          ],
+          "message": "Invalid input: expected object, received undefined"
+        },
+        {
+          "code": "unrecognized_keys",
+          "keys": [
+            "code",
+            "msg",
+            "success"
+          ],
+          "path": [],
+          "message": "Unrecognized keys: \"code\", \"msg\", \"success\""
+        }
+      ]
+    ],
+    "path": [],
+    "message": "Invalid input"
+  }
+]
+2026-02-13T15:23:04.629Z [DEBUG] MCP server "zread": Connection failed after 1533ms: [
+  {
+    "code": "invalid_union",
+    "errors": [
+      [
+        {
+          "code": "invalid_value",
+          "values": [
+            "2.0"
+          ],
+          "path": [
+            "jsonrpc"
+          ],
+          "message": "Invalid input: expected \"2.0\""
+        },
+        {
+          "code": "invalid_union",
+          "errors": [
+            [
+              {
+                "expected": "string",
+                "code": "invalid_type",
+                "path": [],
+                "message": "Invalid input: expected string, received undefined"
+              }
+            ],
+            [
+              {
+                "expected": "number",
+                "code": "invalid_type",
+                "path": [],
+                "message": "Invalid input: expected number, received undefined"
+              }
+            ]
+          ],
+          "path": [
+            "id"
+          ],
+          "message": "Invalid input"
+        },
+        {
+          "expected": "string",
+          "code": "invalid_type",
+          "path": [
+            "method"
+          ],
+          "message": "Invalid input: expected string, received undefined"
+        },
+        {
+          "code": "unrecognized_keys",
+          "keys": [
+            "code",
+            "msg",
+            "success"
+          ],
+          "path": [],
+          "message": "Unrecognized keys: \"code\", \"msg\", \"success\""
+        }
+      ],
+      [
+        {
+          "code": "invalid_value",
+          "values": [
+            "2.0"
+          ],
+          "path": [
+            "jsonrpc"
+          ],
+          "message": "Invalid input: expected \"2.0\""
+        },
+        {
+          "expected": "string",
+          "code": "invalid_type",
+          "path": [
+            "method"
+          ],
+          "message": "Invalid input: expected string, received undefined"
+        },
+        {
+          "code": "unrecognized_keys",
+          "keys": [
+            "code",
+            "msg",
+            "success"
+          ],
+          "path": [],
+          "message": "Unrecognized keys: \"code\", \"msg\", \"success\""
+        }
+      ],
+      [
+        {
+          "code": "invalid_value",
+          "values": [
+            "2.0"
+          ],
+          "path": [
+            "jsonrpc"
+          ],
+          "message": "Invalid input: expected \"2.0\""
+        },
+        {
+          "code": "invalid_union",
+          "errors": [
+            [
+              {
+                "expected": "string",
+                "code": "invalid_type",
+                "path": [],
+                "message": "Invalid input: expected string, received undefined"
+              }
+            ],
+            [
+              {
+                "expected": "number",
+                "code": "invalid_type",
+                "path": [],
+                "message": "Invalid input: expected number, received undefined"
+              }
+            ]
+          ],
+          "path": [
+            "id"
+          ],
+          "message": "Invalid input"
+        },
+        {
+          "expected": "object",
+          "code": "invalid_type",
+          "path": [
+            "result"
+          ],
+          "message": "Invalid input: expected object, received undefined"
+        },
+        {
+          "code": "unrecognized_keys",
+          "keys": [
+            "code",
+            "msg",
+            "success"
+          ],
+          "path": [],
+          "message": "Unrecognized keys: \"code\", \"msg\", \"success\""
+        }
+      ],
+      [
+        {
+          "code": "invalid_value",
+          "values": [
+            "2.0"
+          ],
+          "path": [
+            "jsonrpc"
+          ],
+          "message": "Invalid input: expected \"2.0\""
+        },
+        {
+          "code": "invalid_union",
+          "errors": [
+            [
+              {
+                "expected": "string",
+                "code": "invalid_type",
+                "path": [],
+                "message": "Invalid input: expected string, received undefined"
+              }
+            ],
+            [
+              {
+                "expected": "number",
+                "code": "invalid_type",
+                "path": [],
+                "message": "Invalid input: expected number, received undefined"
+              }
+            ]
+          ],
+          "path": [
+            "id"
+          ],
+          "message": "Invalid input"
+        },
+        {
+          "expected": "object",
+          "code": "invalid_type",
+          "path": [
+            "error"
+          ],
+          "message": "Invalid input: expected object, received undefined"
+        },
+        {
+          "code": "unrecognized_keys",
+          "keys": [
+            "code",
+            "msg",
+            "success"
+          ],
+          "path": [],
+          "message": "Unrecognized keys: \"code\", \"msg\", \"success\""
+        }
+      ]
+    ],
+    "path": [],
+    "message": "Invalid input"
+  }
+]
+2026-02-13T15:23:04.629Z [ERROR] MCP server "zread" Connection failed: [
+  {
+    "code": "invalid_union",
+    "errors": [
+      [
+        {
+          "code": "invalid_value",
+          "values": [
+            "2.0"
+          ],
+          "path": [
+            "jsonrpc"
+          ],
+          "message": "Invalid input: expected \"2.0\""
+        },
+        {
+          "code": "invalid_union",
+          "errors": [
+            [
+              {
+                "expected": "string",
+                "code": "invalid_type",
+                "path": [],
+                "message": "Invalid input: expected string, received undefined"
+              }
+            ],
+            [
+              {
+                "expected": "number",
+                "code": "invalid_type",
+                "path": [],
+                "message": "Invalid input: expected number, received undefined"
+              }
+            ]
+          ],
+          "path": [
+            "id"
+          ],
+          "message": "Invalid input"
+        },
+        {
+          "expected": "string",
+          "code": "invalid_type",
+          "path": [
+            "method"
+          ],
+          "message": "Invalid input: expected string, received undefined"
+        },
+        {
+          "code": "unrecognized_keys",
+          "keys": [
+            "code",
+            "msg",
+            "success"
+          ],
+          "path": [],
+          "message": "Unrecognized keys: \"code\", \"msg\", \"success\""
+        }
+      ],
+      [
+        {
+          "code": "invalid_value",
+          "values": [
+            "2.0"
+          ],
+          "path": [
+            "jsonrpc"
+          ],
+          "message": "Invalid input: expected \"2.0\""
+        },
+        {
+          "expected": "string",
+          "code": "invalid_type",
+          "path": [
+            "method"
+          ],
+          "message": "Invalid input: expected string, received undefined"
+        },
+        {
+          "code": "unrecognized_keys",
+          "keys": [
+            "code",
+            "msg",
+            "success"
+          ],
+          "path": [],
+          "message": "Unrecognized keys: \"code\", \"msg\", \"success\""
+        }
+      ],
+      [
+        {
+          "code": "invalid_value",
+          "values": [
+            "2.0"
+          ],
+          "path": [
+            "jsonrpc"
+          ],
+          "message": "Invalid input: expected \"2.0\""
+        },
+        {
+          "code": "invalid_union",
+          "errors": [
+            [
+              {
+                "expected": "string",
+                "code": "invalid_type",
+                "path": [],
+                "message": "Invalid input: expected string, received undefined"
+              }
+            ],
+            [
+              {
+                "expected": "number",
+                "code": "invalid_type",
+                "path": [],
+                "message": "Invalid input: expected number, received undefined"
+              }
+            ]
+          ],
+          "path": [
+            "id"
+          ],
+          "message": "Invalid input"
+        },
+        {
+          "expected": "object",
+          "code": "invalid_type",
+          "path": [
+            "result"
+          ],
+          "message": "Invalid input: expected object, received undefined"
+        },
+        {
+          "code": "unrecognized_keys",
+          "keys": [
+            "code",
+            "msg",
+            "success"
+          ],
+          "path": [],
+          "message": "Unrecognized keys: \"code\", \"msg\", \"success\""
+        }
+      ],
+      [
+        {
+          "code": "invalid_value",
+          "values": [
+            "2.0"
+          ],
+          "path": [
+            "jsonrpc"
+          ],
+          "message": "Invalid input: expected \"2.0\""
+        },
+        {
+          "code": "invalid_union",
+          "errors": [
+            [
+              {
+                "expected": "string",
+                "code": "invalid_type",
+                "path": [],
+                "message": "Invalid input: expected string, received undefined"
+              }
+            ],
+            [
+              {
+                "expected": "number",
+                "code": "invalid_type",
+                "path": [],
+                "message": "Invalid input: expected number, received undefined"
+              }
+            ]
+          ],
+          "path": [
+            "id"
+          ],
+          "message": "Invalid input"
+        },
+        {
+          "expected": "object",
+          "code": "invalid_type",
+          "path": [
+            "error"
+          ],
+          "message": "Invalid input: expected object, received undefined"
+        },
+        {
+          "code": "unrecognized_keys",
+          "keys": [
+            "code",
+            "msg",
+            "success"
+          ],
+          "path": [],
+          "message": "Unrecognized keys: \"code\", \"msg\", \"success\""
+        }
+      ]
+    ],
+    "path": [],
+    "message": "Invalid input"
+  }
+]
+2026-02-13T15:23:06.397Z [ERROR] MCP server "zai-mcp-server" Server stderr: [2026-02-13T15:23:06.387Z] INFO: MCP Server Application initialized
+[2026-02-13T15:23:06.387Z] INFO: Starting MCP server...
+[2026-02-13T15:23:06.388Z] INFO: UI to Artifact tool registered successfully
+[2026-02-13T15:23:06.388Z] INFO: Text Extraction tool registered successfully
+[2026-02-13T15:23:06.388Z] INFO: Error Diagnosis tool registered successfully
+[2026-02-13T15:23:06.388Z] INFO: Diagram Analysis tool registered successfully
+[2026-02-13T15:23:06.389Z] INFO: Data Visualization Analysis tool registered successfully
+[2026-02-13T15:23:06.389Z] INFO: UI Diff Check tool registered successfully
+[2026-02-13T15:23:06.389Z] INFO: General Image Analysis tool registered successfully
+[2026-02-13T15:23:06.389Z] INFO: Video analysis tool registered successfully
+[2026-02-13T15:23:06.389Z] INFO: Successfully registered all tools
+[2026-02-13T15:23:06.390Z] INFO: MCP Server started successfully [{"mode":"ZHIPU","name":"zai-mcp-server","version":"0.1.2"}]
+2026-02-13T15:23:06.397Z [DEBUG] MCP server "zai-mcp-server": Successfully connected to stdio server in 3341ms
+2026-02-13T15:23:06.397Z [DEBUG] MCP server "zai-mcp-server": Connection established with capabilities: {"hasTools":true,"hasPrompts":false,"hasResources":false,"serverVersion":{"name":"zai-mcp-server","version":"0.1.2"}}
+2026-02-13T15:23:11.015Z [DEBUG] High write ratio: blit=662, write=691 (51.1% writes), screen=16x110
+2026-02-13T15:23:11.674Z [DEBUG] High write ratio: blit=660, write=702 (51.5% writes), screen=22x110
+2026-02-13T15:23:11.680Z [DEBUG] Plugin autoupdate: skipped (auto-updater disabled)
+2026-02-13T15:23:11.692Z [DEBUG] Stats cache is up to date
+2026-02-13T15:23:19.030Z [DEBUG] Writing to temp file: C:\Users\Administrator\.claude\settings.json.tmp.26628.1770996199030
+2026-02-13T15:23:19.030Z [DEBUG] Preserving file permissions: 100666
+2026-02-13T15:23:19.031Z [DEBUG] Temp file written successfully, size: 302 bytes
+2026-02-13T15:23:19.031Z [DEBUG] Applied original permissions to temp file
+2026-02-13T15:23:19.031Z [DEBUG] Renaming C:\Users\Administrator\.claude\settings.json.tmp.26628.1770996199030 to C:\Users\Administrator\.claude\settings.json
+2026-02-13T15:23:19.031Z [DEBUG] File C:\Users\Administrator\.claude\settings.json written atomically
+2026-02-13T15:23:19.033Z [DEBUG] Writing to temp file: C:\Users\Administrator\.claude\settings.json.tmp.26628.1770996199033
+2026-02-13T15:23:19.033Z [DEBUG] Preserving file permissions: 100666
+2026-02-13T15:23:19.034Z [DEBUG] Temp file written successfully, size: 302 bytes
+2026-02-13T15:23:19.034Z [DEBUG] Applied original permissions to temp file
+2026-02-13T15:23:19.034Z [DEBUG] Renaming C:\Users\Administrator\.claude\settings.json.tmp.26628.1770996199033 to C:\Users\Administrator\.claude\settings.json
+2026-02-13T15:23:19.034Z [DEBUG] File C:\Users\Administrator\.claude\settings.json written atomically
+2026-02-13T15:23:19.040Z [DEBUG] FileHistory: Added snapshot for 1cb83237-d26d-4780-a7a0-ea602c5c5a58, tracking 0 files
+2026-02-13T15:23:19.041Z [DEBUG] [useDeferredValue] Messages deferred by 3 (0→3)
+2026-02-13T15:23:19.067Z [DEBUG] [useDeferredValue] Messages deferred by 3 (0→3)
+2026-02-13T15:23:19.073Z [DEBUG] AutoUpdaterWrapper: Installation type: npm-global
+2026-02-13T15:23:19.083Z [DEBUG] Writing to temp file: C:\Users\Administrator\.claude.json.tmp.26628.1770996199083
+2026-02-13T15:23:19.083Z [DEBUG] Preserving file permissions: 100666
+2026-02-13T15:23:19.083Z [DEBUG] Temp file written successfully, size: 2756 bytes
+2026-02-13T15:23:19.083Z [DEBUG] Applied original permissions to temp file
+2026-02-13T15:23:19.083Z [DEBUG] Renaming C:\Users\Administrator\.claude.json.tmp.26628.1770996199083 to C:\Users\Administrator\.claude.json
+2026-02-13T15:23:19.083Z [DEBUG] File C:\Users\Administrator\.claude.json written atomically
+2026-02-13T15:23:19.086Z [DEBUG] Writing to temp file: C:\Users\Administrator\.claude.json.tmp.26628.1770996199086
+2026-02-13T15:23:19.087Z [DEBUG] Preserving file permissions: 100666
+2026-02-13T15:23:19.087Z [DEBUG] Temp file written successfully, size: 2756 bytes
+2026-02-13T15:23:19.087Z [DEBUG] Applied original permissions to temp file
+2026-02-13T15:23:19.087Z [DEBUG] Renaming C:\Users\Administrator\.claude.json.tmp.26628.1770996199086 to C:\Users\Administrator\.claude.json
+2026-02-13T15:23:19.087Z [DEBUG] File C:\Users\Administrator\.claude.json written atomically
+2026-02-13T15:23:19.090Z [DEBUG] [useDeferredValue] Messages deferred by 3 (0→3)
+2026-02-13T15:23:24.145Z [DEBUG] LSP Diagnostics: getLSPDiagnosticAttachments called
+2026-02-13T15:23:24.145Z [DEBUG] LSP Diagnostics: Checking registry - 0 pending
+2026-02-13T15:23:24.145Z [DEBUG] Hooks: Found 0 total hooks in registry
+2026-02-13T15:23:24.145Z [DEBUG] Hooks: checkForNewResponses returning 0 responses
+2026-02-13T15:23:24.256Z [DEBUG] Getting matching hook commands for UserPromptSubmit with query: undefined
+2026-02-13T15:23:24.256Z [DEBUG] Found 0 hook matchers in settings
+2026-02-13T15:23:24.256Z [DEBUG] Matched 0 unique hooks for query "no match query" (0 before deduplication)
+2026-02-13T15:23:24.256Z [DEBUG] FileHistory: Making snapshot for message 149e4dec-f59c-40c0-808b-5ec43b8b6059
+2026-02-13T15:23:24.256Z [DEBUG] FileHistory: Added snapshot for 149e4dec-f59c-40c0-808b-5ec43b8b6059, tracking 0 files
+2026-02-13T15:23:24.257Z [DEBUG] [useDeferredValue] Messages deferred by 1 (3→4)
+2026-02-13T15:23:24.286Z [DEBUG] Writing to temp file: C:\Users\Administrator\.claude.json.tmp.26628.1770996204286
+2026-02-13T15:23:24.286Z [DEBUG] Preserving file permissions: 100666
+2026-02-13T15:23:24.286Z [DEBUG] Temp file written successfully, size: 2756 bytes
+2026-02-13T15:23:24.286Z [DEBUG] Applied original permissions to temp file
+2026-02-13T15:23:24.286Z [DEBUG] Renaming C:\Users\Administrator\.claude.json.tmp.26628.1770996204286 to C:\Users\Administrator\.claude.json
+2026-02-13T15:23:24.287Z [DEBUG] File C:\Users\Administrator\.claude.json written atomically
+2026-02-13T15:23:24.288Z [DEBUG] Tool search disabled for model 'claude-haiku-4-5-20251001': model does not support tool_reference blocks. This feature is only available on Claude Sonnet 4+, Opus 4+, and newer models.
+2026-02-13T15:23:24.290Z [DEBUG] attribution header x-anthropic-billing-header: cc_version=2.1.41.447; cc_entrypoint=cli; cch=00000;
+2026-02-13T15:23:24.292Z [DEBUG] [API:request] Creating client, ANTHROPIC_CUSTOM_HEADERS present: false, has Authorization header: false
+2026-02-13T15:23:24.292Z [DEBUG] [API:auth] OAuth token check starting
+2026-02-13T15:23:24.294Z [DEBUG] Total plugin output styles loaded: 0
+2026-02-13T15:23:24.294Z [DEBUG] [API:auth] OAuth token check complete
+2026-02-13T15:23:24.314Z [DEBUG] Writing to temp file: C:\Users\Administrator\.claude.json.tmp.26628.1770996204314
+2026-02-13T15:23:24.314Z [DEBUG] Preserving file permissions: 100666
+2026-02-13T15:23:24.315Z [DEBUG] Temp file written successfully, size: 2756 bytes
+2026-02-13T15:23:24.315Z [DEBUG] Applied original permissions to temp file
+2026-02-13T15:23:24.315Z [DEBUG] Renaming C:\Users\Administrator\.claude.json.tmp.26628.1770996204314 to C:\Users\Administrator\.claude.json
+2026-02-13T15:23:24.315Z [DEBUG] File C:\Users\Administrator\.claude.json written atomically
+2026-02-13T15:23:24.320Z [DEBUG] autocompact: tokens=117 threshold=167000 effectiveWindow=180000
+2026-02-13T15:23:24.323Z [DEBUG] [API:request] Creating client, ANTHROPIC_CUSTOM_HEADERS present: false, has Authorization header: false
+2026-02-13T15:23:24.324Z [DEBUG] [API:auth] OAuth token check starting
+2026-02-13T15:23:24.324Z [DEBUG] [API:auth] OAuth token check complete
+2026-02-13T15:23:24.326Z [DEBUG] [useDeferredValue] Messages deferred by 1 (3→4)
+2026-02-13T15:23:27.098Z [DEBUG] countTokensWithFallback: API returned null, trying haiku fallback (8 tools)
+2026-02-13T15:23:27.099Z [DEBUG] [API:request] Creating client, ANTHROPIC_CUSTOM_HEADERS present: false, has Authorization header: false
+2026-02-13T15:23:27.099Z [DEBUG] [API:auth] OAuth token check starting
+2026-02-13T15:23:27.099Z [DEBUG] [API:auth] OAuth token check complete
+2026-02-13T15:23:27.127Z [DEBUG] Stream started - received first chunk
+2026-02-13T15:23:27.647Z [DEBUG] Auto tool search disabled: 4345 tokens (threshold: 20000, 10% of context) [source: query]
+2026-02-13T15:23:27.682Z [DEBUG] Writing to temp file: C:\Users\Administrator\.claude.json.tmp.26628.1770996207682
+2026-02-13T15:23:27.682Z [DEBUG] Preserving file permissions: 100666
+2026-02-13T15:23:27.682Z [DEBUG] Temp file written successfully, size: 2756 bytes
+2026-02-13T15:23:27.682Z [DEBUG] Applied original permissions to temp file
+2026-02-13T15:23:27.682Z [DEBUG] Renaming C:\Users\Administrator\.claude.json.tmp.26628.1770996207682 to C:\Users\Administrator\.claude.json
+2026-02-13T15:23:27.683Z [DEBUG] File C:\Users\Administrator\.claude.json written atomically
+2026-02-13T15:23:27.684Z [DEBUG] attribution header x-anthropic-billing-header: cc_version=2.1.41.fb5; cc_entrypoint=cli; cch=00000;
+2026-02-13T15:23:27.687Z [DEBUG] [API:request] Creating client, ANTHROPIC_CUSTOM_HEADERS present: false, has Authorization header: false
+2026-02-13T15:23:27.687Z [DEBUG] [API:auth] OAuth token check starting
+2026-02-13T15:23:27.688Z [DEBUG] [API:auth] OAuth token check complete
+2026-02-13T15:23:40.382Z [DEBUG] Writing to temp file: C:\Users\Administrator\.claude.json.tmp.26628.1770996220382
+2026-02-13T15:23:40.382Z [DEBUG] Preserving file permissions: 100666
+2026-02-13T15:23:40.383Z [DEBUG] Temp file written successfully, size: 2756 bytes
+2026-02-13T15:23:40.383Z [DEBUG] Applied original permissions to temp file
+2026-02-13T15:23:40.383Z [DEBUG] Renaming C:\Users\Administrator\.claude.json.tmp.26628.1770996220382 to C:\Users\Administrator\.claude.json
+2026-02-13T15:23:40.383Z [DEBUG] File C:\Users\Administrator\.claude.json written atomically
+2026-02-13T15:23:47.701Z [ERROR] API error (attempt 1/11): 502 502 <!DOCTYPE html>
+<!--[if lt IE 7]> <html class="no-js ie6 oldie" lang="en-US"> <![endif]-->
+<!--[if IE 7]>    <html class="no-js ie7 oldie" lang="en-US"> <![endif]-->
+<!--[if IE 8]>    <html class="no-js ie8 oldie" lang="en-US"> <![endif]-->
+<!--[if gt IE 8]><!--> <html class="no-js" lang="en-US"> <!--<![endif]-->
+<head>
+
+<title>1234156.xyz | 502: Bad gateway</title>
+<meta charset="UTF-8" />
+<meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
+<meta http-equiv="X-UA-Compatible" content="IE=Edge" />
+<meta name="robots" content="noindex, nofollow" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<link rel="stylesheet" id="cf_styles-css" href="/cdn-cgi/styles/main.css" />
+</head>
+<body>
+<div id="cf-wrapper">
+    <div id="cf-error-details" class="p-0">
+        <header class="mx-auto pt-10 lg:pt-6 lg:px-8 w-240 lg:w-full mb-8">
+            <h1 class="inline-block sm:block sm:mb-2 font-light text-60 lg:text-4xl text-black-dark leading-tight mr-2">
+                <span class="inline-block">Bad gateway</span>
+                <span class="code-label">Error code 502</span>
+            </h1>
+            <div>
+                Visit <a href="https://www.cloudflare.com/5xx-error-landing?utm_source=errorcode_502&utm_campaign=cdn.xiavier.com" target="_blank" rel="noopener noreferrer">cloudflare.com</a> for more information.
+            </div>
+            <div class="mt-3">2026-02-13 15:23:48 UTC</div>
+        </header>
+        <div class="my-8 bg-gradient-gray">
+            <div class="w-240 lg:w-full mx-auto">
+                <div class="clearfix md:px-8">
+                    <div id="cf-browser-status" class=" relative w-1/3 md:w-full py-15 md:p-0 md:py-8 md:text-left md:border-solid md:border-0 md:border-b md:border-gray-400 overflow-hidden float-left md:float-none text-center">
+  <div class="relative mb-10 md:m-0">
+    
+    <span class="cf-icon-browser block md:hidden h-20 bg-center bg-no-repeat"></span>
+    <span class="cf-icon-ok w-12 h-12 absolute left-1/2 md:left-auto md:right-0 md:top-0 -ml-6 -bottom-4"></span>
+    
+  </div>
+  <span class="md:block w-full truncate">You</span>
+  <h3 class="md:inline-block mt-3 md:mt-0 text-2xl text-gray-600 font-light leading-1.3">
+  
+    Browser
+  
+  </h3>
+  
+  <span class="leading-1.3 text-2xl text-green-success">Working</span>
+  
+</div>
+                    <div id="cf-cloudflare-status" class=" relative w-1/3 md:w-full py-15 md:p-0 md:py-8 md:text-left md:border-solid md:border-0 md:border-b md:border-gray-400 overflow-hidden float-left md:float-none text-center">
+  <div class="relative mb-10 md:m-0">
+    <a href="https://www.cloudflare.com/5xx-error-landing?utm_source=errorcode_502&#38;utm_campaign=cdn.xiavier.com" target="_blank" rel="noopener noreferrer">
+    <span class="cf-icon-cloud block md:hidden h-20 bg-center bg-no-repeat"></span>
+    <span class="cf-icon-ok w-12 h-12 absolute left-1/2 md:left-auto md:right-0 md:top-0 -ml-6 -bottom-4"></span>
+    </a>
+  </div>
+  <span class="md:block w-full truncate">Singapore</span>
+  <h3 class="md:inline-block mt-3 md:mt-0 text-2xl text-gray-600 font-light leading-1.3">
+  <a href="https://www.cloudflare.com/5xx-error-landing?utm_source=errorcode_502&utm_campaign=cdn.xiavier.com" target="_blank" rel="noopener noreferrer">
+    Cloudflare
+  </a>
+  </h3>
+  
+  <span class="leading-1.3 text-2xl text-green-success">Working</span>
+  
+</div>
+                    <div id="cf-host-status" class="cf-error-source relative w-1/3 md:w-full py-15 md:p-0 md:py-8 md:text-left md:border-solid md:border-0 md:border-b md:border-gray-400 overflow-hidden float-left md:float-none text-center">
+  <div class="relative mb-10 md:m-0">
+    
+    <span class="cf-icon-server block md:hidden h-20 bg-center bg-no-repeat"></span>
+    <span class="cf-icon-error w-12 h-12 absolute left-1/2 md:left-auto md:right-0 md:top-0 -ml-6 -bottom-4"></span>
+    
+  </div>
+  <span class="md:block w-full truncate">cdn.xiavier.com</span>
+  <h3 class="md:inline-block mt-3 md:mt-0 text-2xl text-gray-600 font-light leading-1.3">
+  
+    Host
+  
+  </h3>
+  
+  <span class="leading-1.3 text-2xl text-red-error">Error</span>
+  
+</div>
+                </div>
+            </div>
+        </div>
+
+        <div class="w-240 lg:w-full mx-auto mb-8 lg:px-8">
+            <div class="clearfix">
+                <div class="w-1/2 md:w-full float-left pr-6 md:pb-10 md:pr-0 leading-relaxed">
+                    <h2 class="text-3xl font-normal leading-1.3 mb-4">What happened?</h2>
+                    <p>The web server reported a bad gateway error.</p>
+                </div>
+                <div class="w-1/2 md:w-full float-left leading-relaxed">
+                    <h2 class="text-3xl font-normal leading-1.3 mb-4">What can I do?</h2>
+                    <p class="mb-6">Please try again in a few minutes.</p>
+                </div>
+            </div>
+        </div>
+
+        <div class="cf-error-footer cf-wrapper w-240 lg:w-full py-10 sm:py-4 sm:px-8 mx-auto text-center sm:text-left border-solid border-0 border-t border-gray-300">
+    <p class="text-13">
+      <span class="cf-footer-item sm:block sm:mb-1">Cloudflare Ray ID: <strong class="font-semibold">9cd553bd9d62a053</strong></span>
+      <span class="cf-footer-separator sm:hidden">&bull;</span>
+      <span id="cf-footer-item-ip" class="cf-footer-item hidden sm:block sm:mb-1">
+        Your IP:
+        <button type="button" id="cf-footer-ip-reveal" class="cf-footer-ip-reveal-btn">Click to reveal</button>
+        <span class="hidden" id="cf-footer-ip">113.122.236.36</span>
+        <span class="cf-footer-separator sm:hidden">&bull;</span>
+      </span>
+      <span class="cf-footer-item sm:block sm:mb-1"><span>Performance &amp; security by</span> <a rel="noopener noreferrer" href="https://www.cloudflare.com/5xx-error-landing?utm_source=errorcode_502&#38;utm_campaign=cdn.xiavier.com" id="brand_link" target="_blank">Cloudflare</a></span>
+      
+    </p>
+    <script>(function(){function d(){var b=a.getElementById("cf-footer-item-ip"),c=a.getElementById("cf-footer-ip-reveal");b&&"classList"in b&&(b.classList.remove("hidden"),c.addEventListener("click",function(){c.classList.add("hidden");a.getElementById("cf-footer-ip").classList.remove("hidden")}))}var a=document;document.addEventListener&&a.addEventListener("DOMContentLoaded",d)})();</script>
+  </div><!-- /.error-footer -->
+
+    </div>
+</div>
+</body>
+</html>
+2026-02-13T15:23:47.704Z [DEBUG] [useDeferredValue] Messages deferred by 1 (4→5)
+2026-02-13T15:24:02.986Z [DEBUG] Writing to temp file: C:\Users\Administrator\.claude.json.tmp.26628.1770996242986
+2026-02-13T15:24:02.986Z [DEBUG] Preserving file permissions: 100666
+2026-02-13T15:24:02.986Z [DEBUG] Temp file written successfully, size: 2756 bytes
+2026-02-13T15:24:02.986Z [DEBUG] Applied original permissions to temp file
+2026-02-13T15:24:02.986Z [DEBUG] Renaming C:\Users\Administrator\.claude.json.tmp.26628.1770996242986 to C:\Users\Administrator\.claude.json
+2026-02-13T15:24:02.987Z [DEBUG] File C:\Users\Administrator\.claude.json written atomically
+2026-02-13T15:24:14.512Z [ERROR] API error (attempt 2/11): 502 502 <!DOCTYPE html>
+<!--[if lt IE 7]> <html class="no-js ie6 oldie" lang="en-US"> <![endif]-->
+<!--[if IE 7]>    <html class="no-js ie7 oldie" lang="en-US"> <![endif]-->
+<!--[if IE 8]>    <html class="no-js ie8 oldie" lang="en-US"> <![endif]-->
+<!--[if gt IE 8]><!--> <html class="no-js" lang="en-US"> <!--<![endif]-->
+<head>
+
+<title>1234156.xyz | 502: Bad gateway</title>
+<meta charset="UTF-8" />
+<meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
+<meta http-equiv="X-UA-Compatible" content="IE=Edge" />
+<meta name="robots" content="noindex, nofollow" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<link rel="stylesheet" id="cf_styles-css" href="/cdn-cgi/styles/main.css" />
+</head>
+<body>
+<div id="cf-wrapper">
+    <div id="cf-error-details" class="p-0">
+        <header class="mx-auto pt-10 lg:pt-6 lg:px-8 w-240 lg:w-full mb-8">
+            <h1 class="inline-block sm:block sm:mb-2 font-light text-60 lg:text-4xl text-black-dark leading-tight mr-2">
+                <span class="inline-block">Bad gateway</span>
+                <span class="code-label">Error code 502</span>
+            </h1>
+            <div>
+                Visit <a href="https://www.cloudflare.com/5xx-error-landing?utm_source=errorcode_502&utm_campaign=cdn.xiavier.com" target="_blank" rel="noopener noreferrer">cloudflare.com</a> for more information.
+            </div>
+            <div class="mt-3">2026-02-13 15:24:14 UTC</div>
+        </header>
+        <div class="my-8 bg-gradient-gray">
+            <div class="w-240 lg:w-full mx-auto">
+                <div class="clearfix md:px-8">
+                    <div id="cf-browser-status" class=" relative w-1/3 md:w-full py-15 md:p-0 md:py-8 md:text-left md:border-solid md:border-0 md:border-b md:border-gray-400 overflow-hidden float-left md:float-none text-center">
+  <div class="relative mb-10 md:m-0">
+    
+    <span class="cf-icon-browser block md:hidden h-20 bg-center bg-no-repeat"></span>
+    <span class="cf-icon-ok w-12 h-12 absolute left-1/2 md:left-auto md:right-0 md:top-0 -ml-6 -bottom-4"></span>
+    
+  </div>
+  <span class="md:block w-full truncate">You</span>
+  <h3 class="md:inline-block mt-3 md:mt-0 text-2xl text-gray-600 font-light leading-1.3">
+  
+    Browser
+  
+  </h3>
+  
+  <span class="leading-1.3 text-2xl text-green-success">Working</span>
+  
+</div>
+                    <div id="cf-cloudflare-status" class=" relative w-1/3 md:w-full py-15 md:p-0 md:py-8 md:text-left md:border-solid md:border-0 md:border-b md:border-gray-400 overflow-hidden float-left md:float-none text-center">
+  <div class="relative mb-10 md:m-0">
+    <a href="https://www.cloudflare.com/5xx-error-landing?utm_source=errorcode_502&#38;utm_campaign=cdn.xiavier.com" target="_blank" rel="noopener noreferrer">
+    <span class="cf-icon-cloud block md:hidden h-20 bg-center bg-no-repeat"></span>
+    <span class="cf-icon-ok w-12 h-12 absolute left-1/2 md:left-auto md:right-0 md:top-0 -ml-6 -bottom-4"></span>
+    </a>
+  </div>
+  <span class="md:block w-full truncate">Singapore</span>
+  <h3 class="md:inline-block mt-3 md:mt-0 text-2xl text-gray-600 font-light leading-1.3">
+  <a href="https://www.cloudflare.com/5xx-error-landing?utm_source=errorcode_502&utm_campaign=cdn.xiavier.com" target="_blank" rel="noopener noreferrer">
+    Cloudflare
+  </a>
+  </h3>
+  
+  <span class="leading-1.3 text-2xl text-green-success">Working</span>
+  
+</div>
+                    <div id="cf-host-status" class="cf-error-source relative w-1/3 md:w-full py-15 md:p-0 md:py-8 md:text-left md:border-solid md:border-0 md:border-b md:border-gray-400 overflow-hidden float-left md:float-none text-center">
+  <div class="relative mb-10 md:m-0">
+    
+    <span class="cf-icon-server block md:hidden h-20 bg-center bg-no-repeat"></span>
+    <span class="cf-icon-error w-12 h-12 absolute left-1/2 md:left-auto md:right-0 md:top-0 -ml-6 -bottom-4"></span>
+    
+  </div>
+  <span class="md:block w-full truncate">cdn.xiavier.com</span>
+  <h3 class="md:inline-block mt-3 md:mt-0 text-2xl text-gray-600 font-light leading-1.3">
+  
+    Host
+  
+  </h3>
+  
+  <span class="leading-1.3 text-2xl text-red-error">Error</span>
+  
+</div>
+                </div>
+            </div>
+        </div>
+
+        <div class="w-240 lg:w-full mx-auto mb-8 lg:px-8">
+            <div class="clearfix">
+                <div class="w-1/2 md:w-full float-left pr-6 md:pb-10 md:pr-0 leading-relaxed">
+                    <h2 class="text-3xl font-normal leading-1.3 mb-4">What happened?</h2>
+                    <p>The web server reported a bad gateway error.</p>
+                </div>
+                <div class="w-1/2 md:w-full float-left leading-relaxed">
+                    <h2 class="text-3xl font-normal leading-1.3 mb-4">What can I do?</h2>
+                    <p class="mb-6">Please try again in a few minutes.</p>
+                </div>
+            </div>
+        </div>
+
+        <div class="cf-error-footer cf-wrapper w-240 lg:w-full py-10 sm:py-4 sm:px-8 mx-auto text-center sm:text-left border-solid border-0 border-t border-gray-300">
+    <p class="text-13">
+      <span class="cf-footer-item sm:block sm:mb-1">Cloudflare Ray ID: <strong class="font-semibold">9cd5543decbea053</strong></span>
+      <span class="cf-footer-separator sm:hidden">&bull;</span>
+      <span id="cf-footer-item-ip" class="cf-footer-item hidden sm:block sm:mb-1">
+        Your IP:
+        <button type="button" id="cf-footer-ip-reveal" class="cf-footer-ip-reveal-btn">Click to reveal</button>
+        <span class="hidden" id="cf-footer-ip">113.122.236.36</span>
+        <span class="cf-footer-separator sm:hidden">&bull;</span>
+      </span>
+      <span class="cf-footer-item sm:block sm:mb-1"><span>Performance &amp; security by</span> <a rel="noopener noreferrer" href="https://www.cloudflare.com/5xx-error-landing?utm_source=errorcode_502&#38;utm_campaign=cdn.xiavier.com" id="brand_link" target="_blank">Cloudflare</a></span>
+      
+    </p>
+    <script>(function(){function d(){var b=a.getElementById("cf-footer-item-ip"),c=a.getElementById("cf-footer-ip-reveal");b&&"classList"in b&&(b.classList.remove("hidden"),c.addEventListener("click",function(){c.classList.add("hidden");a.getElementById("cf-footer-ip").classList.remove("hidden")}))}var a=document;document.addEventListener&&a.addEventListener("DOMContentLoaded",d)})();</script>
+  </div><!-- /.error-footer -->
+
+    </div>
+</div>
+</body>
+</html>
+2026-02-13T15:24:14.514Z [DEBUG] [useDeferredValue] Messages deferred by 1 (5→6)
+2026-02-13T15:24:17.874Z [DEBUG] AutoUpdaterWrapper: Installation type: npm-global
+2026-02-13T15:24:17.876Z [DEBUG] [claudeai-mcp] Checking gate (cached)...
+2026-02-13T15:24:17.876Z [DEBUG] [claudeai-mcp] Gate returned: false
+2026-02-13T15:24:17.876Z [DEBUG] [claudeai-mcp] Disabled via gate
+2026-02-13T15:24:34.551Z [ERROR] API error (attempt 3/11): 502 502 <!DOCTYPE html>
+<!--[if lt IE 7]> <html class="no-js ie6 oldie" lang="en-US"> <![endif]-->
+<!--[if IE 7]>    <html class="no-js ie7 oldie" lang="en-US"> <![endif]-->
+<!--[if IE 8]>    <html class="no-js ie8 oldie" lang="en-US"> <![endif]-->
+<!--[if gt IE 8]><!--> <html class="no-js" lang="en-US"> <!--<![endif]-->
+<head>
+
+<title>1234156.xyz | 502: Bad gateway</title>
+<meta charset="UTF-8" />
+<meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
+<meta http-equiv="X-UA-Compatible" content="IE=Edge" />
+<meta name="robots" content="noindex, nofollow" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<link rel="stylesheet" id="cf_styles-css" href="/cdn-cgi/styles/main.css" />
+</head>
+<body>
+<div id="cf-wrapper">
+    <div id="cf-error-details" class="p-0">
+        <header class="mx-auto pt-10 lg:pt-6 lg:px-8 w-240 lg:w-full mb-8">
+            <h1 class="inline-block sm:block sm:mb-2 font-light text-60 lg:text-4xl text-black-dark leading-tight mr-2">
+                <span class="inline-block">Bad gateway</span>
+                <span class="code-label">Error code 502</span>
+            </h1>
+            <div>
+                Visit <a href="https://www.cloudflare.com/5xx-error-landing?utm_source=errorcode_502&utm_campaign=cdn.xiavier.com" target="_blank" rel="noopener noreferrer">cloudflare.com</a> for more information.
+            </div>
+            <div class="mt-3">2026-02-13 15:24:35 UTC</div>
+        </header>
+        <div class="my-8 bg-gradient-gray">
+            <div class="w-240 lg:w-full mx-auto">
+                <div class="clearfix md:px-8">
+                    <div id="cf-browser-status" class=" relative w-1/3 md:w-full py-15 md:p-0 md:py-8 md:text-left md:border-solid md:border-0 md:border-b md:border-gray-400 overflow-hidden float-left md:float-none text-center">
+  <div class="relative mb-10 md:m-0">
+    
+    <span class="cf-icon-browser block md:hidden h-20 bg-center bg-no-repeat"></span>
+    <span class="cf-icon-ok w-12 h-12 absolute left-1/2 md:left-auto md:right-0 md:top-0 -ml-6 -bottom-4"></span>
+    
+  </div>
+  <span class="md:block w-full truncate">You</span>
+  <h3 class="md:inline-block mt-3 md:mt-0 text-2xl text-gray-600 font-light leading-1.3">
+  
+    Browser
+  
+  </h3>
+  
+  <span class="leading-1.3 text-2xl text-green-success">Working</span>
+  
+</div>
+                    <div id="cf-cloudflare-status" class=" relative w-1/3 md:w-full py-15 md:p-0 md:py-8 md:text-left md:border-solid md:border-0 md:border-b md:border-gray-400 overflow-hidden float-left md:float-none text-center">
+  <div class="relative mb-10 md:m-0">
+    <a href="https://www.cloudflare.com/5xx-error-landing?utm_source=errorcode_502&#38;utm_campaign=cdn.xiavier.com" target="_blank" rel="noopener noreferrer">
+    <span class="cf-icon-cloud block md:hidden h-20 bg-center bg-no-repeat"></span>
+    <span class="cf-icon-ok w-12 h-12 absolute left-1/2 md:left-auto md:right-0 md:top-0 -ml-6 -bottom-4"></span>
+    </a>
+  </div>
+  <span class="md:block w-full truncate">Singapore</span>
+  <h3 class="md:inline-block mt-3 md:mt-0 text-2xl text-gray-600 font-light leading-1.3">
+  <a href="https://www.cloudflare.com/5xx-error-landing?utm_source=errorcode_502&utm_campaign=cdn.xiavier.com" target="_blank" rel="noopener noreferrer">
+    Cloudflare
+  </a>
+  </h3>
+  
+  <span class="leading-1.3 text-2xl text-green-success">Working</span>
+  
+</div>
+                    <div id="cf-host-status" class="cf-error-source relative w-1/3 md:w-full py-15 md:p-0 md:py-8 md:text-left md:border-solid md:border-0 md:border-b md:border-gray-400 overflow-hidden float-left md:float-none text-center">
+  <div class="relative mb-10 md:m-0">
+    
+    <span class="cf-icon-server block md:hidden h-20 bg-center bg-no-repeat"></span>
+    <span class="cf-icon-error w-12 h-12 absolute left-1/2 md:left-auto md:right-0 md:top-0 -ml-6 -bottom-4"></span>
+    
+  </div>
+  <span class="md:block w-full truncate">cdn.xiavier.com</span>
+  <h3 class="md:inline-block mt-3 md:mt-0 text-2xl text-gray-600 font-light leading-1.3">
+  
+    Host
+  
+  </h3>
+  
+  <span class="leading-1.3 text-2xl text-red-error">Error</span>
+  
+</div>
+                </div>
+            </div>
+        </div>
+
+        <div class="w-240 lg:w-full mx-auto mb-8 lg:px-8">
+            <div class="clearfix">
+                <div class="w-1/2 md:w-full float-left pr-6 md:pb-10 md:pr-0 leading-relaxed">
+                    <h2 class="text-3xl font-normal leading-1.3 mb-4">What happened?</h2>
+                    <p>The web server reported a bad gateway error.</p>
+                </div>
+                <div class="w-1/2 md:w-full float-left leading-relaxed">
+                    <h2 class="text-3xl font-normal leading-1.3 mb-4">What can I do?</h2>
+                    <p class="mb-6">Please try again in a few minutes.</p>
+                </div>
+            </div>
+        </div>
+
+        <div class="cf-error-footer cf-wrapper w-240 lg:w-full py-10 sm:py-4 sm:px-8 mx-auto text-center sm:text-left border-solid border-0 border-t border-gray-300">
+    <p class="text-13">
+      <span class="cf-footer-item sm:block sm:mb-1">Cloudflare Ray ID: <strong class="font-semibold">9cd554e91dc3a053</strong></span>
+      <span class="cf-footer-separator sm:hidden">&bull;</span>
+      <span id="cf-footer-item-ip" class="cf-footer-item hidden sm:block sm:mb-1">
+        Your IP:
+        <button type="button" id="cf-footer-ip-reveal" class="cf-footer-ip-reveal-btn">Click to reveal</button>
+        <span class="hidden" id="cf-footer-ip">113.122.236.36</span>
+        <span class="cf-footer-separator sm:hidden">&bull;</span>
+      </span>
+      <span class="cf-footer-item sm:block sm:mb-1"><span>Performance &amp; security by</span> <a rel="noopener noreferrer" href="https://www.cloudflare.com/5xx-error-landing?utm_source=errorcode_502&#38;utm_campaign=cdn.xiavier.com" id="brand_link" target="_blank">Cloudflare</a></span>
+      
+    </p>
+    <script>(function(){function d(){var b=a.getElementById("cf-footer-item-ip"),c=a.getElementById("cf-footer-ip-reveal");b&&"classList"in b&&(b.classList.remove("hidden"),c.addEventListener("click",function(){c.classList.add("hidden");a.getElementById("cf-footer-ip").classList.remove("hidden")}))}var a=document;document.addEventListener&&a.addEventListener("DOMContentLoaded",d)})();</script>
+  </div><!-- /.error-footer -->
+
+    </div>
+</div>
+</body>
+</html>
+2026-02-13T15:24:34.552Z [DEBUG] [useDeferredValue] Messages deferred by 1 (6→7)
+2026-02-13T15:24:34.589Z [DEBUG] High write ratio: blit=0, write=1009 (100.0% writes), screen=27x110
+2026-02-13T15:24:49.765Z [DEBUG] Writing to temp file: C:\Users\Administrator\.claude.json.tmp.26628.1770996289765
+2026-02-13T15:24:49.765Z [DEBUG] Preserving file permissions: 100666
+2026-02-13T15:24:49.766Z [DEBUG] Temp file written successfully, size: 2756 bytes
+2026-02-13T15:24:49.766Z [DEBUG] Applied original permissions to temp file
+2026-02-13T15:24:49.766Z [DEBUG] Renaming C:\Users\Administrator\.claude.json.tmp.26628.1770996289765 to C:\Users\Administrator\.claude.json
+2026-02-13T15:24:49.766Z [DEBUG] File C:\Users\Administrator\.claude.json written atomically
+2026-02-13T15:24:49.768Z [DEBUG] AutoUpdaterWrapper: Installation type: npm-global
+2026-02-13T15:24:52.628Z [DEBUG] [onCancel] focusedInputDialog=undefined streamMode=requesting
+2026-02-13T15:24:52.640Z [ERROR] API error (attempt 4/11): undefined Request was aborted.
+2026-02-13T15:24:52.641Z [ERROR] Error in API request: Request was aborted.
+2026-02-13T15:24:52.657Z [DEBUG] [useDeferredValue] Messages deferred by 1 (7→8)
+2026-02-13T15:24:52.668Z [DEBUG] LSP Diagnostics: getLSPDiagnosticAttachments called
+2026-02-13T15:24:52.668Z [DEBUG] LSP Diagnostics: Checking registry - 0 pending
+2026-02-13T15:24:52.668Z [DEBUG] Hooks: Found 0 total hooks in registry
+2026-02-13T15:24:52.668Z [DEBUG] Hooks: checkForNewResponses returning 0 responses
+2026-02-13T15:24:52.673Z [DEBUG] Getting matching hook commands for UserPromptSubmit with query: undefined
+2026-02-13T15:24:52.673Z [DEBUG] Found 0 hook matchers in settings
+2026-02-13T15:24:52.673Z [DEBUG] Matched 0 unique hooks for query "no match query" (0 before deduplication)
+2026-02-13T15:24:52.674Z [DEBUG] FileHistory: Making snapshot for message 90e49201-00a4-4ddf-94c8-e87c5f0bfbac
+2026-02-13T15:24:52.674Z [DEBUG] FileHistory: Added snapshot for 90e49201-00a4-4ddf-94c8-e87c5f0bfbac, tracking 0 files
+2026-02-13T15:24:52.676Z [DEBUG] [useDeferredValue] Messages deferred by 2 (7→9)
+2026-02-13T15:24:52.686Z [DEBUG] Writing to temp file: C:\Users\Administrator\.claude.json.tmp.26628.1770996292686
+2026-02-13T15:24:52.686Z [DEBUG] Preserving file permissions: 100666
+2026-02-13T15:24:52.687Z [DEBUG] Temp file written successfully, size: 2756 bytes
+2026-02-13T15:24:52.687Z [DEBUG] Applied original permissions to temp file
+2026-02-13T15:24:52.687Z [DEBUG] Renaming C:\Users\Administrator\.claude.json.tmp.26628.1770996292686 to C:\Users\Administrator\.claude.json
+2026-02-13T15:24:52.687Z [DEBUG] File C:\Users\Administrator\.claude.json written atomically
+2026-02-13T15:24:52.692Z [DEBUG] Writing to temp file: C:\Users\Administrator\.claude.json.tmp.26628.1770996292692
+2026-02-13T15:24:52.692Z [DEBUG] Preserving file permissions: 100666
+2026-02-13T15:24:52.693Z [DEBUG] Temp file written successfully, size: 2756 bytes
+2026-02-13T15:24:52.693Z [DEBUG] Applied original permissions to temp file
+2026-02-13T15:24:52.693Z [DEBUG] Renaming C:\Users\Administrator\.claude.json.tmp.26628.1770996292692 to C:\Users\Administrator\.claude.json
+2026-02-13T15:24:52.693Z [DEBUG] File C:\Users\Administrator\.claude.json written atomically
+2026-02-13T15:24:52.694Z [DEBUG] Tool search disabled for model 'claude-haiku-4-5-20251001': model does not support tool_reference blocks. This feature is only available on Claude Sonnet 4+, Opus 4+, and newer models.
+2026-02-13T15:24:52.694Z [DEBUG] attribution header x-anthropic-billing-header: cc_version=2.1.41.527; cc_entrypoint=cli; cch=00000;
+2026-02-13T15:24:52.695Z [DEBUG] [API:request] Creating client, ANTHROPIC_CUSTOM_HEADERS present: false, has Authorization header: false
+2026-02-13T15:24:52.695Z [DEBUG] [API:auth] OAuth token check starting
+2026-02-13T15:24:52.696Z [DEBUG] [API:auth] OAuth token check complete
+2026-02-13T15:24:52.700Z [DEBUG] Writing to temp file: C:\Users\Administrator\.claude.json.tmp.26628.1770996292700
+2026-02-13T15:24:52.700Z [DEBUG] Preserving file permissions: 100666
+2026-02-13T15:24:52.700Z [DEBUG] Temp file written successfully, size: 2756 bytes
+2026-02-13T15:24:52.701Z [DEBUG] Applied original permissions to temp file
+2026-02-13T15:24:52.701Z [DEBUG] Renaming C:\Users\Administrator\.claude.json.tmp.26628.1770996292700 to C:\Users\Administrator\.claude.json
+2026-02-13T15:24:52.701Z [DEBUG] File C:\Users\Administrator\.claude.json written atomically
+2026-02-13T15:24:52.704Z [DEBUG] autocompact: tokens=135 threshold=167000 effectiveWindow=180000
+2026-02-13T15:24:52.708Z [DEBUG] Auto tool search disabled: 4345 tokens (threshold: 20000, 10% of context) [source: query]
+2026-02-13T15:24:52.719Z [DEBUG] Writing to temp file: C:\Users\Administrator\.claude.json.tmp.26628.1770996292719
+2026-02-13T15:24:52.719Z [DEBUG] Preserving file permissions: 100666
+2026-02-13T15:24:52.720Z [DEBUG] Temp file written successfully, size: 2756 bytes
+2026-02-13T15:24:52.720Z [DEBUG] Applied original permissions to temp file
+2026-02-13T15:24:52.720Z [DEBUG] Renaming C:\Users\Administrator\.claude.json.tmp.26628.1770996292719 to C:\Users\Administrator\.claude.json
+2026-02-13T15:24:52.721Z [DEBUG] File C:\Users\Administrator\.claude.json written atomically
+2026-02-13T15:24:52.722Z [DEBUG] attribution header x-anthropic-billing-header: cc_version=2.1.41.fb5; cc_entrypoint=cli; cch=00000;
+2026-02-13T15:24:52.733Z [DEBUG] [API:request] Creating client, ANTHROPIC_CUSTOM_HEADERS present: false, has Authorization header: false
+2026-02-13T15:24:52.733Z [DEBUG] [API:auth] OAuth token check starting
+2026-02-13T15:24:52.734Z [DEBUG] [API:auth] OAuth token check complete
+2026-02-13T15:24:52.746Z [DEBUG] [useDeferredValue] Messages deferred by 2 (7→9)
+2026-02-13T15:24:53.938Z [DEBUG] Stream started - received first chunk
+2026-02-13T15:24:57.384Z [DEBUG] [onCancel] focusedInputDialog=undefined streamMode=requesting
+2026-02-13T15:24:57.393Z [ERROR] API error (attempt 1/11): undefined Request was aborted.
+2026-02-13T15:24:57.393Z [ERROR] Error in API request: Request was aborted.
+2026-02-13T15:24:57.406Z [DEBUG] [useDeferredValue] Messages deferred by 1 (9→10)
+2026-02-13T15:24:57.410Z [DEBUG] LSP Diagnostics: getLSPDiagnosticAttachments called
+2026-02-13T15:24:57.410Z [DEBUG] LSP Diagnostics: Checking registry - 0 pending
+2026-02-13T15:24:57.410Z [DEBUG] Hooks: Found 0 total hooks in registry
+2026-02-13T15:24:57.410Z [DEBUG] Hooks: checkForNewResponses returning 0 responses
+2026-02-13T15:24:57.413Z [DEBUG] Getting matching hook commands for UserPromptSubmit with query: undefined
+2026-02-13T15:24:57.413Z [DEBUG] Found 0 hook matchers in settings
+2026-02-13T15:24:57.413Z [DEBUG] Matched 0 unique hooks for query "no match query" (0 before deduplication)
+2026-02-13T15:24:57.413Z [DEBUG] FileHistory: Making snapshot for message ca60abbb-e018-46ae-a1da-5b169d0ea35b
+2026-02-13T15:24:57.413Z [DEBUG] FileHistory: Added snapshot for ca60abbb-e018-46ae-a1da-5b169d0ea35b, tracking 0 files
+2026-02-13T15:24:57.413Z [DEBUG] [useDeferredValue] Messages deferred by 2 (9→11)
+2026-02-13T15:24:57.420Z [DEBUG] Writing to temp file: C:\Users\Administrator\.claude.json.tmp.26628.1770996297420
+2026-02-13T15:24:57.420Z [DEBUG] Preserving file permissions: 100666
+2026-02-13T15:24:57.420Z [DEBUG] Temp file written successfully, size: 2756 bytes
+2026-02-13T15:24:57.420Z [DEBUG] Applied original permissions to temp file
+2026-02-13T15:24:57.420Z [DEBUG] Renaming C:\Users\Administrator\.claude.json.tmp.26628.1770996297420 to C:\Users\Administrator\.claude.json
+2026-02-13T15:24:57.421Z [DEBUG] File C:\Users\Administrator\.claude.json written atomically
+2026-02-13T15:24:57.424Z [DEBUG] Writing to temp file: C:\Users\Administrator\.claude.json.tmp.26628.1770996297424
+2026-02-13T15:24:57.425Z [DEBUG] Preserving file permissions: 100666
+2026-02-13T15:24:57.425Z [DEBUG] Temp file written successfully, size: 2756 bytes
+2026-02-13T15:24:57.425Z [DEBUG] Applied original permissions to temp file
+2026-02-13T15:24:57.425Z [DEBUG] Renaming C:\Users\Administrator\.claude.json.tmp.26628.1770996297424 to C:\Users\Administrator\.claude.json
+2026-02-13T15:24:57.425Z [DEBUG] File C:\Users\Administrator\.claude.json written atomically
+2026-02-13T15:24:57.426Z [DEBUG] Tool search disabled for model 'claude-haiku-4-5-20251001': model does not support tool_reference blocks. This feature is only available on Claude Sonnet 4+, Opus 4+, and newer models.
+2026-02-13T15:24:57.426Z [DEBUG] attribution header x-anthropic-billing-header: cc_version=2.1.41.ca8; cc_entrypoint=cli; cch=00000;
+2026-02-13T15:24:57.426Z [DEBUG] [API:request] Creating client, ANTHROPIC_CUSTOM_HEADERS present: false, has Authorization header: false
+2026-02-13T15:24:57.426Z [DEBUG] [API:auth] OAuth token check starting
+2026-02-13T15:24:57.427Z [DEBUG] [API:auth] OAuth token check complete
+2026-02-13T15:24:57.430Z [DEBUG] Writing to temp file: C:\Users\Administrator\.claude.json.tmp.26628.1770996297430
+2026-02-13T15:24:57.430Z [DEBUG] Preserving file permissions: 100666
+2026-02-13T15:24:57.430Z [DEBUG] Temp file written successfully, size: 2756 bytes
+2026-02-13T15:24:57.430Z [DEBUG] Applied original permissions to temp file
+2026-02-13T15:24:57.430Z [DEBUG] Renaming C:\Users\Administrator\.claude.json.tmp.26628.1770996297430 to C:\Users\Administrator\.claude.json
+2026-02-13T15:24:57.431Z [DEBUG] File C:\Users\Administrator\.claude.json written atomically
+2026-02-13T15:24:57.433Z [DEBUG] autocompact: tokens=143 threshold=167000 effectiveWindow=180000
+2026-02-13T15:24:57.437Z [DEBUG] Auto tool search disabled: 4345 tokens (threshold: 20000, 10% of context) [source: query]
+2026-02-13T15:24:57.444Z [DEBUG] Writing to temp file: C:\Users\Administrator\.claude.json.tmp.26628.1770996297444
+2026-02-13T15:24:57.444Z [DEBUG] Preserving file permissions: 100666
+2026-02-13T15:24:57.444Z [DEBUG] Temp file written successfully, size: 2756 bytes
+2026-02-13T15:24:57.444Z [DEBUG] Applied original permissions to temp file
+2026-02-13T15:24:57.444Z [DEBUG] Renaming C:\Users\Administrator\.claude.json.tmp.26628.1770996297444 to C:\Users\Administrator\.claude.json
+2026-02-13T15:24:57.445Z [DEBUG] File C:\Users\Administrator\.claude.json written atomically
+2026-02-13T15:24:57.446Z [DEBUG] attribution header x-anthropic-billing-header: cc_version=2.1.41.fb5; cc_entrypoint=cli; cch=00000;
+2026-02-13T15:24:57.447Z [DEBUG] [API:request] Creating client, ANTHROPIC_CUSTOM_HEADERS present: false, has Authorization header: false
+2026-02-13T15:24:57.447Z [DEBUG] [API:auth] OAuth token check starting
+2026-02-13T15:24:57.448Z [DEBUG] [API:auth] OAuth token check complete
+2026-02-13T15:24:57.457Z [DEBUG] [useDeferredValue] Messages deferred by 2 (9→11)
+2026-02-13T15:24:58.155Z [DEBUG] Stream started - received first chunk
+2026-02-13T15:25:00.444Z [DEBUG] [onCancel] focusedInputDialog=undefined streamMode=requesting
+2026-02-13T15:25:00.454Z [ERROR] API error (attempt 1/11): undefined Request was aborted.
+2026-02-13T15:25:00.455Z [ERROR] Error in API request: Request was aborted.
+2026-02-13T15:25:00.470Z [DEBUG] [useDeferredValue] Messages deferred by 1 (11→12)
+2026-02-13T15:25:00.479Z [DEBUG] Writing to temp file: C:\Users\Administrator\.claude.json.tmp.26628.1770996300479
+2026-02-13T15:25:00.479Z [DEBUG] Preserving file permissions: 100666
+2026-02-13T15:25:00.479Z [DEBUG] Temp file written successfully, size: 2862 bytes
+2026-02-13T15:25:00.479Z [DEBUG] Applied original permissions to temp file
+2026-02-13T15:25:00.479Z [DEBUG] Renaming C:\Users\Administrator\.claude.json.tmp.26628.1770996300479 to C:\Users\Administrator\.claude.json
+2026-02-13T15:25:00.479Z [DEBUG] File C:\Users\Administrator\.claude.json written atomically
+2026-02-13T15:25:00.480Z [DEBUG] Metadata string for statusline:
+2026-02-13T15:25:00.480Z [DEBUG] <command-message>statusline</command-message>
+<command-name>/statusline</command-name>
+2026-02-13T15:25:00.480Z [DEBUG] command-message tags in metadata: 1
+2026-02-13T15:25:00.481Z [DEBUG] LSP Diagnostics: getLSPDiagnosticAttachments called
+2026-02-13T15:25:00.481Z [DEBUG] LSP Diagnostics: Checking registry - 0 pending
+2026-02-13T15:25:00.481Z [DEBUG] Hooks: Found 0 total hooks in registry
+2026-02-13T15:25:00.481Z [DEBUG] Hooks: checkForNewResponses returning 0 responses
+2026-02-13T15:25:00.481Z [DEBUG] processPromptSlashCommand creating 3 messages for statusline
+2026-02-13T15:25:00.481Z [DEBUG] Message 1: <command-message>statusline</command-message>
+<command-name>/statusline</command-name>
+2026-02-13T15:25:00.481Z [DEBUG] Message 2 [META]: [{"type":"text","text":"Create a Task with subagent_type \"statusline-setup\" and the prompt \"Configure my statusLine from my shell PS1 configuration\""}]
+2026-02-13T15:25:00.481Z [DEBUG] Message 3: [ATTACHMENT]
+2026-02-13T15:25:00.484Z [DEBUG] Getting matching hook commands for UserPromptSubmit with query: undefined
+2026-02-13T15:25:00.484Z [DEBUG] Found 0 hook matchers in settings
+2026-02-13T15:25:00.484Z [DEBUG] Matched 0 unique hooks for query "no match query" (0 before deduplication)
+2026-02-13T15:25:00.484Z [DEBUG] FileHistory: Making snapshot for message dded5efd-4fb6-412e-868a-6fc4cfdeb4e6
+2026-02-13T15:25:00.484Z [DEBUG] FileHistory: Added snapshot for dded5efd-4fb6-412e-868a-6fc4cfdeb4e6, tracking 0 files
+2026-02-13T15:25:00.485Z [DEBUG] [useDeferredValue] Messages deferred by 4 (11→15)
+2026-02-13T15:25:00.491Z [DEBUG] Writing to temp file: C:\Users\Administrator\.claude.json.tmp.26628.1770996300491
+2026-02-13T15:25:00.491Z [DEBUG] Preserving file permissions: 100666
+2026-02-13T15:25:00.491Z [DEBUG] Temp file written successfully, size: 2862 bytes
+2026-02-13T15:25:00.491Z [DEBUG] Applied original permissions to temp file
+2026-02-13T15:25:00.491Z [DEBUG] Renaming C:\Users\Administrator\.claude.json.tmp.26628.1770996300491 to C:\Users\Administrator\.claude.json
+2026-02-13T15:25:00.491Z [DEBUG] File C:\Users\Administrator\.claude.json written atomically
+2026-02-13T15:25:00.494Z [DEBUG] Writing to temp file: C:\Users\Administrator\.claude.json.tmp.26628.1770996300494
+2026-02-13T15:25:00.494Z [DEBUG] Preserving file permissions: 100666
+2026-02-13T15:25:00.495Z [DEBUG] Temp file written successfully, size: 2862 bytes
+2026-02-13T15:25:00.495Z [DEBUG] Applied original permissions to temp file
+2026-02-13T15:25:00.495Z [DEBUG] Renaming C:\Users\Administrator\.claude.json.tmp.26628.1770996300494 to C:\Users\Administrator\.claude.json
+2026-02-13T15:25:00.495Z [DEBUG] File C:\Users\Administrator\.claude.json written atomically
+2026-02-13T15:25:00.498Z [DEBUG] autocompact: tokens=228 threshold=167000 effectiveWindow=180000
+2026-02-13T15:25:00.499Z [DEBUG] Auto tool search disabled: 4345 tokens (threshold: 20000, 10% of context) [source: query]
+2026-02-13T15:25:00.503Z [DEBUG] Writing to temp file: C:\Users\Administrator\.claude.json.tmp.26628.1770996300503
+2026-02-13T15:25:00.503Z [DEBUG] Preserving file permissions: 100666
+2026-02-13T15:25:00.504Z [DEBUG] Temp file written successfully, size: 2862 bytes
+2026-02-13T15:25:00.504Z [DEBUG] Applied original permissions to temp file
+2026-02-13T15:25:00.504Z [DEBUG] Renaming C:\Users\Administrator\.claude.json.tmp.26628.1770996300503 to C:\Users\Administrator\.claude.json
+2026-02-13T15:25:00.504Z [DEBUG] File C:\Users\Administrator\.claude.json written atomically
+2026-02-13T15:25:00.506Z [DEBUG] attribution header x-anthropic-billing-header: cc_version=2.1.41.fb5; cc_entrypoint=cli; cch=00000;
+2026-02-13T15:25:00.506Z [DEBUG] [API:request] Creating client, ANTHROPIC_CUSTOM_HEADERS present: false, has Authorization header: false
+2026-02-13T15:25:00.506Z [DEBUG] [API:auth] OAuth token check starting
+2026-02-13T15:25:00.507Z [DEBUG] [API:auth] OAuth token check complete
+2026-02-13T15:25:00.511Z [DEBUG] [useDeferredValue] Messages deferred by 4 (11→15)
+2026-02-13T15:25:25.463Z [ERROR] API error (attempt 1/11): 502 502 <!DOCTYPE html>
+<!--[if lt IE 7]> <html class="no-js ie6 oldie" lang="en-US"> <![endif]-->
+<!--[if IE 7]>    <html class="no-js ie7 oldie" lang="en-US"> <![endif]-->
+<!--[if IE 8]>    <html class="no-js ie8 oldie" lang="en-US"> <![endif]-->
+<!--[if gt IE 8]><!--> <html class="no-js" lang="en-US"> <!--<![endif]-->
+<head>
+
+<title>1234156.xyz | 502: Bad gateway</title>
+<meta charset="UTF-8" />
+<meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
+<meta http-equiv="X-UA-Compatible" content="IE=Edge" />
+<meta name="robots" content="noindex, nofollow" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<link rel="stylesheet" id="cf_styles-css" href="/cdn-cgi/styles/main.css" />
+</head>
+<body>
+<div id="cf-wrapper">
+    <div id="cf-error-details" class="p-0">
+        <header class="mx-auto pt-10 lg:pt-6 lg:px-8 w-240 lg:w-full mb-8">
+            <h1 class="inline-block sm:block sm:mb-2 font-light text-60 lg:text-4xl text-black-dark leading-tight mr-2">
+                <span class="inline-block">Bad gateway</span>
+                <span class="code-label">Error code 502</span>
+            </h1>
+            <div>
+                Visit <a href="https://www.cloudflare.com/5xx-error-landing?utm_source=errorcode_502&utm_campaign=cdn.xiavier.com" target="_blank" rel="noopener noreferrer">cloudflare.com</a> for more information.
+            </div>
+            <div class="mt-3">2026-02-13 15:25:25 UTC</div>
+        </header>
+        <div class="my-8 bg-gradient-gray">
+            <div class="w-240 lg:w-full mx-auto">
+                <div class="clearfix md:px-8">
+                    <div id="cf-browser-status" class=" relative w-1/3 md:w-full py-15 md:p-0 md:py-8 md:text-left md:border-solid md:border-0 md:border-b md:border-gray-400 overflow-hidden float-left md:float-none text-center">
+  <div class="relative mb-10 md:m-0">
+    
+    <span class="cf-icon-browser block md:hidden h-20 bg-center bg-no-repeat"></span>
+    <span class="cf-icon-ok w-12 h-12 absolute left-1/2 md:left-auto md:right-0 md:top-0 -ml-6 -bottom-4"></span>
+    
+  </div>
+  <span class="md:block w-full truncate">You</span>
+  <h3 class="md:inline-block mt-3 md:mt-0 text-2xl text-gray-600 font-light leading-1.3">
+  
+    Browser
+  
+  </h3>
+  
+  <span class="leading-1.3 text-2xl text-green-success">Working</span>
+  
+</div>
+                    <div id="cf-cloudflare-status" class=" relative w-1/3 md:w-full py-15 md:p-0 md:py-8 md:text-left md:border-solid md:border-0 md:border-b md:border-gray-400 overflow-hidden float-left md:float-none text-center">
+  <div class="relative mb-10 md:m-0">
+    <a href="https://www.cloudflare.com/5xx-error-landing?utm_source=errorcode_502&#38;utm_campaign=cdn.xiavier.com" target="_blank" rel="noopener noreferrer">
+    <span class="cf-icon-cloud block md:hidden h-20 bg-center bg-no-repeat"></span>
+    <span class="cf-icon-ok w-12 h-12 absolute left-1/2 md:left-auto md:right-0 md:top-0 -ml-6 -bottom-4"></span>
+    </a>
+  </div>
+  <span class="md:block w-full truncate">Singapore</span>
+  <h3 class="md:inline-block mt-3 md:mt-0 text-2xl text-gray-600 font-light leading-1.3">
+  <a href="https://www.cloudflare.com/5xx-error-landing?utm_source=errorcode_502&utm_campaign=cdn.xiavier.com" target="_blank" rel="noopener noreferrer">
+    Cloudflare
+  </a>
+  </h3>
+  
+  <span class="leading-1.3 text-2xl text-green-success">Working</span>
+  
+</div>
+                    <div id="cf-host-status" class="cf-error-source relative w-1/3 md:w-full py-15 md:p-0 md:py-8 md:text-left md:border-solid md:border-0 md:border-b md:border-gray-400 overflow-hidden float-left md:float-none text-center">
+  <div class="relative mb-10 md:m-0">
+    
+    <span class="cf-icon-server block md:hidden h-20 bg-center bg-no-repeat"></span>
+    <span class="cf-icon-error w-12 h-12 absolute left-1/2 md:left-auto md:right-0 md:top-0 -ml-6 -bottom-4"></span>
+    
+  </div>
+  <span class="md:block w-full truncate">cdn.xiavier.com</span>
+  <h3 class="md:inline-block mt-3 md:mt-0 text-2xl text-gray-600 font-light leading-1.3">
+  
+    Host
+  
+  </h3>
+  
+  <span class="leading-1.3 text-2xl text-red-error">Error</span>
+  
+</div>
+                </div>
+            </div>
+        </div>
+
+        <div class="w-240 lg:w-full mx-auto mb-8 lg:px-8">
+            <div class="clearfix">
+                <div class="w-1/2 md:w-full float-left pr-6 md:pb-10 md:pr-0 leading-relaxed">
+                    <h2 class="text-3xl font-normal leading-1.3 mb-4">What happened?</h2>
+                    <p>The web server reported a bad gateway error.</p>
+                </div>
+                <div class="w-1/2 md:w-full float-left leading-relaxed">
+                    <h2 class="text-3xl font-normal leading-1.3 mb-4">What can I do?</h2>
+                    <p class="mb-6">Please try again in a few minutes.</p>
+                </div>
+            </div>
+        </div>
+
+        <div class="cf-error-footer cf-wrapper w-240 lg:w-full py-10 sm:py-4 sm:px-8 mx-auto text-center sm:text-left border-solid border-0 border-t border-gray-300">
+    <p class="text-13">
+      <span class="cf-footer-item sm:block sm:mb-1">Cloudflare Ray ID: <strong class="font-semibold">9cd55603a8b58219</strong></span>
+      <span class="cf-footer-separator sm:hidden">&bull;</span>
+      <span id="cf-footer-item-ip" class="cf-footer-item hidden sm:block sm:mb-1">
+        Your IP:
+        <button type="button" id="cf-footer-ip-reveal" class="cf-footer-ip-reveal-btn">Click to reveal</button>
+        <span class="hidden" id="cf-footer-ip">113.122.236.36</span>
+        <span class="cf-footer-separator sm:hidden">&bull;</span>
+      </span>
+      <span class="cf-footer-item sm:block sm:mb-1"><span>Performance &amp; security by</span> <a rel="noopener noreferrer" href="https://www.cloudflare.com/5xx-error-landing?utm_source=errorcode_502&#38;utm_campaign=cdn.xiavier.com" id="brand_link" target="_blank">Cloudflare</a></span>
+      
+    </p>
+    <script>(function(){function d(){var b=a.getElementById("cf-footer-item-ip"),c=a.getElementById("cf-footer-ip-reveal");b&&"classList"in b&&(b.classList.remove("hidden"),c.addEventListener("click",function(){c.classList.add("hidden");a.getElementById("cf-footer-ip").classList.remove("hidden")}))}var a=document;document.addEventListener&&a.addEventListener("DOMContentLoaded",d)})();</script>
+  </div><!-- /.error-footer -->
+
+    </div>
+</div>
+</body>
+</html>
+2026-02-13T15:25:25.464Z [DEBUG] [useDeferredValue] Messages deferred by 1 (15→16)
+2026-02-13T15:25:36.285Z [DEBUG] AutoUpdaterWrapper: Installation type: npm-global
+2026-02-13T15:25:36.286Z [DEBUG] [claudeai-mcp] Checking gate (cached)...
+2026-02-13T15:25:36.286Z [DEBUG] [claudeai-mcp] Gate returned: false
+2026-02-13T15:25:36.286Z [DEBUG] [claudeai-mcp] Disabled via gate
+2026-02-13T15:25:45.141Z [ERROR] API error (attempt 2/11): 502 502 <!DOCTYPE html>
+<!--[if lt IE 7]> <html class="no-js ie6 oldie" lang="en-US"> <![endif]-->
+<!--[if IE 7]>    <html class="no-js ie7 oldie" lang="en-US"> <![endif]-->
+<!--[if IE 8]>    <html class="no-js ie8 oldie" lang="en-US"> <![endif]-->
+<!--[if gt IE 8]><!--> <html class="no-js" lang="en-US"> <!--<![endif]-->
+<head>
+
+<title>1234156.xyz | 502: Bad gateway</title>
+<meta charset="UTF-8" />
+<meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
+<meta http-equiv="X-UA-Compatible" content="IE=Edge" />
+<meta name="robots" content="noindex, nofollow" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<link rel="stylesheet" id="cf_styles-css" href="/cdn-cgi/styles/main.css" />
+</head>
+<body>
+<div id="cf-wrapper">
+    <div id="cf-error-details" class="p-0">
+        <header class="mx-auto pt-10 lg:pt-6 lg:px-8 w-240 lg:w-full mb-8">
+            <h1 class="inline-block sm:block sm:mb-2 font-light text-60 lg:text-4xl text-black-dark leading-tight mr-2">
+                <span class="inline-block">Bad gateway</span>
+                <span class="code-label">Error code 502</span>
+            </h1>
+            <div>
+                Visit <a href="https://www.cloudflare.com/5xx-error-landing?utm_source=errorcode_502&utm_campaign=cdn.xiavier.com" target="_blank" rel="noopener noreferrer">cloudflare.com</a> for more information.
+            </div>
+            <div class="mt-3">2026-02-13 15:25:45 UTC</div>
+        </header>
+        <div class="my-8 bg-gradient-gray">
+            <div class="w-240 lg:w-full mx-auto">
+                <div class="clearfix md:px-8">
+                    <div id="cf-browser-status" class=" relative w-1/3 md:w-full py-15 md:p-0 md:py-8 md:text-left md:border-solid md:border-0 md:border-b md:border-gray-400 overflow-hidden float-left md:float-none text-center">
+  <div class="relative mb-10 md:m-0">
+    
+    <span class="cf-icon-browser block md:hidden h-20 bg-center bg-no-repeat"></span>
+    <span class="cf-icon-ok w-12 h-12 absolute left-1/2 md:left-auto md:right-0 md:top-0 -ml-6 -bottom-4"></span>
+    
+  </div>
+  <span class="md:block w-full truncate">You</span>
+  <h3 class="md:inline-block mt-3 md:mt-0 text-2xl text-gray-600 font-light leading-1.3">
+  
+    Browser
+  
+  </h3>
+  
+  <span class="leading-1.3 text-2xl text-green-success">Working</span>
+  
+</div>
+                    <div id="cf-cloudflare-status" class=" relative w-1/3 md:w-full py-15 md:p-0 md:py-8 md:text-left md:border-solid md:border-0 md:border-b md:border-gray-400 overflow-hidden float-left md:float-none text-center">
+  <div class="relative mb-10 md:m-0">
+    <a href="https://www.cloudflare.com/5xx-error-landing?utm_source=errorcode_502&#38;utm_campaign=cdn.xiavier.com" target="_blank" rel="noopener noreferrer">
+    <span class="cf-icon-cloud block md:hidden h-20 bg-center bg-no-repeat"></span>
+    <span class="cf-icon-ok w-12 h-12 absolute left-1/2 md:left-auto md:right-0 md:top-0 -ml-6 -bottom-4"></span>
+    </a>
+  </div>
+  <span class="md:block w-full truncate">Singapore</span>
+  <h3 class="md:inline-block mt-3 md:mt-0 text-2xl text-gray-600 font-light leading-1.3">
+  <a href="https://www.cloudflare.com/5xx-error-landing?utm_source=errorcode_502&utm_campaign=cdn.xiavier.com" target="_blank" rel="noopener noreferrer">
+    Cloudflare
+  </a>
+  </h3>
+  
+  <span class="leading-1.3 text-2xl text-green-success">Working</span>
+  
+</div>
+                    <div id="cf-host-status" class="cf-error-source relative w-1/3 md:w-full py-15 md:p-0 md:py-8 md:text-left md:border-solid md:border-0 md:border-b md:border-gray-400 overflow-hidden float-left md:float-none text-center">
+  <div class="relative mb-10 md:m-0">
+    
+    <span class="cf-icon-server block md:hidden h-20 bg-center bg-no-repeat"></span>
+    <span class="cf-icon-error w-12 h-12 absolute left-1/2 md:left-auto md:right-0 md:top-0 -ml-6 -bottom-4"></span>
+    
+  </div>
+  <span class="md:block w-full truncate">cdn.xiavier.com</span>
+  <h3 class="md:inline-block mt-3 md:mt-0 text-2xl text-gray-600 font-light leading-1.3">
+  
+    Host
+  
+  </h3>
+  
+  <span class="leading-1.3 text-2xl text-red-error">Error</span>
+  
+</div>
+                </div>
+            </div>
+        </div>
+
+        <div class="w-240 lg:w-full mx-auto mb-8 lg:px-8">
+            <div class="clearfix">
+                <div class="w-1/2 md:w-full float-left pr-6 md:pb-10 md:pr-0 leading-relaxed">
+                    <h2 class="text-3xl font-normal leading-1.3 mb-4">What happened?</h2>
+                    <p>The web server reported a bad gateway error.</p>
+                </div>
+                <div class="w-1/2 md:w-full float-left leading-relaxed">
+                    <h2 class="text-3xl font-normal leading-1.3 mb-4">What can I do?</h2>
+                    <p class="mb-6">Please try again in a few minutes.</p>
+                </div>
+            </div>
+        </div>
+
+        <div class="cf-error-footer cf-wrapper w-240 lg:w-full py-10 sm:py-4 sm:px-8 mx-auto text-center sm:text-left border-solid border-0 border-t border-gray-300">
+    <p class="text-13">
+      <span class="cf-footer-item sm:block sm:mb-1">Cloudflare Ray ID: <strong class="font-semibold">9cd556a1ad6a8219</strong></span>
+      <span class="cf-footer-separator sm:hidden">&bull;</span>
+      <span id="cf-footer-item-ip" class="cf-footer-item hidden sm:block sm:mb-1">
+        Your IP:
+        <button type="button" id="cf-footer-ip-reveal" class="cf-footer-ip-reveal-btn">Click to reveal</button>
+        <span class="hidden" id="cf-footer-ip">113.122.236.36</span>
+        <span class="cf-footer-separator sm:hidden">&bull;</span>
+      </span>
+      <span class="cf-footer-item sm:block sm:mb-1"><span>Performance &amp; security by</span> <a rel="noopener noreferrer" href="https://www.cloudflare.com/5xx-error-landing?utm_source=errorcode_502&#38;utm_campaign=cdn.xiavier.com" id="brand_link" target="_blank">Cloudflare</a></span>
+      
+    </p>
+    <script>(function(){function d(){var b=a.getElementById("cf-footer-item-ip"),c=a.getElementById("cf-footer-ip-reveal");b&&"classList"in b&&(b.classList.remove("hidden"),c.addEventListener("click",function(){c.classList.add("hidden");a.getElementById("cf-footer-ip").classList.remove("hidden")}))}var a=document;document.addEventListener&&a.addEventListener("DOMContentLoaded",d)})();</script>
+  </div><!-- /.error-footer -->
+
+    </div>
+</div>
+</body>
+</html>
+2026-02-13T15:25:45.142Z [DEBUG] [useDeferredValue] Messages deferred by 1 (16→17)
+2026-02-13T15:26:11.229Z [ERROR] API error (attempt 3/11): 502 502 <!DOCTYPE html>
+<!--[if lt IE 7]> <html class="no-js ie6 oldie" lang="en-US"> <![endif]-->
+<!--[if IE 7]>    <html class="no-js ie7 oldie" lang="en-US"> <![endif]-->
+<!--[if IE 8]>    <html class="no-js ie8 oldie" lang="en-US"> <![endif]-->
+<!--[if gt IE 8]><!--> <html class="no-js" lang="en-US"> <!--<![endif]-->
+<head>
+
+<title>1234156.xyz | 502: Bad gateway</title>
+<meta charset="UTF-8" />
+<meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
+<meta http-equiv="X-UA-Compatible" content="IE=Edge" />
+<meta name="robots" content="noindex, nofollow" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<link rel="stylesheet" id="cf_styles-css" href="/cdn-cgi/styles/main.css" />
+</head>
+<body>
+<div id="cf-wrapper">
+    <div id="cf-error-details" class="p-0">
+        <header class="mx-auto pt-10 lg:pt-6 lg:px-8 w-240 lg:w-full mb-8">
+            <h1 class="inline-block sm:block sm:mb-2 font-light text-60 lg:text-4xl text-black-dark leading-tight mr-2">
+                <span class="inline-block">Bad gateway</span>
+                <span class="code-label">Error code 502</span>
+            </h1>
+            <div>
+                Visit <a href="https://www.cloudflare.com/5xx-error-landing?utm_source=errorcode_502&utm_campaign=cdn.xiavier.com" target="_blank" rel="noopener noreferrer">cloudflare.com</a> for more information.
+            </div>
+            <div class="mt-3">2026-02-13 15:26:11 UTC</div>
+        </header>
+        <div class="my-8 bg-gradient-gray">
+            <div class="w-240 lg:w-full mx-auto">
+                <div class="clearfix md:px-8">
+                    <div id="cf-browser-status" class=" relative w-1/3 md:w-full py-15 md:p-0 md:py-8 md:text-left md:border-solid md:border-0 md:border-b md:border-gray-400 overflow-hidden float-left md:float-none text-center">
+  <div class="relative mb-10 md:m-0">
+    
+    <span class="cf-icon-browser block md:hidden h-20 bg-center bg-no-repeat"></span>
+    <span class="cf-icon-ok w-12 h-12 absolute left-1/2 md:left-auto md:right-0 md:top-0 -ml-6 -bottom-4"></span>
+    
+  </div>
+  <span class="md:block w-full truncate">You</span>
+  <h3 class="md:inline-block mt-3 md:mt-0 text-2xl text-gray-600 font-light leading-1.3">
+  
+    Browser
+  
+  </h3>
+  
+  <span class="leading-1.3 text-2xl text-green-success">Working</span>
+  
+</div>
+                    <div id="cf-cloudflare-status" class=" relative w-1/3 md:w-full py-15 md:p-0 md:py-8 md:text-left md:border-solid md:border-0 md:border-b md:border-gray-400 overflow-hidden float-left md:float-none text-center">
+  <div class="relative mb-10 md:m-0">
+    <a href="https://www.cloudflare.com/5xx-error-landing?utm_source=errorcode_502&#38;utm_campaign=cdn.xiavier.com" target="_blank" rel="noopener noreferrer">
+    <span class="cf-icon-cloud block md:hidden h-20 bg-center bg-no-repeat"></span>
+    <span class="cf-icon-ok w-12 h-12 absolute left-1/2 md:left-auto md:right-0 md:top-0 -ml-6 -bottom-4"></span>
+    </a>
+  </div>
+  <span class="md:block w-full truncate">Singapore</span>
+  <h3 class="md:inline-block mt-3 md:mt-0 text-2xl text-gray-600 font-light leading-1.3">
+  <a href="https://www.cloudflare.com/5xx-error-landing?utm_source=errorcode_502&utm_campaign=cdn.xiavier.com" target="_blank" rel="noopener noreferrer">
+    Cloudflare
+  </a>
+  </h3>
+  
+  <span class="leading-1.3 text-2xl text-green-success">Working</span>
+  
+</div>
+                    <div id="cf-host-status" class="cf-error-source relative w-1/3 md:w-full py-15 md:p-0 md:py-8 md:text-left md:border-solid md:border-0 md:border-b md:border-gray-400 overflow-hidden float-left md:float-none text-center">
+  <div class="relative mb-10 md:m-0">
+    
+    <span class="cf-icon-server block md:hidden h-20 bg-center bg-no-repeat"></span>
+    <span class="cf-icon-error w-12 h-12 absolute left-1/2 md:left-auto md:right-0 md:top-0 -ml-6 -bottom-4"></span>
+    
+  </div>
+  <span class="md:block w-full truncate">cdn.xiavier.com</span>
+  <h3 class="md:inline-block mt-3 md:mt-0 text-2xl text-gray-600 font-light leading-1.3">
+  
+    Host
+  
+  </h3>
+  
+  <span class="leading-1.3 text-2xl text-red-error">Error</span>
+  
+</div>
+                </div>
+            </div>
+        </div>
+
+        <div class="w-240 lg:w-full mx-auto mb-8 lg:px-8">
+            <div class="clearfix">
+                <div class="w-1/2 md:w-full float-left pr-6 md:pb-10 md:pr-0 leading-relaxed">
+                    <h2 class="text-3xl font-normal leading-1.3 mb-4">What happened?</h2>
+                    <p>The web server reported a bad gateway error.</p>
+                </div>
+                <div class="w-1/2 md:w-full float-left leading-relaxed">
+                    <h2 class="text-3xl font-normal leading-1.3 mb-4">What can I do?</h2>
+                    <p class="mb-6">Please try again in a few minutes.</p>
+                </div>
+            </div>
+        </div>
+
+        <div class="cf-error-footer cf-wrapper w-240 lg:w-full py-10 sm:py-4 sm:px-8 mx-auto text-center sm:text-left border-solid border-0 border-t border-gray-300">
+    <p class="text-13">
+      <span class="cf-footer-item sm:block sm:mb-1">Cloudflare Ray ID: <strong class="font-semibold">9cd5571f4c878219</strong></span>
+      <span class="cf-footer-separator sm:hidden">&bull;</span>
+      <span id="cf-footer-item-ip" class="cf-footer-item hidden sm:block sm:mb-1">
+        Your IP:
+        <button type="button" id="cf-footer-ip-reveal" class="cf-footer-ip-reveal-btn">Click to reveal</button>
+        <span class="hidden" id="cf-footer-ip">113.122.236.36</span>
+        <span class="cf-footer-separator sm:hidden">&bull;</span>
+      </span>
+      <span class="cf-footer-item sm:block sm:mb-1"><span>Performance &amp; security by</span> <a rel="noopener noreferrer" href="https://www.cloudflare.com/5xx-error-landing?utm_source=errorcode_502&#38;utm_campaign=cdn.xiavier.com" id="brand_link" target="_blank">Cloudflare</a></span>
+      
+    </p>
+    <script>(function(){function d(){var b=a.getElementById("cf-footer-item-ip"),c=a.getElementById("cf-footer-ip-reveal");b&&"classList"in b&&(b.classList.remove("hidden"),c.addEventListener("click",function(){c.classList.add("hidden");a.getElementById("cf-footer-ip").classList.remove("hidden")}))}var a=document;document.addEventListener&&a.addEventListener("DOMContentLoaded",d)})();</script>
+  </div><!-- /.error-footer -->
+
+    </div>
+</div>
+</body>
+</html>
+2026-02-13T15:26:11.231Z [DEBUG] [useDeferredValue] Messages deferred by 1 (17→18)
+2026-02-13T15:26:16.811Z [DEBUG] Writing to temp file: C:\Users\Administrator\.claude.json.tmp.26628.1770996376811
+2026-02-13T15:26:16.811Z [DEBUG] Preserving file permissions: 100666
+2026-02-13T15:26:16.812Z [DEBUG] Temp file written successfully, size: 2862 bytes
+2026-02-13T15:26:16.812Z [DEBUG] Applied original permissions to temp file
+2026-02-13T15:26:16.812Z [DEBUG] Renaming C:\Users\Administrator\.claude.json.tmp.26628.1770996376811 to C:\Users\Administrator\.claude.json
+2026-02-13T15:26:16.812Z [DEBUG] File C:\Users\Administrator\.claude.json written atomically
+2026-02-13T15:26:16.815Z [DEBUG] AutoUpdaterWrapper: Installation type: npm-global
+2026-02-13T15:26:19.033Z [DEBUG] [onCancel] focusedInputDialog=undefined streamMode=requesting
+2026-02-13T15:26:19.044Z [ERROR] API error (attempt 4/11): undefined Request was aborted.
+2026-02-13T15:26:19.044Z [ERROR] Error in API request: Request was aborted.
+2026-02-13T15:26:19.058Z [DEBUG] [useDeferredValue] Messages deferred by 1 (18→19)
+2026-02-13T15:26:19.064Z [DEBUG] [useDeferredValue] Messages deferred by 1 (18→19)
+2026-02-13T15:26:19.072Z [DEBUG] [useDeferredValue] Messages deferred by 1 (18→19)
+2026-02-13T15:26:19.083Z [DEBUG] High write ratio: blit=0, write=1102 (100.0% writes), screen=36x110
+2026-02-13T15:26:28.498Z [DEBUG] Writing to temp file: C:\Users\Administrator\.claude\settings.json.tmp.26628.1770996388498
+2026-02-13T15:26:28.498Z [DEBUG] Preserving file permissions: 100666
+2026-02-13T15:26:28.499Z [DEBUG] Temp file written successfully, size: 302 bytes
+2026-02-13T15:26:28.499Z [DEBUG] Applied original permissions to temp file
+2026-02-13T15:26:28.499Z [DEBUG] Renaming C:\Users\Administrator\.claude\settings.json.tmp.26628.1770996388498 to C:\Users\Administrator\.claude\settings.json
+2026-02-13T15:26:28.499Z [DEBUG] File C:\Users\Administrator\.claude\settings.json written atomically
+2026-02-13T15:26:28.501Z [DEBUG] Writing to temp file: C:\Users\Administrator\.claude\settings.json.tmp.26628.1770996388501
+2026-02-13T15:26:28.501Z [DEBUG] Preserving file permissions: 100666
+2026-02-13T15:26:28.501Z [DEBUG] Temp file written successfully, size: 306 bytes
+2026-02-13T15:26:28.501Z [DEBUG] Applied original permissions to temp file
+2026-02-13T15:26:28.501Z [DEBUG] Renaming C:\Users\Administrator\.claude\settings.json.tmp.26628.1770996388501 to C:\Users\Administrator\.claude\settings.json
+2026-02-13T15:26:28.502Z [DEBUG] File C:\Users\Administrator\.claude\settings.json written atomically
+2026-02-13T15:26:28.502Z [DEBUG] FileHistory: Making snapshot for message b2441ec1-ee9e-4c01-9bfa-47514acc7149
+2026-02-13T15:26:28.505Z [DEBUG] FileHistory: Added snapshot for b2441ec1-ee9e-4c01-9bfa-47514acc7149, tracking 0 files
+2026-02-13T15:26:28.505Z [DEBUG] [useDeferredValue] Messages deferred by 3 (19→22)
+2026-02-13T15:26:28.510Z [DEBUG] Full reset (shrink->below): prevHeight=36, nextHeight=28, viewport=35
+2026-02-13T15:26:28.514Z [DEBUG] [useDeferredValue] Messages deferred by 3 (19→22)
+2026-02-13T15:26:28.517Z [DEBUG] AutoUpdaterWrapper: Installation type: npm-global
+2026-02-13T15:26:28.526Z [DEBUG] [useDeferredValue] Messages deferred by 3 (19→22)
+2026-02-13T15:26:33.908Z [DEBUG] LSP Diagnostics: getLSPDiagnosticAttachments called
+2026-02-13T15:26:33.908Z [DEBUG] LSP Diagnostics: Checking registry - 0 pending
+2026-02-13T15:26:33.908Z [DEBUG] Hooks: Found 0 total hooks in registry
+2026-02-13T15:26:33.908Z [DEBUG] Hooks: checkForNewResponses returning 0 responses
+2026-02-13T15:26:33.911Z [DEBUG] Getting matching hook commands for UserPromptSubmit with query: undefined
+2026-02-13T15:26:33.911Z [DEBUG] Found 0 hook matchers in settings
+2026-02-13T15:26:33.911Z [DEBUG] Matched 0 unique hooks for query "no match query" (0 before deduplication)
+2026-02-13T15:26:33.911Z [DEBUG] FileHistory: Making snapshot for message cbd10167-f63a-4a26-a4f8-7df25c352e23
+2026-02-13T15:26:33.911Z [DEBUG] FileHistory: Added snapshot for cbd10167-f63a-4a26-a4f8-7df25c352e23, tracking 0 files
+2026-02-13T15:26:33.912Z [DEBUG] [useDeferredValue] Messages deferred by 1 (22→23)
+2026-02-13T15:26:33.920Z [DEBUG] Writing to temp file: C:\Users\Administrator\.claude.json.tmp.26628.1770996393920
+2026-02-13T15:26:33.920Z [DEBUG] Preserving file permissions: 100666
+2026-02-13T15:26:33.920Z [DEBUG] Temp file written successfully, size: 2862 bytes
+2026-02-13T15:26:33.920Z [DEBUG] Applied original permissions to temp file
+2026-02-13T15:26:33.920Z [DEBUG] Renaming C:\Users\Administrator\.claude.json.tmp.26628.1770996393920 to C:\Users\Administrator\.claude.json
+2026-02-13T15:26:33.921Z [DEBUG] File C:\Users\Administrator\.claude.json written atomically
+2026-02-13T15:26:33.921Z [DEBUG] Tool search disabled for model 'claude-haiku-4-5-20251001': model does not support tool_reference blocks. This feature is only available on Claude Sonnet 4+, Opus 4+, and newer models.
+2026-02-13T15:26:33.921Z [DEBUG] attribution header x-anthropic-billing-header: cc_version=2.1.41.ca8; cc_entrypoint=cli; cch=00000;
+2026-02-13T15:26:33.921Z [DEBUG] [API:request] Creating client, ANTHROPIC_CUSTOM_HEADERS present: false, has Authorization header: false
+2026-02-13T15:26:33.921Z [DEBUG] [API:auth] OAuth token check starting
+2026-02-13T15:26:33.922Z [DEBUG] [API:auth] OAuth token check complete
+2026-02-13T15:26:33.925Z [DEBUG] Writing to temp file: C:\Users\Administrator\.claude.json.tmp.26628.1770996393925
+2026-02-13T15:26:33.925Z [DEBUG] Preserving file permissions: 100666
+2026-02-13T15:26:33.926Z [DEBUG] Temp file written successfully, size: 2862 bytes
+2026-02-13T15:26:33.926Z [DEBUG] Applied original permissions to temp file
+2026-02-13T15:26:33.926Z [DEBUG] Renaming C:\Users\Administrator\.claude.json.tmp.26628.1770996393925 to C:\Users\Administrator\.claude.json
+2026-02-13T15:26:33.926Z [DEBUG] File C:\Users\Administrator\.claude.json written atomically
+2026-02-13T15:26:33.927Z [DEBUG] autocompact: tokens=354 threshold=967000 effectiveWindow=980000
+2026-02-13T15:26:33.929Z [DEBUG] Auto tool search disabled: 4345 tokens (threshold: 100000, 10% of context) [source: query]
+2026-02-13T15:26:33.934Z [DEBUG] Writing to temp file: C:\Users\Administrator\.claude.json.tmp.26628.1770996393934
+2026-02-13T15:26:33.934Z [DEBUG] Preserving file permissions: 100666
+2026-02-13T15:26:33.934Z [DEBUG] Temp file written successfully, size: 2862 bytes
+2026-02-13T15:26:33.934Z [DEBUG] Applied original permissions to temp file
+2026-02-13T15:26:33.934Z [DEBUG] Renaming C:\Users\Administrator\.claude.json.tmp.26628.1770996393934 to C:\Users\Administrator\.claude.json
+2026-02-13T15:26:33.934Z [DEBUG] File C:\Users\Administrator\.claude.json written atomically
+2026-02-13T15:26:33.935Z [DEBUG] attribution header x-anthropic-billing-header: cc_version=2.1.41.fb5; cc_entrypoint=cli; cch=00000;
+2026-02-13T15:26:33.936Z [DEBUG] [API:request] Creating client, ANTHROPIC_CUSTOM_HEADERS present: false, has Authorization header: false
+2026-02-13T15:26:33.936Z [DEBUG] [API:auth] OAuth token check starting
+2026-02-13T15:26:33.936Z [DEBUG] [API:auth] OAuth token check complete
+2026-02-13T15:26:33.940Z [DEBUG] [useDeferredValue] Messages deferred by 1 (22→23)
+2026-02-13T15:26:47.777Z [DEBUG] Stream started - received first chunk
+2026-02-13T15:27:04.464Z [ERROR] API error (attempt 1/11): 502 502 <!DOCTYPE html>
+<!--[if lt IE 7]> <html class="no-js ie6 oldie" lang="en-US"> <![endif]-->
+<!--[if IE 7]>    <html class="no-js ie7 oldie" lang="en-US"> <![endif]-->
+<!--[if IE 8]>    <html class="no-js ie8 oldie" lang="en-US"> <![endif]-->
+<!--[if gt IE 8]><!--> <html class="no-js" lang="en-US"> <!--<![endif]-->
+<head>
+
+<title>1234156.xyz | 502: Bad gateway</title>
+<meta charset="UTF-8" />
+<meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
+<meta http-equiv="X-UA-Compatible" content="IE=Edge" />
+<meta name="robots" content="noindex, nofollow" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<link rel="stylesheet" id="cf_styles-css" href="/cdn-cgi/styles/main.css" />
+</head>
+<body>
+<div id="cf-wrapper">
+    <div id="cf-error-details" class="p-0">
+        <header class="mx-auto pt-10 lg:pt-6 lg:px-8 w-240 lg:w-full mb-8">
+            <h1 class="inline-block sm:block sm:mb-2 font-light text-60 lg:text-4xl text-black-dark leading-tight mr-2">
+                <span class="inline-block">Bad gateway</span>
+                <span class="code-label">Error code 502</span>
+            </h1>
+            <div>
+                Visit <a href="https://www.cloudflare.com/5xx-error-landing?utm_source=errorcode_502&utm_campaign=cdn.xiavier.com" target="_blank" rel="noopener noreferrer">cloudflare.com</a> for more information.
+            </div>
+            <div class="mt-3">2026-02-13 15:27:04 UTC</div>
+        </header>
+        <div class="my-8 bg-gradient-gray">
+            <div class="w-240 lg:w-full mx-auto">
+                <div class="clearfix md:px-8">
+                    <div id="cf-browser-status" class=" relative w-1/3 md:w-full py-15 md:p-0 md:py-8 md:text-left md:border-solid md:border-0 md:border-b md:border-gray-400 overflow-hidden float-left md:float-none text-center">
+  <div class="relative mb-10 md:m-0">
+    
+    <span class="cf-icon-browser block md:hidden h-20 bg-center bg-no-repeat"></span>
+    <span class="cf-icon-ok w-12 h-12 absolute left-1/2 md:left-auto md:right-0 md:top-0 -ml-6 -bottom-4"></span>
+    
+  </div>
+  <span class="md:block w-full truncate">You</span>
+  <h3 class="md:inline-block mt-3 md:mt-0 text-2xl text-gray-600 font-light leading-1.3">
+  
+    Browser
+  
+  </h3>
+  
+  <span class="leading-1.3 text-2xl text-green-success">Working</span>
+  
+</div>
+                    <div id="cf-cloudflare-status" class=" relative w-1/3 md:w-full py-15 md:p-0 md:py-8 md:text-left md:border-solid md:border-0 md:border-b md:border-gray-400 overflow-hidden float-left md:float-none text-center">
+  <div class="relative mb-10 md:m-0">
+    <a href="https://www.cloudflare.com/5xx-error-landing?utm_source=errorcode_502&#38;utm_campaign=cdn.xiavier.com" target="_blank" rel="noopener noreferrer">
+    <span class="cf-icon-cloud block md:hidden h-20 bg-center bg-no-repeat"></span>
+    <span class="cf-icon-ok w-12 h-12 absolute left-1/2 md:left-auto md:right-0 md:top-0 -ml-6 -bottom-4"></span>
+    </a>
+  </div>
+  <span class="md:block w-full truncate">Singapore</span>
+  <h3 class="md:inline-block mt-3 md:mt-0 text-2xl text-gray-600 font-light leading-1.3">
+  <a href="https://www.cloudflare.com/5xx-error-landing?utm_source=errorcode_502&utm_campaign=cdn.xiavier.com" target="_blank" rel="noopener noreferrer">
+    Cloudflare
+  </a>
+  </h3>
+  
+  <span class="leading-1.3 text-2xl text-green-success">Working</span>
+  
+</div>
+                    <div id="cf-host-status" class="cf-error-source relative w-1/3 md:w-full py-15 md:p-0 md:py-8 md:text-left md:border-solid md:border-0 md:border-b md:border-gray-400 overflow-hidden float-left md:float-none text-center">
+  <div class="relative mb-10 md:m-0">
+    
+    <span class="cf-icon-server block md:hidden h-20 bg-center bg-no-repeat"></span>
+    <span class="cf-icon-error w-12 h-12 absolute left-1/2 md:left-auto md:right-0 md:top-0 -ml-6 -bottom-4"></span>
+    
+  </div>
+  <span class="md:block w-full truncate">cdn.xiavier.com</span>
+  <h3 class="md:inline-block mt-3 md:mt-0 text-2xl text-gray-600 font-light leading-1.3">
+  
+    Host
+  
+  </h3>
+  
+  <span class="leading-1.3 text-2xl text-red-error">Error</span>
+  
+</div>
+                </div>
+            </div>
+        </div>
+
+        <div class="w-240 lg:w-full mx-auto mb-8 lg:px-8">
+            <div class="clearfix">
+                <div class="w-1/2 md:w-full float-left pr-6 md:pb-10 md:pr-0 leading-relaxed">
+                    <h2 class="text-3xl font-normal leading-1.3 mb-4">What happened?</h2>
+                    <p>The web server reported a bad gateway error.</p>
+                </div>
+                <div class="w-1/2 md:w-full float-left leading-relaxed">
+                    <h2 class="text-3xl font-normal leading-1.3 mb-4">What can I do?</h2>
+                    <p class="mb-6">Please try again in a few minutes.</p>
+                </div>
+            </div>
+        </div>
+
+        <div class="cf-error-footer cf-wrapper w-240 lg:w-full py-10 sm:py-4 sm:px-8 mx-auto text-center sm:text-left border-solid border-0 border-t border-gray-300">
+    <p class="text-13">
+      <span class="cf-footer-item sm:block sm:mb-1">Cloudflare Ray ID: <strong class="font-semibold">9cd5584b4c169855</strong></span>
+      <span class="cf-footer-separator sm:hidden">&bull;</span>
+      <span id="cf-footer-item-ip" class="cf-footer-item hidden sm:block sm:mb-1">
+        Your IP:
+        <button type="button" id="cf-footer-ip-reveal" class="cf-footer-ip-reveal-btn">Click to reveal</button>
+        <span class="hidden" id="cf-footer-ip">113.122.236.36</span>
+        <span class="cf-footer-separator sm:hidden">&bull;</span>
+      </span>
+      <span class="cf-footer-item sm:block sm:mb-1"><span>Performance &amp; security by</span> <a rel="noopener noreferrer" href="https://www.cloudflare.com/5xx-error-landing?utm_source=errorcode_502&#38;utm_campaign=cdn.xiavier.com" id="brand_link" target="_blank">Cloudflare</a></span>
+      
+    </p>
+    <script>(function(){function d(){var b=a.getElementById("cf-footer-item-ip"),c=a.getElementById("cf-footer-ip-reveal");b&&"classList"in b&&(b.classList.remove("hidden"),c.addEventListener("click",function(){c.classList.add("hidden");a.getElementById("cf-footer-ip").classList.remove("hidden")}))}var a=document;document.addEventListener&&a.addEventListener("DOMContentLoaded",d)})();</script>
+  </div><!-- /.error-footer -->
+
+    </div>
+</div>
+</body>
+</html>
+2026-02-13T15:27:04.465Z [DEBUG] [useDeferredValue] Messages deferred by 1 (23→24)
+2026-02-13T15:27:24.154Z [ERROR] API error (attempt 2/11): 502 502 <!DOCTYPE html>
+<!--[if lt IE 7]> <html class="no-js ie6 oldie" lang="en-US"> <![endif]-->
+<!--[if IE 7]>    <html class="no-js ie7 oldie" lang="en-US"> <![endif]-->
+<!--[if IE 8]>    <html class="no-js ie8 oldie" lang="en-US"> <![endif]-->
+<!--[if gt IE 8]><!--> <html class="no-js" lang="en-US"> <!--<![endif]-->
+<head>
+
+<title>1234156.xyz | 502: Bad gateway</title>
+<meta charset="UTF-8" />
+<meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
+<meta http-equiv="X-UA-Compatible" content="IE=Edge" />
+<meta name="robots" content="noindex, nofollow" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<link rel="stylesheet" id="cf_styles-css" href="/cdn-cgi/styles/main.css" />
+</head>
+<body>
+<div id="cf-wrapper">
+    <div id="cf-error-details" class="p-0">
+        <header class="mx-auto pt-10 lg:pt-6 lg:px-8 w-240 lg:w-full mb-8">
+            <h1 class="inline-block sm:block sm:mb-2 font-light text-60 lg:text-4xl text-black-dark leading-tight mr-2">
+                <span class="inline-block">Bad gateway</span>
+                <span class="code-label">Error code 502</span>
+            </h1>
+            <div>
+                Visit <a href="https://www.cloudflare.com/5xx-error-landing?utm_source=errorcode_502&utm_campaign=cdn.xiavier.com" target="_blank" rel="noopener noreferrer">cloudflare.com</a> for more information.
+            </div>
+            <div class="mt-3">2026-02-13 15:27:24 UTC</div>
+        </header>
+        <div class="my-8 bg-gradient-gray">
+            <div class="w-240 lg:w-full mx-auto">
+                <div class="clearfix md:px-8">
+                    <div id="cf-browser-status" class=" relative w-1/3 md:w-full py-15 md:p-0 md:py-8 md:text-left md:border-solid md:border-0 md:border-b md:border-gray-400 overflow-hidden float-left md:float-none text-center">
+  <div class="relative mb-10 md:m-0">
+    
+    <span class="cf-icon-browser block md:hidden h-20 bg-center bg-no-repeat"></span>
+    <span class="cf-icon-ok w-12 h-12 absolute left-1/2 md:left-auto md:right-0 md:top-0 -ml-6 -bottom-4"></span>
+    
+  </div>
+  <span class="md:block w-full truncate">You</span>
+  <h3 class="md:inline-block mt-3 md:mt-0 text-2xl text-gray-600 font-light leading-1.3">
+  
+    Browser
+  
+  </h3>
+  
+  <span class="leading-1.3 text-2xl text-green-success">Working</span>
+  
+</div>
+                    <div id="cf-cloudflare-status" class=" relative w-1/3 md:w-full py-15 md:p-0 md:py-8 md:text-left md:border-solid md:border-0 md:border-b md:border-gray-400 overflow-hidden float-left md:float-none text-center">
+  <div class="relative mb-10 md:m-0">
+    <a href="https://www.cloudflare.com/5xx-error-landing?utm_source=errorcode_502&#38;utm_campaign=cdn.xiavier.com" target="_blank" rel="noopener noreferrer">
+    <span class="cf-icon-cloud block md:hidden h-20 bg-center bg-no-repeat"></span>
+    <span class="cf-icon-ok w-12 h-12 absolute left-1/2 md:left-auto md:right-0 md:top-0 -ml-6 -bottom-4"></span>
+    </a>
+  </div>
+  <span class="md:block w-full truncate">Singapore</span>
+  <h3 class="md:inline-block mt-3 md:mt-0 text-2xl text-gray-600 font-light leading-1.3">
+  <a href="https://www.cloudflare.com/5xx-error-landing?utm_source=errorcode_502&utm_campaign=cdn.xiavier.com" target="_blank" rel="noopener noreferrer">
+    Cloudflare
+  </a>
+  </h3>
+  
+  <span class="leading-1.3 text-2xl text-green-success">Working</span>
+  
+</div>
+                    <div id="cf-host-status" class="cf-error-source relative w-1/3 md:w-full py-15 md:p-0 md:py-8 md:text-left md:border-solid md:border-0 md:border-b md:border-gray-400 overflow-hidden float-left md:float-none text-center">
+  <div class="relative mb-10 md:m-0">
+    
+    <span class="cf-icon-server block md:hidden h-20 bg-center bg-no-repeat"></span>
+    <span class="cf-icon-error w-12 h-12 absolute left-1/2 md:left-auto md:right-0 md:top-0 -ml-6 -bottom-4"></span>
+    
+  </div>
+  <span class="md:block w-full truncate">cdn.xiavier.com</span>
+  <h3 class="md:inline-block mt-3 md:mt-0 text-2xl text-gray-600 font-light leading-1.3">
+  
+    Host
+  
+  </h3>
+  
+  <span class="leading-1.3 text-2xl text-red-error">Error</span>
+  
+</div>
+                </div>
+            </div>
+        </div>
+
+        <div class="w-240 lg:w-full mx-auto mb-8 lg:px-8">
+            <div class="clearfix">
+                <div class="w-1/2 md:w-full float-left pr-6 md:pb-10 md:pr-0 leading-relaxed">
+                    <h2 class="text-3xl font-normal leading-1.3 mb-4">What happened?</h2>
+                    <p>The web server reported a bad gateway error.</p>
+                </div>
+                <div class="w-1/2 md:w-full float-left leading-relaxed">
+                    <h2 class="text-3xl font-normal leading-1.3 mb-4">What can I do?</h2>
+                    <p class="mb-6">Please try again in a few minutes.</p>
+                </div>
+            </div>
+        </div>
+
+        <div class="cf-error-footer cf-wrapper w-240 lg:w-full py-10 sm:py-4 sm:px-8 mx-auto text-center sm:text-left border-solid border-0 border-t border-gray-300">
+    <p class="text-13">
+      <span class="cf-footer-item sm:block sm:mb-1">Cloudflare Ray ID: <strong class="font-semibold">9cd5590df9fc797c</strong></span>
+      <span class="cf-footer-separator sm:hidden">&bull;</span>
+      <span id="cf-footer-item-ip" class="cf-footer-item hidden sm:block sm:mb-1">
+        Your IP:
+        <button type="button" id="cf-footer-ip-reveal" class="cf-footer-ip-reveal-btn">Click to reveal</button>
+        <span class="hidden" id="cf-footer-ip">113.122.236.36</span>
+        <span class="cf-footer-separator sm:hidden">&bull;</span>
+      </span>
+      <span class="cf-footer-item sm:block sm:mb-1"><span>Performance &amp; security by</span> <a rel="noopener noreferrer" href="https://www.cloudflare.com/5xx-error-landing?utm_source=errorcode_502&#38;utm_campaign=cdn.xiavier.com" id="brand_link" target="_blank">Cloudflare</a></span>
+      
+    </p>
+    <script>(function(){function d(){var b=a.getElementById("cf-footer-item-ip"),c=a.getElementById("cf-footer-ip-reveal");b&&"classList"in b&&(b.classList.remove("hidden"),c.addEventListener("click",function(){c.classList.add("hidden");a.getElementById("cf-footer-ip").classList.remove("hidden")}))}var a=document;document.addEventListener&&a.addEventListener("DOMContentLoaded",d)})();</script>
+  </div><!-- /.error-footer -->
+
+    </div>
+</div>
+</body>
+</html>
+2026-02-13T15:27:24.155Z [DEBUG] [useDeferredValue] Messages deferred by 1 (24→25)
+2026-02-13T15:27:26.049Z [ERROR] API error (attempt 3/11): 401 401 {"error":{"code":"","message":"该令牌状态不可用 (request id: 20260213152726431111787dgz9Jp7T)","type":"new_api_error"}}
+2026-02-13T15:27:26.050Z [DEBUG] [useDeferredValue] Messages deferred by 1 (25→26)
+2026-02-13T15:27:28.318Z [DEBUG] [API:request] Creating client, ANTHROPIC_CUSTOM_HEADERS present: false, has Authorization header: false
+2026-02-13T15:27:28.318Z [DEBUG] [API:auth] OAuth token check starting
+2026-02-13T15:27:28.318Z [DEBUG] [API:auth] OAuth token check complete
+2026-02-13T15:27:28.948Z [ERROR] API error (attempt 4/11): 401 401 {"error":{"code":"","message":"该令牌状态不可用 (request id: 20260213152729330956751jNylT5nF)","type":"new_api_error"}}
+2026-02-13T15:27:28.949Z [DEBUG] [useDeferredValue] Messages deferred by 1 (26→27)
+2026-02-13T15:27:33.298Z [DEBUG] [API:request] Creating client, ANTHROPIC_CUSTOM_HEADERS present: false, has Authorization header: false
+2026-02-13T15:27:33.298Z [DEBUG] [API:auth] OAuth token check starting
+2026-02-13T15:27:33.298Z [DEBUG] [API:auth] OAuth token check complete
+2026-02-13T15:27:34.864Z [ERROR] API error (attempt 5/11): 401 401 {"error":{"code":"","message":"该令牌状态不可用 (request id: 20260213152735241169642lxrFZXiz)","type":"new_api_error"}}
+2026-02-13T15:27:34.865Z [DEBUG] [useDeferredValue] Messages deferred by 1 (27→28)
+2026-02-13T15:27:44.846Z [DEBUG] [API:request] Creating client, ANTHROPIC_CUSTOM_HEADERS present: false, has Authorization header: false
+2026-02-13T15:27:44.846Z [DEBUG] [API:auth] OAuth token check starting
+2026-02-13T15:27:44.846Z [DEBUG] [API:auth] OAuth token check complete
+2026-02-13T15:27:46.390Z [ERROR] API error (attempt 6/11): 401 401 {"error":{"code":"","message":"该令牌状态不可用 (request id: 20260213152746775524143SufpI1oD)","type":"new_api_error"}}
+2026-02-13T15:27:46.391Z [DEBUG] [useDeferredValue] Messages deferred by 1 (28→29)
+2026-02-13T15:28:02.410Z [DEBUG] Metrics opt-out check failed: No API key available
+2026-02-13T15:28:02.410Z [DEBUG] Metrics check failed, defaulting to disabled
+2026-02-13T15:28:02.410Z [DEBUG] Metrics export disabled by organization setting
+2026-02-13T15:28:02.897Z [DEBUG] [API:request] Creating client, ANTHROPIC_CUSTOM_HEADERS present: false, has Authorization header: false
+2026-02-13T15:28:02.897Z [DEBUG] [API:auth] OAuth token check starting
+2026-02-13T15:28:02.897Z [DEBUG] [API:auth] OAuth token check complete
+2026-02-13T15:28:04.416Z [ERROR] API error (attempt 7/11): 401 401 {"error":{"code":"","message":"该令牌状态不可用 (request id: 20260213152804803243707MTS7U4Zb)","type":"new_api_error"}}
+2026-02-13T15:28:04.416Z [DEBUG] [useDeferredValue] Messages deferred by 1 (29→30)
+2026-02-13T15:28:30.227Z [DEBUG] Detected change to C:\Users\Administrator\.claude\settings.json
+2026-02-13T15:28:30.245Z [DEBUG] Settings changed from userSettings, updating app state
+2026-02-13T15:28:30.258Z [DEBUG] Replacing all allow rules for destination 'userSettings' with 0 rule(s): []
+2026-02-13T15:28:30.258Z [DEBUG] Replacing all deny rules for destination 'userSettings' with 0 rule(s): []
+2026-02-13T15:28:30.258Z [DEBUG] Replacing all ask rules for destination 'userSettings' with 0 rule(s): []
+2026-02-13T15:28:30.258Z [DEBUG] Replacing all allow rules for destination 'projectSettings' with 0 rule(s): []
+2026-02-13T15:28:30.258Z [DEBUG] Replacing all deny rules for destination 'projectSettings' with 0 rule(s): []
+2026-02-13T15:28:30.258Z [DEBUG] Replacing all ask rules for destination 'projectSettings' with 0 rule(s): []
+2026-02-13T15:28:30.258Z [DEBUG] Replacing all allow rules for destination 'localSettings' with 0 rule(s): []
+2026-02-13T15:28:30.258Z [DEBUG] Replacing all deny rules for destination 'localSettings' with 0 rule(s): []
+2026-02-13T15:28:30.258Z [DEBUG] Replacing all ask rules for destination 'localSettings' with 0 rule(s): []
+2026-02-13T15:28:38.654Z [DEBUG] [API:request] Creating client, ANTHROPIC_CUSTOM_HEADERS present: false, has Authorization header: false
+2026-02-13T15:28:38.654Z [DEBUG] [API:auth] OAuth token check starting
+2026-02-13T15:28:38.654Z [DEBUG] [API:auth] OAuth token check complete
+2026-02-13T15:28:43.111Z [DEBUG] Stream started - received first chunk
+2026-02-13T15:28:43.333Z [DEBUG] [useDeferredValue] Messages deferred by 1 (30→31)
+2026-02-13T15:28:43.374Z [DEBUG] Getting matching hook commands for Stop with query: undefined
+2026-02-13T15:28:43.374Z [DEBUG] Found 0 hook matchers in settings
+2026-02-13T15:28:43.374Z [DEBUG] Matched 0 unique hooks for query "no match query" (0 before deduplication)
+2026-02-13T15:28:43.396Z [DEBUG] [useDeferredValue] Messages deferred by 2 (30→32)
+2026-02-13T15:28:43.403Z [DEBUG] Full reset (shrink->below): prevHeight=36, nextHeight=34, viewport=35
+2026-02-13T15:28:48.394Z [DEBUG] Detected change to C:\Users\Administrator\.claude\settings.json
+2026-02-13T15:28:48.408Z [DEBUG] Settings changed from userSettings, updating app state
+2026-02-13T15:28:48.421Z [DEBUG] Replacing all allow rules for destination 'userSettings' with 0 rule(s): []
+2026-02-13T15:28:48.422Z [DEBUG] Replacing all deny rules for destination 'userSettings' with 0 rule(s): []
+2026-02-13T15:28:48.422Z [DEBUG] Replacing all ask rules for destination 'userSettings' with 0 rule(s): []
+2026-02-13T15:28:48.422Z [DEBUG] Replacing all allow rules for destination 'projectSettings' with 0 rule(s): []
+2026-02-13T15:28:48.422Z [DEBUG] Replacing all deny rules for destination 'projectSettings' with 0 rule(s): []
+2026-02-13T15:28:48.422Z [DEBUG] Replacing all ask rules for destination 'projectSettings' with 0 rule(s): []
+2026-02-13T15:28:48.422Z [DEBUG] Replacing all allow rules for destination 'localSettings' with 0 rule(s): []
+2026-02-13T15:28:48.422Z [DEBUG] Replacing all deny rules for destination 'localSettings' with 0 rule(s): []
+2026-02-13T15:28:48.422Z [DEBUG] Replacing all ask rules for destination 'localSettings' with 0 rule(s): []
+2026-02-13T15:28:57.381Z [DEBUG] LSP Diagnostics: getLSPDiagnosticAttachments called
+2026-02-13T15:28:57.381Z [DEBUG] LSP Diagnostics: Checking registry - 0 pending
+2026-02-13T15:28:57.381Z [DEBUG] Hooks: Found 0 total hooks in registry
+2026-02-13T15:28:57.381Z [DEBUG] Hooks: checkForNewResponses returning 0 responses
+2026-02-13T15:28:57.386Z [DEBUG] Getting matching hook commands for UserPromptSubmit with query: undefined
+2026-02-13T15:28:57.386Z [DEBUG] Found 0 hook matchers in settings
+2026-02-13T15:28:57.386Z [DEBUG] Matched 0 unique hooks for query "no match query" (0 before deduplication)
+2026-02-13T15:28:57.386Z [DEBUG] FileHistory: Making snapshot for message 05ab6f00-cc05-4f99-82d8-3c92ecc17c7b
+2026-02-13T15:28:57.386Z [DEBUG] FileHistory: Added snapshot for 05ab6f00-cc05-4f99-82d8-3c92ecc17c7b, tracking 0 files
+2026-02-13T15:28:57.386Z [DEBUG] [useDeferredValue] Messages deferred by 1 (32→33)
+2026-02-13T15:28:57.396Z [DEBUG] Writing to temp file: C:\Users\Administrator\.claude.json.tmp.26628.1770996537396
+2026-02-13T15:28:57.396Z [DEBUG] Preserving file permissions: 100666
+2026-02-13T15:28:57.396Z [DEBUG] Temp file written successfully, size: 2862 bytes
+2026-02-13T15:28:57.397Z [DEBUG] Applied original permissions to temp file
+2026-02-13T15:28:57.397Z [DEBUG] Renaming C:\Users\Administrator\.claude.json.tmp.26628.1770996537396 to C:\Users\Administrator\.claude.json
+2026-02-13T15:28:57.397Z [DEBUG] File C:\Users\Administrator\.claude.json written atomically
+2026-02-13T15:28:57.397Z [DEBUG] Tool search disabled for model 'claude-haiku-4-5-20251001': model does not support tool_reference blocks. This feature is only available on Claude Sonnet 4+, Opus 4+, and newer models.
+2026-02-13T15:28:57.397Z [DEBUG] attribution header x-anthropic-billing-header: cc_version=2.1.41.ca8; cc_entrypoint=cli; cch=00000;
+2026-02-13T15:28:57.398Z [DEBUG] [API:request] Creating client, ANTHROPIC_CUSTOM_HEADERS present: false, has Authorization header: false
+2026-02-13T15:28:57.398Z [DEBUG] [API:auth] OAuth token check starting
+2026-02-13T15:28:57.398Z [DEBUG] [API:auth] OAuth token check complete
+2026-02-13T15:28:57.401Z [DEBUG] Writing to temp file: C:\Users\Administrator\.claude.json.tmp.26628.1770996537401
+2026-02-13T15:28:57.401Z [DEBUG] Preserving file permissions: 100666
+2026-02-13T15:28:57.401Z [DEBUG] Temp file written successfully, size: 2862 bytes
+2026-02-13T15:28:57.401Z [DEBUG] Applied original permissions to temp file
+2026-02-13T15:28:57.401Z [DEBUG] Renaming C:\Users\Administrator\.claude.json.tmp.26628.1770996537401 to C:\Users\Administrator\.claude.json
+2026-02-13T15:28:57.402Z [DEBUG] File C:\Users\Administrator\.claude.json written atomically
+2026-02-13T15:28:57.403Z [DEBUG] autocompact: tokens=22732 threshold=967000 effectiveWindow=980000
+2026-02-13T15:28:57.406Z [DEBUG] Auto tool search disabled: 4345 tokens (threshold: 100000, 10% of context) [source: query]
+2026-02-13T15:28:57.410Z [DEBUG] Writing to temp file: C:\Users\Administrator\.claude.json.tmp.26628.1770996537410
+2026-02-13T15:28:57.410Z [DEBUG] Preserving file permissions: 100666
+2026-02-13T15:28:57.410Z [DEBUG] Temp file written successfully, size: 2862 bytes
+2026-02-13T15:28:57.411Z [DEBUG] Applied original permissions to temp file
+2026-02-13T15:28:57.411Z [DEBUG] Renaming C:\Users\Administrator\.claude.json.tmp.26628.1770996537410 to C:\Users\Administrator\.claude.json
+2026-02-13T15:28:57.411Z [DEBUG] File C:\Users\Administrator\.claude.json written atomically
+2026-02-13T15:28:57.412Z [DEBUG] attribution header x-anthropic-billing-header: cc_version=2.1.41.fb5; cc_entrypoint=cli; cch=00000;
+2026-02-13T15:28:57.413Z [DEBUG] [API:request] Creating client, ANTHROPIC_CUSTOM_HEADERS present: false, has Authorization header: false
+2026-02-13T15:28:57.413Z [DEBUG] [API:auth] OAuth token check starting
+2026-02-13T15:28:57.413Z [DEBUG] [API:auth] OAuth token check complete
+2026-02-13T15:28:57.418Z [DEBUG] [useDeferredValue] Messages deferred by 1 (32→33)
+2026-02-13T15:29:04.426Z [DEBUG] Stream started - received first chunk

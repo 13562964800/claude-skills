@@ -1,0 +1,10 @@
+package com.shanfuchun.courtassistant.ai.model
+
+/**
+ * LLM 提供商配置
+ */
+data class ProviderConfig(
+    val enabled: Boolean = false,
+    val apiKey: String = "",
+    val secretKey: String? = null  // 仅文心一言需要
+)

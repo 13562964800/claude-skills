@@ -1,0 +1,267 @@
+package com.voicedoc.app;
+
+import android.content.Intent;
+import android.content.SharedPreferences;
+import android.os.Bundle;
+import android.util.Log;
+import android.view.View;
+import android.widget.*;
+import androidx.appcompat.app.AppCompatActivity;
+import com.chaquo.python.PyObject;
+import com.chaquo.python.Python;
+import com.chaquo.python.android.AndroidPlatform;
+
+public class SettingsActivity extends AppCompatActivity {
+    private static final String TAG = "VoiceDocSettings";
+    private static final String PREFS_NAME = "voice_doc_prefs";
+
+    private Spinner spinnerAsr, spinnerLlm;
+    private EditText etFunasrServer, etGroqKey, etOpenaiKey, etLlmKey;
+    private TextView tvAsrDesc, tvLlmModel, tvAsrTestResult, tvLlmTestResult;
+
+    private static final String[] ASR_NAMES = {
+        "离线识别(Sherpa-ONNX)", "FunASR(局域网)", "百度语音(内置)", "Groq Whisper", "OpenAI Whisper"
+    };
+    private static final String[] ASR_IDS = {
+        "sherpa_offline", "funasr", "baidu_builtin", "groq_whisper", "openai_whisper"
+    };
+    private static final String[] ASR_DESCS = {
+        "Paraformer 中英文语音识别，无需联网",
+        "连接电脑上的FunASR服务，需同一WiFi",
+        "使用内置百度API密钥，开箱即用",
+        "Groq云端高速Whisper，需API密钥",
+        "OpenAI官方Whisper，需API密钥"
+    };
+
+    private static final String[] LLM_NAMES = {
+        "智谱GLM", "DeepSeek", "通义千问", "Kimi(月之暗面)", "百川智能",
+        "MiniMax", "阶跃星辰", "豆包(字节)", "OpenAI", "Claude",
+        "Gemini", "Groq", "Mistral", "Cohere", "Perplexity", "Together AI"
+    };
+    private static final String[] LLM_IDS = {
+        "zhipu", "deepseek", "qwen", "moonshot", "baichuan", "minimax",
+        "stepfun", "doubao", "openai", "claude", "gemini", "groq_llm",
+        "mistral", "cohere", "perplexity", "together"
+    };
+    private static final String[] LLM_MODELS = {
+        "glm-4", "deepseek-chat", "qwen-turbo", "moonshot-v1-8k", "Baichuan4",
+        "abab6.5s-chat", "step-1-8k", "doubao-pro-4k", "gpt-4o-mini",
+        "claude-sonnet-4-20250514", "gemini-2.0-flash", "llama-3.1-70b-versatile",
+        "mistral-large-latest", "command-r-plus", "sonar-pro",
+        "meta-llama/Llama-3-70b-chat-hf"
+    };
+
+    private SharedPreferences prefs;
+
+    @Override
+    protected void onCreate(Bundle savedInstanceState) {
+        super.onCreate(savedInstanceState);
+        setContentView(R.layout.activity_settings);
+
+        prefs = getSharedPreferences(PREFS_NAME, MODE_PRIVATE);
+
+        initViews();
+        loadSettings();
+        setupListeners();
+    }
+
+    private void initViews() {
+        spinnerAsr = findViewById(R.id.spinnerAsr);
+        spinnerLlm = findViewById(R.id.spinnerLlm);
+        etFunasrServer = findViewById(R.id.etFunasrServer);
+        etGroqKey = findViewById(R.id.etGroqKey);
+        etOpenaiKey = findViewById(R.id.etOpenaiKey);
+        etLlmKey = findViewById(R.id.etLlmKey);
+        tvAsrDesc = findViewById(R.id.tvAsrDesc);
+        tvLlmModel = findViewById(R.id.tvLlmModel);
+        tvAsrTestResult = findViewById(R.id.tvAsrTestResult);
+        tvLlmTestResult = findViewById(R.id.tvLlmTestResult);
+
+        // ASR Spinner
+        ArrayAdapter<String> asrAdapter = new ArrayAdapter<>(this,
+            android.R.layout.simple_spinner_item, ASR_NAMES);
+        asrAdapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item);
+        spinnerAsr.setAdapter(asrAdapter);
+        spinnerAsr.setOnItemSelectedListener(new AdapterView.OnItemSelectedListener() {
+            @Override
+            public void onItemSelected(AdapterView<?> parent, View view, int pos, long id) {
+                tvAsrDesc.setText(ASR_DESCS[pos]);
+            }
+            @Override
+            public void onNothingSelected(AdapterView<?> parent) {}
+        });
+
+        // LLM Spinner
+        ArrayAdapter<String> llmAdapter = new ArrayAdapter<>(this,
+            android.R.layout.simple_spinner_item, LLM_NAMES);
+        llmAdapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item);
+        spinnerLlm.setAdapter(llmAdapter);
+        spinnerLlm.setOnItemSelectedListener(new AdapterView.OnItemSelectedListener() {
+            @Override
+            public void onItemSelected(AdapterView<?> parent, View view, int pos, long id) {
+                tvLlmModel.setText("默认模型: " + LLM_MODELS[pos]);
+            }
+            @Override
+            public void onNothingSelected(AdapterView<?> parent) {}
+        });
+    }
+
+    private void loadSettings() {
+        // ASR
+        int asrPos = prefs.getInt("asr_engine", 0);
+        spinnerAsr.setSelection(asrPos);
+        etFunasrServer.setText(prefs.getString("funasr_server", "192.168.1.100:8765"));
+        etGroqKey.setText(prefs.getString("groq_key", ""));
+        etOpenaiKey.setText(prefs.getString("openai_key", ""));
+
+        // LLM
+        int llmPos = prefs.getInt("llm_provider", 0);
+        spinnerLlm.setSelection(llmPos);
+        etLlmKey.setText(prefs.getString("llm_key_" + LLM_IDS[llmPos], ""));
+    }
+
+    private void setupListeners() {
+        findViewById(R.id.btnBack).setOnClickListener(v -> finish());
+
+        findViewById(R.id.btnSave).setOnClickListener(v -> saveAndReturn());
+
+        findViewById(R.id.btnTestAsr).setOnClickListener(v -> testAsr());
+
+        findViewById(R.id.btnTestLlm).setOnClickListener(v -> testLlm());
+
+        // 切换LLM时自动加载该提供商的key
+        spinnerLlm.setOnItemSelectedListener(new AdapterView.OnItemSelectedListener() {
+            @Override
+            public void onItemSelected(AdapterView<?> parent, View view, int pos, long id) {
+                tvLlmModel.setText("默认模型: " + LLM_MODELS[pos]);
+                String providerId = LLM_IDS[pos];
+                String savedKey = prefs.getString("llm_key_" + providerId, "");
+                etLlmKey.setText(savedKey);
+                tvLlmTestResult.setText("");
+            }
+            @Override
+            public void onNothingSelected(AdapterView<?> parent) {}
+        });
+    }
+
+    private void saveAndReturn() {
+        SharedPreferences.Editor ed = prefs.edit();
+
+        // 保存ASR
+        ed.putInt("asr_engine", spinnerAsr.getSelectedItemPosition());
+        String funasr = etFunasrServer.getText().toString().trim();
+        if (!funasr.isEmpty()) {
+            if (!funasr.contains(":")) funasr = funasr + ":8765";
+            if (!funasr.startsWith("http")) funasr = "http://" + funasr;
+            ed.putString("funasr_server", funasr);
+        }
+        ed.putString("groq_key", etGroqKey.getText().toString().trim());
+        ed.putString("openai_key", etOpenaiKey.getText().toString().trim());
+
+        // 保存LLM
+        int llmPos = spinnerLlm.getSelectedItemPosition();
+        ed.putInt("llm_provider", llmPos);
+        ed.putString("llm_provider_id", LLM_IDS[llmPos]);
+        ed.putString("llm_key_" + LLM_IDS[llmPos], etLlmKey.getText().toString().trim());
+        ed.putString("llm_model_" + LLM_IDS[llmPos], LLM_MODELS[llmPos]);
+
+        ed.apply();
+
+        Toast.makeText(this, "设置已保存", Toast.LENGTH_SHORT).show();
+        finish();
+    }
+
+    private void testAsr() {
+        String asrId = ASR_IDS[spinnerAsr.getSelectedItemPosition()];
+        tvAsrTestResult.setText("正在测试...");
+        tvAsrTestResult.setTextColor(0xFF666666);
+
+        new Thread(() -> {
+            String result;
+            try {
+                if (!Python.isStarted()) {
+                    Python.start(new AndroidPlatform(this));
+                }
+                Python py = Python.getInstance();
+                PyObject engine = py.getModule("engine");
+
+                String extraArg = "";
+                if ("funasr".equals(asrId)) {
+                    String server = etFunasrServer.getText().toString().trim();
+                    if (!server.isEmpty()) {
+                        if (!server.contains(":")) server = server + ":8765";
+                        if (!server.startsWith("http")) server = "http://" + server;
+                        extraArg = server;
+                    }
+                } else if ("groq_whisper".equals(asrId)) {
+                    extraArg = etGroqKey.getText().toString().trim();
+                } else if ("openai_whisper".equals(asrId)) {
+                    extraArg = etOpenaiKey.getText().toString().trim();
+                }
+
+                result = engine.callAttr("test_asr", asrId, extraArg).toString();
+
+                if (result.contains("成功") || result.contains("连接成功")) {
+                    runOnUiThread(() -> {
+                        tvAsrTestResult.setText("✓ " + result);
+                        tvAsrTestResult.setTextColor(0xFF4CAF50);
+                    });
+                } else {
+                    runOnUiThread(() -> {
+                        tvAsrTestResult.setText("✗ " + result);
+                        tvAsrTestResult.setTextColor(0xFFF44336);
+                    });
+                }
+            } catch (Exception e) {
+                Log.e(TAG, "ASR测试失败", e);
+                String errMsg = "测试失败: " + e.getMessage();
+                runOnUiThread(() -> {
+                    tvAsrTestResult.setText("✗ " + errMsg);
+                    tvAsrTestResult.setTextColor(0xFFF44336);
+                });
+            }
+        }).start();
+    }
+
+    private void testLlm() {
+        String providerId = LLM_IDS[spinnerLlm.getSelectedItemPosition()];
+        String apiKey = etLlmKey.getText().toString().trim();
+        tvLlmTestResult.setText("正在测试...");
+        tvLlmTestResult.setTextColor(0xFF666666);
+
+        new Thread(() -> {
+            String result;
+            try {
+                if (apiKey.isEmpty()) {
+                    result = "请先输入API Key";
+                } else {
+                    if (!Python.isStarted()) {
+                        Python.start(new AndroidPlatform(this));
+                    }
+                    Python py = Python.getInstance();
+                    PyObject engine = py.getModule("engine");
+                    result = engine.callAttr("test_llm", providerId, apiKey).toString();
+                }
+
+                if (result.contains("成功") || result.contains("连接成功") || result.contains("valid")) {
+                    runOnUiThread(() -> {
+                        tvLlmTestResult.setText("✓ " + result);
+                        tvLlmTestResult.setTextColor(0xFF4CAF50);
+                    });
+                } else {
+                    runOnUiThread(() -> {
+                        tvLlmTestResult.setText("✗ " + result);
+                        tvLlmTestResult.setTextColor(0xFFF44336);
+                    });
+                }
+            } catch (Exception e) {
+                Log.e(TAG, "LLM测试失败", e);
+                String errMsg = "测试失败: " + e.getMessage();
+                runOnUiThread(() -> {
+                    tvLlmTestResult.setText("✗ " + errMsg);
+                    tvLlmTestResult.setTextColor(0xFFF44336);
+                });
+            }
+        }).start();
+    }
+}

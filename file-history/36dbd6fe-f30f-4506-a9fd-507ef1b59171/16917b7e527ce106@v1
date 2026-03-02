@@ -1,0 +1,71 @@
+{
+  "name": "aurora-video-downloader",
+  "version": "1.0.0",
+  "description": "极光视频下载器 - 漂亮的 Electron 界面",
+  "main": "main.js",
+  "scripts": {
+    "start": "electron .",
+    "build": "electron-builder --win --x64",
+    "build:portable": "electron-builder --win --x64 --pd",
+    "build:installer": "electron-builder --win --x64",
+    "dist": "electron-builder"
+  },
+  "keywords": ["video", "downloader", "youtube", "douyin"],
+  "author": "",
+  "license": "ISC",
+  "devDependencies": {
+    "electron": "^30.0.0",
+    "electron-builder": "^25.1.8"
+  },
+  "build": {
+    "appId": "com.aurora.videodownloader",
+    "productName": "极光视频下载器",
+    "directories": {
+      "output": "dist"
+    },
+    "files": [
+      "main.js",
+      "renderer.js",
+      "index.html",
+      "styles.css",
+      "bin/**/*",
+      "package.json"
+    ],
+    "win": {
+      "target": [
+        {
+          "target": "nsis",
+          "arch": ["x64"]
+        },
+        {
+          "target": "portable",
+          "arch": ["x64"]
+        }
+      ],
+      "icon": "build/icon.ico"
+    },
+    "nsis": {
+      "oneClick": false,
+      "allowToChangeInstallationDirectory": true,
+      "perMachine": true,
+      "deleteAppDataOnUninstall": false,
+      "createDesktopShortcut": true,
+      "createStartMenuShortcut": true,
+      "shortcutName": "极光视频下载器",
+      "installerLanguages": ["zh_CN", "en_US"],
+      "language": "2052",
+      "installerIcon": "build/icon.ico",
+      "uninstallerIcon": "build/icon.ico",
+      "artifactName": "${productName}-Setup-${version}.${ext}"
+    },
+    "portable": {
+      "artifactName": "${productName}-${version}-Portable.${ext}",
+      "splashImage": "build/splash.bmp"
+    },
+    "publish": {
+      "provider": "github",
+      "owner": "your-username",
+      "repo": "aurora-video-downloader"
+    }
+  }
+}

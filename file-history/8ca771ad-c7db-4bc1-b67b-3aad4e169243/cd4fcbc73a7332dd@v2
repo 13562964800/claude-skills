@@ -1,0 +1,140 @@
+# 🎉 安装包使用说明
+
+## 📦 安装包信息
+
+- **文件名**: `video-download-transcribe-v1.0.0.zip`
+- **版本**: v1.0.0
+- **日期**: 2026-03-01
+- **大小**: ~50 KB
+
+## 🚀 快速安装（3 步）
+
+### 第 1 步：解压安装包
+
+将 `video-download-transcribe-v1.0.0.zip` 解压到任意目录，例如：
+```
+C:\Users\Administrator\video-download-transcribe-v1.0.0\
+```
+
+### 第 2 步：运行安装程序
+
+1. 进入 `video-download-service` 目录
+2. **右键点击** `setup.bat`
+3. 选择 **"以管理员身份运行"**
+4. 按照提示完成安装
+
+安装程序会自动：
+- ✅ 检查 Python 和 FFmpeg
+- ✅ 安装所有 Python 依赖
+- ✅ 创建配置文件
+- ✅ 在桌面创建快捷方式
+
+### 第 3 步：安装浏览器扩展
+
+1. 打开 Chrome 或 Edge 浏览器
+2. 地址栏输入 `chrome://extensions/`
+3. 右上角开启 **"开发者模式"**
+4. 点击 **"加载已解压的扩展程序"**
+5. 选择 `video-downloader-extension` 文件夹
+
+## 🎯 开始使用
+
+### 启动服务
+
+双击桌面的 **"视频下载转录服务"** 快捷方式
+
+或手动运行：
+```bash
+cd video-download-service
+start.bat
+```
+
+### 下载视频
+
+1. 访问 YouTube 或 B站视频页面
+2. 点击页面上的 **"下载转录"** 按钮
+3. 等待下载和转录完成
+4. 查看结果：`~/Downloads/videos/`
+
+## ⚙️ 配置（可选）
+
+编辑 `video-download-service/config.yaml`:
+
+```yaml
+# 转录引擎
+transcription:
+  transcription_mode: auto  # auto/local/online
+  groq_api_key: ""          # 填入你的 Groq API Key
+```
+
+获取 Groq API Key: https://console.groq.com/
+
+## 📋 安装包内容
+
+```
+video-download-transcribe-v1.0.0/
+├── 安装说明.txt                    # 简要说明
+├── README.md                       # 完整文档
+├── QUICKSTART.md                   # 快速开始
+├── INSTALLATION_GUIDE.md           # 详细安装指南
+├── video-downloader-extension/     # 浏览器扩展
+│   ├── manifest.json
+│   ├── background.js
+│   ├── content/
+│   └── popup/
+└── video-download-service/         # 本地服务
+    ├── setup.bat                   # 一键安装程序
+    ├── start.bat                   # 启动脚本
+    ├── server.py                   # 主服务器
+    ├── config.yaml.example         # 配置模板
+    ├── requirements.txt            # Python 依赖
+    └── ...
+```
+
+## 🔧 系统要求
+
+### 必需
+- Windows 11
+- Python 3.10+
+- FFmpeg
+- Chrome/Edge 浏览器
+
+### 可选
+- Groq API Key（用于在线转录）
+
+## 📖 文档
+
+安装包内包含完整文档：
+
+- **README.md** - 完整项目文档
+- **QUICKSTART.md** - 快速开始指南
+- **INSTALLATION_GUIDE.md** - 详细安装指南（含故障排除）
+
+## 🐛 常见问题
+
+### Q: setup.bat 运行失败？
+A: 确保以管理员身份运行，检查 Python 和 FFmpeg 是否已安装。
+
+### Q: 扩展无法连接服务？
+A: 确认服务已启动，访问 http://localhost:8765/health 验证。
+
+### Q: YouTube 解析失败？
+A: 在浏览器中登录 YouTube，扩展会自动获取 Cookie。
+
+### Q: 转录失败？
+A: 检查 FFmpeg 是否正确安装: `ffmpeg -version`
+
+## 🎉 安装完成后
+
+1. 启动服务（双击桌面快捷方式）
+2. 访问 YouTube 视频页面
+3. 点击"下载转录"按钮
+4. 享受一键下载和转录的便利！
+
+## 📞 技术支持
+
+遇到问题？查看 `INSTALLATION_GUIDE.md` 的故障排除部分。
+
+---
+
+**版本**: v1.0.0 | **日期**: 2026-03-01 | **许可**: MIT

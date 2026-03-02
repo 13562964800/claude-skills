@@ -1,0 +1,145 @@
+package com.shanfuchun.courtassistant.service
+
+import android.content.ContentValues
+import android.content.Context
+import android.provider.CalendarContract
+import com.shanfuchun.courtassistant.data.CalendarSyncRecord
+import com.shanfuchun.courtassistant.data.AppDatabase
+import java.util.TimeZone
+
+object CalendarHelper {
+
+    fun createEvent(
+        context: Context,
+        title: String,
+        startTime: Long,
+        description: String = "",
+        location: String = "",
+        reminderMinutes: List<Int> = listOf(60, 1440)
+    ): Long {
+        val calId = getDefaultCalendarId(context) ?: return -1
+        val values = ContentValues().apply {
+            put(CalendarContract.Events.CALENDAR_ID, calId)
+            put(CalendarContract.Events.TITLE, title)
+            put(CalendarContract.Events.DTSTART, startTime)
+            put(CalendarContract.Events.DTEND, startTime + 3600_000)
+            put(CalendarContract.Events.DESCRIPTION, description)
+            put(CalendarContract.Events.EVENT_LOCATION, location)
+            put(CalendarContract.Events.EVENT_TIMEZONE, TimeZone.getDefault().id)
+        }
+        val uri = context.contentResolver.insert(CalendarContract.Events.CONTENT_URI, values) ?: return -1
+        val eventId = uri.lastPathSegment?.toLongOrNull() ?: return -1
+        for (min in reminderMinutes) {
+            val rv = ContentValues().apply {
+                put(CalendarContract.Reminders.EVENT_ID, eventId)
+                put(CalendarContract.Reminders.MINUTES, min)
+                put(CalendarContract.Reminders.METHOD, CalendarContract.Reminders.METHOD_ALERT)
+            }
+            context.contentResolver.insert(CalendarContract.Reminders.CONTENT_URI, rv)
+        }
+        return eventId
+    }
+
+    private fun getDefaultCalendarId(context: Context): Long? {
+        val cursor = context.contentResolver.query(
+            CalendarContract.Calendars.CONTENT_URI,
+            arrayOf(CalendarContract.Calendars._ID),
+            "${CalendarContract.Calendars.VISIBLE} = 1",
+            null, "${CalendarContract.Calendars._ID} ASC"
+        )
+        cursor?.use { if (it.moveToFirst()) return it.getLong(0) }
+        return null
+    }
+
+    suspend fun syncHearing(
+        context: Context,
+        db: AppDatabase,
+        info: HearingInfo,
+        sourceId: Long,
+        sourceType: String,
+        smsBody: String = "",
+        pdfFilePath: String = ""
+    ): Boolean {
+        if (info.hearingTime <= 0) return false
+        val dedupKey = buildDedupKey(info, sourceId)
+        val existing = db.calendarSyncDao().findByDedupKey(dedupKey)
+        if (existing != null) return false
+
+        val title = buildTitle(info)
+        val desc = buildDescription(info, smsBody, pdfFilePath)
+        val eventId = createEvent(context, title, info.hearingTime, desc, info.location)
+        if (eventId < 0) return false
+
+        db.calendarSyncDao().insert(
+            CalendarSyncRecord(
+                sourceId = sourceId, sourceType = sourceType,
+                eventId = eventId, syncStatus = 1,
+                dedupKey = dedupKey, syncedAt = System.currentTimeMillis()
+            )
+        )
+        return true
+    }
+
+    private fun buildDedupKey(info: HearingInfo, sourceId: Long): String {
+        // 优先用案号+时间+法院去重（短信和PDF来源共享同一key）
+        if (info.caseNo.isNotEmpty()) {
+            return "${info.caseNo}_${info.hearingTime}"
+        }
+        // 无案号时用时间+法院+当事人去重
+        if (info.hearingTime > 0 && (info.courtName.isNotEmpty() || info.partyName.isNotEmpty())) {
+            return "${info.hearingTime}_${info.courtName}_${info.partyName}"
+        }
+        return "${sourceId}_${info.hearingTime}"
+    }
+
+    private fun buildTitle(info: HearingInfo): String {
+        val parts = mutableListOf<String>()
+        if (info.courtName.isNotEmpty()) parts.add(shortenCourtName(info.courtName))
+        parts.add("开庭")
+        if (info.partyName.isNotEmpty()) parts.add(shortenPartyName(info.partyName))
+        else if (info.caseNo.isNotEmpty()) parts.add(info.caseNo)
+        return parts.joinToString(" ")
+    }
+
+    private fun buildDescription(info: HearingInfo, smsBody: String, pdfFilePath: String): String {
+        val sb = StringBuilder()
+        if (info.caseNo.isNotEmpty()) sb.appendLine("案号：${info.caseNo}")
+        if (info.courtName.isNotEmpty()) sb.appendLine("法院：${info.courtName}")
+        if (info.partyName.isNotEmpty()) sb.appendLine("当事人：${info.partyName}")
+        if (info.location.isNotEmpty()) sb.appendLine("地点：${info.location}")
+        if (info.judge.isNotEmpty()) sb.appendLine("承办人：${info.judge}")
+        if (pdfFilePath.isNotEmpty()) sb.appendLine("\n传票文件：$pdfFilePath")
+        if (smsBody.isNotEmpty()) sb.appendLine("\n短信原文：$smsBody")
+        return sb.toString().trim()
+    }
+
+    /** 山东省临沂市中级人民法院→临沂中院, 兰山区人民法院→兰山法院, 山东省高级人民法院→山东高院 */
+    fun shortenCourtName(name: String): String {
+        // 最高人民法院
+        if (name.contains("最高人民法院")) return "最高法院"
+        // XX省高级人民法院 → XX高院
+        val highMatch = Regex("(\\S{2,3}?)省?高级人民法院").find(name)
+        if (highMatch != null) return "${highMatch.groupValues[1]}高院"
+        // XX市中级人民法院 → XX中院
+        val midMatch = Regex("(\\S{2,4}?)(?:市|自治州)?中级人民法院").find(name)
+        if (midMatch != null) return "${midMatch.groupValues[1]}中院"
+        // XX区/县人民法院 → XX法院
+        val baseMatch = Regex("(\\S{2,4}?)(?:区|县|市)?人民法院").find(name)
+        if (baseMatch != null) return "${baseMatch.groupValues[1]}法院"
+        // XX人民法庭 → XX法庭
+        val courtMatch = Regex("(\\S{2,4}?)人民法庭").find(name)
+        if (courtMatch != null) return "${courtMatch.groupValues[1]}法庭"
+        // 仲裁
+        val arbMatch = Regex("(\\S{2,6}?)仲裁委员会").find(name)
+        if (arbMatch != null) return "${arbMatch.groupValues[1]}仲裁委"
+        return name
+    }
+
+    /** 公司名简化：超过6字取前4字+... */
+    fun shortenPartyName(name: String): String {
+        if (name.length <= 6) return name
+        // 个人名字一般2-4字，不缩
+        if (!name.contains("公司") && !name.contains("有限") && !name.contains("集团") && name.length <= 8) return name
+        return name.take(4) + "..."
+    }
+}

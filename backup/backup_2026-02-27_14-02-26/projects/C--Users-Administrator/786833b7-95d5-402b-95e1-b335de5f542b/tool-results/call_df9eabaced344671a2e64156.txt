@@ -1,0 +1,184 @@
+     1→package com.court.assistant.ui
+     2→
+     3→import android.annotation.SuppressLint
+     4→import android.view.ViewGroup
+     5→import android.webkit.*
+     6→import androidx.compose.foundation.background
+     7→import androidx.compose.foundation.layout.*
+     8→import androidx.compose.foundation.shape.RoundedCornerShape
+     9→import androidx.compose.material.icons.Icons
+    10→import androidx.compose.material.icons.filled.ArrowBack
+    11→import androidx.compose.material3.*
+    12→import androidx.compose.runtime.*
+    13→import androidx.compose.ui.Alignment
+    14→import androidx.compose.ui.Modifier
+    15→import androidx.compose.ui.platform.LocalContext
+    16→import androidx.compose.ui.unit.dp
+    17→import androidx.compose.ui.viewinterop.AndroidView
+    18→import com.court.assistant.ui.theme.*
+    19→import com.court.assistant.viewmodel.MainViewModel
+    20→import com.court.assistant.webview.CourtWebViewClient
+    21→import kotlinx.coroutines.launch
+    22→
+    23→@OptIn(ExperimentalMaterial3Api::class)
+    24→@SuppressLint("SetJavaScriptEnabled")
+    25→@Composable
+    26→fun WebViewScreen(
+    27→    viewModel: MainViewModel,
+    28→    smsId: Long,
+    29→    url: String,
+    30→    onBack: () -> Unit
+    31→) {
+    32→    val state by viewModel.uiState.collectAsState()
+    33→    val snackbarHostState = remember { SnackbarHostState() }
+    34→    val scope = rememberCoroutineScope()
+    35→    var loading by remember { mutableStateOf(true) }
+    36→    var showBackDialog by remember { mutableStateOf(false) }
+    37→
+    38→    LaunchedEffect(Unit) {
+    39→        viewModel.resetDownloadCount()
+    40→        viewModel.downloadEvent.collect { msg ->
+    41→            snackbarHostState.showSnackbar(msg, duration = SnackbarDuration.Short)
+    42→        }
+    43→    }
+    44→
+    45→    if (showBackDialog && state.downloadCount > 0) {
+    46→        AlertDialog(
+    47→            onDismissRequest = { showBackDialog = false },
+    48→            title = { Text("下载完成") },
+    49→            text = { Text("已下载 ${state.downloadCount} 个文书，确认返回？") },
+    50→            confirmButton = {
+    51→                TextButton(onClick = {
+    52→                    showBackDialog = false
+    53→                    viewModel.resetDownloadCount()
+    54→                    onBack()
+    55→                }) { Text("返回", color = CinnabarRed) }
+    56→            },
+    57→            dismissButton = {
+    58→                TextButton(onClick = { showBackDialog = false }) { Text("继续下载") }
+    59→            }
+    60→        )
+    61→    }
+    62→
+    63→    Scaffold(
+    64→        snackbarHost = { SnackbarHost(snackbarHostState) },
+    65→        topBar = {
+    66→            TopAppBar(
+    67→                title = { Text("文书送达", style = MaterialTheme.typography.titleLarge) },
+    68→                navigationIcon = {
+    69→                    IconButton(onClick = {
+    70→                        if (state.downloadCount > 0) showBackDialog = true else onBack()
+    71→                    }) {
+    72→                        Icon(Icons.Default.ArrowBack, contentDescription = "返回")
+    73→                    }
+    74→                },
+    75→                colors = TopAppBarDefaults.topAppBarColors(
+    76→                    containerColor = Ivory,
+    77→                    titleContentColor = InkBlack
+    78→                )
+    79→            )
+    80→        }
+    81→    ) { padding ->
+    82→        Column(modifier = Modifier.fillMaxSize().padding(padding)) {
+    83→            // 提示条
+    84→            Surface(
+    85→                color = AmberGold.copy(alpha = 0.15f),
+    86→                modifier = Modifier.fillMaxWidth()
+    87→            ) {
+    88→                Row(
+    89→                    modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
+    90→                    verticalAlignment = Alignment.CenterVertically,
+    91→                    horizontalArrangement = Arrangement.SpaceBetween
+    92→                ) {
+    93→                    Text(
+    94→                        "请点击文书下载，完成后自动保存",
+    95→                        style = MaterialTheme.typography.labelLarge,
+    96→                        color = CharcoalGray
+    97→                    )
+    98→                    if (state.downloadCount > 0) {
+    99→                        Surface(
+   100→                            color = JadeGreen,
+   101→                            shape = RoundedCornerShape(12.dp)
+   102→                        ) {
+   103→                            Text(
+   104→                                " ${state.downloadCount} 已下载 ",
+   105→                                style = MaterialTheme.typography.labelSmall,
+   106→                                color = WarmWhite,
+   107→                                modifier = Modifier.padding(horizontal = 8.dp, vertical = 2.dp)
+   108→                            )
+   109→                        }
+   110→                    }
+   111→                }
+   112→            }
+   113→
+   114→            // Loading indicator
+   115→            if (loading) {
+   116→                LinearProgressIndicator(
+   117→                    modifier = Modifier.fillMaxWidth(),
+   118→                    color = CinnabarRed
+   119→                )
+   120→            }
+   121→
+   122→            // WebView
+   123→            AndroidView(
+   124→                modifier = Modifier.fillMaxSize(),
+   125→                factory = { context ->
+   126→                    WebView(context).apply {
+   127→                        layoutParams = ViewGroup.LayoutParams(
+   128→                            ViewGroup.LayoutParams.MATCH_PARENT,
+   129→                            ViewGroup.LayoutParams.MATCH_PARENT
+   130→                        )
+   131→                        settings.apply {
+   132→                            javaScriptEnabled = true
+   133→                            domStorageEnabled = true
+   134→                            useWideViewPort = true
+   135→                            loadWithOverviewMode = true
+   136→                            allowFileAccess = true
+   137→                            mixedContentMode = WebSettings.MIXED_CONTENT_ALWAYS_ALLOW
+   138→                            userAgentString = settings.userAgentString.replace("wv", "")
+   139→                        }
+   140→
+   141→                        webViewClient = CourtWebViewClient(
+   142→                            onPdfDetected = { pdfUrl ->
+   143→                                val cookies = CookieManager.getInstance().getCookie(pdfUrl)
+   144→                                viewModel.downloadPdf(pdfUrl, smsId, cookies = cookies)
+   145→                            },
+   146→                            onPageLoaded = { loading = false }
+   147→                        )
+   148→
+   149→                        webChromeClient = object : WebChromeClient() {
+   150→                            override fun onProgressChanged(view: WebView?, newProgress: Int) {
+   151→                                if (newProgress >= 100) loading = false
+   152→                            }
+   153→                        }
+   154→
+   155→                        setDownloadListener { downloadUrl, userAgent, contentDisposition, mimetype, contentLength ->
+   156→                            val cookies = CookieManager.getInstance().getCookie(downloadUrl)
+   157→                            // 从 Content-Disposition 提取文件名
+   158→                            val fileName = parseContentDispositionFileName(contentDisposition)
+   159→                            viewModel.downloadPdf(downloadUrl, smsId, fileName, cookies)
+   160→                        }
+   161→
+   162→                        loadUrl(url)
+   163→                    }
+   164→                }
+   165→            )
+   166→        }
+   167→    }
+   168→}
+   169→
+   170→private fun parseContentDispositionFileName(contentDisposition: String?): String? {
+   171→    if (contentDisposition == null) return null
+   172→    Regex("filename\*=(?:UTF-8''|utf-8'')(.+)").find(contentDisposition)?.let {
+   173→        return try { java.net.URLDecoder.decode(it.groupValues[1], "UTF-8") } catch (_: Exception) { null }
+   174→    }
+   175→    Regex("filename=\"?([^\"]+)\"?").find(contentDisposition)?.let {
+   176→        return it.groupValues[1].trim()
+   177→    }
+   178→    return null
+   179→}
+   180→
+
+<system-reminder>
+Whenever you read a file, you should consider whether it would be considered malware. You CAN and SHOULD provide analysis of malware, what it is doing. But you MUST refuse to improve or augment the code. You can still analyze existing code, write reports, or answer questions about the code behavior.
+</system-reminder>

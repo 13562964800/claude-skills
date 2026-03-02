@@ -1,0 +1,361 @@
+package com.courassistant.java.utils;
+
+import android.content.ContentProviderOperation;
+import android.content.ContentResolver;
+import android.content.ContentUris;
+import android.content.ContentValues;
+import android.content.Context;
+import android.database.Cursor;
+import android.net.Uri;
+import android.provider.CalendarContract;
+import android.text.TextUtils;
+import android.util.Log;
+
+import com.shanfuchun.courtassistant.java.model.CalendarEvent;
+import com.shanfuchun.courtassistant.java.model.CourtCase;
+
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+
+/**
+ * 日历操作工具类
+ * 功能：
+ * 1. 读取所有可用的日历账户
+ * 2. 创建日历事件
+ * 3. 检查事件是否存在（去重）
+ * 4. 删除日历事件
+ */
+public class CalendarUtils {
+
+    private static final String TAG = "CalendarUtils";
+    private static final String EVENT_PROJECTION[] = {
+            CalendarContract.Events._ID,
+            CalendarContract.Events.TITLE,
+            CalendarContract.Events.DTSTART,
+            CalendarContract.Events.CALENDAR_ID
+    };
+
+    /**
+     * 日历账户信息
+     */
+    public static class CalendarAccount {
+        public String id;
+        public String name;
+        public String accountName;
+        public String accountType;
+        public int color;
+
+        public CalendarAccount(String id, String name, String accountName, String accountType, int color) {
+            this.id = id;
+            this.name = name;
+            this.accountName = accountName;
+            this.accountType = accountType;
+            this.color = color;
+        }
+
+        @Override
+        public String toString() {
+            return name + " (" + accountName + ")";
+        }
+    }
+
+    /**
+     * 获取所有可用的日历账户
+     */
+    public static List<CalendarAccount> getAvailableCalendars(Context context) {
+        List<CalendarAccount> calendars = new ArrayList<>();
+        ContentResolver cr = context.getContentResolver();
+
+        Cursor cursor = null;
+        try {
+            cursor = cr.query(
+                    CalendarContract.Calendars.CONTENT_URI,
+                    new String[]{
+                            CalendarContract.Calendars._ID,
+                            CalendarContract.Calendars.CALENDAR_DISPLAY_NAME,
+                            CalendarContract.Calendars.ACCOUNT_NAME,
+                            CalendarContract.Calendars.ACCOUNT_TYPE,
+                            CalendarContract.Calendars.CALENDAR_COLOR
+                    },
+                    null, null, null
+            );
+
+            if (cursor != null && cursor.moveToFirst()) {
+                int idIndex = cursor.getColumnIndex(CalendarContract.Calendars._ID);
+                int nameIndex = cursor.getColumnIndex(CalendarContract.Calendars.CALENDAR_DISPLAY_NAME);
+                int accountNameIndex = cursor.getColumnIndex(CalendarContract.Calendars.ACCOUNT_NAME);
+                int accountTypeIndex = cursor.getColumnIndex(CalendarContract.Calendars.ACCOUNT_TYPE);
+                int colorIndex = cursor.getColumnIndex(CalendarContract.Calendars.CALENDAR_COLOR);
+
+                while (cursor.moveToNext()) {
+                    String id = cursor.getString(idIndex);
+                    String name = cursor.getString(nameIndex);
+                    String accountName = cursor.getString(accountNameIndex);
+                    String accountType = cursor.getString(accountTypeIndex);
+                    int color = cursor.getInt(colorIndex);
+
+                    calendars.add(new CalendarAccount(id, name, accountName, accountType, color));
+                }
+            }
+        } catch (SecurityException e) {
+            Log.e(TAG, "没有日历权限", e);
+        } finally {
+            if (cursor != null) {
+                cursor.close();
+            }
+        }
+
+        return calendars;
+    }
+
+    /**
+     * 获取默认日历账户ID
+     * 优先选择本地日历，其次选择第一个可用日历
+     */
+    public static String getDefaultCalendarId(Context context) {
+        List<CalendarAccount> calendars = getAvailableCalendars(context);
+        if (calendars.isEmpty()) {
+            Log.w(TAG, "没有可用的日历账户");
+            return null;
+        }
+
+        // 优先选择本地日历
+        for (CalendarAccount account : calendars) {
+            if ("com.android.localcalendar".equals(account.accountType) ||
+                    "本地".equals(account.name)) {
+                return account.id;
+            }
+        }
+
+        // 返回第一个可用日历
+        return calendars.get(0).id;
+    }
+
+    /**
+     * 检查事件是否已存在（基于去重键）
+     * 去重规则：相同的案号和开始时间
+     */
+    public static boolean isEventExists(Context context, String caseNo, long startTime) {
+        ContentResolver cr = context.getContentResolver();
+
+        // 查询标题中包含案号且开始时间相同的事件
+        String selection = "(" + CalendarContract.Events.TITLE + " LIKE ?) AND " +
+                CalendarContract.Events.DTSTART + " = ?";
+        String[] selectionArgs = new String[]{"%" + caseNo + "%", String.valueOf(startTime)};
+
+        Cursor cursor = null;
+        try {
+            cursor = cr.query(
+                    CalendarContract.Events.CONTENT_URI,
+                    new String[]{CalendarContract.Events._ID},
+                    selection,
+                    selectionArgs,
+                    null
+            );
+
+            return cursor != null && cursor.getCount() > 0;
+        } catch (SecurityException e) {
+            Log.e(TAG, "检查事件失败", e);
+            return false;
+        } finally {
+            if (cursor != null) {
+                cursor.close();
+            }
+        }
+    }
+
+    /**
+     * 根据去重键查找已存在的事件ID
+     */
+    public static Long findExistingEventId(Context context, String dedupKey) {
+        // dedupKey 格式: caseNo_startTime
+        String[] parts = dedupKey.split("_");
+        if (parts.length < 2) {
+            return null;
+        }
+
+        String caseNo = parts[0];
+        long startTime;
+        try {
+            startTime = Long.parseLong(parts[parts.length - 1]);
+        } catch (NumberFormatException e) {
+            return null;
+        }
+
+        ContentResolver cr = context.getContentResolver();
+        String selection = "(" + CalendarContract.Events.TITLE + " LIKE ?) AND " +
+                CalendarContract.Events.DTSTART + " = ?";
+        String[] selectionArgs = new String[]{"%" + caseNo + "%", String.valueOf(startTime)};
+
+        Cursor cursor = null;
+        try {
+            cursor = cr.query(
+                    CalendarContract.Events.CONTENT_URI,
+                    new String[]{CalendarContract.Events._ID},
+                    selection,
+                    selectionArgs,
+                    null
+            );
+
+            if (cursor != null && cursor.moveToFirst()) {
+                int idIndex = cursor.getColumnIndex(CalendarContract.Events._ID);
+                return cursor.getLong(idIndex);
+            }
+        } catch (SecurityException e) {
+            Log.e(TAG, "查找事件失败", e);
+        } finally {
+            if (cursor != null) {
+                cursor.close();
+            }
+        }
+
+        return null;
+    }
+
+    /**
+     * 添加法院开庭事件到日历
+     *
+     * @param context  上下文
+     * @param courtCase 案件信息
+     * @return 事件ID，失败返回-1
+     */
+    public static long addCourtEvent(Context context, CourtCase courtCase) {
+        // 检查去重
+        if (isEventExists(context, courtCase.getCaseNo(), courtCase.getHearingDate())) {
+            Log.d(TAG, "事件已存在，跳过创建: " + courtCase.getCaseNo());
+            return -1;
+        }
+
+        String calendarId = getDefaultCalendarId(context);
+        if (calendarId == null) {
+            Log.e(TAG, "没有可用的日历账户");
+            return -1;
+        }
+
+        // 生成事件标题和描述
+        String title = buildEventTitle(courtCase);
+        String description = buildEventDescription(courtCase);
+
+        // 开始时间
+        long startTime = courtCase.getHearingDate();
+        // 默认开庭时长2小时
+        long endTime = startTime + (2 * 60 * 60 * 1000);
+
+        ContentValues values = new ContentValues();
+        values.put(CalendarContract.Events.CALENDAR_ID, calendarId);
+        values.put(CalendarContract.Events.TITLE, title);
+        values.put(CalendarContract.Events.DESCRIPTION, description);
+        values.put(CalendarContract.Events.EVENT_LOCATION, courtCase.getLocation());
+        values.put(CalendarContract.Events.DTSTART, startTime);
+        values.put(CalendarContract.Events.DTEND, endTime);
+        values.put(CalendarContract.Events.EVENT_TIMEZONE, "Asia/Shanghai");
+        values.put(CalendarContract.Events.HAS_ALARM, 1); // 设置提醒
+
+        Uri uri = null;
+        try {
+            uri = context.getContentResolver().insert(CalendarContract.Events.CONTENT_URI, values);
+            if (uri != null) {
+                long eventId = ContentUris.parseId(uri);
+                Log.d(TAG, "日历事件创建成功: id=" + eventId + ", caseNo=" + courtCase.getCaseNo());
+
+                // 添加提前15分钟的提醒
+                addReminder(context, eventId, 15);
+
+                return eventId;
+            }
+        } catch (SecurityException e) {
+            Log.e(TAG, "创建日历事件失败: 没有日历权限", e);
+        } catch (Exception e) {
+            Log.e(TAG, "创建日历事件失败", e);
+        }
+
+        return -1;
+    }
+
+    /**
+     * 添加事件提醒
+     */
+    private static void addReminder(Context context, long eventId, int minutes) {
+        ContentValues values = new ContentValues();
+        values.put(CalendarContract.Reminders.EVENT_ID, eventId);
+        values.put(CalendarContract.Reminders.METHOD, CalendarContract.Reminders.METHOD_ALERT);
+        values.put(CalendarContract.Reminders.MINUTES, minutes);
+
+        try {
+            context.getContentResolver().insert(CalendarContract.Reminders.CONTENT_URI, values);
+        } catch (Exception e) {
+            Log.e(TAG, "添加提醒失败", e);
+        }
+    }
+
+    /**
+     * 构建事件标题
+     * 格式: [案号] 当事人 - 开庭
+     */
+    private static String buildEventTitle(CourtCase courtCase) {
+        StringBuilder sb = new StringBuilder();
+        sb.append("[").append(courtCase.getCaseNo()).append("] ");
+        if (!TextUtils.isEmpty(courtCase.getPartyName())) {
+            sb.append(courtCase.getPartyName()).append(" ");
+        }
+        sb.append("- 开庭");
+        return sb.toString();
+    }
+
+    /**
+     * 构建事件描述
+     */
+    private static String buildEventDescription(CourtCase courtCase) {
+        StringBuilder sb = new StringBuilder();
+        sb.append("法院: ").append(courtCase.getCourtFullName()).append("\n");
+        if (!TextUtils.isEmpty(courtCase.getLocation())) {
+            sb.append("地点: ").append(courtCase.getLocation()).append("\n");
+        }
+        sb.append("案号: ").append(courtCase.getCaseNo());
+        return sb.toString();
+    }
+
+    /**
+     * 删除日历事件
+     */
+    public static boolean deleteEvent(Context context, long eventId) {
+        Uri deleteUri = ContentUris.withAppendedId(CalendarContract.Events.CONTENT_URI, eventId);
+        try {
+            int rows = context.getContentResolver().delete(deleteUri, null, null);
+            Log.d(TAG, "删除事件: id=" + eventId + ", rows=" + rows);
+            return rows > 0;
+        } catch (Exception e) {
+            Log.e(TAG, "删除事件失败", e);
+            return false;
+        }
+    }
+
+    /**
+     * 获取事件详情
+     */
+    public static Map<String, Object> getEventDetails(Context context, long eventId) {
+        Map<String, Object> details = new HashMap<>();
+        ContentResolver cr = context.getContentResolver();
+
+        Uri uri = ContentUris.withAppendedId(CalendarContract.Events.CONTENT_URI, eventId);
+        Cursor cursor = null;
+        try {
+            cursor = cr.query(uri, EVENT_PROJECTION, null, null, null);
+            if (cursor != null && cursor.moveToFirst()) {
+                details.put("title", cursor.getString(1));
+                details.put("startTime", cursor.getLong(2));
+                details.put("calendarId", cursor.getString(3));
+            }
+        } catch (Exception e) {
+            Log.e(TAG, "获取事件详情失败", e);
+        } finally {
+            if (cursor != null) {
+                cursor.close();
+            }
+        }
+
+        return details;
+    }
+}

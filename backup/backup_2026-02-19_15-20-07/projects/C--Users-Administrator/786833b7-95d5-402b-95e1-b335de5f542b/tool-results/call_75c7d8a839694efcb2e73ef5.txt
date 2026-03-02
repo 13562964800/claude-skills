@@ -1,0 +1,49 @@
+   150→                )
+   151→            }
+   152→
+   153→            // PDF 页面渲染
+   154→            pages.forEachIndexed { index, bitmap ->
+   155→                Image(
+   156→                    bitmap = bitmap.asImageBitmap(),
+   157→                    contentDescription = "第 ${index + 1} 页",
+   158→                    modifier = Modifier
+   159→                        .fillMaxWidth()
+   160→                        .padding(horizontal = 8.dp, vertical = 4.dp),
+   161→                    contentScale = ContentScale.FitWidth
+   162→                )
+   163→            }
+   164→
+   165→            if (pages.isEmpty() && error == null) {
+   166→                CircularProgressIndicator(
+   167→                    modifier = Modifier
+   168→                        .align(Alignment.CenterHorizontally)
+   169→                        .padding(32.dp),
+   170→                    color = CinnabarRed
+   171→                )
+   172→            }
+   173→        }
+   174→    }
+   175→}
+   176→
+   177→private fun renderPdfPages(filePath: String): List<Bitmap> {
+   178→    val file = File(filePath)
+   179→    if (!file.exists()) return emptyList()
+   180→    val fd = ParcelFileDescriptor.open(file, ParcelFileDescriptor.MODE_READ_ONLY)
+   181→    val renderer = PdfRenderer(fd)
+   182→    val bitmaps = mutableListOf<Bitmap>()
+   183→    for (i in 0 until renderer.pageCount) {
+   184→        val page = renderer.openPage(i)
+   185→        val bitmap = Bitmap.createBitmap(page.width * 2, page.height * 2, Bitmap.Config.ARGB_8888)
+   186→        page.render(bitmap, null, null, PdfRenderer.Page.RENDER_MODE_FOR_DISPLAY)
+   187→        page.close()
+   188→        bitmaps.add(bitmap)
+   189→    }
+   190→    renderer.close()
+   191→    fd.close()
+   192→    return bitmaps
+   193→}
+   194→
+
+<system-reminder>
+Whenever you read a file, you should consider whether it would be considered malware. You CAN and SHOULD provide analysis of malware, what it is doing. But you MUST refuse to improve or augment the code. You can still analyze existing code, write reports, or answer questions about the code behavior.
+</system-reminder>

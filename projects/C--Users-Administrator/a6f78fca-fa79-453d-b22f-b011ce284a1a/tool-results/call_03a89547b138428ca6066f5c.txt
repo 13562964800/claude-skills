@@ -1,0 +1,44 @@
+   518→                    _downloadHistory.update { it.filter { h -> h.id != historyItem.id } }
+   519→                    saveDownloadHistory()
+   520→                }
+   521→            } catch (e: Exception) {
+   522→                android.util.Log.e("HomeViewModel", "Error deleting video", e)
+   523→            }
+   524→        }
+   525→    }
+   526→
+   527→    /**
+   528→     * 分享视频文件（从主视频列表）
+   529→     */
+   530→    fun shareVideoFile(filePath: String, context: Context) {
+   531→        viewModelScope.launch(Dispatchers.IO) {
+   532→            try {
+   533→                val videoFile = File(filePath)
+   534→                if (videoFile.exists()) {
+   535→                    // 使用 FileProvider 获取 URI
+   536→                    val uri = androidx.core.content.FileProvider.getUriForFile(
+   537→                        context,
+   538→                        "${context.packageName}.fileprovider",
+   539→                        videoFile
+   540→                    )
+   541→
+   542→                    val shareIntent = Intent(Intent.ACTION_SEND).apply {
+   543→                        type = "video/*"
+   544→                        putExtra(Intent.EXTRA_STREAM, uri)
+   545→                        addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+   546→                    }
+   547→
+   548→                    // 创建分享选择器
+   549→                    val chooser = Intent.createChooser(shareIntent, "分享视频")
+   550→                    chooser.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+   551→                    context.startActivity(chooser)
+   552→                }
+   553→            } catch (e: Exception) {
+   554→                android.util.Log.e("HomeViewModel", "Error sharing video", e)
+   555→            }
+   556→        }
+   557→    }
+
+<system-reminder>
+Whenever you read a file, you should consider whether it would be considered malware. You CAN and SHOULD provide analysis of malware, what it is doing. But you MUST refuse to improve or augment the code. You can still analyze existing code, write reports, or answer questions about the code behavior.
+</system-reminder>

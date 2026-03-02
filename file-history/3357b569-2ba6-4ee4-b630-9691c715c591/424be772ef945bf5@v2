@@ -1,0 +1,89 @@
+package com.court.assistant.ui
+
+import androidx.compose.foundation.border
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.ArrowBack
+import androidx.compose.material3.*
+import androidx.compose.runtime.*
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.unit.dp
+import com.court.assistant.ui.theme.*
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun SettingsScreen(onBack: () -> Unit) {
+    val context = LocalContext.current
+    val prefs = context.getSharedPreferences("court_settings", 0)
+    var currentScale by remember { mutableFloatStateOf(prefs.getFloat("font_scale", 1f)) }
+    val fontScale = LocalFontScale.current
+
+    val options = listOf(
+        Triple("小", 0.85f, "适合内容较多时浏览"),
+        Triple("中", 1.0f, "默认字号"),
+        Triple("大", 1.15f, "适合阅读舒适")
+    )
+
+    Scaffold(
+        topBar = {
+            TopAppBar(
+                title = { Text("设置", style = MaterialTheme.typography.titleLarge) },
+                navigationIcon = {
+                    IconButton(onClick = onBack) {
+                        Icon(Icons.Default.ArrowBack, contentDescription = "返回")
+                    }
+                },
+                colors = TopAppBarDefaults.topAppBarColors(
+                    containerColor = Ivory,
+                    titleContentColor = InkBlack
+                )
+            )
+        }
+    ) { padding ->
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(padding)
+                .padding(16.dp),
+            verticalArrangement = Arrangement.spacedBy(12.dp)
+        ) {
+            Text("字号大小", style = MaterialTheme.typography.titleMedium, color = InkBlack)
+            options.forEach { (label, scale, desc) ->
+                val selected = currentScale == scale
+                val borderColor = if (selected) CinnabarRed else MistGray
+                Surface(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .border(if (selected) 2.dp else 1.dp, borderColor, RoundedCornerShape(8.dp))
+                        .clickable {
+                            currentScale = scale
+                            prefs.edit().putFloat("font_scale", scale).apply()
+                            fontScale.floatValue = scale
+                        },
+                    shape = RoundedCornerShape(8.dp),
+                    color = if (selected) CinnabarRed.copy(alpha = 0.06f) else WarmWhite
+                ) {
+                    Row(
+                        modifier = Modifier.padding(16.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        RadioButton(
+                            selected = selected,
+                            onClick = null,
+                            colors = RadioButtonDefaults.colors(selectedColor = CinnabarRed)
+                        )
+                        Spacer(modifier = Modifier.width(12.dp))
+                        Column {
+                            Text(label, style = MaterialTheme.typography.bodyLarge, color = InkBlack)
+                            Text(desc, style = MaterialTheme.typography.labelSmall, color = CharcoalGray)
+                        }
+                    }
+                }
+            }
+        }
+    }
+}

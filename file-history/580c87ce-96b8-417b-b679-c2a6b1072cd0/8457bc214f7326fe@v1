@@ -1,0 +1,56 @@
+package com.court.assistant.ui.theme
+
+import androidx.compose.material3.*
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.compositionLocalOf
+import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.runtime.mutableFloatStateOf
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalContext
+
+// 字号缩放 CompositionLocal
+val LocalFontScale = compositionLocalOf { mutableFloatStateOf(1f) }
+
+// 宋式美学配色 - 取自汝窑青瓷、水墨绢帛、茶烟素雅
+val Ivory = Color(0xFFF6F2EB)          // 绢帛底色
+val WarmWhite = Color(0xFFFAF8F4)      // 宣纸白
+val InkBlack = Color(0xFF1A1A1A)       // 浓墨
+val CharcoalGray = Color(0xFF3D3B38)   // 淡墨
+val CinnabarRed = Color(0xFF8B4C3B)    // 赭石（沉稳的宋式红褐）
+val LightCinnabar = Color(0xFFBE8978)  // 浅赭
+val MistGray = Color(0xFFDDD8D0)       // 烟灰
+val ParchmentBg = Color(0xFFEDE8DF)    // 素笺
+val JadeGreen = Color(0xFF6B8E6B)      // 青瓷绿
+val AmberGold = Color(0xFFB09563)      // 茶色金
+
+private val CourtColorScheme = lightColorScheme(
+    primary = CinnabarRed,
+    onPrimary = Color.White,
+    primaryContainer = LightCinnabar.copy(alpha = 0.2f),
+    onPrimaryContainer = CinnabarRed,
+    secondary = CharcoalGray,
+    onSecondary = Color.White,
+    background = Ivory,
+    onBackground = InkBlack,
+    surface = WarmWhite,
+    onSurface = InkBlack,
+    surfaceVariant = ParchmentBg,
+    onSurfaceVariant = CharcoalGray,
+    outline = MistGray,
+    tertiary = JadeGreen,
+    tertiaryContainer = AmberGold
+)
+
+@Composable
+fun CourtAssistantTheme(content: @Composable () -> Unit) {
+    val context = LocalContext.current
+    val prefs = context.getSharedPreferences("court_settings", 0)
+    val scaleState = LocalFontScale.current
+    scaleState.floatValue = prefs.getFloat("font_scale", 1f)
+
+    MaterialTheme(
+        colorScheme = CourtColorScheme,
+        typography = courtTypography(scaleState.floatValue),
+        content = content
+    )
+}

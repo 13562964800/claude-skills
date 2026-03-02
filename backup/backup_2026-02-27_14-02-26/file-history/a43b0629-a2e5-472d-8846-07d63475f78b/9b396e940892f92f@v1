@@ -1,0 +1,24 @@
+import React from 'react';
+import {NavigationContainer} from '@react-navigation/native';
+import {createNativeStackNavigator} from '@react-navigation/native-stack';
+import HomeScreen from './src/screens/HomeScreen';
+import ResultScreen from './src/screens/ResultScreen';
+import SettingsScreen from './src/screens/SettingsScreen';
+
+const Stack = createNativeStackNavigator();
+
+export default function App() {
+  return (
+    <NavigationContainer>
+      <Stack.Navigator
+        screenOptions={{
+          headerStyle: {backgroundColor: '#1a73e8'},
+          headerTintColor: '#fff',
+        }}>
+        <Stack.Screen name="Home" component={HomeScreen} options={{title: '录音文档对比'}} />
+        <Stack.Screen name="Result" component={ResultScreen} options={{title: '对比结果'}} />
+        <Stack.Screen name="Settings" component={SettingsScreen} options={{title: '设置'}} />
+      </Stack.Navigator>
+    </NavigationContainer>
+  );
+}

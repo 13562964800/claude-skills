@@ -1,0 +1,152 @@
+// B站页面注入脚本
+
+(function() {
+  'use strict';
+
+  let downloadButton = null;
+
+  // 初始化
+  function init() {
+    // B站也使用 SPA
+    let lastUrl = location.href;
+    new MutationObserver(() => {
+      const url = location.href;
+      if (url !== lastUrl) {
+        lastUrl = url;
+        onUrlChange();
+      }
+    }).observe(document, { subtree: true, childList: true });
+
+    onUrlChange();
+  }
+
+  // URL 变化处理
+  function onUrlChange() {
+    if (isVideoPage()) {
+      setTimeout(injectButton, 1000);
+    } else {
+      removeButton();
+    }
+  }
+
+  // 判断是否为视频页面
+  function isVideoPage() {
+    return location.pathname.startsWith('/video/') ||
+           location.pathname.startsWith('/bangumi/play/');
+  }
+
+  // 注入下载按钮
+  function injectButton() {
+    if (downloadButton && document.contains(downloadButton)) {
+      return;
+    }
+
+    // 查找按钮容器（视频下方的操作栏）
+    const container = document.querySelector('.video-toolbar-left') ||
+                     document.querySelector('.ops');
+
+    if (!container) {
+      console.log('未找到按钮容器，稍后重试');
+      setTimeout(injectButton, 1000);
+      return;
+    }
+
+    downloadButton = createDownloadButton();
+    container.appendChild(downloadButton);
+
+    console.log('下载按钮已注入');
+  }
+
+  // 创建下载按钮
+  function createDownloadButton() {
+    const button = document.createElement('div');
+    button.className = 'video-dl-button bilibili-style';
+    button.innerHTML = `
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor">
+        <path d="M19 9h-4V3H9v6H5l7 7 7-7zM5 18v2h14v-2H5z"/>
+      </svg>
+      <span>下载转录</span>
+    `;
+
+    button.addEventListener('click', handleDownload);
+
+    return button;
+  }
+
+  // 移除按钮
+  function removeButton() {
+    if (downloadButton && document.contains(downloadButton)) {
+      downloadButton.remove();
+      downloadButton = null;
+    }
+  }
+
+  // 处理下载
+  async function handleDownload(e) {
+    e.preventDefault();
+
+    const button = e.currentTarget;
+    const originalHTML = button.innerHTML;
+    button.style.pointerEvents = 'none';
+    button.innerHTML = '<span>正在提取...</span>';
+
+    try {
+      const videoInfo = extractVideoInfo();
+
+      chrome.runtime.sendMessage({
+        action: 'download',
+        data: videoInfo
+      }, (response) => {
+        if (response && response.success) {
+          button.innerHTML = '<span>✓ 已发送</span>';
+          setTimeout(() => {
+            button.style.pointerEvents = 'auto';
+            button.innerHTML = originalHTML;
+          }, 2000);
+        } else {
+          throw new Error('发送失败');
+        }
+      });
+    } catch (error) {
+      console.error('下载失败:', error);
+      button.innerHTML = '<span>✗ 失败</span>';
+      button.style.pointerEvents = 'auto';
+    }
+  }
+
+  // 提取视频信息
+  function extractVideoInfo() {
+    const url = location.href;
+
+    // 提取 BV 号或 AV 号
+    let videoId = '';
+    const bvMatch = url.match(/BV[\w]+/);
+    const avMatch = url.match(/av(\d+)/);
+    if (bvMatch) {
+      videoId = bvMatch[0];
+    } else if (avMatch) {
+      videoId = 'av' + avMatch[1];
+    }
+
+    // 提取标题
+    let title = document.querySelector('h1.video-title')?.textContent?.trim() ||
+                document.querySelector('.media-title')?.textContent?.trim() ||
+                document.title.replace('_哔哩哔哩_bilibili', '');
+
+    title = title.replace(/[<>:"/\\|?*]/g, '_');
+
+    return {
+      url: url,
+      videoId: videoId,
+      title: title,
+      platform: 'bilibili'
+    };
+  }
+
+  // 启动
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', init);
+  } else {
+    init();
+  }
+})();

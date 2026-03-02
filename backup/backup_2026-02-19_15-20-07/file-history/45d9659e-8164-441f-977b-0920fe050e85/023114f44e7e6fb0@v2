@@ -1,0 +1,70 @@
+package com.shanfuchun.courtassistant.sms
+
+import android.content.Context
+import android.content.Intent
+import android.util.Log
+import androidx.core.content.FileProvider
+import com.shanfuchun.courtassistant.App
+import com.shanfuchun.courtassistant.data.AppDatabase
+import com.shanfuchun.courtassistant.data.SmsRecord
+import com.shanfuchun.courtassistant.service.CalendarHelper
+import com.shanfuchun.courtassistant.service.PdfDownloader
+import com.shanfuchun.courtassistant.service.TextParser
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.withContext
+
+object SmsProcessor {
+    private const val TAG = "CourtAssistant"
+
+    suspend fun process(context: Context, db: AppDatabase, sms: SmsRecord) {
+        Log.d(TAG, "SmsProcessor: processing sms id=${sms.id}")
+        val info = TextParser.parse(sms.body)
+        Log.d(TAG, "SmsProcessor: parsed info: time=${info.hearingTime} court=${info.courtName} case=${info.caseNo}")
+
+        // 回写 courtName/partyName 到短信记录
+        if (info.courtName.isNotEmpty() || info.partyName.isNotEmpty()) {
+            db.smsDao().update(sms.copy(courtName = info.courtName, partyName = info.partyName))
+        }
+
+        // 同步开庭信息到日历
+        if (info.hearingTime > 0) {
+            val synced = CalendarHelper.syncHearing(context, db, info, sms.id, "sms", sms.body)
+            Log.d(TAG, "SmsProcessor: calendar synced=$synced")
+        }
+
+        // 提取URL
+        val urls = TextParser.extractUrls(sms.body)
+        Log.d(TAG, "SmsProcessor: found ${urls.size} urls: $urls")
+
+        if (urls.isNotEmpty()) {
+            // 直接启动WebView处理所有PDF下载
+            withContext(Dispatchers.Main) {
+                for (url in urls) {
+                    val intent = Intent(context, com.shanfuchun.courtassistant.ui.WebViewActivity::class.java).apply {
+                        putExtra("url", url)
+                        putExtra("smsId", sms.id)
+                        putExtra("autoMode", true) // 自动模式
+                        addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                    }
+                    // 延迟启动，避免多个WebView同时打开
+                    delay(500)
+                    try {
+                        context.startActivity(intent)
+                        Log.d(TAG, "SmsProcessor: started WebView for $url")
+                    } catch (e: Exception) {
+                        Log.e(TAG, "SmsProcessor: failed to start WebView", e)
+                    }
+                }
+            }
+        }
+
+        // 重新读取，避免覆盖 PdfParser 设置的 hasSummons
+        val updated = db.smsDao().getById(sms.id) ?: sms
+        db.smsDao().update(updated.copy(
+            parseStatus = 1,
+            courtName = info.courtName.ifEmpty { updated.courtName },
+            partyName = info.partyName.ifEmpty { updated.partyName }
+        ))
+    }
+}

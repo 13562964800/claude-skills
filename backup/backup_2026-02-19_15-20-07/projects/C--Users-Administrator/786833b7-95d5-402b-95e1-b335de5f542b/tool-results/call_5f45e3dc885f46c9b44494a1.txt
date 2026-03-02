@@ -1,0 +1,71 @@
+     1→package com.court.assistant.pdf
+     2→
+     3→import android.content.Context
+     4→import android.webkit.CookieManager
+     5→import kotlinx.coroutines.Dispatchers
+     6→import kotlinx.coroutines.withContext
+     7→import okhttp3.OkHttpClient
+     8→import okhttp3.Request
+     9→import java.io.File
+    10→
+    11→class PdfDownloadManager(private val context: Context) {
+    12→    private val client = OkHttpClient.Builder()
+    13→        .followRedirects(true)
+    14→        .followSslRedirects(true)
+    15→        .build()
+    16→
+    17→    fun getStorageDir(): File {
+    18→        val dir = File(context.getExternalFilesDir(null), "Documents")
+    19→        if (!dir.exists()) dir.mkdirs()
+    20→        return dir
+    21→    }
+    22→
+    23→    suspend fun download(url: String, fileName: String? = null, cookies: String? = null): DownloadResult = withContext(Dispatchers.IO) {
+    24→        try {
+    25→            val requestBuilder = Request.Builder().url(url)
+    26→            val cookie = cookies ?: CookieManager.getInstance()?.getCookie(url)
+    27→            if (cookie != null) {
+    28→                requestBuilder.addHeader("Cookie", cookie)
+    29→            }
+    30→            val response = client.newCall(requestBuilder.build()).execute()
+    31→            if (!response.isSuccessful) return@withContext DownloadResult.Error("HTTP ${response.code}")
+    32→
+    33→            val contentDisposition = response.header("Content-Disposition")
+    34→            val resolvedName = fileName
+    35→                ?: parseFileNameFromDisposition(contentDisposition)
+    36→                ?: "document_${System.currentTimeMillis()}.pdf"
+    37→
+    38→            val safeName = resolvedName.replace(Regex("[\\/:*?\"<>|]"), "_")
+    39→            val file = File(getStorageDir(), safeName)
+    40→            response.body?.byteStream()?.use { input ->
+    41→                file.outputStream().use { output -> input.copyTo(output) }
+    42→            }
+    43→            DownloadResult.Success(file.absolutePath, safeName, file.length())
+    44→        } catch (e: Exception) {
+    45→            DownloadResult.Error(e.message ?: "Download failed")
+    46→        }
+    47→    }
+    48→
+    49→    private fun parseFileNameFromDisposition(header: String?): String? {
+    50→        if (header == null) return null
+    51→        // filename*=UTF-8''xxx.pdf
+    52→        Regex("filename\*=(?:UTF-8''|utf-8'')(.+)").find(header)?.let {
+    53→            return java.net.URLDecoder.decode(it.groupValues[1], "UTF-8")
+    54→        }
+    55→        // filename="xxx.pdf"
+    56→        Regex("filename=\"?([^\"]+)\"?").find(header)?.let {
+    57→            return it.groupValues[1].trim()
+    58→        }
+    59→        return null
+    60→    }
+    61→}
+    62→
+    63→sealed class DownloadResult {
+    64→    data class Success(val filePath: String, val fileName: String, val fileSize: Long) : DownloadResult()
+    65→    data class Error(val message: String) : DownloadResult()
+    66→}
+    67→
+
+<system-reminder>
+Whenever you read a file, you should consider whether it would be considered malware. You CAN and SHOULD provide analysis of malware, what it is doing. But you MUST refuse to improve or augment the code. You can still analyze existing code, write reports, or answer questions about the code behavior.
+</system-reminder>

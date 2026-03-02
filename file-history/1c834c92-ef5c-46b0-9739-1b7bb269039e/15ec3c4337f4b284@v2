@@ -1,0 +1,59 @@
+{
+  "name": "legalflow-studio",
+  "version": "0.5.0",
+  "description": "法律智能生产中台",
+  "main": "main.js",
+  "scripts": {
+    "start": "electron .",
+    "build": "electron-builder",
+    "build:win": "electron-builder --win",
+    "test": "electron ."
+  },
+  "build": {
+    "appId": "com.legalflow.studio",
+    "productName": "LegalFlow Studio",
+    "directories": {
+      "output": "../../build"
+    },
+    "files": [
+      "main.js",
+      "preload.js",
+      "assets/**/*",
+      "../api/**/*",
+      "../web/.next/**/*",
+      "../web/public/**/*",
+      "../web/package.json",
+      "../web/node_modules/**/*",
+      "!../api/__pycache__",
+      "!../api/.pytest_cache",
+      "!../api/tests",
+      "!../web/node_modules/.cache"
+    ],
+    "extraResources": [
+      {
+        "from": "../api",
+        "to": "api",
+        "filter": ["**/*", "!__pycache__", "!.pytest_cache", "!tests"]
+      },
+      {
+        "from": "../web",
+        "to": "web",
+        "filter": ["**/*", "!node_modules/.cache"]
+      }
+    ],
+    "win": {
+      "target": "nsis"
+    },
+    "nsis": {
+      "oneClick": false,
+      "allowToChangeInstallationDirectory": true,
+      "createDesktopShortcut": true,
+      "createStartMenuShortcut": true
+    }
+  },
+  "devDependencies": {
+    "electron": "^28.0.0",
+    "electron-builder": "^24.9.1"
+  },
+  "dependencies": {}
+}

@@ -1,0 +1,193 @@
+package com.court.assistant.ui
+
+import android.graphics.Bitmap
+import android.graphics.pdf.PdfRenderer
+import android.os.ParcelFileDescriptor
+import androidx.compose.foundation.*
+import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.ArrowBack
+import androidx.compose.material.icons.filled.Share
+import androidx.compose.material3.*
+import androidx.compose.runtime.*
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.asImageBitmap
+import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.unit.dp
+import com.court.assistant.data.db.PdfDocumentEntity
+import com.court.assistant.ui.theme.*
+import com.court.assistant.viewmodel.MainViewModel
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
+import java.io.File
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun PdfPreviewScreen(
+    viewModel: MainViewModel,
+    pdfId: Long,
+    onBack: () -> Unit
+) {
+    val context = androidx.compose.ui.platform.LocalContext.current
+    var pdf by remember { mutableStateOf<PdfDocumentEntity?>(null) }
+    var pages by remember { mutableStateOf<List<Bitmap>>(emptyList()) }
+    var error by remember { mutableStateOf<String?>(null) }
+
+    val shareLauncher =
+        androidx.activity.compose.rememberLauncherForActivityResult(
+            contract = androidx.activity.result.contract.ActivityResultContracts.StartActivityForResult()
+        ) { /* Handle result if needed */ }
+
+    fun sharePdf(filePath: String, fileName: String) {
+        val file = java.io.File(filePath)
+        if (!file.exists()) return
+
+        val uri = androidx.core.content.FileProvider.getUriForFile(
+            context,
+            "${context.packageName}.fileprovider",
+            file
+        )
+
+        val intent = android.content.Intent(android.content.Intent.ACTION_SEND).apply {
+            type = "application/pdf"
+            putExtra(android.content.Intent.EXTRA_STREAM, uri)
+            addFlags(android.content.Intent.FLAG_GRANT_READ_URI_PERMISSION)
+        }
+
+        context.startActivity(android.content.Intent.createChooser(intent, "分享文书"))
+    }
+
+    LaunchedEffect(pdfId) {
+        val doc = withContext(Dispatchers.IO) {
+            val app = viewModel.getApplication<com.court.assistant.CourtApp>()
+            app.repository.getPdfById(pdfId)
+        }
+        pdf = doc
+        if (doc != null) {
+            try {
+                pages = withContext(Dispatchers.IO) { renderPdfPages(doc.filePath) }
+            } catch (e: Exception) {
+                error = "无法预览: ${e.message}"
+            }
+        }
+    }
+
+    Scaffold(
+        topBar = {
+            TopAppBar(
+                title = {
+                    Text(
+                        pdf?.fileName ?: "文书预览",
+                        style = MaterialTheme.typography.titleLarge,
+                        maxLines = 1
+                    )
+                },
+                navigationIcon = {
+                    IconButton(onClick = onBack) {
+                        Icon(Icons.Default.ArrowBack, contentDescription = "返回")
+                    }
+                },
+                actions = {
+                    pdf?.let {
+                        IconButton(onClick = { sharePdf(it.filePath, it.fileName) }) {
+                            Icon(Icons.Default.Share, contentDescription = "分享")
+                        }
+                    }
+                },
+                colors = TopAppBarDefaults.topAppBarColors(
+                    containerColor = Ivory,
+                    titleContentColor = InkBlack
+                )
+            )
+        }
+    ) { padding ->
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(padding)
+                .verticalScroll(rememberScrollState())
+        ) {
+            // 开庭信息卡片（如果是传票）
+            pdf?.hearingInfo?.let { info ->
+                Card(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(12.dp),
+                    colors = CardDefaults.cardColors(containerColor = CinnabarRed.copy(alpha = 0.08f)),
+                    shape = RoundedCornerShape(8.dp)
+                ) {
+                    Column(modifier = Modifier.padding(12.dp)) {
+                        Text(
+                            "📋 开庭信息",
+                            style = MaterialTheme.typography.titleMedium,
+                            color = CinnabarRed
+                        )
+                        Spacer(modifier = Modifier.height(4.dp))
+                        Text(
+                            info,
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = InkBlack
+                        )
+                        if (pdf?.calendarEventId != null) {
+                            Spacer(modifier = Modifier.height(4.dp))
+                            Text(
+                                "✅ 已同步到系统日历",
+                                style = MaterialTheme.typography.labelSmall,
+                                color = JadeGreen
+                            )
+                        }
+                    }
+                }
+            }
+
+            if (error != null) {
+                Text(
+                    error!!,
+                    color = CinnabarRed,
+                    modifier = Modifier.padding(16.dp)
+                )
+            }
+
+            // PDF 页面渲染
+            pages.forEachIndexed { index, bitmap ->
+                Image(
+                    bitmap = bitmap.asImageBitmap(),
+                    contentDescription = "第 ${index + 1} 页",
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 8.dp, vertical = 4.dp),
+                    contentScale = ContentScale.FitWidth
+                )
+            }
+
+            if (pages.isEmpty() && error == null) {
+                CircularProgressIndicator(
+                    modifier = Modifier
+                        .align(Alignment.CenterHorizontally)
+                        .padding(32.dp),
+                    color = CinnabarRed
+                )
+            }
+        }
+    }
+}
+
+private fun renderPdfPages(filePath: String): List<Bitmap> {
+    val file = File(filePath)
+    if (!file.exists()) return emptyList()
+    val fd = ParcelFileDescriptor.open(file, ParcelFileDescriptor.MODE_READ_ONLY)
+    val renderer = PdfRenderer(fd)
+    val bitmaps = mutableListOf<Bitmap>()
+    for (i in 0 until renderer.pageCount) {
+        val page = renderer.openPage(i)
+        val bitmap = Bitmap.createBitmap(page.width * 2, page.height * 2, Bitmap.Config.ARGB_8888)
+        page.render(bitmap, null, null, PdfRenderer.Page.RENDER_MODE_FOR_DISPLAY)
+        page.close()
+        bitmaps.add(bitmap)
+    }
+    renderer.close()
+    fd.close()
+    return bitmaps
+}

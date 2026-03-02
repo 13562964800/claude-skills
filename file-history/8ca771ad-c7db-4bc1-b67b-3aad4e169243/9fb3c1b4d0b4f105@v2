@@ -1,0 +1,109 @@
+"""
+SQLite 数据库
+"""
+
+import sqlite3
+from datetime import datetime
+from pathlib import Path
+from typing import Dict, List, Optional
+
+class Database:
+    def __init__(self, db_path: str):
+        self.db_path = Path(db_path)
+        self.db_path.parent.mkdir(parents=True, exist_ok=True)
+        self._init_db()
+
+    def _init_db(self):
+        """初始化数据库"""
+        conn = sqlite3.connect(self.db_path)
+        cursor = conn.cursor()
+
+        # 创建任务表
+        cursor.execute('''
+            CREATE TABLE IF NOT EXISTS tasks (
+                task_id TEXT PRIMARY KEY,
+                url TEXT NOT NULL,
+                title TEXT,
+                platform TEXT,
+                status TEXT,
+                percent TEXT,
+                video_path TEXT,
+                transcript_path TEXT,
+                language TEXT,
+                engine TEXT,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            )
+        ''')
+
+        conn.commit()
+        conn.close()
+
+    def create_task(self, task: Dict):
+        """创建任务"""
+        conn = sqlite3.connect(self.db_path)
+        cursor = conn.cursor()
+
+        cursor.execute('''
+            INSERT INTO tasks (task_id, url, title, platform, status, percent)
+            VALUES (?, ?, ?, ?, ?, ?)
+        ''', (
+            task['task_id'],
+            task['url'],
+            task.get('title'),
+            task.get('platform'),
+            task.get('status', 'pending'),
+            task.get('percent', '0%')
+        ))
+
+        conn.commit()
+        conn.close()
+
+    def update_task(self, task_id: str, updates: Dict):
+        """更新任务"""
+        conn = sqlite3.connect(self.db_path)
+        cursor = conn.cursor()
+
+        set_clause = ', '.join([f"{k} = ?" for k in updates.keys()])
+        values = list(updates.values()) + [task_id]
+
+        cursor.execute(f'''
+            UPDATE tasks
+            SET {set_clause}, updated_at = CURRENT_TIMESTAMP
+            WHERE task_id = ?
+        ''', values)
+
+        conn.commit()
+        conn.close()
+
+    def get_task(self, task_id: str) -> Optional[Dict]:
+        """获取任务"""
+        conn = sqlite3.connect(self.db_path)
+        conn.row_factory = sqlite3.Row
+        cursor = conn.cursor()
+
+        cursor.execute('SELECT * FROM tasks WHERE task_id = ?', (task_id,))
+        row = cursor.fetchone()
+
+        conn.close()
+
+        if row:
+            return dict(row)
+        return None
+
+    def get_all_tasks(self, limit: int = 100) -> List[Dict]:
+        """获取所有任务"""
+        conn = sqlite3.connect(self.db_path)
+        conn.row_factory = sqlite3.Row
+        cursor = conn.cursor()
+
+        cursor.execute('''
+            SELECT * FROM tasks
+            ORDER BY created_at DESC
+            LIMIT ?
+        ''', (limit,))
+
+        rows = cursor.fetchall()
+        conn.close()
+
+        return [dict(row) for row in rows]

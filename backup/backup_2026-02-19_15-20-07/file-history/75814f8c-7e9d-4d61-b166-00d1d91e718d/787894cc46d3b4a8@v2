@@ -1,0 +1,144 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- 设置界面 - 宋氏美学 -->
+<!-- 单夫纯律师 制作 -->
+<ScrollView xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="@color/bg_rice">
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="vertical"
+        android:padding="16dp">
+
+        <!-- 标题 -->
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="设置"
+            android:textSize="24sp"
+            android:textColor="@color/ink_gray"
+            android:fontFamily="serif"
+            android:layout_marginBottom="24dp" />
+
+        <!-- 自动同步设置 -->
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal"
+            android:background="@color/bg_paper"
+            android:padding="16dp"
+            android:gravity="center_vertical">
+
+            <TextView
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:text="自动同步短信"
+                android:textSize="16sp"
+                android:textColor="@color/ink_gray" />
+
+            <Switch
+                android:id="@+id/auto_sync_switch"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:thumbTint="@color/dai_cyan"
+                android:trackTint="@color/ink_light" />
+        </LinearLayout>
+
+        <!-- 通知设置 -->
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal"
+            android:background="@color/bg_paper"
+            android:padding="16dp"
+            android:layout_marginTop="16dp"
+            android:gravity="center_vertical">
+
+            <TextView
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:text="接收通知"
+                android:textSize="16sp"
+                android:textColor="@color/ink_gray" />
+
+            <Switch
+                android:id="@+id/notification_switch"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:thumbTint="@color/dai_cyan"
+                android:trackTint="@color/ink_light" />
+        </LinearLayout>
+
+        <!-- AI设置按钮 -->
+        <com.google.android.material.button.MaterialButton
+            android:id="@+id/btn_ai_settings"
+            style="@style/Widget.Material3.Button.OutlinedButton"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="24dp"
+            android:text="AI 大模型配置"
+            android:textColor="@color/dai_cyan"
+            app:strokeColor="@color/dai_cyan" />
+
+        <!-- 清理缓存按钮 -->
+        <com.google.android.material.button.MaterialButton
+            android:id="@+id/btn_clear_cache"
+            style="@style/Widget.Material3.Button.OutlinedButton"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="12dp"
+            android:text="清理缓存"
+            android:textColor="@color/dai_cyan"
+            app:strokeColor="@color/dai_cyan" />
+
+        <!-- 导出日历按钮 -->
+        <com.google.android.material.button.MaterialButton
+            android:id="@+id/btn_export_ics"
+            style="@style/Widget.Material3.Button.OutlinedButton"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="12dp"
+            android:text="导出日历(ICS)"
+            android:textColor="@color/dai_cyan"
+            app:strokeColor="@color/dai_cyan" />
+
+        <!-- 分享应用按钮 -->
+        <com.google.android.material.button.MaterialButton
+            android:id="@+id/btn_share_apk"
+            style="@style/Widget.Material3.Button.OutlinedButton"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="12dp"
+            android:text="分享应用(APK)"
+            android:textColor="@color/dai_cyan"
+            app:strokeColor="@color/dai_cyan" />
+
+        <!-- 版本信息 -->
+        <TextView
+            android:id="@+id/tv_version"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="48dp"
+            android:textColor="@color/ink_light"
+            android:textSize="13sp" />
+
+        <!-- 版权信息 -->
+        <TextView
+            android:id="@+id/copyright_text"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="24dp"
+            android:gravity="center"
+            android:text="宋氏美学\n单夫纯律师 制作"
+            android:textColor="@color/dai_cyan"
+            android:textSize="18sp"
+            android:fontFamily="serif"
+            android:lineSpacingExtra="8dp" />
+
+    </LinearLayout>
+</ScrollView>

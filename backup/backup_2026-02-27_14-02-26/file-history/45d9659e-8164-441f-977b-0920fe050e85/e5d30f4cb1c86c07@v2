@@ -1,0 +1,208 @@
+# CourtAssistant 真机测试指南
+
+## 方式一：通过USB调试安装APK
+
+### 步骤1：编译APK
+在Android Studio中：
+1. 打开项目：`C:\Users\Administrator\CourtAssistant`
+2. 点击 **Build → Build Bundle(s) / APK(s) → Build APK(s)**
+3. 等待编译完成
+
+### 步骤2：手机开启USB调试
+1. 打开手机 **设置** → **关于手机**
+2. 连续点击 **版本号** 7次（开启开发者选项）
+3. 返回 **设置** → **系统** → **开发者选项**
+4. 开启 **USB调试**
+5. 用USB线连接电脑
+
+### 步骤3：安装APK
+**方法A：Android Studio**
+1. 手机连接后，Android Studio会自动识别
+2. 点击 **Run** 按钮，选择你的手机设备
+3. 自动安装并启动
+
+**方法B：命令行**
+```bash
+# 查看连接设备
+adb devices
+
+# 安装APK
+adb install -r C:\Users\Administrator\CourtAssistant\app\build\outputs\apk\debug\app-debug.apk
+```
+
+**方法C：直接传输**
+1. 将APK文件复制到手机
+2. 在手机文件管理器中点击APK安装
+
+---
+
+## 方式二：无线安装（推荐）
+
+### 步骤1：确保手机和电脑在同一WiFi
+
+### 步骤2：在Android Studio中
+1. 点击 **Run** 按钮
+2. 选择无线连接的设备
+3. 自动安装
+
+---
+
+## 授权设置
+
+应用首次启动需要授权：
+
+| 权限 | 用途 | 必须 |
+|--------|------|------|
+| **短信** | 读取12368短信 | ✓ |
+| **日历** | 创建开庭提醒 | ✓ |
+| **通知** | 下载完成提示 | ✓ |
+| **存储** | 保存PDF文件 | ✓ |
+
+---
+
+## 测试用短信
+
+### 测试1：临沂法院PDF自动下载
+```
+收件人：12368
+
+【临沂市河东区人民法院】单夫纯你好，请查收（2026）鲁1312民初1324号案件中你的送达文书。点击链接查阅：https://zxfw.court.gov.cn/zxfw/#/pagesAjkj/app/wssd/index?qdbh=640d35260ef1478d9bff46635dec6cec&sdbh=341d88b466544f0f99bd0c4a785ffaf1&sdsin=124fbca049dcb96cd065f04b7721e31f
+```
+
+### 测试2：带开庭时间的短信
+```
+收件人：12368
+
+【临沂市兰山区人民法院】单夫纯你好，你诉（2026）鲁1312民初5678号买卖合同纠纷一案，定于2026年6月20日上午9时30分在本院第三审判庭开庭审理，请准时出庭。
+```
+
+### 测试3：多个PDF链接
+```
+收件人：12368
+
+【青岛市市南区人民法院】单夫纯你好，（2026）鲁0202民初1234号案件送达文书如下：
+传票：https://court.example.com/传票.pdf
+应诉通知书：https://court.example.com/应诉通知书.pdf
+举证通知书：https://court.example.com/举证通知书.pdf
+请查收。
+```
+
+---
+
+## 测试检查清单
+
+### 功能1：短信同步
+- [ ] 接收12368短信后，应用自动识别
+- [ ] 点击"同步短信"能手动同步
+- [ ] 短信列表显示正确
+
+### 功能2：PDF自动下载
+- [ ] 自动打开WebView
+- [ ] 自动点击PDF链接
+- [ ] 下载所有PDF文件
+- [ ] 文件名显示正确（如：传票（临沂昀鑫置业有限公司）.pdf）
+- [ ] 数量与网页一致
+
+### 功能3：日历同步
+- [ ] 自动创建日历事件
+- [ ] 标题格式：[法院简称] 开庭 [当事人]
+- [ ] 时间正确
+- [ ] 地点正确
+- [ ] 有提醒（提前1天）
+
+### 功能4：文档管理
+- [ ] 按短信分类显示
+- [ ] 支持PDF预览
+- [ ] 支持分享到微信
+- [ ] 支持批量删除
+
+---
+
+## 日志查看
+
+### 通过Android Studio
+1. 连接手机
+2. 打开 **Logcat** 标签页
+3. 过滤：`CourtAssistant`
+
+### 通过命令行
+```bash
+# 实时查看日志
+adb logcat -s CourtAssistant:D
+
+# 保存日志到文件
+adb logcat -s CourtAssistant:D > C:\Users\Administrator\Desktop\log.txt
+```
+
+---
+
+## 常见问题
+
+### 问题1：手机无法连接电脑
+**解决**：
+1. 检查USB线是否支持数据传输
+2. 更换USB端口
+3. 安装手机厂商的驱动程序
+
+### 问题2：应用安装失败
+**解决**：
+1. 卸载旧版本应用
+2. 允许安装未知来源应用
+3. 检查Android版本（≥5.0）
+
+### 问题3：短信权限被拒绝
+**解决**：
+1. 设置 → 应用管理 → CourtAssistant
+2. 权限 → 短信 → 允许
+
+### 问题4：日历没有创建事件
+**解决**：
+1. 检查日历权限
+2. 查看日志确认提取信息
+3. 手动检查日历应用
+
+---
+
+## 快速测试命令
+
+```bash
+# 查看连接设备
+adb devices -l
+
+# 安装应用
+adb install -r app\build\outputs\apk\debug\app-debug.apk
+
+# 启动应用
+adb shell am start -n com.shanfuchun.courtassistant/.ui.MainActivity
+
+# 清除数据（重新测试）
+adb shell pm clear com.shanfuchun.courtassistant
+
+# 卸载应用
+adb uninstall com.shanfuchun.courtassistant
+
+# 查看实时日志
+adb logcat -s CourtAssistant:D AndroidRuntime:E
+```
+
+---
+
+## 测试完成后
+
+请反馈以下信息：
+
+1. **PDF下载测试**：
+   - 是否自动打开WebView？□是 □否
+   - 下载了多少个PDF？____个
+   - 文件名是否正确？□是 □否
+
+2. **日历同步测试**：
+   - 是否创建了日历事件？□是 □否
+   - 时间是否正确？□是 □否
+   - 标题是否正确？□是 □否
+
+3. **遇到的问题**：
+   _____________________________________________
+
+4. **日志错误**（如有）：
+   _____________________________________________

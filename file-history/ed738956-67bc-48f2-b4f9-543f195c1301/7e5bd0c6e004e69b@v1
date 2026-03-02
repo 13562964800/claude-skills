@@ -1,0 +1,94 @@
+package com.multilanglearner.data.network
+
+import com.multilanglearner.domain.model.AI_PROVIDERS
+import com.multilanglearner.domain.model.AIConfig
+import kotlinx.serialization.Serializable
+import kotlinx.serialization.json.*
+import okhttp3.*
+import okhttp3.MediaType.Companion.toMediaType
+import okhttp3.RequestBody.Companion.toRequestBody
+import java.util.concurrent.TimeUnit
+import javax.inject.Inject
+import javax.inject.Singleton
+
+@Serializable
+data class ChatMessage(val role: String, val content: String)
+
+@Singleton
+class AIService @Inject constructor() {
+    private val client = OkHttpClient.Builder()
+        .connectTimeout(15, TimeUnit.SECONDS)
+        .readTimeout(30, TimeUnit.SECONDS)
+        .writeTimeout(15, TimeUnit.SECONDS)
+        .build()
+
+    private val json = Json { ignoreUnknownKeys = true }
+
+    /**
+     * Call AI API - ported from main.js callAI()
+     * Supports Claude (x-api-key + /messages) and OpenAI-compatible (/chat/completions)
+     */
+    suspend fun chat(config: AIConfig, prompt: String): String? {
+        if (config.apiKey.isBlank()) return null
+        val preset = AI_PROVIDERS.find { it.id == config.provider }
+        val baseUrl = config.baseUrl.ifBlank { preset?.defaultBaseUrl ?: "" }
+        val model = config.model.ifBlank { preset?.defaultModel ?: "" }
+        if (baseUrl.isBlank()) return null
+
+        val isClaude = config.provider == "claude" || model.lowercase().contains("claude")
+        val url = if (isClaude) "$baseUrl/messages" else "$baseUrl/chat/completions"
+
+        val bodyObj = buildJsonObject {
+            put("model", model)
+            put("max_tokens", config.maxTokens ?: 1024)
+            config.temperature?.let { put("temperature", it) }
+            putJsonArray("messages") {
+                if (!isClaude) {
+                    addJsonObject {
+                        put("role", "system")
+                        put("content", "你是多语言学习助手。用中文回答。翻译要准确，不要音译。简洁直接。")
+                    }
+                }
+                addJsonObject {
+                    put("role", "user")
+                    put("content", prompt)
+                }
+            }
+        }
+
+        val headers = if (isClaude) {
+            Headers.Builder()
+                .add("Content-Type", "application/json")
+                .add("x-api-key", config.apiKey)
+                .add("anthropic-version", "2023-06-01")
+                .build()
+        } else {
+            Headers.Builder()
+                .add("Content-Type", "application/json")
+                .add("Authorization", "Bearer ${config.apiKey}")
+                .build()
+        }
+
+        val request = Request.Builder()
+            .url(url)
+            .headers(headers)
+            .post(bodyObj.toString().toRequestBody("application/json".toMediaType()))
+            .build()
+
+        return try {
+            val response = client.newCall(request).execute()
+            val responseBody = response.body?.string() ?: return null
+            val jsonResponse = json.parseToJsonElement(responseBody).jsonObject
+            if (isClaude) {
+                jsonResponse["content"]?.jsonArray?.firstOrNull()
+                    ?.jsonObject?.get("text")?.jsonPrimitive?.contentOrNull
+            } else {
+                jsonResponse["choices"]?.jsonArray?.firstOrNull()
+                    ?.jsonObject?.get("message")?.jsonObject
+                    ?.get("content")?.jsonPrimitive?.contentOrNull
+            }
+        } catch (e: Exception) {
+            null
+        }
+    }
+}

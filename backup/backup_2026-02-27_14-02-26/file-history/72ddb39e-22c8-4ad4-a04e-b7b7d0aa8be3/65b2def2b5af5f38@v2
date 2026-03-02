@@ -1,0 +1,101 @@
+package com.multilanglearner.ui.ai
+
+import androidx.lifecycle.ViewModel
+import androidx.lifecycle.viewModelScope
+import com.multilanglearner.data.network.AIService
+import com.multilanglearner.data.store.AIConfigStore
+import com.multilanglearner.domain.model.AIConfig
+import dagger.hilt.android.lifecycle.HiltViewModel
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.flow.*
+import kotlinx.coroutines.launch
+import javax.inject.Inject
+
+data class AISettingsUiState(
+    val provider: String = "deepseek",
+    val apiKey: String = "",
+    val baseUrl: String = "",
+    val model: String = "",
+    val maxTokens: String = "",
+    val temperature: String = "",
+    val groqWhisperEnabled: Boolean = true,
+    val whisperModel: String = "whisper-large-v3",
+    val subtitleTranslateMode: String = "none",
+    val testResult: String = "",
+    val testSuccess: Boolean = false,
+    val saveSuccess: Boolean = false
+)
+
+@HiltViewModel
+class AISettingsViewModel @Inject constructor(
+    private val configStore: AIConfigStore,
+    private val aiService: AIService
+) : ViewModel() {
+    private val _uiState = MutableStateFlow(AISettingsUiState())
+    val uiState: StateFlow<AISettingsUiState> = _uiState.asStateFlow()
+
+    init {
+        viewModelScope.launch {
+            configStore.config.first().let { cfg ->
+                _uiState.update {
+                    it.copy(
+                        provider = cfg.provider, apiKey = cfg.apiKey,
+                        baseUrl = cfg.baseUrl, model = cfg.model,
+                        maxTokens = cfg.maxTokens?.toString() ?: "",
+                        temperature = cfg.temperature?.toString() ?: "",
+                        groqWhisperEnabled = cfg.groqWhisperEnabled,
+                        whisperModel = cfg.whisperModel,
+                        subtitleTranslateMode = cfg.subtitleTranslateMode
+                    )
+                }
+            }
+        }
+    }
+
+    fun setProvider(p: String) { _uiState.update { it.copy(provider = p) } }
+    fun setApiKey(k: String) { _uiState.update { it.copy(apiKey = k) } }
+    fun setBaseUrl(u: String) { _uiState.update { it.copy(baseUrl = u) } }
+    fun setModel(m: String) { _uiState.update { it.copy(model = m) } }
+    fun setMaxTokens(t: String) { _uiState.update { it.copy(maxTokens = t) } }
+    fun setTemperature(t: String) { _uiState.update { it.copy(temperature = t) } }
+    fun setGroqWhisper(e: Boolean) { _uiState.update { it.copy(groqWhisperEnabled = e) } }
+    fun setWhisperModel(m: String) { _uiState.update { it.copy(whisperModel = m) } }
+    fun setTranslateMode(m: String) { _uiState.update { it.copy(subtitleTranslateMode = m) } }
+
+    fun save() {
+        viewModelScope.launch {
+            val state = _uiState.value
+            configStore.save(AIConfig(
+                provider = state.provider, apiKey = state.apiKey,
+                baseUrl = state.baseUrl, model = state.model,
+                maxTokens = state.maxTokens.toIntOrNull(),
+                temperature = state.temperature.toDoubleOrNull(),
+                groqWhisperEnabled = state.groqWhisperEnabled,
+                whisperModel = state.whisperModel,
+                subtitleTranslateMode = state.subtitleTranslateMode
+            ))
+            // Show save success feedback
+            _uiState.update { it.copy(saveSuccess = true) }
+            kotlinx.coroutines.delay(1500)
+            _uiState.update { it.copy(saveSuccess = false) }
+        }
+    }
+
+    fun testConnection() {
+        _uiState.update { it.copy(testResult = "测试中...", testSuccess = false) }
+        viewModelScope.launch(Dispatchers.IO) {
+            val state = _uiState.value
+            val config = AIConfig(
+                provider = state.provider, apiKey = state.apiKey,
+                baseUrl = state.baseUrl, model = state.model,
+                maxTokens = state.maxTokens.toIntOrNull(),
+                temperature = state.temperature.toDoubleOrNull()
+            )
+            val result = aiService.chat(config, "请回复\"连接成功\"四个字")
+            _uiState.update {
+                if (result != null) it.copy(testResult = "✅ $result", testSuccess = true)
+                else it.copy(testResult = "❌ 连接失败，请检查设置", testSuccess = false)
+            }
+        }
+    }
+}

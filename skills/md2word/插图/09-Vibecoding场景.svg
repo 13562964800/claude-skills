@@ -1,0 +1,80 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 800 450" width="800" height="450">
+  <defs>
+    <filter id="softShadow">
+      <feGaussianBlur in="SourceAlpha" stdDeviation="3"/>
+      <feOffset dx="2" dy="2" result="offsetblur"/>
+      <feComponentTransfer>
+        <feFuncA type="linear" slope="0.2"/>
+      </feComponentTransfer>
+      <feMerge>
+        <feMergeNode/>
+        <feMergeNode in="SourceGraphic"/>
+      </feMerge>
+    </filter>
+    <filter id="glow">
+      <feGaussianBlur stdDeviation="2" result="coloredBlur"/>
+      <feMerge>
+        <feMergeNode in="coloredBlur"/>
+        <feMergeNode in="SourceGraphic"/>
+      </feMerge>
+    </filter>
+  </defs>
+
+  <!-- 温暖背景 -->
+  <rect width="800" height="450" fill="#FFF9F0"/>
+
+  <!-- 程序员 -->
+  <g transform="translate(250, 250)">
+    <!-- 头 -->
+    <circle cx="0" cy="-40" r="30" fill="#FFD4A3" stroke="#D2691E" stroke-width="2"/>
+    <!-- 头发 -->
+    <path d="M -25,-55 Q -30,-70 -20,-75 Q 0,-80 20,-75 Q 30,-70 25,-55" fill="#8B4513"/>
+    <!-- 眼睛 -->
+    <circle cx="-10" cy="-45" r="4" fill="#000"/>
+    <circle cx="10" cy="-45" r="4" fill="#000"/>
+    <!-- 微笑 -->
+    <path d="M -12,-30 Q 0,-25 12,-30" stroke="#D2691E" stroke-width="2" fill="none"/>
+
+    <!-- 身体 -->
+    <rect x="-25" y="-10" width="50" height="60" fill="#4682B4" stroke="#36648B" stroke-width="2" rx="5"/>
+
+    <!-- 手臂 -->
+    <rect x="-40" y="0" width="15" height="40" fill="#4682B4" stroke="#36648B" stroke-width="2" rx="3"/>
+    <rect x="25" y="0" width="15" height="40" fill="#4682B4" stroke="#36648B" stroke-width="2" rx="3"/>
+
+    <!-- 手 -->
+    <circle cx="-32" cy="45" r="8" fill="#FFD4A3" stroke="#D2691E" stroke-width="2"/>
+    <circle cx="32" cy="45" r="8" fill="#FFD4A3" stroke="#D2691E" stroke-width="2"/>
+  </g>
+
+  <!-- 电脑 -->
+  <g transform="translate(250, 350)">
+    <rect x="-60" y="0" width="120" height="80" fill="#2F4F4F" stroke="#000" stroke-width="2" rx="5"/>
+    <rect x="-55" y="5" width="110" height="60" fill="#87CEEB"/>
+    <!-- 代码 -->
+    <text x="-50" y="25" font-size="10" fill="#000" font-family="monospace">def hello():</text>
+    <text x="-50" y="40" font-size="10" fill="#000" font-family="monospace">  print("Hi!")</text>
+  </g>
+
+  <!-- AI助手 -->
+  <g transform="translate(550, 250)">
+    <circle cx="0" cy="0" r="50" fill="#FFB6C1" stroke="#FF69B4" stroke-width="3"/>
+    <circle cx="-15" cy="-10" r="8" fill="#fff"/>
+    <circle cx="15" cy="-10" r="8" fill="#fff"/>
+    <circle cx="-15" cy="-10" r="4" fill="#000"/>
+    <circle cx="15" cy="-10" r="4" fill="#000"/>
+    <path d="M -20,10 Q 0,20 20,10" stroke="#FF69B4" stroke-width="3" fill="none"/>
+  </g>
+
+  <!-- 对话气泡 -->
+  <g transform="translate(450, 180)">
+    <ellipse cx="0" cy="0" rx="80" ry="40" fill="#fff" stroke="#333" stroke-width="2"/>
+    <polygon points="-20,30 -10,50 0,30" fill="#fff" stroke="#333" stroke-width="2"/>
+    <text x="0" y="5" font-size="16" fill="#333" text-anchor="middle">帮我写个</text>
+    <text x="0" y="25" font-size="16" fill="#333" text-anchor="middle">计算器</text>
+  </g>
+
+  <text x="400" y="80" font-size="32" font-weight="bold" fill="#4682B4" text-anchor="middle">
+    Vibecoding - 自然编程
+  </text>
+</svg>

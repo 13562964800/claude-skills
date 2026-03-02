@@ -1,0 +1,136 @@
+#!/usr/bin/env python3
+"""批量生成SVG插图 - 第6批 (第4章插图,共42个)"""
+
+def create_concept_svg(title, main_emoji, sub_emojis=[], bg_color="#F0F4F8"):
+    """创建概念展示型SVG"""
+    svg = f'''
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 800 450">
+  <rect width="800" height="450" fill="{bg_color}"/>
+  <text x="400" y="80" font-size="28" text-anchor="middle" fill="#333" font-weight="bold">{title}</text>
+  <text x="400" y="250" font-size="120" text-anchor="middle">{main_emoji}</text>'''
+
+    if sub_emojis:
+        positions = [(250, 350), (400, 350), (550, 350)]
+        for i, emoji in enumerate(sub_emojis[:3]):
+            x, y = positions[i]
+            svg += f'\n  <text x="{x}" y="{y}" font-size="50" text-anchor="middle">{emoji}</text>'
+
+    svg += '''
+  <g>
+    <circle cx="400" cy="250" r="140" fill="none" stroke="#4A90E2" stroke-width="3" opacity="0.2">
+      <animate attributeName="r" values="140;160;140" dur="3s" repeatCount="indefinite"/>
+    </circle>
+  </g>
+</svg>'''
+    return svg
+
+def create_process_svg(title, steps):
+    """创建流程型SVG"""
+    svg = f'''
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 800 450">
+  <rect width="800" height="450" fill="#E8F4F8"/>
+  <text x="400" y="60" font-size="28" text-anchor="middle" fill="#333" font-weight="bold">{title}</text>
+  <defs>
+    <marker id="arrow9" markerWidth="10" markerHeight="7" refX="9" refY="3.5" orient="auto">
+      <polygon points="0 0, 10 3.5, 0 7" fill="#4A90E2"/>
+    </marker>
+  </defs>'''
+
+    x_positions = [150, 325, 500, 675]
+    for i, (step_emoji, step_text) in enumerate(steps[:4]):
+        x = x_positions[i]
+        svg += f'''
+  <rect x="{x-60}" y="180" width="120" height="100" rx="10" fill="#E8F4F8" stroke="#4A90E2" stroke-width="2"/>
+  <text x="{x}" y="230" font-size="50" text-anchor="middle">{step_emoji}</text>
+  <text x="{x}" y="270" font-size="14" text-anchor="middle" fill="#333">{step_text}</text>'''
+        if i < len(steps) - 1:
+            svg += f'''
+  <line x1="{x+60}" y1="230" x2="{x_positions[i+1]-60}" y2="230" stroke="#4A90E2" stroke-width="3" marker-end="url(#arrow9)"/>'''
+
+    svg += '\n</svg>'
+    return svg
+
+# 第4章插图配置
+chapter4_configs = [
+    ('【插图4-1:从ELIZA到ChatGPT的聊天机器人进化史】', 'concept', '聊天机器人进化', '🤖', ['💬', '🚀', '✨']),
+    ('【插图4-2:ChatGPT的各种应用场景】', 'concept', 'ChatGPT应用', '💬', ['📝', '💡', '🎓']),
+    ('【插图4-3:聊天机器人生成回答的过程】', 'process', '生成回答', [('❓', '问题'), ('🤔', '思考'), ('💭', '生成'), ('💬', '回答')]),
+    ('【插图4-4:聊天机器人在各领域的应用】', 'concept', '应用领域', '💬', ['🏥', '🏪', '🎓']),
+    ('【插图4-5:聊天机器人的常见问题】', 'concept', '常见问题', '⚠️', ['❓', '🤔', '❌']),
+    ('【插图4-6:AI识别照片中的各种物体】', 'concept', '图像识别', '👁️', ['🐱', '🚗', '🌳']),
+    ('【插图4-7:AI的各种图像识别能力展示】', 'concept', '识别能力', '🔍', ['📷', '🎨', '🏷️']),
+    ('【插图4-8:自动驾驶汽车的视觉系统】', 'concept', '自动驾驶视觉', '🚗', ['👁️', '🛣️', '⚠️']),
+    ('【插图4-9:图像识别在各领域的有趣应用】', 'concept', '有趣应用', '📸', ['🏥', '🛒', '🔒']),
+    ('【插图4-10:AI图像识别的常见错误和挑战】', 'concept', '识别挑战', '❌', ['🌫️', '🎭', '❓']),
+    ('【插图4-11:各种流行的语音助手】', 'concept', '语音助手', '🎤', ['📱', '🏠', '🚗']),
+    ('【插图4-12:语音助手的各种功能】', 'concept', '助手功能', '🗣️', ['🎵', '⏰', '🌤️']),
+    ('【插图4-13:语音助手的工作流程图】', 'process', '工作流程', [('🎤', '听'), ('🔍', '识别'), ('🤔', '理解'), ('🗣️', '回答')]),
+    ('【插图4-14:语音识别技术的进步曲线】', 'concept', '技术进步', '📈', ['🎤', '✅']),
+    ('【插图4-15:语音助手帮助不同人群】', 'concept', '帮助人群', '🤝', ['👴', '👶', '♿']),
+    ('【插图4-16:语音助手面临的挑战】', 'concept', '面临挑战', '⚠️', ['🔊', '🌐', '🤔']),
+    ('【插图4-17:自动驾驶的6个级别示意图】', 'concept', '自动驾驶级别', '🚗', ['0️⃣', '3️⃣', '5️⃣']),
+    ('【插图4-18:自动驾驶汽车的传感器系统】', 'concept', '传感器系统', '🚗', ['📡', '📷', '🔍']),
+    ('【插图4-19:自动驾驶AI的决策流程】', 'process', 'AI决策', [('👁️', '感知'), ('🧠', '决策'), ('🎯', '规划'), ('🚗', '执行')]),
+    ('【插图4-20:自动驾驶带来的好处】', 'concept', '驾驶好处', '✅', ['🛡️', '⏱️', '🌱']),
+    ('【插图4-21:自动驾驶面临的挑战】', 'concept', '驾驶挑战', '⚠️', ['🌧️', '⚖️', '💰']),
+    ('【插图4-22:全球自动驾驶测试地图】', 'concept', '全球测试', '🌍', ['🚗', '📍', '🧪']),
+    ('【插图4-23:AI在各种游戏中的成就】', 'concept', '游戏成就', '🎮', ['♟️', '🎯', '🏆']),
+    ('【插图4-24:强化学习训练游戏AI的过程】', 'process', '训练过程', [('🎮', '玩'), ('📊', '评分'), ('🔧', '调整'), ('🏆', '胜利')]),
+    ('【插图4-25:游戏AI的决策树示意图】', 'concept', '决策树', '🌳', ['❓', '➡️', '✅']),
+    ('【插图4-26:游戏NPC的进化——从简单到智能】', 'concept', 'NPC进化', '🤖', ['🟢', '🟡', '🔴']),
+    ('【插图4-27:AI让游戏更智能、更有趣】', 'concept', '智能游戏', '🎮', ['🧠', '🎯', '😊']),
+    ('【插图4-28:AI玩家vs人类玩家的对比】', 'concept', 'AI vs 人类', '⚔️', ['🤖', '👤']),
+    ('【插图4-29:AI根据文字描述生成的各种风格画作】', 'concept', 'AI绘画', '🎨', ['🖼️', '✨', '🌈']),
+    ('【插图4-30:AI绘画的扩散过程——从噪点到清晰图像】', 'process', '扩散过程', [('🌫️', '噪点'), ('🔍', '去噪'), ('🎨', '细化'), ('🖼️', '完成')]),
+    ('【插图4-31:AI绘画的各种应用场景】', 'concept', '绘画应用', '🎨', ['📱', '🎮', '📚']),
+    ('【插图4-32:AI音乐创作工具界面】', 'concept', '音乐创作', '🎵', ['🎹', '🎸', '🎤']),
+    ('【插图4-33:AI创作的各种文字作品】', 'concept', '文字创作', '📝', ['📖', '✍️', '📰']),
+    ('【插图4-34:AI生成的视频画面示例】', 'concept', '视频生成', '🎬', ['📹', '✨', '🎞️']),
+    ('【插图4-35:AI艺术创作引发的讨论】', 'concept', '艺术讨论', '💭', ['🎨', '❓', '⚖️']),
+    ('【插图4-36:AI与人类艺术家协作创作】', 'concept', '协作创作', '🤝', ['🤖', '👨‍🎨', '🎨']),
+    ('【插图4-37:小朋友们讨论AI应用的场景】', 'concept', '讨论场景', '👥', ['💬', '💡', '🤔']),
+    ('【插图4-38:第一部分知识地图——四章内容的可视化总结】', 'concept', '知识地图', '🗺️', ['1️⃣', '2️⃣', '3️⃣', '4️⃣']),
+    ('【插图4-39:小朋友们站在AI世界的大门前,充满期待地望向未来】', 'concept', 'AI大门', '🚪', ['👦', '👧', '✨']),
+    ('【插图4-40:第二部分的预告图——神秘的技术世界】', 'concept', '技术世界', '🔮', ['💻', '🌐', '🚀']),
+    ('【插图4-41:家长和孩子一起学习AI的温馨场景】', 'concept', '亲子学习', '👨‍👩‍👧', ['📚', '💻', '❤️']),
+    ('【插图4-42:小朋友们做测验的场景】', 'concept', '做测验', '📝', ['✏️', '🤔', '✅']),
+]
+
+def generate_svg_from_config(config):
+    """根据配置生成SVG"""
+    marker, svg_type, *params = config
+
+    if svg_type == 'concept':
+        title, main_emoji = params[0], params[1]
+        sub_emojis = params[2] if len(params) > 2 else []
+        return marker, create_concept_svg(title, main_emoji, sub_emojis)
+    elif svg_type == 'process':
+        title, steps = params
+        return marker, create_process_svg(title, steps)
+
+    return marker, create_concept_svg(params[0], '❓')
+
+def insert_svgs_batch_6():
+    file_path = 'AI前沿知识儿童科普画册-带全部插图.md'
+    with open(file_path, 'r', encoding='utf-8') as f:
+        content = f.read()
+
+    count = 0
+    for config in chapter4_configs:
+        marker, svg = generate_svg_from_config(config)
+        if marker in content:
+            pos = content.find(marker)
+            next_300 = content[pos:pos+300]
+            if '<svg' not in next_300:
+                content = content.replace(marker, marker + '\n' + svg + '\n')
+                count += 1
+                print(f'✓ 已插入 {marker[:40]}...')
+
+    with open(file_path, 'w', encoding='utf-8') as f:
+        f.write(content)
+
+    print(f'\n第6批完成! 共插入 {count} 个SVG')
+    print(f'第4章插图全部完成!')
+
+if __name__ == '__main__':
+    insert_svgs_batch_6()

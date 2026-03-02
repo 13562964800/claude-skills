@@ -1,0 +1,294 @@
+package com.comparebao.ui
+
+import android.app.Activity
+import android.content.Intent
+import android.net.Uri
+import android.os.Bundle
+import android.widget.*
+import androidx.activity.result.contract.ActivityResultContracts
+import androidx.appcompat.app.AppCompatActivity
+import androidx.lifecycle.lifecycleScope
+import androidx.recyclerview.widget.LinearLayoutManager
+import androidx.recyclerview.widget.RecyclerView
+import com.comparebao.R
+import com.comparebao.core.TextComparator
+import com.comparebao.core.WeChatImporter
+import kotlinx.coroutines.launch
+
+/**
+ * 核对宝主界面
+ */
+class MainActivity : AppCompatActivity() {
+
+    private lateinit var tvDocText: TextView
+    private lateinit var tvAudioText: TextView
+    private lateinit var tvResult: TextView
+    private lateinit var rvDiffs: RecyclerView
+    private lateinit var btnImportDoc: Button
+    private lateinit var btnImportAudio: Button
+    private lateinit var btnImportWechat: Button
+    private lateinit var btnCompare: Button
+    private lateinit var progressBar: ProgressBar
+
+    private lateinit var comparator: TextComparator
+    private lateinit var wechatImporter: WeChatImporter
+
+    private var docTextContent = ""
+    private var audioTextContent = ""
+
+    // 文件选择器
+    private val pickDocFile = registerForActivityResult(ActivityResultContracts.GetContent()) { uri ->
+        uri?.let { importDocFile(it) }
+    }
+
+    private val pickAudioFile = registerForActivityResult(ActivityResultContracts.GetContent()) { uri ->
+        uri?.let { importAudioFile(it) }
+    }
+
+    private val pickWechatFile = registerForActivityResult(ActivityResultContracts.GetContent()) { uri ->
+        uri?.let { importWechatFile(it) }
+    }
+
+    override fun onCreate(savedInstanceState: Bundle?) {
+        super.onCreate(savedInstanceState)
+        setContentView(R.layout.activity_main_comparebao)
+
+        initViews()
+        comparator = TextComparator()
+        wechatImporter = WeChatImporter(this)
+    }
+
+    private fun initViews() {
+        tvDocText = findViewById(R.id.tvDocText)
+        tvAudioText = findViewById(R.id.tvAudioText)
+        tvResult = findViewById(R.id.tvResult)
+        rvDiffs = findViewById(R.id.rvDiffs)
+        btnImportDoc = findViewById(R.id.btnImportDoc)
+        btnImportAudio = findViewById(R.id.btnImportAudio)
+        btnImportWechat = findViewById(R.id.btnImportWechat)
+        btnCompare = findViewById(R.id.btnCompare)
+        progressBar = findViewById(R.id.progressBar)
+
+        rvDiffs.layoutManager = LinearLayoutManager(this)
+
+        btnImportDoc.setOnClickListener {
+            pickDocFile.launch("*/*")
+        }
+
+        btnImportAudio.setOnClickListener {
+            pickAudioFile.launch("audio/*")
+        }
+
+        btnImportWechat.setOnClickListener {
+            showWechatImportOptions()
+        }
+
+        btnCompare.setOnClickListener {
+            compareTexts()
+        }
+    }
+
+    private fun importDocFile(uri: Uri) {
+        lifecycleScope.launch {
+            try {
+                progressBar.visibility = android.view.View.VISIBLE
+                val text = contentResolver.openInputStream(uri)?.bufferedReader()?.use { it.readText() }
+                    ?: ""
+                docTextContent = text
+                tvDocText.text = if (text.length > 500) text.substring(0, 500) + "..." else text
+                Toast.makeText(this@MainActivity, "文档导入成功", Toast.LENGTH_SHORT).show()
+            } catch (e: Exception) {
+                Toast.makeText(this@MainActivity, "导入失败: ${e.message}", Toast.LENGTH_SHORT).show()
+            } finally {
+                progressBar.visibility = android.view.View.GONE
+            }
+        }
+    }
+
+    private fun importAudioFile(uri: Uri) {
+        lifecycleScope.launch {
+            try {
+                progressBar.visibility = android.view.View.VISIBLE
+                // TODO: 实现音频转文字
+                Toast.makeText(this@MainActivity, "音频转文字功能开发中...", Toast.LENGTH_SHORT).show()
+            } catch (e: Exception) {
+                Toast.makeText(this@MainActivity, "导入失败: ${e.message}", Toast.LENGTH_SHORT).show()
+            } finally {
+                progressBar.visibility = android.view.View.GONE
+            }
+        }
+    }
+
+    private fun importWechatFile(uri: Uri) {
+        lifecycleScope.launch {
+            try {
+                progressBar.visibility = android.view.View.VISIBLE
+                val result = wechatImporter.importFromTextFile(uri)
+                if (result.success) {
+                    docTextContent = result.textContent ?: ""
+                    tvDocText.text = if (docTextContent.length > 500) {
+                        docTextContent.substring(0, 500) + "..."
+                    } else {
+                        docTextContent
+                    }
+                    Toast.makeText(this@MainActivity, result.message, Toast.LENGTH_SHORT).show()
+                } else {
+                    Toast.makeText(this@MainActivity, result.message, Toast.LENGTH_SHORT).show()
+                }
+            } catch (e: Exception) {
+                Toast.makeText(this@MainActivity, "导入失败: ${e.message}", Toast.LENGTH_SHORT).show()
+            } finally {
+                progressBar.visibility = android.view.View.GONE
+            }
+        }
+    }
+
+    private fun showWechatImportOptions() {
+        val options = arrayOf(
+            "从聊天记录文本导入",
+            "扫描微信语音文件",
+            "从数据库导入（需要Root）"
+        )
+
+        android.app.AlertDialog.Builder(this)
+            .setTitle("选择导入方式")
+            .setItems(options) { _, which ->
+                when (which) {
+                    0 -> pickWechatFile.launch("text/*")
+                    1 -> scanWechatVoices()
+                    2 -> importFromDatabase()
+                }
+            }
+            .show()
+    }
+
+    private fun scanWechatVoices() {
+        lifecycleScope.launch {
+            try {
+                progressBar.visibility = android.view.View.VISIBLE
+                // 检查Root权限
+                val hasRoot = wechatImporter.checkRootAccess()
+                if (!hasRoot) {
+                    Toast.makeText(this@MainActivity, "需要Root权限", Toast.LENGTH_SHORT).show()
+                    return@launch
+                }
+
+                // TODO: 实现语音文件扫描
+                Toast.makeText(this@MainActivity, "语音扫描功能开发中...", Toast.LENGTH_SHORT).show()
+            } catch (e: Exception) {
+                Toast.makeText(this@MainActivity, "扫描失败: ${e.message}", Toast.LENGTH_SHORT).show()
+            } finally {
+                progressBar.visibility = android.view.View.GONE
+            }
+        }
+    }
+
+    private fun importFromDatabase() {
+        lifecycleScope.launch {
+            try {
+                progressBar.visibility = android.view.View.VISIBLE
+                val hasRoot = wechatImporter.checkRootAccess()
+                if (!hasRoot) {
+                    Toast.makeText(this@MainActivity, "需要Root权限", Toast.LENGTH_SHORT).show()
+                    return@launch
+                }
+
+                val uin = wechatImporter.getWechatUin()
+                if (uin == null) {
+                    Toast.makeText(this@MainActivity, "无法获取微信UIN", Toast.LENGTH_SHORT).show()
+                    return@launch
+                }
+
+                // TODO: 实现数据库导入
+                Toast.makeText(this@MainActivity, "数据库导入功能开发中...", Toast.LENGTH_SHORT).show()
+            } catch (e: Exception) {
+                Toast.makeText(this@MainActivity, "导入失败: ${e.message}", Toast.LENGTH_SHORT).show()
+            } finally {
+                progressBar.visibility = android.view.View.GONE
+            }
+        }
+    }
+
+    private fun compareTexts() {
+        if (docTextContent.isEmpty()) {
+            Toast.makeText(this, "请先导入文档文本", Toast.LENGTH_SHORT).show()
+            return
+        }
+
+        if (audioTextContent.isEmpty()) {
+            Toast.makeText(this, "请先输入或导入音频文本", Toast.LENGTH_SHORT).show()
+            return
+        }
+
+        lifecycleScope.launch {
+            try {
+                progressBar.visibility = android.view.View.VISIBLE
+                val result = comparator.compareTexts(
+                    audioText = audioTextContent,
+                    docText = docTextContent
+                )
+
+                tvResult.text = result.summary
+
+                // 显示差异列表
+                val adapter = DiffAdapter(result.diffs)
+                rvDiffs.adapter = adapter
+
+                Toast.makeText(
+                    this@MainActivity,
+                    "比对完成，发现 ${result.diffs.size} 处差异",
+                    Toast.LENGTH_SHORT
+                ).show()
+            } catch (e: Exception) {
+                Toast.makeText(this@MainActivity, "比对失败: ${e.message}", Toast.LENGTH_SHORT).show()
+            } finally {
+                progressBar.visibility = android.view.View.GONE
+            }
+        }
+    }
+}
+
+/**
+ * 差异列表适配器
+ */
+class DiffAdapter(private val diffs: List<TextComparator.DiffItem>) :
+    RecyclerView.Adapter<DiffAdapter.DiffViewHolder>() {
+
+    class DiffViewHolder(itemView: android.view.View) : RecyclerView.ViewHolder(itemView) {
+        val tvDocText: TextView = itemView.findViewById(R.id.tvDocDiff)
+        val tvAudioText: TextView = itemView.findViewById(R.id.tvAudioDiff)
+        val tvType: TextView = itemView.findViewById(R.id.tvDiffType)
+        val root: android.view.View = itemView.findViewById(R.id.root)
+    }
+
+    override fun onCreateViewHolder(parent: android.view.ViewGroup, viewType: Int): DiffViewHolder {
+        val view = android.view.LayoutInflater.from(parent.context)
+            .inflate(R.layout.item_diff, parent, false)
+        return DiffViewHolder(view)
+    }
+
+    override fun onBindViewHolder(holder: DiffViewHolder, position: Int) {
+        val diff = diffs[position]
+        holder.tvDocText.text = diff.docText
+        holder.tvAudioText.text = diff.audioText
+
+        val typeText = when (diff.type) {
+            TextComparator.DiffType.MISMATCH -> "误读"
+            TextComparator.DiffType.MISSING_IN_AUDIO -> "漏读"
+            TextComparator.DiffType.EXTRA_IN_AUDIO -> "多读"
+        }
+        holder.tvType.text = typeText
+
+        // 设置颜色
+        val colorRes = when (diff.type) {
+            TextComparator.DiffType.MISMATCH -> android.R.color.holo_red_light
+            TextComparator.DiffType.MISSING_IN_AUDIO -> android.R.color.holo_orange_light
+            TextComparator.DiffType.EXTRA_IN_AUDIO -> android.R.color.holo_blue_light
+        }
+        holder.root.setBackgroundColor(
+            holder.root.context.getColor(colorRes)
+        )
+    }
+
+    override fun getItemCount() = diffs.size
+}

@@ -1,0 +1,347 @@
+package com.multilanglearner.ui.component
+
+import android.util.Log
+import android.webkit.CookieManager
+import android.webkit.WebChromeClient
+import android.webkit.WebResourceError
+import android.webkit.WebResourceRequest
+import android.webkit.WebView
+import android.webkit.WebViewClient
+import androidx.compose.foundation.layout.*
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.CheckCircle
+import androidx.compose.material3.*
+import androidx.compose.runtime.*
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.unit.dp
+import androidx.compose.ui.viewinterop.AndroidView
+
+/**
+ * 视频平台枚举
+ */
+enum class VideoPlatform {
+    YOUTUBE,
+    DOUYIN,
+    TIKTOK;
+
+    val displayName: String get() = when (this) {
+        YOUTUBE -> "YouTube"
+        DOUYIN -> "抖音"
+        TIKTOK -> "TikTok"
+    }
+
+    val loginUrl: String get() = when (this) {
+        YOUTUBE -> "https://accounts.google.com/ServiceLogin?service=youtube"
+        DOUYIN -> "https://www.douyin.com/"
+        TIKTOK -> "https://www.tiktok.com/login"
+    }
+
+    val cookieDomain: String get() = when (this) {
+        YOUTUBE -> "youtube.com"
+        DOUYIN -> "douyin.com"
+        TIKTOK -> "tiktok.com"
+    }
+
+    // 关键 Cookie 字段
+    val cookieKeys: List<String> get() = when (this) {
+        YOUTUBE -> listOf("SID", "HSID", "SSID", "APISID", "SAPISID", "LOGIN_INFO", "PREF", "VISITOR_INFO1_LIVE")
+        DOUYIN -> listOf("sessionid", "sessionid_ss", "sid_guard", "sid_tt", "passport_csrf_token", "passport_csrf_token_default")
+        TIKTOK -> listOf("sessionid", "sessionid_ss", "sid_guard", "sid_tt", "csrf_session_id", "csrf_session_id_v2")
+    }
+
+    // 登录成功检测选择器
+    val successSelectors: List<String> get() = when (this) {
+        YOUTUBE -> listOf("#avatar-btn", "ytd-button", "#buttons")
+        DOUYIN -> listOf(".user-avatar", ".login-btn-logined", ".avatar-container")
+        TIKTOK -> listOf("[data-e2e='top-avatar-button']", ".user-avatar", ".avatar")
+    }
+}
+
+/**
+ * 平台 Cookie 数据
+ */
+data class PlatformCookies(
+    val platform: VideoPlatform,
+    val cookies: Map<String, String>,
+    val fullCookie: String = ""
+)
+
+/**
+ * 通用视频平台登录对话框
+ * 支持自动获取 Cookie
+ */
+@Composable
+fun PlatformLoginDialog(
+    platform: VideoPlatform,
+    onDismiss: () -> Unit,
+    onCookiesExtracted: (PlatformCookies) -> Unit,
+    modifier: Modifier = Modifier
+) {
+    var isLoading by remember { mutableStateOf(true) }
+    var currentUrl by remember { mutableStateOf("") }
+    var loginStatus by remember { mutableStateOf(LoginStatus.Idle) }
+    var errorMessage by remember { mutableStateOf<String?>(null) }
+    var pageLoaded by remember { mutableStateOf(false) }
+
+    // 页面加载后延迟检测登录状态
+    LaunchedEffect(pageLoaded) {
+        if (pageLoaded) {
+            kotlinx.coroutines.delay(3000)
+            // 3秒后无论是否检测到登录都尝试提取Cookie
+            tryExtractCookies(platform, currentUrl) { cookies ->
+                if (cookies.cookies.isNotEmpty()) {
+                    loginStatus = LoginStatus.Success
+                    onCookiesExtracted(cookies)
+                }
+            }
+        }
+    }
+
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        modifier = modifier.fillMaxWidth(0.98f),
+        title = {
+            Text("登录 ${platform.displayName} 获取 Cookie")
+        },
+        text = {
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .heightIn(min = 550.dp, max = 700.dp),
+                horizontalAlignment = Alignment.CenterHorizontally
+            ) {
+                when (loginStatus) {
+                    LoginStatus.Idle, LoginStatus.LoggingIn -> {
+                        if (isLoading) {
+                            CircularProgressIndicator(modifier = Modifier.padding(16.dp))
+                            Text("正在加载登录页面...", style = MaterialTheme.typography.bodySmall)
+                        } else {
+                            Text("请在下方登录 ${platform.displayName} 账号", style = MaterialTheme.typography.bodyMedium)
+                            Spacer(Modifier.height(8.dp))
+                            Text(
+                                "提示：可以使用双指缩放页面，方便点击小按钮",
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.secondary
+                            )
+                        }
+                    }
+                    LoginStatus.Success -> {
+                        Icon(
+                            Icons.Default.CheckCircle,
+                            contentDescription = "成功",
+                            modifier = Modifier.size(48.dp),
+                            tint = MaterialTheme.colorScheme.primary
+                        )
+                        Spacer(Modifier.height(16.dp))
+                        Text(
+                            "Cookie 获取成功！",
+                            style = MaterialTheme.typography.titleMedium,
+                            color = MaterialTheme.colorScheme.primary
+                        )
+                        Text(
+                            "已获取多个 Cookie 字段",
+                            style = MaterialTheme.typography.bodySmall
+                        )
+                    }
+                    LoginStatus.Failed -> {
+                        Text(
+                            "加载失败",
+                            style = MaterialTheme.typography.titleMedium,
+                            color = MaterialTheme.colorScheme.error
+                        )
+                        errorMessage?.let {
+                            Text(
+                                it,
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.error
+                            )
+                        }
+                    }
+                }
+
+                Spacer(Modifier.height(16.dp))
+
+                // WebView
+                AndroidView(
+                    factory = { ctx ->
+                        WebView(ctx).apply {
+                            settings.apply {
+                                javaScriptEnabled = true
+                                domStorageEnabled = true
+                                @Suppress("DEPRECATION")
+                                databaseEnabled = true
+                                cacheMode = android.webkit.WebSettings.LOAD_DEFAULT
+                                mixedContentMode = android.webkit.WebSettings.MIXED_CONTENT_ALWAYS_ALLOW
+                                userAgentString = when (platform) {
+                                    VideoPlatform.YOUTUBE -> "Mozilla/5.0 (Linux; Android 14) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Mobile Safari/537.36"
+                                    VideoPlatform.DOUYIN -> "Mozilla/5.0 (Linux; Android 14) AppleWebKit/537.36 (KHTML, like Gecko) Version/4.0 Chrome/122.0.0.0 Mobile Safari/537.36 aweme/340004"
+                                    VideoPlatform.TIKTOK -> "Mozilla/5.0 (Linux; Android 14) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Mobile Safari/537.36"
+                                }
+                                // 启用缩放支持
+                                setSupportZoom(true)
+                                builtInZoomControls = true
+                                displayZoomControls = false
+                                loadWithOverviewMode = true
+                                useWideViewPort = true
+                                textZoom = 120
+                            }
+
+                            webViewClient = object : WebViewClient() {
+                                override fun onPageStarted(view: WebView?, url: String?, favicon: android.graphics.Bitmap?) {
+                                    super.onPageStarted(view, url, favicon)
+                                    isLoading = true
+                                    loginStatus = LoginStatus.LoggingIn
+                                    currentUrl = url ?: ""
+                                }
+
+                                override fun onPageFinished(view: WebView?, url: String?) {
+                                    super.onPageFinished(view, url)
+                                    isLoading = false
+                                    currentUrl = url ?: ""
+                                    pageLoaded = true
+
+                                    // 注入JavaScript检测登录状态
+                                    val selectors = platform.successSelectors.joinToString(",")
+                                    view?.evaluateJavascript(
+                                        """
+                                        (function() {
+                                            var selectors = "$selectors".split(',');
+                                            for (var i = 0; i < selectors.length; i++) {
+                                                var el = document.querySelector(selectors[i]);
+                                                if (el && (el.offsetParent !== null || el.tagName === 'BUTTON' || el.tagName === 'A')) {
+                                                    return 'true';
+                                                }
+                                            }
+                                            return 'false';
+                                        })()
+                                        """.trimIndent()
+                                    ) { result ->
+                                        if (result == "true" || result == "\"true\"") {
+                                            // 已登录，提取Cookie
+                                            tryExtractCookies(platform, url ?: "") { cookies ->
+                                                if (cookies.cookies.isNotEmpty()) {
+                                                    loginStatus = LoginStatus.Success
+                                                    onCookiesExtracted(cookies)
+                                                }
+                                            }
+                                        }
+                                    }
+                                }
+
+                                override fun onReceivedError(
+                                    view: WebView?,
+                                    request: WebResourceRequest?,
+                                    error: WebResourceError?
+                                ) {
+                                    super.onReceivedError(view, request, error)
+                                    errorMessage = error?.description?.toString() ?: "加载失败"
+                                    loginStatus = LoginStatus.Failed
+                                }
+                            }
+
+                            webChromeClient = object : WebChromeClient() {
+                                override fun onProgressChanged(view: WebView?, newProgress: Int) {
+                                    // 可以在这里更新进度条
+                                }
+                            }
+
+                            // 清除之前的Cookie
+                            CookieManager.getInstance().removeAllCookies(null)
+                            CookieManager.getInstance().setAcceptThirdPartyCookies(this@apply, true)
+
+                            // 加载登录页面
+                            loadUrl(platform.loginUrl)
+                        }
+                    },
+                    update = { webView ->
+                        // WebView更新逻辑
+                    },
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .weight(1f)
+                )
+
+                // 当前URL显示
+                if (currentUrl.isNotEmpty() && loginStatus == LoginStatus.LoggingIn) {
+                    Spacer(Modifier.height(8.dp))
+                    Text(
+                        "当前页面: ${currentUrl.take(60)}${if (currentUrl.length > 60) "..." else ""}",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.secondary,
+                        textAlign = TextAlign.Center
+                    )
+                }
+            }
+        },
+        confirmButton = {
+            if (loginStatus == LoginStatus.Success) {
+                TextButton(onClick = onDismiss) {
+                    Text("完成")
+                }
+            } else {
+                TextButton(
+                    onClick = {
+                        // 手动尝试提取Cookie
+                        tryExtractCookies(platform, currentUrl) { cookies ->
+                            if (cookies.cookies.isNotEmpty()) {
+                                loginStatus = LoginStatus.Success
+                                onCookiesExtracted(cookies)
+                            }
+                        }
+                    }
+                ) {
+                    Text("手动提取Cookie")
+                }
+            }
+        },
+        dismissButton = {
+            TextButton(onClick = onDismiss) {
+                Text("取消")
+            }
+        }
+    )
+}
+
+internal enum class LoginStatus { Idle, LoggingIn, Success, Failed }
+
+/**
+ * 提取平台 Cookie
+ */
+private fun tryExtractCookies(
+    platform: VideoPlatform,
+    url: String,
+    onResult: (PlatformCookies) -> Unit
+) {
+    val cookieManager = CookieManager.getInstance()
+    val cookies = cookieManager.getCookie(url)
+        ?: cookieManager.getCookie("https://www.${platform.cookieDomain}")
+
+    val cookieMap = mutableMapOf<String, String>()
+    val cookiePairs = mutableListOf<Pair<String, String>>()
+
+    // 解析Cookie字符串
+    cookies?.split(";")?.forEach { cookie ->
+        val trimmed = cookie.trim()
+        val parts = trimmed.split("=", limit = 2)
+        if (parts.size == 2) {
+            val key = parts[0].trim()
+            val value = parts[1].trim()
+            cookiePairs.add(Pair(key, value))
+
+            // 提取关键字段
+            if (platform.cookieKeys.contains(key)) {
+                cookieMap[key] = value
+            }
+        }
+    }
+
+    // 构建完整Cookie字符串
+    val fullCookie = cookiePairs.joinToString("; ") { (key, value) -> "$key=$value" }
+
+    Log.d("PlatformLoginDialog", "Extracted ${cookieMap.size}/${platform.cookieKeys.size} key cookies for $platform, total: ${cookiePairs.size}")
+
+    onResult(PlatformCookies(platform, cookieMap, fullCookie))
+}

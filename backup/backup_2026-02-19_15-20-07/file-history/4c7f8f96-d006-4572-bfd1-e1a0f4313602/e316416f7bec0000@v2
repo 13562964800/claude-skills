@@ -1,0 +1,72 @@
+package com.court.assistant.webview
+
+import android.webkit.WebResourceRequest
+import android.webkit.WebResourceResponse
+import android.webkit.WebView
+import android.webkit.WebViewClient
+
+class CourtWebViewClient(
+    private val onPdfDetected: (url: String) -> Unit,
+    private val onPageLoaded: () -> Unit
+) : WebViewClient() {
+
+    private val detectedUrls = mutableSetOf<String>()
+
+    private fun notifyPdf(url: String) {
+        val key = url.substringBefore("?")
+        if (detectedUrls.add(key)) onPdfDetected(url)
+    }
+
+    override fun shouldOverrideUrlLoading(view: WebView?, request: WebResourceRequest?): Boolean {
+        val url = request?.url?.toString() ?: return false
+        if (isPdfUrl(url)) {
+            notifyPdf(url)
+            return true
+        }
+        return false
+    }
+
+    override fun shouldInterceptRequest(view: WebView?, request: WebResourceRequest?): WebResourceResponse? {
+        val url = request?.url?.toString() ?: return null
+        if (isPdfUrl(url) && request.method.equals("GET", ignoreCase = true)) {
+            view?.post { notifyPdf(url) }
+            return null
+        }
+        return null
+    }
+
+    override fun onPageFinished(view: WebView?, url: String?) {
+        super.onPageFinished(view, url)
+        onPageLoaded()
+        // 注入JS：拦截通过 window.open 或 JS 触发的 PDF 链接
+        view?.evaluateJavascript("""
+            (function() {
+                if (window._courtPdfHooked) return;
+                window._courtPdfHooked = true;
+                document.addEventListener('click', function(e) {
+                    var el = e.target;
+                    while (el && el.tagName !== 'A') el = el.parentElement;
+                    if (el && el.href) {
+                        var href = el.href.toLowerCase();
+                        if (href.endsWith('.pdf') || href.indexOf('.pdf?') !== -1
+                            || href.indexOf('getpdf') !== -1 || href.indexOf('download') !== -1
+                            || href.indexOf('文书') !== -1) {
+                            window.location.href = el.href;
+                        }
+                    }
+                }, true);
+                var origOpen = window.open;
+                window.open = function(url) {
+                    if (url) window.location.href = url;
+                    return null;
+                };
+            })();
+        """.trimIndent(), null)
+    }
+
+    private fun isPdfUrl(url: String): Boolean {
+        val lower = url.lowercase()
+        return lower.endsWith(".pdf") || lower.contains(".pdf?")
+            || lower.contains("getpdf") || lower.contains("download") && lower.contains("pdf")
+    }
+}

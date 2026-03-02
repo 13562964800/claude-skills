@@ -1,0 +1,127 @@
+import {LLM_PROVIDERS, LlmProviderId, AppConfig} from '../utils/config';
+
+export interface DiffItem {
+  docText: string;
+  audioText: string;
+  type: 'mismatch' | 'missing_in_audio' | 'extra_in_audio';
+  position: number;
+}
+
+export interface CompareResult {
+  diffs: DiffItem[];
+  summary: string;
+}
+
+const PROMPT_TEMPLATE = (audioText: string, docText: string) => `你是一个专业的文档校对助手。请对比以下两段文字，找出所有不一致的地方。
+
+【录音转写文字】
+${audioText}
+
+【Word文档原文】
+${docText}
+
+请以JSON格式返回对比结果，格式如下：
+{
+  "diffs": [
+    {
+      "docText": "文档中的原文片段",
+      "audioText": "录音中对应的文字（如果有）",
+      "type": "mismatch 或 missing_in_audio 或 extra_in_audio",
+      "position": 段落索引号（从0开始）
+    }
+  ],
+  "summary": "总结说明，共发现多少处不一致"
+}
+
+注意：
+- mismatch: 两边都有但内容不同
+- missing_in_audio: 文档有但录音没提到
+- extra_in_audio: 录音有但文档没有
+- 语义相同但表述不同的不算差异（如"价格高"和"价格偏高"算一致）
+- 口语化表达和书面表达的差异不算差异
+- 只返回JSON，不要其他内容`;
+
+async function callClaudeApi(prompt: string, apiKey: string, model: string): Promise<string> {
+  const resp = await fetch('https://api.anthropic.com/v1/messages', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'x-api-key': apiKey,
+      'anthropic-version': '2023-06-01',
+    },
+    body: JSON.stringify({
+      model,
+      max_tokens: 4096,
+      messages: [{role: 'user', content: prompt}],
+    }),
+  });
+  const data = await resp.json();
+  return data?.content?.[0]?.text || '';
+}
+
+async function callOpenAICompatible(prompt: string, apiKey: string, endpoint: string, model: string): Promise<string> {
+  const resp = await fetch(endpoint, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      Authorization: `Bearer ${apiKey}`,
+    },
+    body: JSON.stringify({
+      model,
+      messages: [{role: 'user', content: prompt}],
+      temperature: 0.1,
+    }),
+  });
+  const data = await resp.json();
+  return data?.choices?.[0]?.message?.content || '';
+}
+
+export async function compareTexts(
+  audioText: string,
+  docText: string,
+  config: AppConfig,
+): Promise<CompareResult> {
+  const providerId = config.llmProvider;
+  const provider = LLM_PROVIDERS[providerId];
+  const keyConfig = config.llmKeys[providerId];
+  if (!keyConfig?.key) throw new Error('未配置大模型API Key');
+
+  const model = keyConfig.model || provider.defaultModel;
+  const prompt = PROMPT_TEMPLATE(audioText, docText);
+
+  let content: string;
+  if (providerId === 'claude') {
+    content = await callClaudeApi(prompt, keyConfig.key, model);
+  } else {
+    content = await callOpenAICompatible(prompt, keyConfig.key, provider.endpoint, model);
+  }
+
+  const jsonMatch = content.match(/\{[\s\S]*\}/);
+  if (!jsonMatch) {
+    return {diffs: [], summary: '对比完成，未发现差异或解析失败'};
+  }
+  try {
+    return JSON.parse(jsonMatch[0]);
+  } catch {
+    return {diffs: [], summary: '对比结果解析失败: ' + content.substring(0, 200)};
+  }
+}
+
+// 测试大模型连接
+export async function testLlmConnection(providerId: LlmProviderId, apiKey: string, model?: string): Promise<{ok: boolean; msg: string}> {
+  const provider = LLM_PROVIDERS[providerId];
+  const m = model || provider.defaultModel;
+  const prompt = '请回复"连接成功"四个字。';
+
+  try {
+    let content: string;
+    if (providerId === 'claude') {
+      content = await callClaudeApi(prompt, apiKey, m);
+    } else {
+      content = await callOpenAICompatible(prompt, apiKey, provider.endpoint, m);
+    }
+    return {ok: !!content, msg: content ? `连接成功: ${content.substring(0, 50)}` : '无响应'};
+  } catch (e: any) {
+    return {ok: false, msg: `连接失败: ${e.message}`};
+  }
+}

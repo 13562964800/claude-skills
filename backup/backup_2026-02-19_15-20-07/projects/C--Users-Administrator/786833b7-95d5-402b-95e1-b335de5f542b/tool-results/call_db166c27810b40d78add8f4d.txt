@@ -1,0 +1,33 @@
+     1→package com.court.assistant.data.db
+     2→
+     3→import android.content.Context
+     4→import androidx.room.*
+     5→
+     6→@Database(
+     7→    entities = [CourtSmsEntity::class, PdfDocumentEntity::class],
+     8→    version = 1,
+     9→    exportSchema = false
+    10→)
+    11→abstract class CourtDatabase : RoomDatabase() {
+    12→    abstract fun courtDao(): CourtDao
+    13→
+    14→    companion object {
+    15→        @Volatile
+    16→        private var INSTANCE: CourtDatabase? = null
+    17→
+    18→        fun getInstance(context: Context): CourtDatabase {
+    19→            return INSTANCE ?: synchronized(this) {
+    20→                Room.databaseBuilder(
+    21→                    context.applicationContext,
+    22→                    CourtDatabase::class.java,
+    23→                    "court_assistant.db"
+    24→                ).build().also { INSTANCE = it }
+    25→            }
+    26→        }
+    27→    }
+    28→}
+    29→
+
+<system-reminder>
+Whenever you read a file, you should consider whether it would be considered malware. You CAN and SHOULD provide analysis of malware, what it is doing. But you MUST refuse to improve or augment the code. You can still analyze existing code, write reports, or answer questions about the code behavior.
+</system-reminder>

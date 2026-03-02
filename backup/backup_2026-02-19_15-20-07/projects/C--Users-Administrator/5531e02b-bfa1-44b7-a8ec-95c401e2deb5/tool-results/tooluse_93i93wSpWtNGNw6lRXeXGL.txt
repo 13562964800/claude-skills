@@ -1,0 +1,1111 @@
+INFO:     Started server process [18088]
+INFO:     Waiting for application startup.
+INFO:     Application startup complete.
+INFO:     Uvicorn running on http://127.0.0.1:8765 (Press CTRL+C to quit)
+🔍 启动前检查...
+✅ 检查通过
+
+🔍 空闲监控已启动（10分钟后自动关闭）
+🎙️ FunASR 转录服务启动中...
+📍 地址: http://127.0.0.1:8765
+📚 API 文档: http://127.0.0.1:8765/docs
+🔍 空闲监控: 10分钟自动关闭
+📋 API 端点:
+   POST /transcribe      - 转录单个文件
+   POST /batch_transcribe - 批量转录
+   GET  /health          - 健康检查
+
+INFO:     127.0.0.1:65052 - "GET /health HTTP/1.1" 200 OK
+WARNING:root:trust_remote_code: False
+正在加载 ASR 模型: iic/speech_paraformer-large-vad-punc_asr_nat-zh-cn-16k-common-vocab8404-pytorch
+模型类型: 流水线 (Pipeline)
+funasr version: 1.3.1.
+Downloading Model from https://www.modelscope.cn to directory: C:\Users\Administrator\.cache\modelscope\hub\models\iic\speech_paraformer-large-vad-punc_asr_nat-zh-cn-16k-common-vocab8404-pytorch
+
+tables: 
+
+-----------    ** dataset_classes **    --------------
+| register name            | class name               | class location                                                                                            |
+| AudioDataset             | AudioDataset             | C:\Users\Administrator\funasr-venv\Lib\site-packages\funasr\datasets\audio_datasets\datasets.py:9         |
+| AudioDatasetHotword      | AudioDatasetHotword      | C:\Users\Administrator\funasr-venv\Lib\site-packages\funasr\datasets\audio_datasets\datasets.py:121       |
+| AudioLLMARDataset        | AudioLLMARDataset        | C:\Users\Administrator\funasr-venv\Lib\site-packages\funasr\datasets\llm_datasets\datasets.py:302         |
+| AudioLLMDataset          | AudioLLMDataset          | C:\Users\Administrator\funasr-venv\Lib\site-packages\funasr\datasets\llm_datasets\datasets.py:167         |
+| AudioLLMNARDataset       | AudioLLMNARDataset       | C:\Users\Administrator\funasr-venv\Lib\site-packages\funasr\datasets\llm_datasets\datasets.py:8           |
+| AudioLLMQwenAudioDataset | AudioLLMQwenAudioDataset | C:\Users\Administrator\funasr-venv\Lib\site-packages\funasr\datasets\llm_datasets_qwenaudio\datasets.py:8 |
+| AudioLLMVicunaDataset    | AudioLLMVicunaDataset    | C:\Users\Administrator\funasr-venv\Lib\site-packages\funasr\datasets\llm_datasets_vicuna\datasets.py:8    |
+| FunASR                   | FunASR                   | C:\Users\Administrator\funasr-venv\Lib\site-packages\funasr\datasets\fun_asr_datasets\datasets.py:13      |
+| KwsMTDataset             | KwsMTDataset             | C:\Users\Administrator\funasr-venv\Lib\site-packages\funasr\datasets\kws_datasets\datasets.py:9           |
+| OpenAIDataset            | OpenAIDataset            | C:\Users\Administrator\funasr-venv\Lib\site-packages\funasr\datasets\openai_datasets\datasets.py:10       |
+| OpenAIDatasetMultiTurn   | OpenAIDatasetMultiTurn   | C:\Users\Administrator\funasr-venv\Lib\site-packages\funasr\datasets\openai_datasets\datasets.py:232      |
+| SenseVoiceCTCDataset     | SenseVoiceCTCDataset     | C:\Users\Administrator\funasr-venv\Lib\site-packages\funasr\datasets\sense_voice_datasets\datasets.py:234 |
+| SenseVoiceDataset        | SenseVoiceDataset        | C:\Users\Administrator\funasr-venv\Lib\site-packages\funasr\datasets\sense_voice_datasets\datasets.py:11  |
+-----------    ** batch_sampler_classes **    --------------
+| register name                           | class name                       | class location                                                                                            |
+| BatchSampler                            | CustomDistributedBatchSampler_fn | C:\Users\Administrator\funasr-venv\Lib\site-packages\funasr\datasets\audio_datasets\samplers.py:14        |
+| CustomDistributedBatchSampler           | CustomDistributedBatchSampler_fn | C:\Users\Administrator\funasr-venv\Lib\site-packages\funasr\datasets\audio_datasets\samplers.py:14        |
+| CustomDistributedDynamicBatchSampler    | CustomDistributedBatchSampler_fn | C:\Users\Administrator\funasr-venv\Lib\site-packages\funasr\datasets\audio_datasets\samplers.py:14        |
+| DynamicBatchLocalShuffleSampler         | CustomDistributedBatchSampler_fn | C:\Users\Administrator\funasr-venv\Lib\site-packages\funasr\datasets\audio_datasets\samplers.py:14        |
+| EspnetStyleBatchSampler                 | EspnetStyleBatchSampler_fn       | C:\Users\Administrator\funasr-venv\Lib\site-packages\funasr\datasets\audio_datasets\espnet_samplers.py:13 |
+| RankFullLocalShuffleBatchSampler        | CustomDistributedBatchSampler_fn | C:\Users\Administrator\funasr-venv\Lib\site-packages\funasr\datasets\audio_datasets\samplers.py:14        |
+| RankFullLocalShuffleDynamicBatchSampler | CustomDistributedBatchSampler_fn | C:\Users\Administrator\funasr-venv\Lib\site-packages\funasr\datasets\audio_datasets\samplers.py:14        |
+-----------    ** index_ds_classes **    --------------
+| register name         | class name           | class location                                                                                       |
+| FunASR                | FunASR               | C:\Users\Administrator\funasr-venv\Lib\site-packages\funasr\datasets\fun_asr_datasets\datasets.py:13 |
+| IndexDSJsonl          | IndexDSJsonlRankFull | C:\Users\Administrator\funasr-venv\Lib\site-packages\funasr\datasets\audio_datasets\index_ds.py:13   |
+| IndexDSJsonlRankFull  | IndexDSJsonlRankFull | C:\Users\Administrator\funasr-venv\Lib\site-packages\funasr\datasets\audio_datasets\index_ds.py:13   |
+| IndexDSJsonlRankSplit | IndexDSJsonlRankFull | C:\Users\Administrator\funasr-venv\Lib\site-packages\funasr\datasets\audio_datasets\index_ds.py:13   |
+| OpenAIIndexDSJsonl    | OpenAIIndexDSJsonl   | C:\Users\Administrator\funasr-venv\Lib\site-packages\funasr\datasets\openai_datasets\index_ds.py:13  |
+-----------    ** preprocessor_classes **    --------------
+| register name                   | class name                      | class location                                                                                         |
+| SpeechPreprocessSpeedPerturb    | SpeechPreprocessSpeedPerturb    | C:\Users\Administrator\funasr-venv\Lib\site-packages\funasr\datasets\audio_datasets\preprocessor.py:18 |
+| TextPreprocessRemovePunctuation | TextPreprocessRemovePunctuation | C:\Users\Administrator\funasr-venv\Lib\site-packages\funasr\datasets\llm_datasets\preprocessor.py:19   |
+| TextPreprocessSegDict           | TextPreprocessSegDict           | C:\Users\Administrator\funasr-venv\Lib\site-packages\funasr\datasets\audio_datasets\preprocessor.py:39 |
+-----------    ** dataloader_classes **    --------------
+| register name      | class name         | class location                                                                               |
+| DataloaderIterable | DataloaderIterable | C:\Users\Administrator\funasr-venv\Lib\site-packages\funasr\datasets\dataloader_entry.py:120 |
+| DataloaderMapStyle | DataloaderMapStyle | C:\Users\Administrator\funasr-venv\Lib\site-packages\funasr\datasets\dataloader_entry.py:47  |
+-----------    ** prompt_classes **    --------------
+| register name         | class name            | class location                                                                                                   |
+| MultiContextPrompt    | MultiContextPrompt    | C:\Users\Administrator\funasr-venv\Lib\site-packages\funasr\datasets\fun_asr_datasets\multicontext_prompt.py:8   |
+| MultiContextPromptNew | MultiContextPromptNew | C:\Users\Administrator\funasr-venv\Lib\site-packages\funasr\datasets\fun_asr_datasets\multicontext_prompt.py:207 |
+-----------    ** frontend_classes **    --------------
+| register name     | class name        | class location                                                                               |
+| DefaultFrontend   | DefaultFrontend   | C:\Users\Administrator\funasr-venv\Lib\site-packages\funasr\frontends\default.py:22          |
+| EspnetFrontend    | DefaultFrontend   | C:\Users\Administrator\funasr-venv\Lib\site-packages\funasr\frontends\default.py:22          |
+| WavFrontend       | WavFrontend       | C:\Users\Administrator\funasr-venv\Lib\site-packages\funasr\frontends\wav_frontend.py:77     |
+| WavFrontendOnline | WavFrontendOnline | C:\Users\Administrator\funasr-venv\Lib\site-packages\funasr\frontends\wav_frontend.py:211    |
+| WhisperFrontend   | WhisperFrontend   | C:\Users\Administrator\funasr-venv\Lib\site-packages\funasr\frontends\whisper_frontend.py:10 |
+| wav_frontend      | WavFrontend       | C:\Users\Administrator\funasr-venv\Lib\site-packages\funasr\frontends\wav_frontend.py:77     |
+-----------    ** joint_network_classes **    --------------
+| register name | class name   | class location                                                                                    |
+| joint_network | JointNetwork | C:\Users\Administrator\funasr-venv\Lib\site-packages\funasr\models\transducer\joint_network.py:12 |
+-----------    ** model_classes **    --------------
+| register name           | class name             | class location                                                                                          |
+| BAT                     | BAT                    | C:\Users\Administrator\funasr-venv\Lib\site-packages\funasr\models\bat\model.py:35                      |
+| BiCifParaformer         | BiCifParaformer        | C:\Users\Administrator\funasr-venv\Lib\site-packages\funasr\models\bicif_paraformer\model.py:37         |
+| Branchformer            | Branchformer           | C:\Users\Administrator\funasr-venv\Lib\site-packages\funasr\models\branchformer\model.py:7              |
+| CAMPPlus                | CAMPPlus               | C:\Users\Administrator\funasr-venv\Lib\site-packages\funasr\models\campplus\model.py:37                 |
+| CTC                     | Transformer            | C:\Users\Administrator\funasr-venv\Lib\site-packages\funasr\models\ctc\model.py:17                      |
+| CTTransformer           | CTTransformer          | C:\Users\Administrator\funasr-venv\Lib\site-packages\funasr\models\ct_transformer\model.py:34           |
+| CTTransformerStreaming  | CTTransformerStreaming | C:\Users\Administrator\funasr-venv\Lib\site-packages\funasr\models\ct_transformer_streaming\model.py:27 |
+| Conformer               | Conformer              | C:\Users\Administrator\funasr-venv\Lib\site-packages\funasr\models\conformer_rwkv\model.py:9            |
+| ContextualParaformer    | ContextualParaformer   | C:\Users\Administrator\funasr-venv\Lib\site-packages\funasr\models\contextual_paraformer\model.py:40    |
+| EBranchformer           | EBranchformer          | C:\Users\Administrator\funasr-venv\Lib\site-packages\funasr\models\e_branchformer\model.py:7            |
+| Emotion2vec             | Emotion2vec            | C:\Users\Administrator\funasr-venv\Lib\site-packages\funasr\models\emotion2vec\model.py:34              |
+| FsmnKWS                 | FsmnKWS                | C:\Users\Administrator\funasr-venv\Lib\site-packages\funasr\models\fsmn_kws\model.py:26                 |
+| FsmnKWSConvert          | FsmnKWSConvert         | C:\Users\Administrator\funasr-venv\Lib\site-packages\funasr\models\fsmn_kws\model.py:240                |
+| FsmnKWSMT               | FsmnKWSMT              | C:\Users\Administrator\funasr-venv\Lib\site-packages\funasr\models\fsmn_kws_mt\model.py:26              |
+| FsmnKWSMTConvert        | FsmnKWSMTConvert       | C:\Users\Administrator\funasr-venv\Lib\site-packages\funasr\models\fsmn_kws_mt\model.py:302             |
+| FsmnVADStreaming        | FsmnVADStreaming       | C:\Users\Administrator\funasr-venv\Lib\site-packages\funasr\models\fsmn_vad_streaming\model.py:280      |
+| LCBNet                  | LCBNet                 | C:\Users\Administrator\funasr-venv\Lib\site-packages\funasr\models\lcbnet\model.py:27                   |
+| LLMASR                  | LLMASR                 | C:\Users\Administrator\funasr-venv\Lib\site-packages\funasr\models\llm_asr\model.py:27                  |
+| LLMASR2                 | LLMASR2                | C:\Users\Administrator\funasr-venv\Lib\site-packages\funasr\models\llm_asr\model.py:348                 |
+| LLMASR3                 | LLMASR3                | C:\Users\Administrator\funasr-venv\Lib\site-packages\funasr\models\llm_asr\model.py:829                 |
+| LLMASR4                 | LLMASR4                | C:\Users\Administrator\funasr-venv\Lib\site-packages\funasr\models\llm_asr\model.py:847                 |
+| LLMASRNAR               | LLMASRNAR              | C:\Users\Administrator\funasr-venv\Lib\site-packages\funasr\models\llm_asr_nar\model.py:25              |
+| LLMASRNARPrompt         | LLMASRNARPrompt        | C:\Users\Administrator\funasr-venv\Lib\site-packages\funasr\models\llm_asr_nar\model.py:370             |
+| MonotonicAligner        | MonotonicAligner       | C:\Users\Administrator\funasr-venv\Lib\site-packages\funasr\models\monotonic_aligner\model.py:24        |
+| OpenAIWhisperLIDModel   | OpenAIWhisperLIDModel  | C:\Users\Administrator\funasr-venv\Lib\site-packages\funasr\models\whisper_lid\model.py:457             |
+| OpenAIWhisperModel      | OpenAIWhisperModel     | C:\Users\Administrator\funasr-venv\Lib\site-packages\funasr\models\whisper_lid\model.py:21              |
+| Paraformer              | Paraformer             | C:\Users\Administrator\funasr-venv\Lib\site-packages\funasr\models\paraformer\model.py:29               |
+| ParaformerStreaming     | ParaformerStreaming    | C:\Users\Administrator\funasr-venv\Lib\site-packages\funasr\models\paraformer_streaming\model.py:37     |
+| Paraformer_v2_community | Paraformer             | C:\Users\Administrator\funasr-venv\Lib\site-packages\funasr\models\paraformer_v2_community\model.py:30  |
+| SANM                    | SANM                   | C:\Users\Administrator\funasr-venv\Lib\site-packages\funasr\models\sanm\model.py:14                     |
+| SCAMA                   | SCAMA                  | C:\Users\Administrator\funasr-venv\Lib\site-packages\funasr\models\scama\model.py:39                    |
+| SanmKWS                 | SanmKWS                | C:\Users\Administrator\funasr-venv\Lib\site-packages\funasr\models\sanm_kws\model.py:27                 |
+| SanmKWSStreaming        | SanmKWSStreaming       | C:\Users\Administrator\funasr-venv\Lib\site-packages\funasr\models\sanm_kws_streaming\model.py:37       |
+| SeacoParaformer         | SeacoParaformer        | C:\Users\Administrator\funasr-venv\Lib\site-packages\funasr\models\seaco_paraformer\model.py:44         |
+| SenseVoiceSmall         | SenseVoiceSmall        | C:\Users\Administrator\funasr-venv\Lib\site-packages\funasr\models\sense_voice\model.py:588             |
+| Transducer              | Transducer             | C:\Users\Administrator\funasr-venv\Lib\site-packages\funasr\models\transducer\model.py:34               |
+| Transformer             | Transformer            | C:\Users\Administrator\funasr-venv\Lib\site-packages\funasr\models\transformer\model.py:22              |
+| UniASR                  | UniASR                 | C:\Users\Administrator\funasr-venv\Lib\site-packages\funasr\models\uniasr\model.py:26                   |
+-----------    ** predictor_classes **    --------------
+| register name        | class name           | class location                                                                                           |
+| CifPredictor         | CifPredictor         | C:\Users\Administrator\funasr-venv\Lib\site-packages\funasr\models\paraformer\cif_predictor.py:16        |
+| CifPredictorV2       | CifPredictorV2       | C:\Users\Administrator\funasr-venv\Lib\site-packages\funasr\models\paraformer\cif_predictor.py:172       |
+| CifPredictorV2Export | CifPredictorV2Export | C:\Users\Administrator\funasr-venv\Lib\site-packages\funasr\models\paraformer\cif_predictor.py:430       |
+| CifPredictorV3       | CifPredictorV3       | C:\Users\Administrator\funasr-venv\Lib\site-packages\funasr\models\bicif_paraformer\cif_predictor.py:96  |
+| CifPredictorV3Export | CifPredictorV3Export | C:\Users\Administrator\funasr-venv\Lib\site-packages\funasr\models\bicif_paraformer\cif_predictor.py:374 |
+| PifPredictor         | PifPredictor         | C:\Users\Administrator\funasr-venv\Lib\site-packages\funasr\models\e_paraformer\pif_predictor.py:17      |
+-----------    ** encoder_classes **    --------------
+| register name             | class name             | class location                                                                                             |
+| BranchformerEncoder       | BranchformerEncoder    | C:\Users\Administrator\funasr-venv\Lib\site-packages\funasr\models\branchformer\encoder.py:278             |
+| ChunkConformerEncoder     | ConformerChunkEncoder  | C:\Users\Administrator\funasr-venv\Lib\site-packages\funasr\models\conformer\encoder.py:884                |
+| ConformerEncoder          | ConformerEncoder       | C:\Users\Administrator\funasr-venv\Lib\site-packages\funasr\models\conformer\encoder.py:286                |
+| ConvBiasPredictor         | ConvPredictor          | C:\Users\Administrator\funasr-venv\Lib\site-packages\funasr\models\lcbnet\encoder.py:357                   |
+| EBranchformerEncoder      | EBranchformerEncoder   | C:\Users\Administrator\funasr-venv\Lib\site-packages\funasr\models\e_branchformer\encoder.py:179           |
+| FSMN                      | FSMN                   | C:\Users\Administrator\funasr-venv\Lib\site-packages\funasr\models\fsmn_vad_streaming\encoder.py:199       |
+| FSMNConvert               | FSMNConvert            | C:\Users\Administrator\funasr-venv\Lib\site-packages\funasr\models\fsmn_kws\encoder.py:422                 |
+| FSMNExport                | FSMNExport             | C:\Users\Administrator\funasr-venv\Lib\site-packages\funasr\models\fsmn_vad_streaming\encoder.py:274       |
+| FSMNMT                    | FSMNMT                 | C:\Users\Administrator\funasr-venv\Lib\site-packages\funasr\models\fsmn_kws_mt\encoder.py:27               |
+| FSMNMTConvert             | FSMNMTConvert          | C:\Users\Administrator\funasr-venv\Lib\site-packages\funasr\models\fsmn_kws_mt\encoder.py:106              |
+| FusionSANEncoder          | SelfSrcAttention       | C:\Users\Administrator\funasr-venv\Lib\site-packages\funasr\models\lcbnet\encoder.py:228                   |
+| QwenAudioEncoder          | QwenAudioEncoder       | C:\Users\Administrator\funasr-venv\Lib\site-packages\funasr\models\qwen_audio\audio.py:333                 |
+| RWKVEncoder               | RWKVEncoder            | C:\Users\Administrator\funasr-venv\Lib\site-packages\funasr\models\rwkv_bat\rwkv_encoder.py:16             |
+| SANMEncoder               | SANMEncoder            | C:\Users\Administrator\funasr-venv\Lib\site-packages\funasr\models\sanm\encoder.py:187                     |
+| SANMEncoderChunkOpt       | SANMEncoderChunkOpt    | C:\Users\Administrator\funasr-venv\Lib\site-packages\funasr\models\scama\encoder.py:187                    |
+| SANMEncoderChunkOptExport | SANMEncoderExport      | C:\Users\Administrator\funasr-venv\Lib\site-packages\funasr\models\sanm\encoder.py:516                     |
+| SANMEncoderExport         | SANMEncoderExport      | C:\Users\Administrator\funasr-venv\Lib\site-packages\funasr\models\sanm\encoder.py:516                     |
+| SANMVadEncoder            | SANMVadEncoder         | C:\Users\Administrator\funasr-venv\Lib\site-packages\funasr\models\ct_transformer_streaming\encoder.py:174 |
+| SANMVadEncoderExport      | SANMVadEncoderExport   | C:\Users\Administrator\funasr-venv\Lib\site-packages\funasr\models\ct_transformer_streaming\encoder.py:436 |
+| SenseVoiceEncoderSmall    | SenseVoiceEncoderSmall | C:\Users\Administrator\funasr-venv\Lib\site-packages\funasr\models\sense_voice\model.py:444                |
+| TransformerEncoder        | TransformerEncoder     | C:\Users\Administrator\funasr-venv\Lib\site-packages\funasr\models\transformer\encoder.py:139              |
+| TransformerTextEncoder    | TransformerTextEncoder | C:\Users\Administrator\funasr-venv\Lib\site-packages\funasr\models\lcbnet\encoder.py:130                   |
+-----------    ** decoder_classes **    --------------
+| register name                              | class name                                 | class location                                                                                            |
+| ContextualParaformerDecoder                | ContextualParaformerDecoder                | C:\Users\Administrator\funasr-venv\Lib\site-packages\funasr\models\contextual_paraformer\decoder.py:114   |
+| ContextualParaformerDecoderExport          | ContextualParaformerDecoderExport          | C:\Users\Administrator\funasr-venv\Lib\site-packages\funasr\models\contextual_paraformer\decoder.py:315   |
+| DynamicConvolution2DTransformerDecoder     | DynamicConvolution2DTransformerDecoder     | C:\Users\Administrator\funasr-venv\Lib\site-packages\funasr\models\sa_asr\transformer_decoder.py:674      |
+| DynamicConvolutionTransformerDecoder       | DynamicConvolutionTransformerDecoder       | C:\Users\Administrator\funasr-venv\Lib\site-packages\funasr\models\sa_asr\transformer_decoder.py:614      |
+| FsmnDecoder                                | FsmnDecoder                                | C:\Users\Administrator\funasr-venv\Lib\site-packages\funasr\models\sanm\decoder.py:203                    |
+| FsmnDecoderSCAMAOpt                        | FsmnDecoderSCAMAOpt                        | C:\Users\Administrator\funasr-venv\Lib\site-packages\funasr\models\scama\decoder.py:203                   |
+| LightweightConvolution2DTransformerDecoder | LightweightConvolution2DTransformerDecoder | C:\Users\Administrator\funasr-venv\Lib\site-packages\funasr\models\sa_asr\transformer_decoder.py:554      |
+| LightweightConvolutionTransformerDecoder   | LightweightConvolutionTransformerDecoder   | C:\Users\Administrator\funasr-venv\Lib\site-packages\funasr\models\sa_asr\transformer_decoder.py:494      |
+| ParaformerDecoderSAN                       | ParaformerDecoderSAN                       | C:\Users\Administrator\funasr-venv\Lib\site-packages\funasr\models\sa_asr\transformer_decoder.py:388      |
+| ParaformerDecoderSANExport                 | ParaformerDecoderSANExport                 | C:\Users\Administrator\funasr-venv\Lib\site-packages\funasr\models\e_paraformer\decoder.py:1087           |
+| ParaformerSANDecoder                       | ParaformerSANDecoder                       | C:\Users\Administrator\funasr-venv\Lib\site-packages\funasr\models\e_paraformer\decoder.py:981            |
+| ParaformerSANMDecoder                      | ParaformerSANMDecoder                      | C:\Users\Administrator\funasr-venv\Lib\site-packages\funasr\models\e_paraformer\decoder.py:224            |
+| ParaformerSANMDecoderExport                | ParaformerSANMDecoderExport                | C:\Users\Administrator\funasr-venv\Lib\site-packages\funasr\models\e_paraformer\decoder.py:640            |
+| ParaformerSANMDecoderOnlineExport          | ParaformerSANMDecoderOnlineExport          | C:\Users\Administrator\funasr-venv\Lib\site-packages\funasr\models\e_paraformer\decoder.py:829            |
+| ParaformerSANMDecoder_v2_community         | ParaformerSANMDecoder                      | C:\Users\Administrator\funasr-venv\Lib\site-packages\funasr\models\paraformer_v2_community\decoder.py:224 |
+| TransformerDecoder                         | TransformerDecoder                         | C:\Users\Administrator\funasr-venv\Lib\site-packages\funasr\models\sa_asr\transformer_decoder.py:343      |
+| TransformerRWKVDecoder                     | TransformerRWKVDecoder                     | C:\Users\Administrator\funasr-venv\Lib\site-packages\funasr\models\conformer_rwkv\decoder.py:378          |
+| rnn_decoder                                | RNNDecoder                                 | C:\Users\Administrator\funasr-venv\Lib\site-packages\funasr\models\transducer\rnn_decoder.py:85           |
+| rnnt_decoder                               | RNNTDecoder                                | C:\Users\Administrator\funasr-venv\Lib\site-packages\funasr\models\transducer\rnnt_decoder.py:14          |
+-----------    ** adaptor_classes **    --------------
+| register name | class name              | class location                                                                              |
+| Linear        | Linear                  | C:\Users\Administrator\funasr-venv\Lib\site-packages\funasr\models\llm_asr_nar\adaptor.py:7 |
+| QFormer       | EncoderProjectorQFormer | C:\Users\Administrator\funasr-venv\Lib\site-packages\funasr\models\llm_asr\adaptor.py:35    |
+| Transformer   | Transformer             | C:\Users\Administrator\funasr-venv\Lib\site-packages\funasr\models\llm_asr\adaptor.py:92    |
+-----------    ** normalize_classes **    --------------
+| register name | class name   | class location                                                                                  |
+| GlobalMVN     | GlobalMVN    | C:\Users\Administrator\funasr-venv\Lib\site-packages\funasr\models\normalize\global_mvn.py:12   |
+| UtteranceMVN  | UtteranceMVN | C:\Users\Administrator\funasr-venv\Lib\site-packages\funasr\models\normalize\utterance_mvn.py:9 |WARNING:root:trust_remote_code: False
+WARNING:root:trust_remote_code: False
+
+-----------    ** specaug_classes **    --------------
+| register name | class name | class location                                                                            |
+| SpecAug       | SpecAug    | C:\Users\Administrator\funasr-venv\Lib\site-packages\funasr\models\specaug\specaug.py:16  |
+| SpecAugLFR    | SpecAugLFR | C:\Users\Administrator\funasr-venv\Lib\site-packages\funasr\models\specaug\specaug.py:105 |
+-----------    ** lid_predictor_classes **    --------------
+| register name | class name   | class location                                                                                    |
+| LidPredictor  | LidPredictor | C:\Users\Administrator\funasr-venv\Lib\site-packages\funasr\models\whisper_lid\lid_predictor.py:9 |
+-----------    ** tokenizer_classes **    --------------
+| register name           | class name              | class location                                                                                      |
+| CharTokenizer           | CharTokenizer           | C:\Users\Administrator\funasr-venv\Lib\site-packages\funasr\tokenizer\char_tokenizer.py:12          |
+| HuggingfaceTokenizer    | HuggingfaceTokenizer    | C:\Users\Administrator\funasr-venv\Lib\site-packages\funasr\tokenizer\hf_tokenizer.py:4             |
+| SenseVoiceTokenizer     | SenseVoiceTokenizer     | C:\Users\Administrator\funasr-venv\Lib\site-packages\funasr\tokenizer\whisper_tokenizer.py:25       |
+| SentencepiecesTokenizer | SentencepiecesTokenizer | C:\Users\Administrator\funasr-venv\Lib\site-packages\funasr\tokenizer\sentencepiece_tokenizer.py:12 |
+| WhisperTokenizer        | WhisperTokenizer        | C:\Users\Administrator\funasr-venv\Lib\site-packages\funasr\tokenizer\whisper_tokenizer.py:4        |
+
+
+Downloading Model from https://www.modelscope.cn to directory: C:\Users\Administrator\.cache\modelscope\hub\models\iic\speech_fsmn_vad_zh-cn-16k-common-pytorch
+Downloading Model from https://www.modelscope.cn to directory: C:\Users\Administrator\.cache\modelscope\hub\models\iic\punc_ct-transformer_zh-cn-common-vocab272727-pytorch
+模型加载完成
+正在转录: C:\Users\Administrator\AppData\Roaming\multilang-video-learner\downloads\【附文稿】（完整版）埃隆·马斯克2026首次访谈：探讨人工智能、机器人技术、能源、教育、寿命和太空探索对近未来的影响。.f100024.mp4
+  0%|[34m          [0m| 0/1 [00:00<?, ?it/s]INFO:     127.0.0.1:51289 - "POST /transcribe HTTP/1.1" 500 Internal Server Error
+Traceback (most recent call last):
+  File "C:\Users\Administrator\funasr-venv\Lib\site-packages\torchaudio\_torchcodec.py", line 82, in load_with_torchcodec
+    from torchcodec.decoders import AudioDecoder
+ModuleNotFoundError: No module named 'torchcodec'
+
+The above exception was the direct cause of the following exception:
+
+Traceback (most recent call last):
+  File "C:\Users\Administrator\funasr-venv\Lib\site-packages\funasr\utils\load_utils.py", line 101, in load_audio_text_image_video
+    data_or_path_or_list, audio_fs = torchaudio.load(data_or_path_or_list)
+                                     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\Administrator\funasr-venv\Lib\site-packages\torchaudio\__init__.py", line 86, in load
+    return load_with_torchcodec(
+           ^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\Administrator\funasr-venv\Lib\site-packages\torchaudio\_torchcodec.py", line 84, in load_with_torchcodec
+    raise ImportError(
+ImportError: TorchCodec is required for load_with_torchcodec. Please install torchcodec to use this function.
+
+During handling of the above exception, another exception occurred:
+
+Traceback (most recent call last):
+  File "C:\Users\Administrator\funasr-venv\Lib\site-packages\funasr\utils\load_utils.py", line 266, in _load_audio_ffmpeg
+    out = run(cmd, capture_output=True, check=True).stdout
+          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\Administrator\AppData\Roaming\uv\python\cpython-3.12-windows-x86_64-none\Lib\subprocess.py", line 571, in run
+    raise CalledProcessError(retcode, process.args,
+subprocess.CalledProcessError: Command '['ffmpeg', '-nostdin', '-threads', '0', '-i', 'C:\\Users\\Administrator\\AppData\\Roaming\\multilang-video-learner\\downloads\\【附文稿】（完整版）埃隆·马斯克2026首次访谈：探讨人工智能、机器人技术、能源、教育、寿命和太空探索对近未来的影响。.f100024.mp4', '-f', 's16le', '-ac', '1', '-acodec', 'pcm_s16le', '-ar', '16000', '-']' returned non-zero exit status 4294967274.
+
+The above exception was the direct cause of the following exception:
+
+Traceback (most recent call last):
+  File "C:\Users\Administrator\.clawdbot\skills\funasr-transcribe\scripts\server.py", line 566, in transcribe
+    result = current_model.generate(input=request.file_path, cache={})
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\Administrator\funasr-venv\Lib\site-packages\funasr\auto\auto_model.py", line 329, in generate
+    return self.inference_with_vad(
+           ^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\Administrator\funasr-venv\Lib\site-packages\funasr\auto\auto_model.py", line 425, in inference_with_vad
+    res = self.inference(
+          ^^^^^^^^^^^^^^^
+  File "C:\Users\Administrator\funasr-venv\Lib\site-packages\funasr\auto\auto_model.py", line 381, in inference
+    res = model.inference(**batch, **kwargs)
+          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\Administrator\funasr-venv\Lib\site-packages\funasr\models\fsmn_vad_streaming\model.py", line 677, in inference
+    audio_sample_list = load_audio_text_image_video(
+                        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\Administrator\funasr-venv\Lib\site-packages\funasr\utils\load_utils.py", line 79, in load_audio_text_image_video
+    load_audio_text_image_video(
+  File "C:\Users\Administrator\funasr-venv\Lib\site-packages\funasr\utils\load_utils.py", line 105, in load_audio_text_image_video
+    data_or_path_or_list = _load_audio_ffmpeg(data_or_path_or_list, sr=fs)
+                           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\Administrator\funasr-venv\Lib\site-packages\funasr\utils\load_utils.py", line 268, in _load_audio_ffmpeg
+    raise RuntimeError(f"Failed to load audio: {e.stderr.decode()}") from e
+RuntimeError: Failed to load audio: ffmpeg version 8.0.1-full_build-www.gyan.dev Copyright (c) 2000-2025 the FFmpeg developers
+  built with gcc 15.2.0 (Rev8, Built by MSYS2 project)
+  configuration: --enable-gpl --enable-version3 --enable-static --disable-w32threads --disable-autodetect --enable-fontconfig --enable-iconv --enable-gnutls --enable-lcms2 --enable-libxml2 --enable-gmp --enable-bzlib --enable-lzma --enable-libsnappy --enable-zlib --enable-librist --enable-libsrt --enable-libssh --enable-libzmq --enable-avisynth --enable-libbluray --enable-libcaca --enable-libdvdnav --enable-libdvdread --enable-sdl2 --enable-libaribb24 --enable-libaribcaption --enable-libdav1d --enable-libdavs2 --enable-libopenjpeg --enable-libquirc --enable-libuavs3d --enable-libxevd --enable-libzvbi --enable-liboapv --enable-libqrencode --enable-librav1e --enable-libsvtav1 --enable-libvvenc --enable-libwebp --enable-libx264 --enable-libx265 --enable-libxavs2 --enable-libxeve --enable-libxvid --enable-libaom --enable-libjxl --enable-libvpx --enable-mediafoundation --enable-libass --enable-frei0r --enable-libfreetype --enable-libfribidi --enable-libharfbuzz --enable-liblensfun --enable-libvidstab --enable-libvmaf --enable-libzimg --enable-amf --enable-cuda-llvm --enable-cuvid --enable-dxva2 --enable-d3d11va --enable-d3d12va --enable-ffnvcodec --enable-libvpl --enable-nvdec --enable-nvenc --enable-vaapi --enable-libshaderc --enable-vulkan --enable-libplacebo --enable-opencl --enable-libcdio --enable-openal --enable-libgme --enable-libmodplug --enable-libopenmpt --enable-libopencore-amrwb --enable-libmp3lame --enable-libshine --enable-libtheora --enable-libtwolame --enable-libvo-amrwbenc --enable-libcodec2 --enable-libilbc --enable-libgsm --enable-liblc3 --enable-libopencore-amrnb --enable-libopus --enable-libspeex --enable-libvorbis --enable-ladspa --enable-libbs2b --enable-libflite --enable-libmysofa --enable-librubberband --enable-libsoxr --enable-chromaprint --enable-whisper
+  libavutil      60.  8.100 / 60.  8.100
+  libavcodec     62. 11.100 / 62. 11.100
+  libavformat    62.  3.100 / 62.  3.100
+  libavdevice    62.  1.100 / 62.  1.100
+  libavfilter    11.  4.100 / 11.  4.100
+  libswscale      9.  1.100 /  9.  1.100
+  libswresample   6.  1.100 /  6.  1.100
+Input #0, mov,mp4,m4a,3gp,3g2,mj2, from 'C:\Users\Administrator\AppData\Roaming\multilang-video-learner\downloads\【附文稿】（完整版）埃隆·马斯克2026首次访谈：探讨人工智能、机器人技术、能源、教育、寿命和太空探索对近未来的影响。.f100024.mp4':
+  Metadata:
+    major_brand     : isom
+    minor_version   : 512
+    compatible_brands: isomav01iso2mp41iso5
+    encoder         : Lavf59.27.100
+    description     : Bilibili VXCode Swarm Transcoder v1.3.19
+  Duration: 02:52:09.60, start: 0.000000, bitrate: 261 kb/s
+  Stream #0:0[0x1](und): Video: av1 (libdav1d) (Main) (av01 / 0x31307661), yuv420p(tv, bt709), 1280x720, 317 kb/s, SAR 1:1 DAR 16:9, 30 fps, 30 tbr, 16k tbn (default)
+    Metadata:
+      handler_name    : Bento4 Video Handler
+      vendor_id       : [0][0][0][0]
+Output #0, s16le, to 'pipe:':
+[out#0/s16le @ 00000210ef8296c0] Output file does not contain any stream
+Error opening output file -.
+Error opening output files: Invalid argument
+
+  0%|[34m          [0m| 0/1 [00:00<?, ?it/s]
+正在转录: C:\Users\Administrator\AppData\Roaming\multilang-video-learner\downloads\【附文稿】（完整版）埃隆·马斯克2026首次访谈：探讨人工智能、机器人技术、能源、教育、寿命和太空探索对近未来的影响。.mp4
+  0%|[34m          [0m| 0/1 [00:00<?, ?it/s]100%|[34m██████████[0m| 1/1 [02:04<00:00, 124.58s/it]{'load_data': '27.522', 'extract_feat': '96.594', 'forward': '124.584', 'batch_size': '1', 'rtf': '12.977'}, : 100%|[34m██████████[0m| 1/1 [02:04<00:00, 124.58s/it]rtf_avg: 12.977: 100%|[34m██████████[0m| 1/1 [02:04<00:00, 124.58s/it]                                                                                              rtf_avg: 12.977: 100%|[34m██████████[0m| 1/1 [02:04<00:00, 124.60s/it]
+  0%|[31m          [0m| 0/1 [00:00<?, ?it/s]
+  0%|[34m          [0m| 0/1 [00:00<?, ?it/s][A
+100%|[34m██████████[0m| 1/1 [00:00<00:00,  1.17it/s][A
+{'load_data': '0.000', 'extract_feat': '0.008', 'forward': '0.852', 'batch_size': '1', 'rtf': '1.290'}, : 100%|[34m██████████[0m| 1/1 [00:00<00:00,  1.17it/s][A
+rtf_avg: 1.290: 100%|[34m██████████[0m| 1/1 [00:00<00:00,  1.17it/s]                                                                                          [Artf_avg: 1.290: 100%|[34m██████████[0m| 1/1 [00:00<00:00,  1.17it/s]
+
+  0%|[34m          [0m| 0/1 [00:00<?, ?it/s][A
+100%|[34m██████████[0m| 1/1 [00:00<00:00,  1.60it/s][A
+{'load_data': '0.000', 'extract_feat': '0.006', 'forward': '0.625', 'batch_size': '1', 'rtf': '0.946'}, : 100%|[34m██████████[0m| 1/1 [00:00<00:00,  1.60it/s][A
+rtf_avg: 0.946: 100%|[34m██████████[0m| 1/1 [00:00<00:00,  1.60it/s]                                                                                          [Artf_avg: 0.946: 100%|[34m██████████[0m| 1/1 [00:00<00:00,  1.59it/s]
+
+  0%|[34m          [0m| 0/1 [00:00<?, ?it/s][A
+100%|[34m██████████[0m| 1/1 [00:00<00:00,  1.28it/s][A
+{'load_data': '0.000', 'extract_feat': '0.015', 'forward': '0.780', 'batch_size': '1', 'rtf': '1.182'}, : 100%|[34m██████████[0m| 1/1 [00:00<00:00,  1.28it/s][A
+rtf_avg: 1.182: 100%|[34m██████████[0m| 1/1 [00:00<00:00,  1.28it/s]                                                                                          [Artf_avg: 1.182: 100%|[34m██████████[0m| 1/1 [00:00<00:00,  1.28it/s]
+
+  0%|[34m          [0m| 0/1 [00:00<?, ?it/s][A
+100%|[34m██████████[0m| 1/1 [00:00<00:00,  1.72it/s][A
+{'load_data': '0.000', 'extract_feat': '0.006', 'forward': '0.582', 'batch_size': '1', 'rtf': '0.882'}, : 100%|[34m██████████[0m| 1/1 [00:00<00:00,  1.72it/s][A
+rtf_avg: 0.882: 100%|[34m██████████[0m| 1/1 [00:00<00:00,  1.72it/s]                                                                                          [Artf_avg: 0.882: 100%|[34m██████████[0m| 1/1 [00:00<00:00,  1.72it/s]
+
+  0%|[34m          [0m| 0/1 [00:00<?, ?it/s][A
+100%|[34m██████████[0m| 1/1 [00:00<00:00,  1.35it/s][A
+{'load_data': '0.000', 'extract_feat': '0.006', 'forward': '0.740', 'batch_size': '1', 'rtf': '1.121'}, : 100%|[34m██████████[0m| 1/1 [00:00<00:00,  1.35it/s][A
+rtf_avg: 1.121: 100%|[34m██████████[0m| 1/1 [00:00<00:00,  1.35it/s]                                                                                          [Artf_avg: 1.121: 100%|[34m██████████[0m| 1/1 [00:00<00:00,  1.35it/s]
+
+  0%|[34m          [0m| 0/1 [00:00<?, ?it/s][A
+100%|[34m██████████[0m| 1/1 [00:00<00:00,  1.47it/s][A
+{'load_data': '0.000', 'extract_feat': '0.010', 'forward': '0.679', 'batch_size': '1', 'rtf': '0.942'}, : 100%|[34m██████████[0m| 1/1 [00:00<00:00,  1.47it/s][A
+rtf_avg: 0.942: 100%|[34m██████████[0m| 1/1 [00:00<00:00,  1.47it/s]                                                                                          [Artf_avg: 0.942: 100%|[34m██████████[0m| 1/1 [00:00<00:00,  1.47it/s]
+
+  0%|[34m          [0m| 0/1 [00:00<?, ?it/s][A
+100%|[34m██████████[0m| 1/1 [00:00<00:00,  1.56it/s][A
+{'load_data': '0.000', 'extract_feat': '0.006', 'forward': '0.642', 'batch_size': '1', 'rtf': '0.891'}, : 100%|[34m██████████[0m| 1/1 [00:00<00:00,  1.56it/s][A
+rtf_avg: 0.891: 100%|[34m██████████[0m| 1/1 [00:00<00:00,  1.56it/s]                                                                                          [Artf_avg: 0.891: 100%|[34m██████████[0m| 1/1 [00:00<00:00,  1.55it/s]
+
+  0%|[34m          [0m| 0/1 [00:00<?, ?it/s][A
+100%|[34m██████████[0m| 1/1 [00:00<00:00,  1.74it/s][A
+{'load_data': '0.000', 'extract_feat': '0.009', 'forward': '0.576', 'batch_size': '1', 'rtf': '0.800'}, : 100%|[34m██████████[0m| 1/1 [00:00<00:00,  1.74it/s][A
+rtf_avg: 0.800: 100%|[34m██████████[0m| 1/1 [00:00<00:00,  1.74it/s]                                                                                          [Artf_avg: 0.800: 100%|[34m██████████[0m| 1/1 [00:00<00:00,  1.73it/s]
+
+  0%|[34m          [0m| 0/1 [00:00<?, ?it/s][A
+100%|[34m██████████[0m| 1/1 [00:00<00:00,  1.67it/s][A
+{'load_data': '0.000', 'extract_feat': '0.005', 'forward': '0.598', 'batch_size': '1', 'rtf': '0.767'}, : 100%|[34m██████████[0m| 1/1 [00:00<00:00,  1.67it/s][A
+rtf_avg: 0.767: 100%|[34m██████████[0m| 1/1 [00:00<00:00,  1.67it/s]                                                                                          [Artf_avg: 0.767: 100%|[34m██████████[0m| 1/1 [00:00<00:00,  1.67it/s]
+
+  0%|[34m          [0m| 0/1 [00:00<?, ?it/s][A
+100%|[34m██████████[0m| 1/1 [00:00<00:00,  1.80it/s][A
+{'load_data': '0.000', 'extract_feat': '0.005', 'forward': '0.557', 'batch_size': '1', 'rtf': '0.714'}, : 100%|[34m██████████[0m| 1/1 [00:00<00:00,  1.80it/s][A
+rtf_avg: 0.714: 100%|[34m██████████[0m| 1/1 [00:00<00:00,  1.80it/s]                                                                                          [Artf_avg: 0.714: 100%|[34m██████████[0m| 1/1 [00:00<00:00,  1.79it/s]
+
+  0%|[34m          [0m| 0/1 [00:00<?, ?it/s][A
+100%|[34m██████████[0m| 1/1 [00:00<00:00,  1.52it/s][A
+{'load_data': '0.000', 'extract_feat': '0.011', 'forward': '0.658', 'batch_size': '1', 'rtf': '0.843'}, : 100%|[34m██████████[0m| 1/1 [00:00<00:00,  1.52it/s][A
+rtf_avg: 0.843: 100%|[34m██████████[0m| 1/1 [00:00<00:00,  1.52it/s]                                                                                          [Artf_avg: 0.843: 100%|[34m██████████[0m| 1/1 [00:00<00:00,  1.52it/s]
+
+  0%|[34m          [0m| 0/1 [00:00<?, ?it/s][A
+100%|[34m██████████[0m| 1/1 [00:00<00:00,  1.60it/s][A
+{'load_data': '0.000', 'extract_feat': '0.014', 'forward': '0.624', 'batch_size': '1', 'rtf': '0.800'}, : 100%|[34m██████████[0m| 1/1 [00:00<00:00,  1.60it/s][A
+rtf_avg: 0.800: 100%|[34m██████████[0m| 1/1 [00:00<00:00,  1.60it/s]                                                                                          [Artf_avg: 0.800: 100%|[34m██████████[0m| 1/1 [00:00<00:00,  1.60it/s]
+
+  0%|[34m          [0m| 0/1 [00:00<?, ?it/s][A
+100%|[34m██████████[0m| 1/1 [00:00<00:00,  1.72it/s][A
+{'load_data': '0.000', 'extract_feat': '0.007', 'forward': '0.583', 'batch_size': '1', 'rtf': '0.748'}, : 100%|[34m██████████[0m| 1/1 [00:00<00:00,  1.72it/s][A
+rtf_avg: 0.748: 100%|[34m██████████[0m| 1/1 [00:00<00:00,  1.72it/s]                                                                                          [Artf_avg: 0.748: 100%|[34m██████████[0m| 1/1 [00:00<00:00,  1.71it/s]
+
+  0%|[34m          [0m| 0/1 [00:00<?, ?it/s][A
+100%|[34m██████████[0m| 1/1 [00:00<00:00,  1.36it/s][A
+{'load_data': '0.000', 'extract_feat': '0.006', 'forward': '0.736', 'batch_size': '1', 'rtf': '0.944'}, : 100%|[34m██████████[0m| 1/1 [00:00<00:00,  1.36it/s][A
+rtf_avg: 0.944: 100%|[34m██████████[0m| 1/1 [00:00<00:00,  1.36it/s]                                                                                          [Artf_avg: 0.944: 100%|[34m██████████[0m| 1/1 [00:00<00:00,  1.35it/s]
+
+  0%|[34m          [0m| 0/1 [00:00<?, ?it/s][A
+100%|[34m██████████[0m| 1/1 [00:00<00:00,  1.17it/s][A
+{'load_data': '0.000', 'extract_feat': '0.010', 'forward': '0.857', 'batch_size': '1', 'rtf': '1.099'}, : 100%|[34m██████████[0m| 1/1 [00:00<00:00,  1.17it/s][A
+rtf_avg: 1.099: 100%|[34m██████████[0m| 1/1 [00:00<00:00,  1.17it/s]                                                                                          [Artf_avg: 1.099: 100%|[34m██████████[0m| 1/1 [00:00<00:00,  1.17it/s]
+
+  0%|[34m          [0m| 0/1 [00:00<?, ?it/s][A
+100%|[34m██████████[0m| 1/1 [00:00<00:00,  1.58it/s][A
+{'load_data': '0.000', 'extract_feat': '0.008', 'forward': '0.633', 'batch_size': '1', 'rtf': '0.812'}, : 100%|[34m██████████[0m| 1/1 [00:00<00:00,  1.58it/s][A
+rtf_avg: 0.812: 100%|[34m██████████[0m| 1/1 [00:00<00:00,  1.58it/s]                                                                                          [Artf_avg: 0.812: 100%|[34m██████████[0m| 1/1 [00:00<00:00,  1.57it/s]
+
+  0%|[34m          [0m| 0/1 [00:00<?, ?it/s][A
+100%|[34m██████████[0m| 1/1 [00:00<00:00,  1.46it/s][A
+{'load_data': '0.000', 'extract_feat': '0.007', 'forward': '0.685', 'batch_size': '1', 'rtf': '0.879'}, : 100%|[34m██████████[0m| 1/1 [00:00<00:00,  1.46it/s][A
+rtf_avg: 0.879: 100%|[34m██████████[0m| 1/1 [00:00<00:00,  1.46it/s]                                                                                          [Artf_avg: 0.879: 100%|[34m██████████[0m| 1/1 [00:00<00:00,  1.46it/s]
+
+  0%|[34m          [0m| 0/1 [00:00<?, ?it/s][A
+100%|[34m██████████[0m| 1/1 [00:00<00:00,  1.56it/s][A
+{'load_data': '0.000', 'extract_feat': '0.009', 'forward': '0.636', 'batch_size': '1', 'rtf': '0.815'}, : 100%|[34m██████████[0m| 1/1 [00:00<00:00,  1.56it/s][A
+rtf_avg: 0.815: 100%|[34m██████████[0m| 1/1 [00:00<00:00,  1.56it/s]                                                                                          [Artf_avg: 0.815: 100%|[34m██████████[0m| 1/1 [00:00<00:00,  1.56it/s]
+
+  0%|[34m          [0m| 0/1 [00:00<?, ?it/s][A
+100%|[34m██████████[0m| 1/1 [00:00<00:00,  1.84it/s][A
+{'load_data': '0.000', 'extract_feat': '0.012', 'forward': '0.542', 'batch_size': '1', 'rtf': '0.695'}, : 100%|[34m██████████[0m| 1/1 [00:00<00:00,  1.84it/s][A
+rtf_avg: 0.695: 100%|[34m██████████[0m| 1/1 [00:00<00:00,  1.84it/s]                                                                                          [Artf_avg: 0.695: 100%|[34m██████████[0m| 1/1 [00:00<00:00,  1.84it/s]
+
+  0%|[34m          [0m| 0/1 [00:00<?, ?it/s][A
+100%|[34m██████████[0m| 1/1 [00:00<00:00,  3.34it/s][A
+{'load_data': '0.000', 'extract_feat': '0.007', 'forward': '0.299', 'batch_size': '1', 'rtf': '0.384'}, : 100%|[34m██████████[0m| 1/1 [00:00<00:00,  3.34it/s][A
+rtf_avg: 0.384: 100%|[34m██████████[0m| 1/1 [00:00<00:00,  3.34it/s]                                                                                          [Artf_avg: 0.384: 100%|[34m██████████[0m| 1/1 [00:00<00:00,  3.33it/s]
+
+  0%|[34m          [0m| 0/1 [00:00<?, ?it/s][A
+100%|[34m██████████[0m| 1/1 [00:00<00:00,  3.59it/s][A
+{'load_data': '0.000', 'extract_feat': '0.003', 'forward': '0.279', 'batch_size': '1', 'rtf': '0.357'}, : 100%|[34m██████████[0m| 1/1 [00:00<00:00,  3.59it/s][A
+rtf_avg: 0.357: 100%|[34m██████████[0m| 1/1 [00:00<00:00,  3.59it/s]                                                                                          [Artf_avg: 0.357: 100%|[34m██████████[0m| 1/1 [00:00<00:00,  3.57it/s]
+
+  0%|[34m          [0m| 0/1 [00:00<?, ?it/s][A
+100%|[34m██████████[0m| 1/1 [00:00<00:00,  3.49it/s][A
+{'load_data': '0.000', 'extract_feat': '0.004', 'forward': '0.286', 'batch_size': '1', 'rtf': '0.367'}, : 100%|[34m██████████[0m| 1/1 [00:00<00:00,  3.49it/s][A
+rtf_avg: 0.367: 100%|[34m██████████[0m| 1/1 [00:00<00:00,  3.49it/s]                                                                                          [Artf_avg: 0.367: 100%|[34m██████████[0m| 1/1 [00:00<00:00,  3.47it/s]
+
+  0%|[34m          [0m| 0/1 [00:00<?, ?it/s][A
+100%|[34m██████████[0m| 1/1 [00:00<00:00,  3.27it/s][A
+{'load_data': '0.000', 'extract_feat': '0.004', 'forward': '0.306', 'batch_size': '1', 'rtf': '0.364'}, : 100%|[34m██████████[0m| 1/1 [00:00<00:00,  3.27it/s][A
+rtf_avg: 0.364: 100%|[34m██████████[0m| 1/1 [00:00<00:00,  3.27it/s]                                                                                          [Artf_avg: 0.364: 100%|[34m██████████[0m| 1/1 [00:00<00:00,  3.26it/s]
+
+  0%|[34m          [0m| 0/1 [00:00<?, ?it/s][A
+100%|[34m██████████[0m| 1/1 [00:00<00:00,  3.72it/s][A
+{'load_data': '0.000', 'extract_feat': '0.004', 'forward': '0.268', 'batch_size': '1', 'rtf': '0.319'}, : 100%|[34m██████████[0m| 1/1 [00:00<00:00,  3.72it/s][A
+rtf_avg: 0.319: 100%|[34m██████████[0m| 1/1 [00:00<00:00,  3.72it/s]                                                                                          [Artf_avg: 0.319: 100%|[34m██████████[0m| 1/1 [00:00<00:00,  3.71it/s]
+
+  0%|[34m          [0m| 0/1 [00:00<?, ?it/s][A
+100%|[34m██████████[0m| 1/1 [00:00<00:00,  3.44it/s][A
+{'load_data': '0.000', 'extract_feat': '0.003', 'forward': '0.289', 'batch_size': '1', 'rtf': '0.344'}, : 100%|[34m██████████[0m| 1/1 [00:00<00:00,  3.44it/s][A
+rtf_avg: 0.344: 100%|[34m██████████[0m| 1/1 [00:00<00:00,  3.44it/s]                                                                                          [Artf_avg: 0.344: 100%|[34m██████████[0m| 1/1 [00:00<00:00,  3.43it/s]
+
+  0%|[34m          [0m| 0/1 [00:00<?, ?it/s][A
+100%|[34m██████████[0m| 1/1 [00:00<00:00,  3.04it/s][A
+{'load_data': '0.000', 'extract_feat': '0.004', 'forward': '0.329', 'batch_size': '1', 'rtf': '0.392'}, : 100%|[34m██████████[0m| 1/1 [00:00<00:00,  3.04it/s][A
+rtf_avg: 0.392: 100%|[34m██████████[0m| 1/1 [00:00<00:00,  3.04it/s]                                                                                          [Artf_avg: 0.392: 100%|[34m██████████[0m| 1/1 [00:00<00:00,  3.03it/s]
+
+  0%|[34m          [0m| 0/1 [00:00<?, ?it/s][A
+100%|[34m██████████[0m| 1/1 [00:00<00:00,  3.89it/s][A
+{'load_data': '0.000', 'extract_feat': '0.004', 'forward': '0.256', 'batch_size': '1', 'rtf': '0.305'}, : 100%|[34m██████████[0m| 1/1 [00:00<00:00,  3.89it/s][A
+rtf_avg: 0.305: 100%|[34m██████████[0m| 1/1 [00:00<00:00,  3.89it/s]                                                                                          [Artf_avg: 0.305: 100%|[34m██████████[0m| 1/1 [00:00<00:00,  3.88it/s]
+
+  0%|[34m          [0m| 0/1 [00:00<?, ?it/s][A
+100%|[34m██████████[0m| 1/1 [00:00<00:00,  3.77it/s][A
+{'load_data': '0.000', 'extract_feat': '0.004', 'forward': '0.263', 'batch_size': '1', 'rtf': '0.313'}, : 100%|[34m██████████[0m| 1/1 [00:00<00:00,  3.77it/s][A
+rtf_avg: 0.313: 100%|[34m██████████[0m| 1/1 [00:00<00:00,  3.77it/s]                                                                                          [Artf_avg: 0.313: 100%|[34m██████████[0m| 1/1 [00:00<00:00,  3.75it/s]
+
+  0%|[34m          [0m| 0/1 [00:00<?, ?it/s][A
+100%|[34m██████████[0m| 1/1 [00:00<00:00,  3.18it/s][A
+{'load_data': '0.000', 'extract_feat': '0.004', 'forward': '0.315', 'batch_size': '1', 'rtf': '0.375'}, : 100%|[34m██████████[0m| 1/1 [00:00<00:00,  3.18it/s][A
+rtf_avg: 0.375: 100%|[34m██████████[0m| 1/1 [00:00<00:00,  3.18it/s]                                                                                          [Artf_avg: 0.375: 100%|[34m██████████[0m| 1/1 [00:00<00:00,  3.17it/s]
+
+  0%|[34m          [0m| 0/1 [00:00<?, ?it/s][A
+100%|[34m██████████[0m| 1/1 [00:00<00:00,  3.98it/s][A
+{'load_data': '0.000', 'extract_feat': '0.004', 'forward': '0.252', 'batch_size': '1', 'rtf': '0.299'}, : 100%|[34m██████████[0m| 1/1 [00:00<00:00,  3.98it/s][A
+rtf_avg: 0.299: 100%|[34m██████████[0m| 1/1 [00:00<00:00,  3.98it/s]                                                                                          [Artf_avg: 0.299: 100%|[34m██████████[0m| 1/1 [00:00<00:00,  3.96it/s]
+
+  0%|[34m          [0m| 0/1 [00:00<?, ?it/s][A
+100%|[34m██████████[0m| 1/1 [00:00<00:00,  4.12it/s][A
+{'load_data': '0.000', 'extract_feat': '0.003', 'forward': '0.243', 'batch_size': '1', 'rtf': '0.289'}, : 100%|[34m██████████[0m| 1/1 [00:00<00:00,  4.12it/s][A
+rtf_avg: 0.289: 100%|[34m██████████[0m| 1/1 [00:00<00:00,  4.12it/s]                                                                                          [Artf_avg: 0.289: 100%|[34m██████████[0m| 1/1 [00:00<00:00,  4.10it/s]
+
+  0%|[34m          [0m| 0/1 [00:00<?, ?it/s][A
+100%|[34m██████████[0m| 1/1 [00:00<00:00,  3.24it/s][A
+{'load_data': '0.000', 'extract_feat': '0.003', 'forward': '0.308', 'batch_size': '1', 'rtf': '0.367'}, : 100%|[34m██████████[0m| 1/1 [00:00<00:00,  3.24it/s][A
+rtf_avg: 0.367: 100%|[34m██████████[0m| 1/1 [00:00<00:00,  3.24it/s]                                                                                          [Artf_avg: 0.367: 100%|[34m██████████[0m| 1/1 [00:00<00:00,  3.23it/s]
+
+  0%|[34m          [0m| 0/1 [00:00<?, ?it/s][A
+100%|[34m██████████[0m| 1/1 [00:00<00:00,  3.55it/s][A
+{'load_data': '0.000', 'extract_feat': '0.004', 'forward': '0.282', 'batch_size': '1', 'rtf': '0.336'}, : 100%|[34m██████████[0m| 1/1 [00:00<00:00,  3.55it/s][A
+rtf_avg: 0.336: 100%|[34m██████████[0m| 1/1 [00:00<00:00,  3.55it/s]                                                                                          [Artf_avg: 0.336: 100%|[34m██████████[0m| 1/1 [00:00<00:00,  3.53it/s]
+
+  0%|[34m          [0m| 0/1 [00:00<?, ?it/s][A
+100%|[34m██████████[0m| 1/1 [00:00<00:00,  3.69it/s][A
+{'load_data': '0.000', 'extract_feat': '0.004', 'forward': '0.270', 'batch_size': '1', 'rtf': '0.322'}, : 100%|[34m██████████[0m| 1/1 [00:00<00:00,  3.69it/s][A
+rtf_avg: 0.322: 100%|[34m██████████[0m| 1/1 [00:00<00:00,  3.69it/s]                                                                                          [Artf_avg: 0.322: 100%|[34m██████████[0m| 1/1 [00:00<00:00,  3.68it/s]
+
+  0%|[34m          [0m| 0/1 [00:00<?, ?it/s][A
+100%|[34m██████████[0m| 1/1 [00:00<00:00,  3.36it/s][A
+{'load_data': '0.000', 'extract_feat': '0.004', 'forward': '0.298', 'batch_size': '1', 'rtf': '0.354'}, : 100%|[34m██████████[0m| 1/1 [00:00<00:00,  3.36it/s][A
+rtf_avg: 0.354: 100%|[34m██████████[0m| 1/1 [00:00<00:00,  3.36it/s]                                                                                          [Artf_avg: 0.354: 100%|[34m██████████[0m| 1/1 [00:00<00:00,  3.34it/s]
+
+  0%|[34m          [0m| 0/1 [00:00<?, ?it/s][A
+100%|[34m██████████[0m| 1/1 [00:00<00:00,  4.02it/s][A
+{'load_data': '0.000', 'extract_feat': '0.004', 'forward': '0.249', 'batch_size': '1', 'rtf': '0.297'}, : 100%|[34m██████████[0m| 1/1 [00:00<00:00,  4.02it/s][A
+rtf_avg: 0.297: 100%|[34m██████████[0m| 1/1 [00:00<00:00,  4.02it/s]                                                                                          [Artf_avg: 0.297: 100%|[34m██████████[0m| 1/1 [00:00<00:00,  4.02it/s]
+
+  0%|[34m          [0m| 0/1 [00:00<?, ?it/s][A
+100%|[34m██████████[0m| 1/1 [00:00<00:00,  3.52it/s][A
+{'load_data': '0.000', 'extract_feat': '0.003', 'forward': '0.283', 'batch_size': '1', 'rtf': '0.337'}, : 100%|[34m██████████[0m| 1/1 [00:00<00:00,  3.52it/s][A
+rtf_avg: 0.337: 100%|[34m██████████[0m| 1/1 [00:00<00:00,  3.52it/s]                                                                                          [Artf_avg: 0.337: 100%|[34m██████████[0m| 1/1 [00:00<00:00,  3.50it/s]
+
+  0%|[34m          [0m| 0/1 [00:00<?, ?it/s][A
+100%|[34m██████████[0m| 1/1 [00:00<00:00,  3.65it/s][A
+{'load_data': '0.000', 'extract_feat': '0.005', 'forward': '0.273', 'batch_size': '1', 'rtf': '0.325'}, : 100%|[34m██████████[0m| 1/1 [00:00<00:00,  3.65it/s][A
+rtf_avg: 0.325: 100%|[34m██████████[0m| 1/1 [00:00<00:00,  3.65it/s]                                                                                          [Artf_avg: 0.325: 100%|[34m██████████[0m| 1/1 [00:00<00:00,  3.65it/s]
+
+  0%|[34m          [0m| 0/1 [00:00<?, ?it/s][A
+100%|[34m██████████[0m| 1/1 [00:00<00:00,  4.05it/s][A
+{'load_data': '0.000', 'extract_feat': '0.003', 'forward': '0.247', 'batch_size': '1', 'rtf': '0.294'}, : 100%|[34m██████████[0m| 1/1 [00:00<00:00,  4.05it/s][A
+rtf_avg: 0.294: 100%|[34m██████████[0m| 1/1 [00:00<00:00,  4.05it/s]                                                                                          [Artf_avg: 0.294: 100%|[34m██████████[0m| 1/1 [00:00<00:00,  4.05it/s]
+
+  0%|[34m          [0m| 0/1 [00:00<?, ?it/s][A
+100%|[34m██████████[0m| 1/1 [00:00<00:00,  3.45it/s][A
+{'load_data': '0.000', 'extract_feat': '0.004', 'forward': '0.288', 'batch_size': '1', 'rtf': '0.343'}, : 100%|[34m██████████[0m| 1/1 [00:00<00:00,  3.45it/s][A
+rtf_avg: 0.343: 100%|[34m██████████[0m| 1/1 [00:00<00:00,  3.45it/s]                                                                                          [Artf_avg: 0.343: 100%|[34m██████████[0m| 1/1 [00:00<00:00,  3.44it/s]
+
+  0%|[34m          [0m| 0/1 [00:00<?, ?it/s][A
+100%|[34m██████████[0m| 1/1 [00:00<00:00,  3.67it/s][A
+{'load_data': '0.000', 'extract_feat': '0.004', 'forward': '0.272', 'batch_size': '1', 'rtf': '0.324'}, : 100%|[34m██████████[0m| 1/1 [00:00<00:00,  3.67it/s][A
+rtf_avg: 0.324: 100%|[34m██████████[0m| 1/1 [00:00<00:00,  3.67it/s]                                                                                          [Artf_avg: 0.324: 100%|[34m██████████[0m| 1/1 [00:00<00:00,  3.67it/s]
+
+  0%|[34m          [0m| 0/1 [00:00<?, ?it/s][A
+100%|[34m██████████[0m| 1/1 [00:00<00:00,  3.84it/s][A
+{'load_data': '0.000', 'extract_feat': '0.004', 'forward': '0.260', 'batch_size': '1', 'rtf': '0.310'}, : 100%|[34m██████████[0m| 1/1 [00:00<00:00,  3.84it/s][A
+rtf_avg: 0.310: 100%|[34m██████████[0m| 1/1 [00:00<00:00,  3.84it/s]                                                                                          [Artf_avg: 0.310: 100%|[34m██████████[0m| 1/1 [00:00<00:00,  3.82it/s]
+
+  0%|[34m          [0m| 0/1 [00:00<?, ?it/s][A
+100%|[34m██████████[0m| 1/1 [00:00<00:00,  3.62it/s][A
+{'load_data': '0.000', 'extract_feat': '0.005', 'forward': '0.277', 'batch_size': '1', 'rtf': '0.329'}, : 100%|[34m██████████[0m| 1/1 [00:00<00:00,  3.62it/s][A
+rtf_avg: 0.329: 100%|[34m██████████[0m| 1/1 [00:00<00:00,  3.62it/s]                                                                                          [Artf_avg: 0.329: 100%|[34m██████████[0m| 1/1 [00:00<00:00,  3.60it/s]
+
+  0%|[34m          [0m| 0/1 [00:00<?, ?it/s][A
+100%|[34m██████████[0m| 1/1 [00:00<00:00,  4.17it/s][A
+{'load_data': '0.000', 'extract_feat': '0.004', 'forward': '0.240', 'batch_size': '1', 'rtf': '0.286'}, : 100%|[34m██████████[0m| 1/1 [00:00<00:00,  4.17it/s][A
+rtf_avg: 0.286: 100%|[34m██████████[0m| 1/1 [00:00<00:00,  4.17it/s]                                                                                          [Artf_avg: 0.286: 100%|[34m██████████[0m| 1/1 [00:00<00:00,  4.14it/s]
+
+  0%|[34m          [0m| 0/1 [00:00<?, ?it/s][A
+100%|[34m██████████[0m| 1/1 [00:00<00:00,  3.82it/s][A
+{'load_data': '0.000', 'extract_feat': '0.003', 'forward': '0.262', 'batch_size': '1', 'rtf': '0.312'}, : 100%|[34m██████████[0m| 1/1 [00:00<00:00,  3.82it/s][A
+rtf_avg: 0.312: 100%|[34m██████████[0m| 1/1 [00:00<00:00,  3.82it/s]                                                                                          [Artf_avg: 0.312: 100%|[34m██████████[0m| 1/1 [00:00<00:00,  3.81it/s]
+
+  0%|[34m          [0m| 0/1 [00:00<?, ?it/s][A
+100%|[34m██████████[0m| 1/1 [00:00<00:00,  3.53it/s][A
+{'load_data': '0.000', 'extract_feat': '0.004', 'forward': '0.283', 'batch_size': '1', 'rtf': '0.337'}, : 100%|[34m██████████[0m| 1/1 [00:00<00:00,  3.53it/s][A
+rtf_avg: 0.337: 100%|[34m██████████[0m| 1/1 [00:00<00:00,  3.53it/s]                                                                                          [Artf_avg: 0.337: 100%|[34m██████████[0m| 1/1 [00:00<00:00,  3.52it/s]
+
+  0%|[34m          [0m| 0/1 [00:00<?, ?it/s][A
+100%|[34m██████████[0m| 1/1 [00:00<00:00,  3.80it/s][A
+{'load_data': '0.000', 'extract_feat': '0.007', 'forward': '0.264', 'batch_size': '1', 'rtf': '0.314'}, : 100%|[34m██████████[0m| 1/1 [00:00<00:00,  3.80it/s][A
+rtf_avg: 0.314: 100%|[34m██████████[0m| 1/1 [00:00<00:00,  3.80it/s]                                                                                          [Artf_avg: 0.314: 100%|[34m██████████[0m| 1/1 [00:00<00:00,  3.79it/s]
+
+  0%|[34m          [0m| 0/1 [00:00<?, ?it/s][A
+100%|[34m██████████[0m| 1/1 [00:00<00:00,  3.89it/s][A
+{'load_data': '0.000', 'extract_feat': '0.004', 'forward': '0.255', 'batch_size': '1', 'rtf': '0.303'}, : 100%|[34m██████████[0m| 1/1 [00:00<00:00,  3.89it/s][A
+rtf_avg: 0.303: 100%|[34m██████████[0m| 1/1 [00:00<00:00,  3.89it/s]                                                                                          [Artf_avg: 0.303: 100%|[34m██████████[0m| 1/1 [00:00<00:00,  3.88it/s]
+
+  0%|[34m          [0m| 0/1 [00:00<?, ?it/s][A
+100%|[34m██████████[0m| 1/1 [00:00<00:00,  3.87it/s][A
+{'load_data': '0.000', 'extract_feat': '0.003', 'forward': '0.255', 'batch_size': '1', 'rtf': '0.303'}, : 100%|[34m██████████[0m| 1/1 [00:00<00:00,  3.87it/s][A
+rtf_avg: 0.303: 100%|[34m██████████[0m| 1/1 [00:00<00:00,  3.87it/s]                                                                                          [Artf_avg: 0.303: 100%|[34m██████████[0m| 1/1 [00:00<00:00,  3.86it/s]
+
+  0%|[34m          [0m| 0/1 [00:00<?, ?it/s][A
+100%|[34m██████████[0m| 1/1 [00:00<00:00,  3.33it/s][A
+{'load_data': '0.000', 'extract_feat': '0.004', 'forward': '0.300', 'batch_size': '1', 'rtf': '0.357'}, : 100%|[34m██████████[0m| 1/1 [00:00<00:00,  3.33it/s][A
+rtf_avg: 0.357: 100%|[34m██████████[0m| 1/1 [00:00<00:00,  3.33it/s]                                                                                          [Artf_avg: 0.357: 100%|[34m██████████[0m| 1/1 [00:00<00:00,  3.33it/s]
+
+  0%|[34m          [0m| 0/1 [00:00<?, ?it/s][A
+100%|[34m██████████[0m| 1/1 [00:00<00:00,  3.70it/s][A
+{'load_data': '0.000', 'extract_feat': '0.004', 'forward': '0.270', 'batch_size': '1', 'rtf': '0.322'}, : 100%|[34m██████████[0m| 1/1 [00:00<00:00,  3.70it/s][A
+rtf_avg: 0.322: 100%|[34m██████████[0m| 1/1 [00:00<00:00,  3.70it/s]                                                                                          [Artf_avg: 0.322: 100%|[34m██████████[0m| 1/1 [00:00<00:00,  3.70it/s]
+
+  0%|[34m          [0m| 0/1 [00:00<?, ?it/s][A
+100%|[34m██████████[0m| 1/1 [00:00<00:00,  3.70it/s][A
+{'load_data': '0.000', 'extract_feat': '0.004', 'forward': '0.270', 'batch_size': '1', 'rtf': '0.300'}, : 100%|[34m██████████[0m| 1/1 [00:00<00:00,  3.70it/s][A
+rtf_avg: 0.300: 100%|[34m██████████[0m| 1/1 [00:00<00:00,  3.70it/s]                                                                                          [Artf_avg: 0.300: 100%|[34m██████████[0m| 1/1 [00:00<00:00,  3.70it/s]
+
+  0%|[34m          [0m| 0/1 [00:00<?, ?it/s][A
+100%|[34m██████████[0m| 1/1 [00:00<00:00,  3.20it/s][A
+{'load_data': '0.000', 'extract_feat': '0.004', 'forward': '0.310', 'batch_size': '1', 'rtf': '0.345'}, : 100%|[34m██████████[0m| 1/1 [00:00<00:00,  3.20it/s][A
+rtf_avg: 0.345: 100%|[34m██████████[0m| 1/1 [00:00<00:00,  3.20it/s]                                                                                          [Artf_avg: 0.345: 100%|[34m██████████[0m| 1/1 [00:00<00:00,  3.20it/s]
+
+  0%|[34m          [0m| 0/1 [00:00<?, ?it/s][A
+100%|[34m██████████[0m| 1/1 [00:00<00:00,  3.69it/s][A
+{'load_data': '0.000', 'extract_feat': '0.004', 'forward': '0.272', 'batch_size': '1', 'rtf': '0.302'}, : 100%|[34m██████████[0m| 1/1 [00:00<00:00,  3.69it/s][A
+rtf_avg: 0.302: 100%|[34m██████████[0m| 1/1 [00:00<00:00,  3.69it/s]                                                                                          [Artf_avg: 0.302: 100%|[34m██████████[0m| 1/1 [00:00<00:00,  3.66it/s]
+
+  0%|[34m          [0m| 0/1 [00:00<?, ?it/s][A
+100%|[34m██████████[0m| 1/1 [00:00<00:00,  3.79it/s][A
+{'load_data': '0.000', 'extract_feat': '0.004', 'forward': '0.264', 'batch_size': '1', 'rtf': '0.294'}, : 100%|[34m██████████[0m| 1/1 [00:00<00:00,  3.79it/s][A
+rtf_avg: 0.294: 100%|[34m██████████[0m| 1/1 [00:00<00:00,  3.79it/s]                                                                                          [Artf_avg: 0.294: 100%|[34m██████████[0m| 1/1 [00:00<00:00,  3.77it/s]
+
+  0%|[34m          [0m| 0/1 [00:00<?, ?it/s][A
+100%|[34m██████████[0m| 1/1 [00:00<00:00,  3.92it/s][A
+{'load_data': '0.000', 'extract_feat': '0.004', 'forward': '0.256', 'batch_size': '1', 'rtf': '0.284'}, : 100%|[34m██████████[0m| 1/1 [00:00<00:00,  3.92it/s][A
+rtf_avg: 0.284: 100%|[34m██████████[0m| 1/1 [00:00<00:00,  3.92it/s]                                                                                          [Artf_avg: 0.284: 100%|[34m██████████[0m| 1/1 [00:00<00:00,  3.90it/s]
+
+  0%|[34m          [0m| 0/1 [00:00<?, ?it/s][A
+100%|[34m██████████[0m| 1/1 [00:00<00:00,  3.88it/s][A
+{'load_data': '0.000', 'extract_feat': '0.004', 'forward': '0.258', 'batch_size': '1', 'rtf': '0.287'}, : 100%|[34m██████████[0m| 1/1 [00:00<00:00,  3.88it/s][A
+rtf_avg: 0.287: 100%|[34m██████████[0m| 1/1 [00:00<00:00,  3.88it/s]                                                                                          [Artf_avg: 0.287: 100%|[34m██████████[0m| 1/1 [00:00<00:00,  3.86it/s]
+
+  0%|[34m          [0m| 0/1 [00:00<?, ?it/s][A
+100%|[34m██████████[0m| 1/1 [00:00<00:00,  3.61it/s][A
+{'load_data': '0.000', 'extract_feat': '0.004', 'forward': '0.279', 'batch_size': '1', 'rtf': '0.310'}, : 100%|[34m██████████[0m| 1/1 [00:00<00:00,  3.61it/s][A
+rtf_avg: 0.310: 100%|[34m██████████[0m| 1/1 [00:00<00:00,  3.61it/s]                                                                                          [Artf_avg: 0.310: 100%|[34m██████████[0m| 1/1 [00:00<00:00,  3.58it/s]
+
+  0%|[34m          [0m| 0/1 [00:00<?, ?it/s][A
+100%|[34m██████████[0m| 1/1 [00:00<00:00,  3.55it/s][A
+{'load_data': '0.000', 'extract_feat': '0.004', 'forward': '0.282', 'batch_size': '1', 'rtf': '0.313'}, : 100%|[34m██████████[0m| 1/1 [00:00<00:00,  3.55it/s][A
+rtf_avg: 0.313: 100%|[34m██████████[0m| 1/1 [00:00<00:00,  3.55it/s]                                                                                          [Artf_avg: 0.313: 100%|[34m██████████[0m| 1/1 [00:00<00:00,  3.53it/s]
+
+  0%|[34m          [0m| 0/1 [00:00<?, ?it/s][A
+100%|[34m██████████[0m| 1/1 [00:00<00:00,  3.85it/s][A
+{'load_data': '0.000', 'extract_feat': '0.003', 'forward': '0.260', 'batch_size': '1', 'rtf': '0.289'}, : 100%|[34m██████████[0m| 1/1 [00:00<00:00,  3.85it/s][A
+rtf_avg: 0.289: 100%|[34m██████████[0m| 1/1 [00:00<00:00,  3.85it/s]                                                                                          [Artf_avg: 0.289: 100%|[34m██████████[0m| 1/1 [00:00<00:00,  3.84it/s]
+
+  0%|[34m          [0m| 0/1 [00:00<?, ?it/s][A
+100%|[34m██████████[0m| 1/1 [00:00<00:00,  3.64it/s][A
+{'load_data': '0.000', 'extract_feat': '0.004', 'forward': '0.275', 'batch_size': '1', 'rtf': '0.306'}, : 100%|[34m██████████[0m| 1/1 [00:00<00:00,  3.64it/s][A
+rtf_avg: 0.306: 100%|[34m██████████[0m| 1/1 [00:00<00:00,  3.64it/s]                                                                                          [Artf_avg: 0.306: 100%|[34m██████████[0m| 1/1 [00:00<00:00,  3.63it/s]
+
+  0%|[34m          [0m| 0/1 [00:00<?, ?it/s][A
+100%|[34m██████████[0m| 1/1 [00:00<00:00,  3.66it/s][A
+{'load_data': '0.000', 'extract_feat': '0.004', 'forward': '0.273', 'batch_size': '1', 'rtf': '0.304'}, : 100%|[34m██████████[0m| 1/1 [00:00<00:00,  3.66it/s][A
+rtf_avg: 0.304: 100%|[34m██████████[0m| 1/1 [00:00<00:00,  3.66it/s]                                                                                          [Artf_avg: 0.304: 100%|[34m██████████[0m| 1/1 [00:00<00:00,  3.64it/s]
+
+  0%|[34m          [0m| 0/1 [00:00<?, ?it/s][A
+100%|[34m██████████[0m| 1/1 [00:00<00:00,  3.84it/s][A
+{'load_data': '0.000', 'extract_feat': '0.003', 'forward': '0.260', 'batch_size': '1', 'rtf': '0.289'}, : 100%|[34m██████████[0m| 1/1 [00:00<00:00,  3.84it/s][A
+rtf_avg: 0.289: 100%|[34m██████████[0m| 1/1 [00:00<00:00,  3.84it/s]                                                                                          [Artf_avg: 0.289: 100%|[34m██████████[0m| 1/1 [00:00<00:00,  3.83it/s]
+
+  0%|[34m          [0m| 0/1 [00:00<?, ?it/s][A
+100%|[34m██████████[0m| 1/1 [00:00<00:00,  3.82it/s][A
+{'load_data': '0.000', 'extract_feat': '0.004', 'forward': '0.262', 'batch_size': '1', 'rtf': '0.291'}, : 100%|[34m██████████[0m| 1/1 [00:00<00:00,  3.82it/s][A
+rtf_avg: 0.291: 100%|[34m██████████[0m| 1/1 [00:00<00:00,  3.82it/s]                                                                                          [Artf_avg: 0.291: 100%|[34m██████████[0m| 1/1 [00:00<00:00,  3.82it/s]
+
+  0%|[34m          [0m| 0/1 [00:00<?, ?it/s][A
+100%|[34m██████████[0m| 1/1 [00:00<00:00,  3.58it/s][A
+{'load_data': '0.000', 'extract_feat': '0.005', 'forward': '0.280', 'batch_size': '1', 'rtf': '0.311'}, : 100%|[34m██████████[0m| 1/1 [00:00<00:00,  3.58it/s][A
+rtf_avg: 0.311: 100%|[34m██████████[0m| 1/1 [00:00<00:00,  3.58it/s]                                                                                          [Artf_avg: 0.311: 100%|[34m██████████[0m| 1/1 [00:00<00:00,  3.56it/s]
+
+  0%|[34m          [0m| 0/1 [00:00<?, ?it/s][A
+100%|[34m██████████[0m| 1/1 [00:00<00:00,  3.60it/s][A
+{'load_data': '0.000', 'extract_feat': '0.004', 'forward': '0.275', 'batch_size': '1', 'rtf': '0.305'}, : 100%|[34m██████████[0m| 1/1 [00:00<00:00,  3.60it/s][A
+rtf_avg: 0.305: 100%|[34m██████████[0m| 1/1 [00:00<00:00,  3.60it/s]                                                                                          [Artf_avg: 0.305: 100%|[34m██████████[0m| 1/1 [00:00<00:00,  3.59it/s]
+
+  0%|[34m          [0m| 0/1 [00:00<?, ?it/s][A
+100%|[34m██████████[0m| 1/1 [00:00<00:00,  3.76it/s][A
+{'load_data': '0.000', 'extract_feat': '0.005', 'forward': '0.266', 'batch_size': '1', 'rtf': '0.296'}, : 100%|[34m██████████[0m| 1/1 [00:00<00:00,  3.76it/s][A
+rtf_avg: 0.296: 100%|[34m██████████[0m| 1/1 [00:00<00:00,  3.76it/s]                                                                                          [Artf_avg: 0.296: 100%|[34m██████████[0m| 1/1 [00:00<00:00,  3.76it/s]
+
+  0%|[34m          [0m| 0/1 [00:00<?, ?it/s][A
+100%|[34m██████████[0m| 1/1 [00:00<00:00,  3.39it/s][A
+{'load_data': '0.000', 'extract_feat': '0.005', 'forward': '0.295', 'batch_size': '1', 'rtf': '0.328'}, : 100%|[34m██████████[0m| 1/1 [00:00<00:00,  3.39it/s][A
+rtf_avg: 0.328: 100%|[34m██████████[0m| 1/1 [00:00<00:00,  3.39it/s]                                                                                          [Artf_avg: 0.328: 100%|[34m██████████[0m| 1/1 [00:00<00:00,  3.37it/s]
+
+  0%|[34m          [0m| 0/1 [00:00<?, ?it/s][A
+100%|[34m██████████[0m| 1/1 [00:00<00:00,  3.53it/s][A
+{'load_data': '0.000', 'extract_feat': '0.003', 'forward': '0.283', 'batch_size': '1', 'rtf': '0.315'}, : 100%|[34m██████████[0m| 1/1 [00:00<00:00,  3.53it/s][A
+rtf_avg: 0.315: 100%|[34m██████████[0m| 1/1 [00:00<00:00,  3.53it/s]                                                                                          [Artf_avg: 0.315: 100%|[34m██████████[0m| 1/1 [00:00<00:00,  3.53it/s]
+
+  0%|[34m          [0m| 0/1 [00:00<?, ?it/s][A
+100%|[34m██████████[0m| 1/1 [00:00<00:00,  3.83it/s][A
+{'load_data': '0.000', 'extract_feat': '0.004', 'forward': '0.262', 'batch_size': '1', 'rtf': '0.291'}, : 100%|[34m██████████[0m| 1/1 [00:00<00:00,  3.83it/s][A
+rtf_avg: 0.291: 100%|[34m██████████[0m| 1/1 [00:00<00:00,  3.83it/s]                                                                                          [Artf_avg: 0.291: 100%|[34m██████████[0m| 1/1 [00:00<00:00,  3.80it/s]
+
+  0%|[34m          [0m| 0/1 [00:00<?, ?it/s][A
+100%|[34m██████████[0m| 1/1 [00:00<00:00,  3.68it/s][A
+{'load_data': '0.000', 'extract_feat': '0.003', 'forward': '0.273', 'batch_size': '1', 'rtf': '0.303'}, : 100%|[34m██████████[0m| 1/1 [00:00<00:00,  3.68it/s][A
+rtf_avg: 0.303: 100%|[34m██████████[0m| 1/1 [00:00<00:00,  3.68it/s]                                                                                          [Artf_avg: 0.303: 100%|[34m██████████[0m| 1/1 [00:00<00:00,  3.65it/s]
+
+  0%|[34m          [0m| 0/1 [00:00<?, ?it/s][A
+100%|[34m██████████[0m| 1/1 [00:00<00:00,  3.72it/s][A
+{'load_data': '0.000', 'extract_feat': '0.005', 'forward': '0.270', 'batch_size': '1', 'rtf': '0.300'}, : 100%|[34m██████████[0m| 1/1 [00:00<00:00,  3.72it/s][A
+rtf_avg: 0.300: 100%|[34m██████████[0m| 1/1 [00:00<00:00,  3.72it/s]                                                                                          [Artf_avg: 0.300: 100%|[34m██████████[0m| 1/1 [00:00<00:00,  3.70it/s]
+
+  0%|[34m          [0m| 0/1 [00:00<?, ?it/s][A
+100%|[34m██████████[0m| 1/1 [00:00<00:00,  3.85it/s][A
+{'load_data': '0.000', 'extract_feat': '0.005', 'forward': '0.261', 'batch_size': '1', 'rtf': '0.290'}, : 100%|[34m██████████[0m| 1/1 [00:00<00:00,  3.85it/s][A
+rtf_avg: 0.290: 100%|[34m██████████[0m| 1/1 [00:00<00:00,  3.85it/s]                                                                                          [Artf_avg: 0.290: 100%|[34m██████████[0m| 1/1 [00:00<00:00,  3.85it/s]
+
+  0%|[34m          [0m| 0/1 [00:00<?, ?it/s][A
+100%|[34m██████████[0m| 1/1 [00:00<00:00,  3.73it/s][A
+{'load_data': '0.000', 'extract_feat': '0.004', 'forward': '0.268', 'batch_size': '1', 'rtf': '0.298'}, : 100%|[34m██████████[0m| 1/1 [00:00<00:00,  3.73it/s][A
+rtf_avg: 0.298: 100%|[34m██████████[0m| 1/1 [00:00<00:00,  3.73it/s]                                                                                          [Artf_avg: 0.298: 100%|[34m██████████[0m| 1/1 [00:00<00:00,  3.73it/s]
+
+  0%|[34m          [0m| 0/1 [00:00<?, ?it/s][A
+100%|[34m██████████[0m| 1/1 [00:00<00:00,  3.75it/s][A
+{'load_data': '0.000', 'extract_feat': '0.004', 'forward': '0.268', 'batch_size': '1', 'rtf': '0.297'}, : 100%|[34m██████████[0m| 1/1 [00:00<00:00,  3.75it/s][A
+rtf_avg: 0.297: 100%|[34m██████████[0m| 1/1 [00:00<00:00,  3.75it/s]                                                                                          [Artf_avg: 0.297: 100%|[34m██████████[0m| 1/1 [00:00<00:00,  3.75it/s]
+
+  0%|[34m          [0m| 0/1 [00:00<?, ?it/s][A
+100%|[34m██████████[0m| 1/1 [00:00<00:00,  3.52it/s][A
+{'load_data': '0.000', 'extract_feat': '0.004', 'forward': '0.284', 'batch_size': '1', 'rtf': '0.315'}, : 100%|[34m██████████[0m| 1/1 [00:00<00:00,  3.52it/s][A
+rtf_avg: 0.315: 100%|[34m██████████[0m| 1/1 [00:00<00:00,  3.52it/s]                                                                                          [Artf_avg: 0.315: 100%|[34m██████████[0m| 1/1 [00:00<00:00,  3.52it/s]
+
+  0%|[34m          [0m| 0/1 [00:00<?, ?it/s][A
+100%|[34m██████████[0m| 1/1 [00:00<00:00,  3.24it/s][A
+{'load_data': '0.000', 'extract_feat': '0.006', 'forward': '0.309', 'batch_size': '1', 'rtf': '0.343'}, : 100%|[34m██████████[0m| 1/1 [00:00<00:00,  3.24it/s][A
+rtf_avg: 0.343: 100%|[34m██████████[0m| 1/1 [00:00<00:00,  3.24it/s]                                                                                          [Artf_avg: 0.343: 100%|[34m██████████[0m| 1/1 [00:00<00:00,  3.23it/s]
+
+  0%|[34m          [0m| 0/1 [00:00<?, ?it/s][A
+100%|[34m██████████[0m| 1/1 [00:00<00:00,  3.15it/s][A
+{'load_data': '0.000', 'extract_feat': '0.005', 'forward': '0.318', 'batch_size': '1', 'rtf': '0.353'}, : 100%|[34m██████████[0m| 1/1 [00:00<00:00,  3.15it/s][A
+rtf_avg: 0.353: 100%|[34m██████████[0m| 1/1 [00:00<00:00,  3.15it/s]                                                                                          [Artf_avg: 0.353: 100%|[34m██████████[0m| 1/1 [00:00<00:00,  3.14it/s]
+
+  0%|[34m          [0m| 0/1 [00:00<?, ?it/s][A
+100%|[34m██████████[0m| 1/1 [00:00<00:00,  3.12it/s][A
+{'load_data': '0.000', 'extract_feat': '0.005', 'forward': '0.320', 'batch_size': '1', 'rtf': '0.355'}, : 100%|[34m██████████[0m| 1/1 [00:00<00:00,  3.12it/s][A
+rtf_avg: 0.355: 100%|[34m██████████[0m| 1/1 [00:00<00:00,  3.12it/s]                                                                                          [Artf_avg: 0.355: 100%|[34m██████████[0m| 1/1 [00:00<00:00,  3.12it/s]
+
+  0%|[34m          [0m| 0/1 [00:00<?, ?it/s][A
+100%|[34m██████████[0m| 1/1 [00:00<00:00,  2.38it/s][A
+{'load_data': '0.000', 'extract_feat': '0.005', 'forward': '0.418', 'batch_size': '1', 'rtf': '0.435'}, : 100%|[34m██████████[0m| 1/1 [00:00<00:00,  2.38it/s][A
+rtf_avg: 0.435: 100%|[34m██████████[0m| 1/1 [00:00<00:00,  2.38it/s]                                                                                          [Artf_avg: 0.435: 100%|[34m██████████[0m| 1/1 [00:00<00:00,  2.38it/s]
+
+  0%|[34m          [0m| 0/1 [00:00<?, ?it/s][A
+100%|[34m██████████[0m| 1/1 [00:00<00:00,  2.87it/s][A
+{'load_data': '0.000', 'extract_feat': '0.004', 'forward': '0.347', 'batch_size': '1', 'rtf': '0.362'}, : 100%|[34m██████████[0m| 1/1 [00:00<00:00,  2.87it/s][A
+rtf_avg: 0.362: 100%|[34m██████████[0m| 1/1 [00:00<00:00,  2.87it/s]                                                                                          [Artf_avg: 0.362: 100%|[34m██████████[0m| 1/1 [00:00<00:00,  2.87it/s]
+
+  0%|[34m          [0m| 0/1 [00:00<?, ?it/s][A
+100%|[34m██████████[0m| 1/1 [00:00<00:00,  2.95it/s][A
+{'load_data': '0.000', 'extract_feat': '0.003', 'forward': '0.338', 'batch_size': '1', 'rtf': '0.353'}, : 100%|[34m██████████[0m| 1/1 [00:00<00:00,  2.95it/s][A
+rtf_avg: 0.353: 100%|[34m██████████[0m| 1/1 [00:00<00:00,  2.95it/s]                                                                                          [Artf_avg: 0.353: 100%|[34m██████████[0m| 1/1 [00:00<00:00,  2.95it/s]
+
+  0%|[34m          [0m| 0/1 [00:00<?, ?it/s][A
+100%|[34m██████████[0m| 1/1 [00:00<00:00,  3.00it/s][A
+{'load_data': '0.000', 'extract_feat': '0.004', 'forward': '0.333', 'batch_size': '1', 'rtf': '0.347'}, : 100%|[34m██████████[0m| 1/1 [00:00<00:00,  3.00it/s][A
+rtf_avg: 0.347: 100%|[34m██████████[0m| 1/1 [00:00<00:00,  3.00it/s]                                                                                          [Artf_avg: 0.347: 100%|[34m██████████[0m| 1/1 [00:00<00:00,  2.99it/s]
+
+  0%|[34m          [0m| 0/1 [00:00<?, ?it/s][A
+100%|[34m██████████[0m| 1/1 [00:00<00:00,  2.91it/s][A
+{'load_data': '0.000', 'extract_feat': '0.004', 'forward': '0.344', 'batch_size': '1', 'rtf': '0.358'}, : 100%|[34m██████████[0m| 1/1 [00:00<00:00,  2.91it/s][A
+rtf_avg: 0.358: 100%|[34m██████████[0m| 1/1 [00:00<00:00,  2.91it/s]                                                                                          [Artf_avg: 0.358: 100%|[34m██████████[0m| 1/1 [00:00<00:00,  2.89it/s]
+
+  0%|[34m          [0m| 0/1 [00:00<?, ?it/s][A
+100%|[34m██████████[0m| 1/1 [00:00<00:00,  2.82it/s][A
+{'load_data': '0.000', 'extract_feat': '0.004', 'forward': '0.357', 'batch_size': '1', 'rtf': '0.371'}, : 100%|[34m██████████[0m| 1/1 [00:00<00:00,  2.82it/s][A
+rtf_avg: 0.371: 100%|[34m██████████[0m| 1/1 [00:00<00:00,  2.82it/s]                                                                                          [Artf_avg: 0.371: 100%|[34m██████████[0m| 1/1 [00:00<00:00,  2.80it/s]
+
+  0%|[34m          [0m| 0/1 [00:00<?, ?it/s][A
+100%|[34m██████████[0m| 1/1 [00:00<00:00,  3.04it/s][A
+{'load_data': '0.000', 'extract_feat': '0.004', 'forward': '0.329', 'batch_size': '1', 'rtf': '0.343'}, : 100%|[34m██████████[0m| 1/1 [00:00<00:00,  3.04it/s][A
+rtf_avg: 0.343: 100%|[34m██████████[0m| 1/1 [00:00<00:00,  3.04it/s]                                                                                          [Artf_avg: 0.343: 100%|[34m██████████[0m| 1/1 [00:00<00:00,  3.04it/s]
+
+  0%|[34m          [0m| 0/1 [00:00<?, ?it/s][A
+100%|[34m██████████[0m| 1/1 [00:00<00:00,  2.89it/s][A
+{'load_data': '0.000', 'extract_feat': '0.005', 'forward': '0.347', 'batch_size': '1', 'rtf': '0.361'}, : 100%|[34m██████████[0m| 1/1 [00:00<00:00,  2.89it/s][A
+rtf_avg: 0.361: 100%|[34m██████████[0m| 1/1 [00:00<00:00,  2.89it/s]                                                                                          [Artf_avg: 0.361: 100%|[34m██████████[0m| 1/1 [00:00<00:00,  2.87it/s]
+
+  0%|[34m          [0m| 0/1 [00:00<?, ?it/s][A
+100%|[34m██████████[0m| 1/1 [00:00<00:00,  2.93it/s][A
+{'load_data': '0.000', 'extract_feat': '0.005', 'forward': '0.340', 'batch_size': '1', 'rtf': '0.355'}, : 100%|[34m██████████[0m| 1/1 [00:00<00:00,  2.93it/s][A
+rtf_avg: 0.355: 100%|[34m██████████[0m| 1/1 [00:00<00:00,  2.93it/s]                                                                                          [Artf_avg: 0.355: 100%|[34m██████████[0m| 1/1 [00:00<00:00,  2.93it/s]
+
+  0%|[34m          [0m| 0/1 [00:00<?, ?it/s][A
+100%|[34m██████████[0m| 1/1 [00:00<00:00,  2.99it/s][A
+{'load_data': '0.000', 'extract_feat': '0.004', 'forward': '0.335', 'batch_size': '1', 'rtf': '0.348'}, : 100%|[34m██████████[0m| 1/1 [00:00<00:00,  2.99it/s][A
+rtf_avg: 0.348: 100%|[34m██████████[0m| 1/1 [00:00<00:00,  2.99it/s]                                                                                          [Artf_avg: 0.348: 100%|[34m██████████[0m| 1/1 [00:00<00:00,  2.98it/s]
+
+  0%|[34m          [0m| 0/1 [00:00<?, ?it/s][A
+100%|[34m██████████[0m| 1/1 [00:00<00:00,  2.94it/s][A
+{'load_data': '0.000', 'extract_feat': '0.004', 'forward': '0.339', 'batch_size': '1', 'rtf': '0.353'}, : 100%|[34m██████████[0m| 1/1 [00:00<00:00,  2.94it/s][A
+rtf_avg: 0.353: 100%|[34m██████████[0m| 1/1 [00:00<00:00,  2.94it/s]                                                                                          [Artf_avg: 0.353: 100%|[34m██████████[0m| 1/1 [00:00<00:00,  2.94it/s]
+
+  0%|[34m          [0m| 0/1 [00:00<?, ?it/s][A
+100%|[34m██████████[0m| 1/1 [00:00<00:00,  2.89it/s][A
+{'load_data': '0.000', 'extract_feat': '0.004', 'forward': '0.345', 'batch_size': '1', 'rtf': '0.360'}, : 100%|[34m██████████[0m| 1/1 [00:00<00:00,  2.89it/s][A
+rtf_avg: 0.360: 100%|[34m██████████[0m| 1/1 [00:00<00:00,  2.89it/s]                                                                                          [Artf_avg: 0.360: 100%|[34m██████████[0m| 1/1 [00:00<00:00,  2.88it/s]
+
+  0%|[34m          [0m| 0/1 [00:00<?, ?it/s][A
+100%|[34m██████████[0m| 1/1 [00:00<00:00,  2.93it/s][A
+{'load_data': '0.000', 'extract_feat': '0.004', 'forward': '0.342', 'batch_size': '1', 'rtf': '0.356'}, : 100%|[34m██████████[0m| 1/1 [00:00<00:00,  2.93it/s][A
+rtf_avg: 0.356: 100%|[34m██████████[0m| 1/1 [00:00<00:00,  2.93it/s]                                                                                          [Artf_avg: 0.356: 100%|[34m██████████[0m| 1/1 [00:00<00:00,  2.93it/s]
+
+  0%|[34m          [0m| 0/1 [00:00<?, ?it/s][A
+100%|[34m██████████[0m| 1/1 [00:00<00:00,  2.94it/s][A
+{'load_data': '0.000', 'extract_feat': '0.006', 'forward': '0.340', 'batch_size': '1', 'rtf': '0.354'}, : 100%|[34m██████████[0m| 1/1 [00:00<00:00,  2.94it/s][A
+rtf_avg: 0.354: 100%|[34m██████████[0m| 1/1 [00:00<00:00,  2.94it/s]                                                                                          [Artf_avg: 0.354: 100%|[34m██████████[0m| 1/1 [00:00<00:00,  2.93it/s]
+
+  0%|[34m          [0m| 0/1 [00:00<?, ?it/s][A
+100%|[34m██████████[0m| 1/1 [00:00<00:00,  3.06it/s][A
+{'load_data': '0.000', 'extract_feat': '0.004', 'forward': '0.327', 'batch_size': '1', 'rtf': '0.340'}, : 100%|[34m██████████[0m| 1/1 [00:00<00:00,  3.06it/s][A
+rtf_avg: 0.340: 100%|[34m██████████[0m| 1/1 [00:00<00:00,  3.06it/s]                                                                                          [Artf_avg: 0.340: 100%|[34m██████████[0m| 1/1 [00:00<00:00,  3.06it/s]
+
+  0%|[34m          [0m| 0/1 [00:00<?, ?it/s][A
+100%|[34m██████████[0m| 1/1 [00:00<00:00,  2.93it/s][A
+{'load_data': '0.000', 'extract_feat': '0.004', 'forward': '0.342', 'batch_size': '1', 'rtf': '0.356'}, : 100%|[34m██████████[0m| 1/1 [00:00<00:00,  2.93it/s][A
+rtf_avg: 0.356: 100%|[34m██████████[0m| 1/1 [00:00<00:00,  2.93it/s]                                                                                          [Artf_avg: 0.356: 100%|[34m██████████[0m| 1/1 [00:00<00:00,  2.91it/s]
+
+  0%|[34m          [0m| 0/1 [00:00<?, ?it/s][A
+100%|[34m██████████[0m| 1/1 [00:00<00:00,  2.93it/s][A
+{'load_data': '0.000', 'extract_feat': '0.004', 'forward': '0.341', 'batch_size': '1', 'rtf': '0.355'}, : 100%|[34m██████████[0m| 1/1 [00:00<00:00,  2.93it/s][A
+rtf_avg: 0.355: 100%|[34m██████████[0m| 1/1 [00:00<00:00,  2.93it/s]                                                                                          [Artf_avg: 0.355: 100%|[34m██████████[0m| 1/1 [00:00<00:00,  2.93it/s]
+
+  0%|[34m          [0m| 0/1 [00:00<?, ?it/s][A
+100%|[34m██████████[0m| 1/1 [00:00<00:00,  2.83it/s][A
+{'load_data': '0.000', 'extract_feat': '0.005', 'forward': '0.353', 'batch_size': '1', 'rtf': '0.368'}, : 100%|[34m██████████[0m| 1/1 [00:00<00:00,  2.83it/s][A
+rtf_avg: 0.368: 100%|[34m██████████[0m| 1/1 [00:00<00:00,  2.83it/s]                                                                                          [Artf_avg: 0.368: 100%|[34m██████████[0m| 1/1 [00:00<00:00,  2.81it/s]
+
+  0%|[34m          [0m| 0/1 [00:00<?, ?it/s][A
+100%|[34m██████████[0m| 1/1 [00:00<00:00,  2.55it/s][A
+{'load_data': '0.000', 'extract_feat': '0.005', 'forward': '0.392', 'batch_size': '1', 'rtf': '0.408'}, : 100%|[34m██████████[0m| 1/1 [00:00<00:00,  2.55it/s][A
+rtf_avg: 0.408: 100%|[34m██████████[0m| 1/1 [00:00<00:00,  2.55it/s]                                                                                          [Artf_avg: 0.408: 100%|[34m██████████[0m| 1/1 [00:00<00:00,  2.55it/s]
+
+  0%|[34m          [0m| 0/1 [00:00<?, ?it/s][A
+100%|[34m██████████[0m| 1/1 [00:00<00:00,  2.67it/s][A
+{'load_data': '0.000', 'extract_feat': '0.004', 'forward': '0.378', 'batch_size': '1', 'rtf': '0.394'}, : 100%|[34m██████████[0m| 1/1 [00:00<00:00,  2.67it/s][A
+rtf_avg: 0.394: 100%|[34m██████████[0m| 1/1 [00:00<00:00,  2.67it/s]                                                                                          [Artf_avg: 0.394: 100%|[34m██████████[0m| 1/1 [00:00<00:00,  2.63it/s]
+
+  0%|[34m          [0m| 0/1 [00:00<?, ?it/s][A
+100%|[34m██████████[0m| 1/1 [00:00<00:00,  1.36it/s][A
+{'load_data': '0.000', 'extract_feat': '0.004', 'forward': '0.737', 'batch_size': '1', 'rtf': '0.768'}, : 100%|[34m██████████[0m| 1/1 [00:00<00:00,  1.36it/s][A
+rtf_avg: 0.768: 100%|[34m██████████[0m| 1/1 [00:00<00:00,  1.36it/s]                                                                                          [Artf_avg: 0.768: 100%|[34m██████████[0m| 1/1 [00:00<00:00,  1.36it/s]
+
+  0%|[34m          [0m| 0/1 [00:00<?, ?it/s][A
+100%|[34m██████████[0m| 1/1 [00:00<00:00,  1.35it/s][A
+{'load_data': '0.000', 'extract_feat': '0.005', 'forward': '0.742', 'batch_size': '1', 'rtf': '0.772'}, : 100%|[34m██████████[0m| 1/1 [00:00<00:00,  1.35it/s][A
+rtf_avg: 0.772: 100%|[34m██████████[0m| 1/1 [00:00<00:00,  1.35it/s]                                                                                          [Artf_avg: 0.772: 100%|[34m██████████[0m| 1/1 [00:00<00:00,  1.35it/s]
+
+  0%|[34m          [0m| 0/1 [00:00<?, ?it/s][A
+100%|[34m██████████[0m| 1/1 [00:00<00:00,  1.11it/s][A
+{'load_data': '0.000', 'extract_feat': '0.014', 'forward': '0.899', 'batch_size': '1', 'rtf': '0.937'}, : 100%|[34m██████████[0m| 1/1 [00:00<00:00,  1.11it/s][A
+rtf_avg: 0.937: 100%|[34m██████████[0m| 1/1 [00:00<00:00,  1.11it/s]                                                                                          [Artf_avg: 0.937: 100%|[34m██████████[0m| 1/1 [00:00<00:00,  1.11it/s]
+
+  0%|[34m          [0m| 0/1 [00:00<?, ?it/s][A
+100%|[34m██████████[0m| 1/1 [00:00<00:00,  1.43it/s][A
+{'load_data': '0.000', 'extract_feat': '0.008', 'forward': '0.700', 'batch_size': '1', 'rtf': '0.729'}, : 100%|[34m██████████[0m| 1/1 [00:00<00:00,  1.43it/s][A
+rtf_avg: 0.729: 100%|[34m██████████[0m| 1/1 [00:00<00:00,  1.43it/s]                                                                                          [Artf_avg: 0.729: 100%|[34m██████████[0m| 1/1 [00:00<00:00,  1.43it/s]
+
+  0%|[34m          [0m| 0/1 [00:00<?, ?it/s][A
+100%|[34m██████████[0m| 1/1 [00:00<00:00,  1.45it/s][A
+{'load_data': '0.000', 'extract_feat': '0.009', 'forward': '0.689', 'batch_size': '1', 'rtf': '0.718'}, : 100%|[34m██████████[0m| 1/1 [00:00<00:00,  1.45it/s][A
+rtf_avg: 0.718: 100%|[34m██████████[0m| 1/1 [00:00<00:00,  1.45it/s]                                                                                          [Artf_avg: 0.718: 100%|[34m██████████[0m| 1/1 [00:00<00:00,  1.45it/s]
+
+  0%|[34m          [0m| 0/1 [00:00<?, ?it/s][A
+100%|[34m██████████[0m| 1/1 [00:00<00:00,  1.40it/s][A
+{'load_data': '0.000', 'extract_feat': '0.007', 'forward': '0.714', 'batch_size': '1', 'rtf': '0.744'}, : 100%|[34m██████████[0m| 1/1 [00:00<00:00,  1.40it/s][A
+rtf_avg: 0.744: 100%|[34m██████████[0m| 1/1 [00:00<00:00,  1.40it/s]                                                                                          [Artf_avg: 0.744: 100%|[34m██████████[0m| 1/1 [00:00<00:00,  1.40it/s]
+
+  0%|[34m          [0m| 0/1 [00:00<?, ?it/s][A
+100%|[34m██████████[0m| 1/1 [00:00<00:00,  1.42it/s][A
+{'load_data': '0.000', 'extract_feat': '0.006', 'forward': '0.704', 'batch_size': '1', 'rtf': '0.733'}, : 100%|[34m██████████[0m| 1/1 [00:00<00:00,  1.42it/s][A
+rtf_avg: 0.733: 100%|[34m██████████[0m| 1/1 [00:00<00:00,  1.42it/s]                                                                                          [Artf_avg: 0.733: 100%|[34m██████████[0m| 1/1 [00:00<00:00,  1.42it/s]
+
+  0%|[34m          [0m| 0/1 [00:00<?, ?it/s][A
+100%|[34m██████████[0m| 1/1 [00:01<00:00,  1.00s/it][A
+{'load_data': '0.000', 'extract_feat': '0.012', 'forward': '1.001', 'batch_size': '1', 'rtf': '1.043'}, : 100%|[34m██████████[0m| 1/1 [00:01<00:00,  1.00s/it][A
+rtf_avg: 1.043: 100%|[34m██████████[0m| 1/1 [00:01<00:00,  1.00s/it]                                                                                          [Artf_avg: 1.043: 100%|[34m██████████[0m| 1/1 [00:01<00:00,  1.00s/it]
+
+  0%|[34m          [0m| 0/1 [00:00<?, ?it/s][A
+100%|[34m██████████[0m| 1/1 [00:00<00:00,  1.39it/s][A
+{'load_data': '0.000', 'extract_feat': '0.008', 'forward': '0.718', 'batch_size': '1', 'rtf': '0.748'}, : 100%|[34m██████████[0m| 1/1 [00:00<00:00,  1.39it/s][A
+rtf_avg: 0.748: 100%|[34m██████████[0m| 1/1 [00:00<00:00,  1.39it/s]                                                                                          [Artf_avg: 0.748: 100%|[34m██████████[0m| 1/1 [00:00<00:00,  1.39it/s]
+
+  0%|[34m          [0m| 0/1 [00:00<?, ?it/s][A
+100%|[34m██████████[0m| 1/1 [00:00<00:00,  1.32it/s][A
+{'load_data': '0.000', 'extract_feat': '0.008', 'forward': '0.758', 'batch_size': '1', 'rtf': '0.790'}, : 100%|[34m██████████[0m| 1/1 [00:00<00:00,  1.32it/s][A
+rtf_avg: 0.790: 100%|[34m██████████[0m| 1/1 [00:00<00:00,  1.32it/s]                                                                                          [Artf_avg: 0.790: 100%|[34m██████████[0m| 1/1 [00:00<00:00,  1.32it/s]
+
+  0%|[34m          [0m| 0/1 [00:00<?, ?it/s][A
+100%|[34m██████████[0m| 1/1 [00:00<00:00,  1.50it/s][A
+{'load_data': '0.000', 'extract_feat': '0.006', 'forward': '0.667', 'batch_size': '1', 'rtf': '0.695'}, : 100%|[34m██████████[0m| 1/1 [00:00<00:00,  1.50it/s][A
+rtf_avg: 0.695: 100%|[34m██████████[0m| 1/1 [00:00<00:00,  1.50it/s]                                                                                          [Artf_avg: 0.695: 100%|[34m██████████[0m| 1/1 [00:00<00:00,  1.49it/s]
+
+  0%|[34m          [0m| 0/1 [00:00<?, ?it/s][A
+100%|[34m██████████[0m| 1/1 [00:00<00:00,  1.27it/s][A
+{'load_data': '0.000', 'extract_feat': '0.007', 'forward': '0.788', 'batch_size': '1', 'rtf': '0.820'}, : 100%|[34m██████████[0m| 1/1 [00:00<00:00,  1.27it/s][A
+rtf_avg: 0.820: 100%|[34m██████████[0m| 1/1 [00:00<00:00,  1.27it/s]                                                                                          [Artf_avg: 0.820: 100%|[34m██████████[0m| 1/1 [00:00<00:00,  1.26it/s]
+
+  0%|[34m          [0m| 0/1 [00:00<?, ?it/s][A
+100%|[34m██████████[0m| 1/1 [00:00<00:00,  1.31it/s][A
+{'load_data': '0.000', 'extract_feat': '0.009', 'forward': '0.759', 'batch_size': '1', 'rtf': '0.791'}, : 100%|[34m██████████[0m| 1/1 [00:00<00:00,  1.31it/s][A
+rtf_avg: 0.791: 100%|[34m██████████[0m| 1/1 [00:00<00:00,  1.31it/s]                                                                                          [Artf_avg: 0.791: 100%|[34m██████████[0m| 1/1 [00:00<00:00,  1.31it/s]
+
+  0%|[34m          [0m| 0/1 [00:00<?, ?it/s][A
+100%|[34m██████████[0m| 1/1 [00:00<00:00,  1.35it/s][A
+{'load_data': '0.000', 'extract_feat': '0.009', 'forward': '0.739', 'batch_size': '1', 'rtf': '0.770'}, : 100%|[34m██████████[0m| 1/1 [00:00<00:00,  1.35it/s][A
+rtf_avg: 0.770: 100%|[34m██████████[0m| 1/1 [00:00<00:00,  1.35it/s]                                                                                          [Artf_avg: 0.770: 100%|[34m██████████[0m| 1/1 [00:00<00:00,  1.35it/s]
+
+  0%|[34m          [0m| 0/1 [00:00<?, ?it/s][A
+100%|[34m██████████[0m| 1/1 [00:00<00:00,  1.18it/s][A
+{'load_data': '0.000', 'extract_feat': '0.007', 'forward': '0.846', 'batch_size': '1', 'rtf': '0.830'}, : 100%|[34m██████████[0m| 1/1 [00:00<00:00,  1.18it/s][A
+rtf_avg: 0.830: 100%|[34m██████████[0m| 1/1 [00:00<00:00,  1.18it/s]                                                                                          [Artf_avg: 0.830: 100%|[34m██████████[0m| 1/1 [00:00<00:00,  1.18it/s]
+
+  0%|[34m          [0m| 0/1 [00:00<?, ?it/s][A
+100%|[34m██████████[0m| 1/1 [00:00<00:00,  1.47it/s][A
+{'load_data': '0.000', 'extract_feat': '0.007', 'forward': '0.678', 'batch_size': '1', 'rtf': '0.665'}, : 100%|[34m██████████[0m| 1/1 [00:00<00:00,  1.47it/s][A
+rtf_avg: 0.665: 100%|[34m██████████[0m| 1/1 [00:00<00:00,  1.47it/s]                                                                                          [Artf_avg: 0.665: 100%|[34m██████████[0m| 1/1 [00:00<00:00,  1.47it/s]
+
+  0%|[34m          [0m| 0/1 [00:00<?, ?it/s][A
+100%|[34m██████████[0m| 1/1 [00:00<00:00,  1.36it/s][A
+{'load_data': '0.000', 'extract_feat': '0.007', 'forward': '0.735', 'batch_size': '1', 'rtf': '0.720'}, : 100%|[34m██████████[0m| 1/1 [00:00<00:00,  1.36it/s][A
+rtf_avg: 0.720: 100%|[34m██████████[0m| 1/1 [00:00<00:00,  1.36it/s]                                                                                          [Artf_avg: 0.720: 100%|[34m██████████[0m| 1/1 [00:00<00:00,  1.36it/s]
+
+  0%|[34m          [0m| 0/1 [00:00<?, ?it/s][A
+100%|[34m██████████[0m| 1/1 [00:00<00:00,  1.42it/s][A
+{'load_data': '0.000', 'extract_feat': '0.007', 'forward': '0.707', 'batch_size': '1', 'rtf': '0.693'}, : 100%|[34m██████████[0m| 1/1 [00:00<00:00,  1.42it/s][A
+rtf_avg: 0.693: 100%|[34m██████████[0m| 1/1 [00:00<00:00,  1.42it/s]                                                                                          [Artf_avg: 0.693: 100%|[34m██████████[0m| 1/1 [00:00<00:00,  1.41it/s]
+
+  0%|[34m          [0m| 0/1 [00:00<?, ?it/s][A
+100%|[34m██████████[0m| 1/1 [00:00<00:00,  1.30it/s][A
+{'load_data': '0.000', 'extract_feat': '0.006', 'forward': '0.770', 'batch_size': '1', 'rtf': '0.755'}, : 100%|[34m██████████[0m| 1/1 [00:00<00:00,  1.30it/s][A
+rtf_avg: 0.755: 100%|[34m██████████[0m| 1/1 [00:00<00:00,  1.30it/s]                                                                                          [Artf_avg: 0.755: 100%|[34m██████████[0m| 1/1 [00:00<00:00,  1.30it/s]
+
+  0%|[34m          [0m| 0/1 [00:00<?, ?it/s][A
+100%|[34m██████████[0m| 1/1 [00:00<00:00,  1.36it/s][A
+{'load_data': '0.000', 'extract_feat': '0.006', 'forward': '0.736', 'batch_size': '1', 'rtf': '0.722'}, : 100%|[34m██████████[0m| 1/1 [00:00<00:00,  1.36it/s][A
+rtf_avg: 0.722: 100%|[34m██████████[0m| 1/1 [00:00<00:00,  1.36it/s]                                                                                          [Artf_avg: 0.722: 100%|[34m██████████[0m| 1/1 [00:00<00:00,  1.36it/s]
+
+  0%|[34m          [0m| 0/1 [00:00<?, ?it/s][A
+100%|[34m██████████[0m| 1/1 [00:00<00:00,  1.37it/s][A
+{'load_data': '0.000', 'extract_feat': '0.006', 'forward': '0.732', 'batch_size': '1', 'rtf': '0.717'}, : 100%|[34m██████████[0m| 1/1 [00:00<00:00,  1.37it/s][A
+rtf_avg: 0.717: 100%|[34m██████████[0m| 1/1 [00:00<00:00,  1.37it/s]                                                                                          [Artf_avg: 0.717: 100%|[34m██████████[0m| 1/1 [00:00<00:00,  1.36it/s]
+
+  0%|[34m          [0m| 0/1 [00:00<?, ?it/s][A
+100%|[34m██████████[0m| 1/1 [00:00<00:00,  1.36it/s][A
+{'load_data': '0.000', 'extract_feat': '0.009', 'forward': '0.735', 'batch_size': '1', 'rtf': '0.720'}, : 100%|[34m██████████[0m| 1/1 [00:00<00:00,  1.36it/s][A
+rtf_avg: 0.720: 100%|[34m██████████[0m| 1/1 [00:00<00:00,  1.36it/s]                                                                                          [Artf_avg: 0.720: 100%|[34m██████████[0m| 1/1 [00:00<00:00,  1.36it/s]
+
+  0%|[34m          [0m| 0/1 [00:00<?, ?it/s][A
+100%|[34m██████████[0m| 1/1 [00:00<00:00,  1.15it/s][A
+{'load_data': '0.000', 'extract_feat': '0.013', 'forward': '0.870', 'batch_size': '1', 'rtf': '0.853'}, : 100%|[34m██████████[0m| 1/1 [00:00<00:00,  1.15it/s][A
+rtf_avg: 0.853: 100%|[34m██████████[0m| 1/1 [00:00<00:00,  1.15it/s]                                                                                          [Artf_avg: 0.853: 100%|[34m██████████[0m| 1/1 [00:00<00:00,  1.15it/s]
+
+  0%|[34m          [0m| 0/1 [00:00<?, ?it/s][A
+100%|[34m██████████[0m| 1/1 [00:00<00:00,  1.20it/s][A
+{'load_data': '0.000', 'extract_feat': '0.006', 'forward': '0.828', 'batch_size': '1', 'rtf': '0.812'}, : 100%|[34m██████████[0m| 1/1 [00:00<00:00,  1.20it/s][A
+rtf_avg: 0.812: 100%|[34m██████████[0m| 1/1 [00:00<00:00,  1.20it/s]                                                                                          [Artf_avg: 0.812: 100%|[34m██████████[0m| 1/1 [00:00<00:00,  1.20it/s]
+
+  0%|[34m          [0m| 0/1 [00:00<?, ?it/s][A
+100%|[34m██████████[0m| 1/1 [00:00<00:00,  1.37it/s][A
+{'load_data': '0.000', 'extract_feat': '0.008', 'forward': '0.731', 'batch_size': '1', 'rtf': '0.717'}, : 100%|[34m██████████[0m| 1/1 [00:00<00:00,  1.37it/s][A
+rtf_avg: 0.717: 100%|[34m██████████[0m| 1/1 [00:00<00:00,  1.37it/s]                                                                                          [Artf_avg: 0.717: 100%|[34m██████████[0m| 1/1 [00:00<00:00,  1.37it/s]
+
+  0%|[34m          [0m| 0/1 [00:00<?, ?it/s][A
+100%|[34m██████████[0m| 1/1 [00:00<00:00,  2.13it/s][A
+{'load_data': '0.000', 'extract_feat': '0.005', 'forward': '0.467', 'batch_size': '1', 'rtf': '0.458'}, : 100%|[34m██████████[0m| 1/1 [00:00<00:00,  2.13it/s][A
+rtf_avg: 0.458: 100%|[34m██████████[0m| 1/1 [00:00<00:00,  2.13it/s]                                                                                          [Artf_avg: 0.458: 100%|[34m██████████[0m| 1/1 [00:00<00:00,  2.13it/s]
+
+  0%|[34m          [0m| 0/1 [00:00<?, ?it/s][A
+100%|[34m██████████[0m| 1/1 [00:00<00:00,  2.11it/s][A
+{'load_data': '0.000', 'extract_feat': '0.004', 'forward': '0.473', 'batch_size': '1', 'rtf': '0.464'}, : 100%|[34m██████████[0m| 1/1 [00:00<00:00,  2.11it/s][A
+rtf_avg: 0.464: 100%|[34m██████████[0m| 1/1 [00:00<00:00,  2.11it/s]                                                                                          [Artf_avg: 0.464: 100%|[34m██████████[0m| 1/1 [00:00<00:00,  2.10it/s]
+
+  0%|[34m          [0m| 0/1 [00:00<?, ?it/s][A
+100%|[34m██████████[0m| 1/1 [00:00<00:00,  2.16it/s][A
+{'load_data': '0.000', 'extract_feat': '0.006', 'forward': '0.464', 'batch_size': '1', 'rtf': '0.455'}, : 100%|[34m██████████[0m| 1/1 [00:00<00:00,  2.16it/s][A
+rtf_avg: 0.455: 100%|[34m██████████[0m| 1/1 [00:00<00:00,  2.16it/s]                                                                                          [Artf_avg: 0.455: 100%|[34m██████████[0m| 1/1 [00:00<00:00,  2.15it/s]
+
+  0%|[34m          [0m| 0/1 [00:00<?, ?it/s][A
+100%|[34m██████████[0m| 1/1 [00:00<00:00,  1.99it/s][A
+{'load_data': '0.000', 'extract_feat': '0.006', 'forward': '0.500', 'batch_size': '1', 'rtf': '0.490'}, : 100%|[34m██████████[0m| 1/1 [00:00<00:00,  1.99it/s][A
+rtf_avg: 0.490: 100%|[34m██████████[0m| 1/1 [00:00<00:00,  1.99it/s]                                                                                          [Artf_avg: 0.490: 100%|[34m██████████[0m| 1/1 [00:00<00:00,  1.99it/s]
+
+  0%|[34m          [0m| 0/1 [00:00<?, ?it/s][A
+100%|[34m██████████[0m| 1/1 [00:00<00:00,  2.31it/s][A
+{'load_data': '0.000', 'extract_feat': '0.005', 'forward': '0.433', 'batch_size': '1', 'rtf': '0.425'}, : 100%|[34m██████████[0m| 1/1 [00:00<00:00,  2.31it/s][A
+rtf_avg: 0.425: 100%|[34m██████████[0m| 1/1 [00:00<00:00,  2.31it/s]                                                                                          [Artf_avg: 0.425: 100%|[34m██████████[0m| 1/1 [00:00<00:00,  2.31it/s]
+
+  0%|[34m          [0m| 0/1 [00:00<?, ?it/s][A
+100%|[34m██████████[0m| 1/1 [00:00<00:00,  2.07it/s][A
+{'load_data': '0.000', 'extract_feat': '0.006', 'forward': '0.486', 'batch_size': '1', 'rtf': '0.476'}, : 100%|[34m██████████[0m| 1/1 [00:00<00:00,  2.07it/s][A
+rtf_avg: 0.476: 100%|[34m██████████[0m| 1/1 [00:00<00:00,  2.07it/s]                                                                                          [Artf_avg: 0.476: 100%|[34m██████████[0m| 1/1 [00:00<00:00,  2.06it/s]
+
+  0%|[34m          [0m| 0/1 [00:00<?, ?it/s][A
+100%|[34m██████████[0m| 1/1 [00:00<00:00,  1.91it/s][A
+{'load_data': '0.000', 'extract_feat': '0.006', 'forward': '0.522', 'batch_size': '1', 'rtf': '0.512'}, : 100%|[34m██████████[0m| 1/1 [00:00<00:00,  1.91it/s][A
+rtf_avg: 0.512: 100%|[34m██████████[0m| 1/1 [00:00<00:00,  1.91it/s]                                                                                          [Artf_avg: 0.512: 100%|[34m██████████[0m| 1/1 [00:00<00:00,  1.91it/s]
+
+  0%|[34m          [0m| 0/1 [00:00<?, ?it/s][A
+100%|[34m██████████[0m| 1/1 [00:00<00:00,  2.31it/s][A
+{'load_data': '0.000', 'extract_feat': '0.006', 'forward': '0.432', 'batch_size': '1', 'rtf': '0.424'}, : 100%|[34m██████████[0m| 1/1 [00:00<00:00,  2.31it/s][A
+rtf_avg: 0.424: 100%|[34m██████████[0m| 1/1 [00:00<00:00,  2.31it/s]                                                                                          [Artf_avg: 0.424: 100%|[34m██████████[0m| 1/1 [00:00<00:00,  2.31it/s]
+
+  0%|[34m          [0m| 0/1 [00:00<?, ?it/s][A
+100%|[34m██████████[0m| 1/1 [00:00<00:00,  2.41it/s][A
+{'load_data': '0.000', 'extract_feat': '0.005', 'forward': '0.414', 'batch_size': '1', 'rtf': '0.406'}, : 100%|[34m██████████[0m| 1/1 [00:00<00:00,  2.41it/s][A
+rtf_avg: 0.406: 100%|[34m██████████[0m| 1/1 [00:00<00:00,  2.41it/s]                                                                                          [Artf_avg: 0.406: 100%|[34m██████████[0m| 1/1 [00:00<00:00,  2.40it/s]
+
+  0%|[34m          [0m| 0/1 [00:00<?, ?it/s][A
+100%|[34m██████████[0m| 1/1 [00:00<00:00,  1.98it/s][A
+{'load_data': '0.000', 'extract_feat': '0.006', 'forward': '0.505', 'batch_size': '1', 'rtf': '0.468'}, : 100%|[34m██████████[0m| 1/1 [00:00<00:00,  1.98it/s][A
+rtf_avg: 0.468: 100%|[34m██████████[0m| 1/1 [00:00<00:00,  1.98it/s]                                                                                          [Artf_avg: 0.468: 100%|[34m██████████[0m| 1/1 [00:00<00:00,  1.98it/s]
+
+  0%|[34m          [0m| 0/1 [00:00<?, ?it/s][A
+100%|[34m██████████[0m| 1/1 [00:00<00:00,  2.19it/s][A
+{'load_data': '0.000', 'extract_feat': '0.004', 'forward': '0.456', 'batch_size': '1', 'rtf': '0.422'}, : 100%|[34m██████████[0m| 1/1 [00:00<00:00,  2.19it/s][A
+rtf_avg: 0.422: 100%|[34m██████████[0m| 1/1 [00:00<00:00,  2.19it/s]                                                                                          [Artf_avg: 0.422: 100%|[34m██████████[0m| 1/1 [00:00<00:00,  2.19it/s]
+
+  0%|[34m          [0m| 0/1 [00:00<?, ?it/s][A
+100%|[34m██████████[0m| 1/1 [00:00<00:00,  2.23it/s][A
+{'load_data': '0.000', 'extract_feat': '0.006', 'forward': '0.449', 'batch_size': '1', 'rtf': '0.416'}, : 100%|[34m██████████[0m| 1/1 [00:00<00:00,  2.23it/s][A
+rtf_avg: 0.416: 100%|[34m██████████[0m| 1/1 [00:00<00:00,  2.23it/s]                                                                                          [Artf_avg: 0.416: 100%|[34m██████████[0m| 1/1 [00:00<00:00,  2.22it/s]
+
+  0%|[34m          [0m| 0/1 [00:00<?, ?it/s][A
+100%|[34m██████████[0m| 1/1 [00:00<00:00,  2.13it/s][A
+{'load_data': '0.000', 'extract_feat': '0.004', 'forward': '0.471', 'batch_size': '1', 'rtf': '0.436'}, : 100%|[34m██████████[0m| 1/1 [00:00<00:00,  2.13it/s][A
+rtf_avg: 0.436: 100%|[34m██████████[0m| 1/1 [00:00<00:00,  2.13it/s]                                                                                          [Artf_avg: 0.436: 100%|[34m██████████[0m| 1/1 [00:00<00:00,  2.11it/s]
+
+  0%|[34m          [0m| 0/1 [00:00<?, ?it/s][A
+100%|[34m██████████[0m| 1/1 [00:00<00:00,  2.31it/s][A
+{'load_data': '0.000', 'extract_feat': '0.004', 'forward': '0.435', 'batch_size': '1', 'rtf': '0.403'}, : 100%|[34m██████████[0m| 1/1 [00:00<00:00,  2.31it/s][A
+rtf_avg: 0.403: 100%|[34m██████████[0m| 1/1 [00:00<00:00,  2.31it/s]                                                                                          [Artf_avg: 0.403: 100%|[34m██████████[0m| 1/1 [00:00<00:00,  2.31it/s]
+
+  0%|[34m          [0m| 0/1 [00:00<?, ?it/s][A
+100%|[34m██████████[0m| 1/1 [00:00<00:00,  2.07it/s][A
+{'load_data': '0.000', 'extract_feat': '0.005', 'forward': '0.483', 'batch_size': '1', 'rtf': '0.447'}, : 100%|[34m██████████[0m| 1/1 [00:00<00:00,  2.07it/s][A
+rtf_avg: 0.447: 100%|[34m██████████[0m| 1/1 [00:00<00:00,  2.07it/s]                                                                                          [Artf_avg: 0.447: 100%|[34m██████████[0m| 1/1 [00:00<00:00,  2.06it/s]
+
+  0%|[34m          [0m| 0/1 [00:00<?, ?it/s][A
+100%|[34m██████████[0m| 1/1 [00:00<00:00,  2.14it/s][A
+{'load_data': '0.000', 'extract_feat': '0.005', 'forward': '0.467', 'batch_size': '1', 'rtf': '0.432'}, : 100%|[34m██████████[0m| 1/1 [00:00<00:00,  2.14it/s][A
+rtf_avg: 0.432: 100%|[34m██████████[0m| 1/1 [00:00<00:00,  2.14it/s]                                                                                          [Artf_avg: 0.432: 100%|[34m██████████[0m| 1/1 [00:00<00:00,  2.14it/s]
+
+  0%|[34m          [0m| 0/1 [00:00<?, ?it/s][A
+100%|[34m██████████[0m| 1/1 [00:00<00:00,  1.64it/s][A
+{'load_data': '0.000', 'extract_feat': '0.006', 'forward': '0.609', 'batch_size': '1', 'rtf': '0.564'}, : 100%|[34m██████████[0m| 1/1 [00:00<00:00,  1.64it/s][A
+rtf_avg: 0.564: 100%|[34m██████████[0m| 1/1 [00:00<00:00,  1.64it/s]                                                                                          [Artf_avg: 0.564: 100%|[34m██████████[0m| 1/1 [00:00<00:00,  1.64it/s]
+
+  0%|[34m          [0m| 0/1 [00:00<?, ?it/s][A
+100%|[34m██████████[0m| 1/1 [00:01<00:00,  1.03s/it][A
+{'load_data': '0.000', 'extract_feat': '0.008', 'forward': '1.028', 'batch_size': '1', 'rtf': '0.952'}, : 100%|[34m██████████[0m| 1/1 [00:01<00:00,  1.03s/it][A
+rtf_avg: 0.952: 100%|[34m██████████[0m| 1/1 [00:01<00:00,  1.03s/it]                                                                                          [Artf_avg: 0.952: 100%|[34m██████████[0m| 1/1 [00:01<00:00,  1.03s/it]
+
+  0%|[34m          [0m| 0/1 [00:00<?, ?it/s][A
+100%|[34m██████████[0m| 1/1 [00:00<00:00,  1.18it/s][A
+{'load_data': '0.000', 'extract_feat': '0.009', 'forward': '0.846', 'batch_size': '1', 'rtf': '0.784'}, : 100%|[34m██████████[0m| 1/1 [00:00<00:00,  1.18it/s][A
+rtf_avg: 0.784: 100%|[34m██████████[0m| 1/1 [00:00<00:00,  1.18it/s]                                                                                          [Artf_avg: 0.784: 100%|[34m██████████[0m| 1/1 [00:00<00:00,  1.18it/s]
+
+  0%|[34m          [0m| 0/1 [00:00<?, ?it/s][A
+100%|[34m██████████[0m| 1/1 [00:00<00:00,  1.47it/s][A
+{'load_data': '0.000', 'extract_feat': '0.007', 'forward': '0.677', 'batch_size': '1', 'rtf': '0.627'}, : 100%|[34m██████████[0m| 1/1 [00:00<00:00,  1.47it/s][A
+rtf_avg: 0.627: 100%|[34m██████████[0m| 1/1 [00:00<00:00,  1.47it/s]                                                                                          [Artf_avg: 0.627: 100%|[34m██████████[0m| 1/1 [00:00<00:00,  1.47it/s]
+
+  0%|[34m          [0m| 0/1 [00:00<?, ?it/s][A
+100%|[34m██████████[0m| 1/1 [00:00<00:00,  1.14it/s][A
+{'load_data': '0.000', 'extract_feat': '0.009', 'forward': '0.876', 'batch_size': '1', 'rtf': '0.811'}, : 100%|[34m██████████[0m| 1/1 [00:00<00:00,  1.14it/s][A
+rtf_avg: 0.811: 100%|[34m██████████[0m| 1/1 [00:00<00:00,  1.14it/s]                                                                                          [Artf_avg: 0.811: 100%|[34m██████████[0m| 1/1 [00:00<00:00,  1.14it/s]
+
+  0%|[34m          [0m| 0/1 [00:00<?, ?it/s][A
+100%|[34m██████████[0m| 1/1 [00:00<00:00,  1.15it/s][A
+{'load_data': '0.000', 'extract_feat': '0.010', 'forward': '0.873', 'batch_size': '1', 'rtf': '0.808'}, : 100%|[34m██████████[0m| 1/1 [00:00<00:00,  1.15it/s][A
+rtf_avg: 0.808: 100%|[34m██████████[0m| 1/1 [00:00<00:00,  1.15it/s]                                                                                          [Artf_avg: 0.808: 100%|[34m██████████[0m| 1/1 [00:00<00:00,  1.15it/s]
+
+  0%|[34m          [0m| 0/1 [00:00<?, ?it/s][A
+100%|[34m██████████[0m| 1/1 [00:00<00:00,  1.01it/s][A
+{'load_data': '0.000', 'extract_feat': '0.015', 'forward': '0.992', 'batch_size': '1', 'rtf': '0.918'}, : 100%|[34m██████████[0m| 1/1 [00:00<00:00,  1.01it/s][A
+rtf_avg: 0.918: 100%|[34m██████████[0m| 1/1 [00:00<00:00,  1.01it/s]                                                                                          [Artf_avg: 0.918: 100%|[34m██████████[0m| 1/1 [00:00<00:00,  1.01it/s]
+
+  0%|[34m          [0m| 0/1 [00:00<?, ?it/s][A
+100%|[34m██████████[0m| 1/1 [00:00<00:00,  2.10it/s][A
+{'load_data': '0.000', 'extract_feat': '0.008', 'forward': '0.477', 'batch_size': '1', 'rtf': '0.442'}, : 100%|[34m██████████[0m| 1/1 [00:00<00:00,  2.10it/s][A
+rtf_avg: 0.442: 100%|[34m██████████[0m| 1/1 [00:00<00:00,  2.10it/s]                                                                                          [Artf_avg: 0.442: 100%|[34m██████████[0m| 1/1 [00:00<00:00,  2.09it/s]
+
+  0%|[34m          [0m| 0/1 [00:00<?, ?it/s][A
+100%|[34m██████████[0m| 1/1 [00:00<00:00,  2.69it/s][A
+{'load_data': '0.000', 'extract_feat': '0.005', 'forward': '0.375', 'batch_size': '1', 'rtf': '0.347'}, : 100%|[34m██████████[0m| 1/1 [00:00<00:00,  2.69it/s][A
+rtf_avg: 0.347: 100%|[34m██████████[0m| 1/1 [00:00<00:00,  2.69it/s]                                                                                          [Artf_avg: 0.347: 100%|[34m██████████[0m| 1/1 [00:00<00:00,  2.66it/s]
+
+  0%|[34m          [0m| 0/1 [00:00<?, ?it/s][A
+100%|[34m██████████[0m| 1/1 [00:00<00:00,  2.43it/s][A
+{'load_data': '0.000', 'extract_feat': '0.004', 'forward': '0.411', 'batch_size': '1', 'rtf': '0.361'}, : 100%|[34m██████████[0m| 1/1 [00:00<00:00,  2.43it/s][A
+rtf_avg: 0.361: 100%|[34m██████████[0m| 1/1 [00:00<00:00,  2.43it/s]                                                                                          [Artf_avg: 0.361: 100%|[34m██████████[0m| 1/1 [00:00<00:00,  2.42it/s]
+
+  0%|[34m          [0m| 0/1 [00:00<?, ?it/s][A
+100%|[34m██████████[0m| 1/1 [00:00<00:00,  2.94it/s][A
+{'load_data': '0.000', 'extract_feat': '0.005', 'forward': '0.343', 'batch_size': '1', 'rtf': '0.301'}, : 100%|[34m██████████[0m| 1/1 [00:00<00:00,  2.94it/s][A
+rtf_avg: 0.301: 100%|[34m██████████[0m| 1/1 [00:00<00:00,  2.94it/s]                                                                                          [Artf_avg: 0.301: 100%|[34m██████████[0m| 1/1 [00:00<00:00,  2.91it/s]
+
+  0%|[34m          [0m| 0/1 [00:00<?, ?it/s][A
+100%|[34m██████████[0m| 1/1 [00:00<00:00,  2.36it/s][A
+{'load_data': '0.000', 'extract_feat': '0.004', 'forward': '0.423', 'batch_size': '1', 'rtf': '0.371'}, : 100%|[34m██████████[0m| 1/1 [00:00<00:00,  2.36it/s][A
+rtf_avg: 0.371: 100%|[34m██████████[0m| 1/1 [00:00<00:00,  2.36it/s]                                                                                          [Artf_avg: 0.371: 100%|[34m██████████[0m| 1/1 [00:00<00:00,  2.30it/s]
+
+  0%|[34m          [0m| 0/1 [00:00<?, ?it/s][A
+100%|[34m██████████[0m| 1/1 [00:00<00:00,  2.98it/s][A
+{'load_data': '0.000', 'extract_feat': '0.005', 'forward': '0.336', 'batch_size': '1', 'rtf': '0.295'}, : 100%|[34m██████████[0m| 1/1 [00:00<00:00,  2.98it/s][A
+rtf_avg: 0.295: 100%|[34m██████████[0m| 1/1 [00:00<00:00,  2.98it/s]                                                                                          [Artf_avg: 0.295: 100%|[34m██████████[0m| 1/1 [00:00<00:00,  2.98it/s]
+
+  0%|[34m          [0m| 0/1 [00:00<?, ?it/s][A
+100%|[34m██████████[0m| 1/1 [00:00<00:00,  2.50it/s][A
+{'load_data': '0.000', 'extract_feat': '0.005', 'forward': '0.400', 'batch_size': '1', 'rtf': '0.351'}, : 100%|[34m██████████[0m| 1/1 [00:00<00:00,  2.50it/s][A
+rtf_avg: 0.351: 100%|[34m██████████[0m| 1/1 [00:00<00:00,  2.50it/s]                                                                                          [Artf_avg: 0.351: 100%|[34m██████████[0m| 1/1 [00:00<00:00,  2.49it/s]
+
+  0%|[34m          [0m| 0/1 [00:00<?, ?it/s][A
+100%|[34m██████████[0m| 1/1 [00:00<00:00,  3.04it/s][A
+{'load_data': '0.000', 'extract_feat': '0.004', 'forward': '0.329', 'batch_size': '1', 'rtf': '0.289'}, : 100%|[34m██████████[0m| 1/1 [00:00<00:00,  3.04it/s][A
+rtf_avg: 0.289: 100%|[34m██████████[0m| 1/1 [00:00<00:00,  3.04it/s]                                                                                          [Artf_avg: 0.289: 100%|[34m██████████[0m| 1/1 [00:00<00:00,  3.03it/s]
+
+  0%|[34m          [0m| 0/1 [00:00<?, ?it/s][A
+100%|[34m██████████[0m| 1/1 [00:00<00:00,  2.45it/s][A
+{'load_data': '0.000', 'extract_feat': '0.005', 'forward': '0.408', 'batch_size': '1', 'rtf': '0.358'}, : 100%|[34m██████████[0m| 1/1 [00:00<00:00,  2.45it/s][A
+rtf_avg: 0.358: 100%|[34m██████████[0m| 1/1 [00:00<00:00,  2.45it/s]                                                                                          [Artf_avg: 0.358: 100%|[34m██████████[0m| 1/1 [00:00<00:00,  2.45it/s]
+
+  0%|[34m          [0m| 0/1 [00:00<?, ?it/s][A
+100%|[34m██████████[0m| 1/1 [00:00<00:00,  2.92it/s][A
+{'load_data': '0.000', 'extract_feat': '0.004', 'forward': '0.342', 'batch_size': '1', 'rtf': '0.300'}, : 100%|[34m██████████[0m| 1/1 [00:00<00:00,  2.92it/s][A
+rtf_avg: 0.300: 100%|[34m██████████[0m| 1/1 [00:00<00:00,  2.92it/s]                                                                                          [Artf_avg: 0.300: 100%|[34m██████████[0m| 1/1 [00:00<00:00,  2.91it/s]
+
+  0%|[34m          [0m| 0/1 [00:00<?, ?it/s][A
+100%|[34m██████████[0m| 1/1 [00:00<00:00,  2.74it/s][A
+{'load_data': '0.000', 'extract_feat': '0.003', 'forward': '0.365', 'batch_size': '1', 'rtf': '0.320'}, : 100%|[34m██████████[0m| 1/1 [00:00<00:00,  2.74it/s][A
+rtf_avg: 0.320: 100%|[34m██████████[0m| 1/1 [00:00<00:00,  2.74it/s]                                                                                          [Artf_avg: 0.320: 100%|[34m██████████[0m| 1/1 [00:00<00:00,  2.73it/s]
+
+  0%|[34m          [0m| 0/1 [00:00<?, ?it/s][A
+100%|[34m██████████[0m| 1/1 [00:00<00:00,  2.61it/s][A
+{'load_data': '0.000', 'extract_feat': '0.007', 'forward': '0.383', 'batch_size': '1', 'rtf': '0.336'}, : 100%|[34m██████████[0m| 1/1 [00:00<00:00,  2.61it/s][A
+rtf_avg: 0.336: 100%|[34m██████████[0m| 1/1 [00:00<00:00,  2.61it/s]                                                                                          [Artf_avg: 0.336: 100%|[34m██████████[0m| 1/1 [00:00<00:00,  2.60it/s]
+
+  0%|[34m          [0m| 0/1 [00:00<?, ?it/s][A
+100%|[34m██████████[0m| 1/1 [00:00<00:00,  2.67it/s][A
+{'load_data': '0.000', 'extract_feat': '0.003', 'forward': '0.374', 'batch_size': '1', 'rtf': '0.328'}, : 100%|[34m██████████[0m| 1/1 [00:00<00:00,  2.67it/s][A
+rtf_avg: 0.328: 100%|[34m██████████[0m| 1/1 [00:00<00:00,  2.67it/s]                                                                                          [Artf_avg: 0.328: 100%|[34m██████████[0m| 1/1 [00:00<00:00,  2.67it/s]
+
+  0%|[34m          [0m| 0/1 [00:00<?, ?it/s][A
+100%|[34m██████████[0m| 1/1 [00:00<00:00,  2.52it/s][A
+{'load_data': '0.000', 'extract_feat': '0.005', 'forward': '0.397', 'batch_size': '1', 'rtf': '0.348'}, : 100%|[34m██████████[0m| 1/1 [00:00<00:00,  2.52it/s][A
+rtf_avg: 0.348: 100%|[34m██████████[0m| 1/1 [00:00<00:00,  2.52it/s]                                                                                          [Artf_avg: 0.348: 100%|[34m██████████[0m| 1/1 [00:00<00:00,  2.51it/s]
+
+  0%|[34m          [0m| 0/1 [00:00<?, ?it/s][A
+100%|[34m██████████[0m| 1/1 [00:00<00:00,  2.52it/s][A
+{'load_data': '0.000', 'extract_feat': '0.004', 'forward': '0.395', 'batch_size': '1', 'rtf': '0.347'}, : 100%|[34m██████████[0m| 1/1 [00:00<00:00,  2.52it/s][A
+rtf_avg: 0.347: 100%|[34m██████████[0m| 1/1 [00:00<00:00,  2.52it/s]                                                                                          [Artf_avg: 0.347: 100%|[34m██████████[0m| 1/1 [00:00<00:00,  2.52it/s]
+
+  0%|[34m          [0m| 0/1 [00:00<?, ?it/s][A
+100%|[34m██████████[0m| 1/1 [00:00<00:00,  2.04it/s][A
+{'load_data': '0.000', 'extract_feat': '0.004', 'forward': '0.490', 'batch_size': '1', 'rtf': '0.430'}, : 100%|[34m██████████[0m| 1/1 [00:00<00:00,  2.04it/s][A
+rtf_avg: 0.430: 100%|[34m██████████[0m| 1/1 [00:00<00:00,  2.04it/s]                                                                                          [Artf_avg: 0.430: 100%|[34m██████████[0m| 1/1 [00:00<00:00,  2.03it/s]
+
+  0%|[34m          [0m| 0/1 [00:00<?, ?it/s][A
+100%|[34m██████████[0m| 1/1 [00:00<00:00,  2.00it/s][A
+{'load_data': '0.000', 'extract_feat': '0.004', 'forward': '0.501', 'batch_size': '1', 'rtf': '0.439'}, : 100%|[34m██████████[0m| 1/1 [00:00<00:00,  2.00it/s][A
+rtf_avg: 0.439: 100%|[34m██████████[0m| 1/1 [00:00<00:00,  2.00it/s]                                                                                          [Artf_avg: 0.439: 100%|[34m██████████[0m| 1/1 [00:00<00:00,  1.99it/s]
+
+  0%|[34m          [0m| 0/1 [00:00<?, ?it/s][A

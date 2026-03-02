@@ -1,0 +1,68 @@
+import AsyncStorage from '@react-native-async-storage/async-storage';
+
+// 转写服务商
+export const ASR_PROVIDERS = {
+  aliyun: {name: '阿里云语音识别', region: 'cn'},
+  xfyun: {name: '讯飞语音识别', region: 'cn'},
+  tencent: {name: '腾讯云语音识别', region: 'cn'},
+  baidu: {name: '百度语音识别', region: 'cn'},
+  openai_whisper: {name: 'OpenAI Whisper', region: 'intl'},
+  google: {name: 'Google Speech', region: 'intl'},
+  azure: {name: 'Azure语音识别', region: 'intl'},
+  aws: {name: 'AWS Transcribe', region: 'intl'},
+} as const;
+
+// 大模型服务商
+export const LLM_PROVIDERS = {
+  // 国内
+  zhipu: {name: '智谱GLM', region: 'cn', endpoint: 'https://open.bigmodel.cn/api/paas/v4/chat/completions', defaultModel: 'glm-4-flash'},
+  deepseek: {name: 'DeepSeek', region: 'cn', endpoint: 'https://api.deepseek.com/v1/chat/completions', defaultModel: 'deepseek-chat'},
+  qwen: {name: '通义千问', region: 'cn', endpoint: 'https://dashscope.aliyuncs.com/compatible-mode/v1/chat/completions', defaultModel: 'qwen-turbo'},
+  doubao: {name: '豆包(字节)', region: 'cn', endpoint: 'https://ark.cn-beijing.volces.com/api/v3/chat/completions', defaultModel: 'doubao-pro-4k'},
+  // 国际
+  openai: {name: 'OpenAI', region: 'intl', endpoint: 'https://api.openai.com/v1/chat/completions', defaultModel: 'gpt-4o-mini'},
+  claude: {name: 'Claude', region: 'intl', endpoint: 'https://api.anthropic.com/v1/messages', defaultModel: 'claude-sonnet-4-20250514'},
+  gemini: {name: 'Gemini', region: 'intl', endpoint: 'https://generativelanguage.googleapis.com/v1beta/chat/completions', defaultModel: 'gemini-2.0-flash'},
+  mistral: {name: 'Mistral', region: 'intl', endpoint: 'https://api.mistral.ai/v1/chat/completions', defaultModel: 'mistral-small-latest'},
+} as const;
+
+export type AsrProviderId = keyof typeof ASR_PROVIDERS;
+export type LlmProviderId = keyof typeof LLM_PROVIDERS;
+
+export interface AppConfig {
+  // 当前选择的服务商
+  asrProvider: AsrProviderId;
+  llmProvider: LlmProviderId;
+  // 各服务商的API Key（key为provider id）
+  asrKeys: Record<string, {key: string; secret?: string; appKey?: string; region?: string}>;
+  llmKeys: Record<string, {key: string; model?: string}>;
+}
+
+const CONFIG_KEY = 'app_config_v2';
+
+const DEFAULT_CONFIG: AppConfig = {
+  asrProvider: 'aliyun',
+  llmProvider: 'zhipu',
+  asrKeys: {},
+  llmKeys: {},
+};
+
+export async function getConfig(): Promise<AppConfig> {
+  const raw = await AsyncStorage.getItem(CONFIG_KEY);
+  if (!raw) return DEFAULT_CONFIG;
+  try {
+    return {...DEFAULT_CONFIG, ...JSON.parse(raw)};
+  } catch {
+    return DEFAULT_CONFIG;
+  }
+}
+
+export async function saveConfig(config: AppConfig) {
+  await AsyncStorage.setItem(CONFIG_KEY, JSON.stringify(config));
+}
+
+export function isConfigValid(config: AppConfig): boolean {
+  const asrKey = config.asrKeys[config.asrProvider];
+  const llmKey = config.llmKeys[config.llmProvider];
+  return !!(asrKey?.key && llmKey?.key);
+}

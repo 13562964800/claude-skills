@@ -1,0 +1,77 @@
+The file C:\Users\Administrator\Desktop\CourtAssistant\app\src\main\java\com\court\assistant\MainActivity.kt has been updated. Here's the result of running `cat -n` on a snippet of the edited file:
+     1→package com.court.assistant
+     2→
+     3→import android.Manifest
+     4→import android.content.pm.PackageManager
+     5→import android.os.Build
+     6→import android.os.Bundle
+     7→import androidx.activity.ComponentActivity
+     8→import androidx.activity.compose.setContent
+     9→import androidx.activity.result.contract.ActivityResultContracts
+    10→import androidx.compose.foundation.layout.fillMaxSize
+    11→import androidx.compose.material3.Surface
+    12→import androidx.compose.ui.Modifier
+    13→import androidx.core.content.ContextCompat
+    14→import androidx.lifecycle.ViewModelProvider
+    15→import com.court.assistant.ui.Navigation
+    16→import com.court.assistant.ui.theme.CourtAssistantTheme
+    17→import com.court.assistant.viewmodel.MainViewModel
+    18→
+    19→class MainActivity : ComponentActivity() {
+    20→    private val viewModel: MainViewModel by lazy {
+    21→        ViewModelProvider(this)[MainViewModel::class.java]
+    22→    }
+    23→
+    24→    private val permissionLauncher = registerForActivityResult(
+    25→        ActivityResultContracts.RequestMultiplePermissions()
+    26→    ) { permissions ->
+    27→        // 检查所有权限是否已授予
+    28→        val allGranted = permissions.all { it.value }
+    29→        if (allGranted) {
+    30→            // 权限已授予，安全加载短信
+    31→            viewModel.loadSms()
+    32→        }
+    33→    }
+    34→
+    35→    override fun onCreate(savedInstanceState: Bundle?) {
+    36→        super.onCreate(savedInstanceState)
+    37→
+    38→        requestPermissions()
+    39→
+    40→        setContent {
+    41→            CourtAssistantTheme {
+    42→                Surface(modifier = Modifier.fillMaxSize()) {
+    43→                    Navigation(viewModel = viewModel)
+    44→                }
+    45→            }
+    46→        }
+    47→    }
+    48→
+    49→    private fun requestPermissions() {
+    50→        val basePermissions = arrayOf(
+    51→            Manifest.permission.READ_SMS,
+    52→            Manifest.permission.RECEIVE_SMS,
+    53→            Manifest.permission.READ_CALENDAR,
+    54→            Manifest.permission.WRITE_CALENDAR
+    55→        )
+    56→
+    57→        // Android 13+ 需要通知权限
+    58→        val needed = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+    59→            basePermissions + Manifest.permission.POST_NOTIFICATIONS
+    60→        } else {
+    61→            basePermissions
+    62→        }
+    63→
+    64→        val toRequest = needed.filter {
+    65→            ContextCompat.checkSelfPermission(this, it) != PackageManager.PERMISSION_GRANTED
+    66→        }.toTypedArray()
+    67→
+    68→        if (toRequest.isEmpty()) {
+    69→            // 所有权限已授予
+    70→            viewModel.loadSms()
+    71→        } else {
+    72→            permissionLauncher.launch(toRequest)
+    73→        }
+    74→    }
+    75→}
+    76→

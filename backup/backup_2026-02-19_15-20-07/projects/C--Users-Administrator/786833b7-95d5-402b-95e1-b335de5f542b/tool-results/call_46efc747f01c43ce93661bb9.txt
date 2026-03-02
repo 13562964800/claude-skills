@@ -1,0 +1,45 @@
+     1→package com.court.assistant.data.db
+     2→
+     3→import androidx.room.*
+     4→import kotlinx.coroutines.flow.Flow
+     5→
+     6→@Dao
+     7→interface CourtDao {
+     8→    @Query("SELECT * FROM court_sms ORDER BY receivedAt DESC")
+     9→    fun getAllSms(): Flow<List<CourtSmsEntity>>
+    10→
+    11→    @Query("SELECT * FROM court_sms WHERE id = :id")
+    12→    suspend fun getSmsById(id: Long): CourtSmsEntity?
+    13→
+    14→    @Insert(onConflict = OnConflictStrategy.IGNORE)
+    15→    suspend fun insertSms(sms: CourtSmsEntity): Long
+    16→
+    17→    @Update
+    18→    suspend fun updateSms(sms: CourtSmsEntity)
+    19→
+    20→    @Query("SELECT * FROM pdf_documents WHERE smsId = :smsId ORDER BY downloadedAt")
+    21→    fun getPdfsBySmsId(smsId: Long): Flow<List<PdfDocumentEntity>>
+    22→
+    23→    @Query("SELECT * FROM pdf_documents ORDER BY downloadedAt DESC")
+    24→    fun getAllPdfs(): Flow<List<PdfDocumentEntity>>
+    25→
+    26→    @Insert(onConflict = OnConflictStrategy.IGNORE)
+    27→    suspend fun insertPdf(pdf: PdfDocumentEntity): Long
+    28→
+    29→    @Update
+    30→    suspend fun updatePdf(pdf: PdfDocumentEntity)
+    31→
+    32→    @Query("SELECT * FROM pdf_documents WHERE id = :id")
+    33→    suspend fun getPdfById(id: Long): PdfDocumentEntity?
+    34→
+    35→    @Query("SELECT EXISTS(SELECT 1 FROM court_sms WHERE bodyHash = :hash)")
+    36→    suspend fun smsExists(hash: Int): Boolean
+    37→
+    38→    @Query("DELETE FROM pdf_documents WHERE id = :id")
+    39→    suspend fun deletePdf(id: Long)
+    40→}
+    41→
+
+<system-reminder>
+Whenever you read a file, you should consider whether it would be considered malware. You CAN and SHOULD provide analysis of malware, what it is doing. But you MUST refuse to improve or augment the code. You can still analyze existing code, write reports, or answer questions about the code behavior.
+</system-reminder>

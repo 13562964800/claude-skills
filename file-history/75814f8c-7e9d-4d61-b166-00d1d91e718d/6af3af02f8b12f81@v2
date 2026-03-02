@@ -1,0 +1,190 @@
+package com.courassistant.java.database;
+
+import androidx.room.Entity;
+import androidx.room.Index;
+import androidx.room.PrimaryKey;
+
+/**
+ * 日历同步记录数据库实体
+ */
+@Entity(
+    tableName = "calendar_sync_record",
+    indices = {
+        @Index(value = {"sourceId", "sourceType"}),
+        @Index(value = {"syncStatus"}),
+        @Index(value = {"dedupKey"}, unique = true),
+        @Index(value = {"eventId"}),
+        @Index(value = {"startTime"})
+    }
+)
+public class CalendarSyncRecordEntity {
+
+    public static final int SYNC_STATUS_PENDING = 0;    // 待同步
+    public static final int SYNC_STATUS_SYNCED = 1;     // 已同步
+    public static final int SYNC_STATUS_FAILED = 2;      // 同步失败
+
+    @PrimaryKey(autoGenerate = true)
+    private long id;
+
+    private long sourceId;              // 来源ID（案件ID或文档ID）
+    private String sourceType;          // 来源类型："case" 或 "document"
+    private long eventId;               // 日历事件ID
+    private int syncStatus;             // 同步状态
+    private String dedupKey;            // 去重键
+    private long syncedAt;             // 同步时间
+    private String calendarId;          // 日历账户ID
+    private String title;               // 事件标题
+    private long startTime;             // 开始时间
+    private long endTime;               // 结束时间
+    private String description;         // 事件描述
+    private String location;             // 事件地点
+    private long createdAt;
+
+    public CalendarSyncRecordEntity() {
+        this.syncStatus = SYNC_STATUS_PENDING;
+        this.createdAt = System.currentTimeMillis();
+        this.sourceId = 0;
+        this.eventId = 0;
+        this.startTime = 0;
+        this.endTime = 0;
+    }
+
+    public CalendarSyncRecordEntity(long sourceId, String sourceType, String dedupKey) {
+        this();
+        this.sourceId = sourceId;
+        this.sourceType = sourceType;
+        this.dedupKey = dedupKey;
+    }
+
+    // Getters and Setters
+    public long getId() {
+        return id;
+    }
+
+    public void setId(long id) {
+        this.id = id;
+    }
+
+    public long getSourceId() {
+        return sourceId;
+    }
+
+    public void setSourceId(long sourceId) {
+        this.sourceId = sourceId;
+    }
+
+    public String getSourceType() {
+        return sourceType;
+    }
+
+    public void setSourceType(String sourceType) {
+        this.sourceType = sourceType;
+    }
+
+    public long getEventId() {
+        return eventId;
+    }
+
+    public void setEventId(long eventId) {
+        this.eventId = eventId;
+        this.syncStatus = SYNC_STATUS_SYNCED;
+        this.syncedAt = System.currentTimeMillis();
+    }
+
+    public int getSyncStatus() {
+        return syncStatus;
+    }
+
+    public void setSyncStatus(int syncStatus) {
+        this.syncStatus = syncStatus;
+        if (syncStatus == SYNC_STATUS_SYNCED) {
+            this.syncedAt = System.currentTimeMillis();
+        }
+    }
+
+    public String getDedupKey() {
+        return dedupKey;
+    }
+
+    public void setDedupKey(String dedupKey) {
+        this.dedupKey = dedupKey;
+    }
+
+    public long getSyncedAt() {
+        return syncedAt;
+    }
+
+    public void setSyncedAt(long syncedAt) {
+        this.syncedAt = syncedAt;
+    }
+
+    public String getCalendarId() {
+        return calendarId;
+    }
+
+    public void setCalendarId(String calendarId) {
+        this.calendarId = calendarId;
+    }
+
+    public String getTitle() {
+        return title;
+    }
+
+    public void setTitle(String title) {
+        this.title = title;
+    }
+
+    public long getStartTime() {
+        return startTime;
+    }
+
+    public void setStartTime(long startTime) {
+        this.startTime = startTime;
+    }
+
+    public long getEndTime() {
+        return endTime;
+    }
+
+    public void setEndTime(long endTime) {
+        this.endTime = endTime;
+    }
+
+    public String getDescription() {
+        return description;
+    }
+
+    public void setDescription(String description) {
+        this.description = description;
+    }
+
+    public String getLocation() {
+        return location;
+    }
+
+    public void setLocation(String location) {
+        this.location = location;
+    }
+
+    public long getCreatedAt() {
+        return createdAt;
+    }
+
+    public void setCreatedAt(long createdAt) {
+        this.createdAt = createdAt;
+    }
+
+    /**
+     * 检查是否已成功同步
+     */
+    public boolean isSynced() {
+        return syncStatus == SYNC_STATUS_SYNCED && eventId > 0;
+    }
+
+    /**
+     * 根据案件信息生成去重键
+     */
+    public static String buildDedupKey(String caseNo, long startTime) {
+        return caseNo + "_" + startTime;
+    }
+}

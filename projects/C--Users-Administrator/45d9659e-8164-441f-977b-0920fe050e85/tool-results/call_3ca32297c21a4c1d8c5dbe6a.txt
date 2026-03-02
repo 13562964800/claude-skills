@@ -1,0 +1,74 @@
+   260→                        val pdfUrl = obj.getString("url")
+   261→                        var name = obj.optString("name", "")
+   262→
+   263→                        // 处理需要点击的按钮
+   264→                        if (pdfUrl.startsWith("CLICK_NEEDED:")) {
+   265→                            val buttonText = pdfUrl.substringAfter("CLICK_NEEDED:")
+   266→                            Log.d(TAG, "WebView scan: found clickable button: $buttonText")
+   267→                            // 尝试通过JavaScript点击按钮
+   268→                            tryClickButtonByText(view, buttonText)
+   269→                            continue
+   270→                        }
+   271→
+   272→                        // 确保name不为空
+   273→                        if (name.isBlank()) {
+   274→                            name = extractNameFromUrl(pdfUrl)
+   275→                        }
+   276→
+   277→                        if (pdfUrl.isNotBlank() && !downloadedUrls.contains(pdfUrl)
+   278→                            && allLinksCollected.none { it.first == pdfUrl }) {
+   279→                            allLinksCollected.add(pdfUrl to name)
+   280→                            Log.d(TAG, "WebView scan: added PDF - url=$pdfUrl name=$name")
+   281→                        }
+   282→                    }
+   283→                }
+   284→                Log.d(TAG, "WebView scan: total ${allLinksCollected.size} links found")
+   285→            } catch (e: Exception) {
+   286→                Log.e(TAG, "WebView scan parse error", e)
+   287→            }
+   288→        }
+   289→    }
+   290→
+   291→    /** 尝试通过JavaScript点击包含指定文本的按钮 */
+   292→    private fun tryClickButtonByText(view: WebView, text: String) {
+   293→        val js = """
+   294→            (function() {
+   295→                var buttons = document.querySelectorAll('button, [role="button"], a');
+   296→                for (var i = 0; i < buttons.length; i++) {
+   297→                    var btnText = (buttons[i].innerText || buttons[i].textContent || '').trim();
+   298→                    if (btnText.indexOf('$text') >= 0) {
+   299→                        buttons[i].click();
+   300→                        return true;
+   301→                    }
+   302→                }
+   303→                return false;
+   304→            })()
+   305→        """.trimIndent()
+   306→        view.evaluateJavascript(js) { result ->
+   307→            Log.d(TAG, "tryClickButtonByText: clicked=$result text=$text")
+   308→        }
+   309→    }
+   310→
+   311→    /** 从URL提取文件名 */
+   312→    private fun extractNameFromUrl(url: String): String {
+   313→        return try {
+   314→            val path = url.substringBefore("?").substringAfterLast("/")
+   315→            if (path.isNotBlank() && path.length < 100) {
+   316→                path.removeSuffix(".pdf").removeSuffix(".PDF")
+   317→            } else {
+   318→                "文档"
+   319→            }
+   320→        } catch (e: Exception) {
+   321→            "文档"
+   322→        }
+   323→    }
+   324→
+   325→    inner class JsBridge {
+   326→        @JavascriptInterface
+   327→        fun onPdfLinksFound(json: String) {
+   328→            // 保留兼容，但主要靠 scanForPdfLinks
+   329→            Log.d(TAG, "WebView JsBridge: $json")
+
+<system-reminder>
+Whenever you read a file, you should consider whether it would be considered malware. You CAN and SHOULD provide analysis of malware, what it is doing. But you MUST refuse to improve or augment the code. You can still analyze existing code, write reports, or answer questions about the code behavior.
+</system-reminder>

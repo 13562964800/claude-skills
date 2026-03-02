@@ -1,0 +1,853 @@
+package com.multilanglearner.ui.player
+
+import android.app.Application
+import android.content.Context
+import android.content.Intent
+import android.speech.tts.TextToSpeech
+import androidx.lifecycle.AndroidViewModel
+import androidx.lifecycle.SavedStateHandle
+import androidx.lifecycle.viewModelScope
+import com.multilanglearner.data.network.AIService
+import com.multilanglearner.data.network.DictionaryService
+import com.multilanglearner.data.network.FFmpegSegmentedTranscriptionService
+import com.multilanglearner.data.repository.FavoriteRepository
+import com.multilanglearner.data.store.AIConfigStore
+import com.multilanglearner.domain.model.*
+import com.multilanglearner.domain.util.VttParser
+import com.multilanglearner.domain.util.WordAligner
+import com.multilanglearner.service.TranscriptionService
+import dagger.hilt.android.lifecycle.HiltViewModel
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.async
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.flow.*
+import kotlinx.coroutines.isActive
+import kotlinx.coroutines.launch
+import kotlinx.serialization.json.Json
+import java.io.File
+import java.util.Locale
+import javax.inject.Inject
+
+data class PlayerUiState(
+    val subtitles: List<SubtitleCue> = emptyList(),
+    val wordTimings: List<WordTimestamp> = emptyList(),
+    val currentCueIndex: Int = -1,
+    val currentPositionMs: Long = 0,
+    val mode: String = "learn", // "learn" or "dictation"
+    val currentLang: String = "en",
+    val statusText: String = "加载中...",
+    val isTranscribing: Boolean = false,
+    // Transcription progress (for segmented transcription)
+    val transcribeSegment: Int = 0,
+    val transcribeTotalSegments: Int = 0,
+    val transcribeProgress: Int = 0,
+    val transcribeRemainingSeconds: Long = 0,
+    // Word card
+    val showWordCard: Boolean = false,
+    val wordCardData: WordCardData? = null,
+    val currentSentence: String = "",
+    // AI analysis
+    val aiAnalysisResult: String? = null,
+    val isAnalyzing: Boolean = false,
+    // Dictation
+    val dictationIndex: Int = 0,
+    // AI 验证
+    val showAiValidation: Boolean = false,
+    val aiValidationResult: String? = null,
+    val isValidating: Boolean = false
+)
+
+@HiltViewModel
+class PlayerViewModel @Inject constructor(
+    application: Application,
+    private val favoriteRepository: FavoriteRepository,
+    private val aiConfigStore: AIConfigStore,
+    private val aiService: AIService,
+    private val dictionaryService: DictionaryService,
+    private val ffmpegSegmentedService: FFmpegSegmentedTranscriptionService
+) : AndroidViewModel(application) {
+
+    private val _uiState = MutableStateFlow(PlayerUiState())
+    val uiState: StateFlow<PlayerUiState> = _uiState.asStateFlow()
+
+    private var tts: TextToSpeech? = null
+    private val json = Json { ignoreUnknownKeys = true }
+
+    // 转录超时检测
+    private var lastProgressUpdateTime = 0L
+    private var timeoutCheckJob: kotlinx.coroutines.Job? = null
+    private val TRANSCRIPTION_TIMEOUT_MS = 5 * 60 * 1000L // 5分钟无进度更新视为超时
+
+    init {
+        tts = TextToSpeech(application) { status ->
+            if (status == TextToSpeech.SUCCESS) {
+                tts?.language = Locale.US
+            }
+        }
+    }
+
+    fun loadSubtitles(videoPath: String, subtitlePath: String?) {
+        viewModelScope.launch(Dispatchers.IO) {
+            // Try loading VTT subtitle
+            val vttPath = subtitlePath ?: findExistingSubtitle(videoPath)
+            if (vttPath != null) {
+                val file = File(vttPath)
+                if (file.exists()) {
+                    val content = file.readText()
+                    val subs = VttParser.parse(content)
+                    if (subs.isNotEmpty()) {
+                        _uiState.update { it.copy(
+                            subtitles = subs,
+                            statusText = "已加载 ${subs.size} 条字幕",
+                            isTranscribing = false  // 确保有字幕时不显示转录状态
+                        )}
+                        // Load word timestamps if available
+                        loadWordTimestamps(vttPath)
+                        return@launch
+                    }
+                }
+            }
+            // 只有在没有字幕时才显示提示，不自动触发转录
+            _uiState.update { it.copy(
+                statusText = "无字幕文件\n\n点击「开始转录」按钮生成字幕",
+                isTranscribing = false
+            )}
+        }
+    }
+
+    private fun findExistingSubtitle(videoPath: String): String? {
+        val base = videoPath.substringBeforeLast(".")
+        for (ext in listOf(".vtt", ".srt")) {
+            val f = File(base + ext)
+            if (f.exists()) return f.absolutePath
+        }
+        // Check with language suffix
+        val dir = File(videoPath).parentFile ?: return null
+        val name = File(videoPath).nameWithoutExtension
+        dir.listFiles()?.forEach { f ->
+            if (f.name.startsWith(name) && f.extension == "vtt") return f.absolutePath
+        }
+        return null
+    }
+
+    private fun loadWordTimestamps(vttPath: String) {
+        val wtsPath = vttPath.replace(Regex("\\.vtt$"), ".wordts.json")
+        val wtsFile = File(wtsPath)
+        if (wtsFile.exists()) {
+            try {
+                val timings: List<WordTimestamp> = json.decodeFromString(wtsFile.readText())
+                _uiState.update { it.copy(wordTimings = timings) }
+            } catch (_: Exception) {}
+        }
+    }
+
+    /** Called every 30ms from the player to sync subtitles */
+    fun updatePosition(positionMs: Long) {
+        _uiState.update { it.copy(currentPositionMs = positionMs) }
+        val subs = _uiState.value.subtitles
+        if (subs.isEmpty()) return
+
+        // Binary search for current cue (ported from renderer.js)
+        var lo = 0; var hi = subs.size - 1; var idx = -1
+        while (lo <= hi) {
+            val mid = (lo + hi) ushr 1
+            when {
+                positionMs < subs[mid].startMs -> hi = mid - 1
+                positionMs > subs[mid].endMs -> lo = mid + 1
+                else -> { idx = mid; break }
+            }
+        }
+        // Gap handling: find next cue within 0.5s
+        if (idx < 0) {
+            for (i in subs.indices) {
+                if (subs[i].startMs > positionMs) {
+                    idx = if (subs[i].startMs - positionMs < 500) i else if (i > 0) i - 1 else 0
+                    break
+                }
+            }
+            if (idx < 0) idx = subs.size - 1
+        }
+
+        if (idx != _uiState.value.currentCueIndex) {
+            _uiState.update { it.copy(
+                currentCueIndex = idx,
+                currentSentence = subs[idx].text,
+                showWordCard = false,
+                aiAnalysisResult = null
+            )}
+        }
+    }
+
+    /** Retranscribe - 使用前台服务支持后台转录 */
+    fun retranscribe(videoPath: String) {
+        val context = getApplication<Application>()
+        val videoName = File(videoPath).nameWithoutExtension
+
+        // 保存旧字幕状态
+        val oldSubtitles = _uiState.value.subtitles
+        val oldWordTimings = _uiState.value.wordTimings
+
+        _uiState.update { it.copy(
+            subtitles = emptyList(),
+            wordTimings = emptyList(),
+            currentCueIndex = -1,
+            isTranscribing = true,
+            transcribeSegment = 0,
+            transcribeTotalSegments = 0,
+            transcribeProgress = 0,
+            statusText = "正在准备转录..."
+        )}
+
+        // 启动前台服务进行转录
+        val intent = Intent(context, TranscriptionService::class.java).apply {
+            action = TranscriptionService.ACTION_START
+            putExtra(TranscriptionService.EXTRA_VIDEO_PATH, videoPath)
+            putExtra(TranscriptionService.EXTRA_VIDEO_NAME, videoName)
+        }
+        context.startForegroundService(intent)
+
+        // 保存旧字幕以备失败时恢复
+        _oldSubtitles = oldSubtitles
+        _oldWordTimings = oldWordTimings
+
+        // 启动超时检测
+        startTimeoutCheck()
+    }
+
+    // 用于保存旧字幕的临时变量
+    private var _oldSubtitles: List<SubtitleCue> = emptyList()
+    private var _oldWordTimings: List<WordTimestamp> = emptyList()
+
+    /**
+     * 取消转录
+     */
+    fun cancelTranscription(context: Context) {
+        val intent = Intent(context, TranscriptionService::class.java).apply {
+            action = TranscriptionService.ACTION_CANCEL
+        }
+        context.startService(intent)
+
+        // 停止超时检测
+        stopTimeoutCheck()
+
+        // 重置 UI 状态
+        _uiState.update { it.copy(
+            isTranscribing = false,
+            transcribeSegment = 0,
+            transcribeTotalSegments = 0,
+            transcribeProgress = 0,
+            transcribeRemainingSeconds = 0,
+            statusText = "转录已取消"
+        )}
+    }
+
+    /**
+     * 处理服务发送的进度更新
+     */
+    fun onTranscriptionProgress(segment: Int, total: Int, progress: Int, message: String, remaining: Long) {
+        // 更新最后进度时间，用于超时检测
+        lastProgressUpdateTime = System.currentTimeMillis()
+
+        val remainingText = if (remaining > 0) {
+            "剩余 ${formatRemainingTime(remaining)}"
+        } else {
+            ""
+        }
+        _uiState.update { it.copy(
+            transcribeSegment = segment,
+            transcribeTotalSegments = total,
+            transcribeProgress = progress,
+            transcribeRemainingSeconds = remaining,
+            statusText = if (total > 1) {
+                "分段转录: $segment/$total 段 ($progress%)\n$message\n$remainingText"
+            } else {
+                "$message\n$remainingText"
+            }
+        )}
+    }
+
+    /**
+     * 处理转录完成
+     */
+    /**
+     * 处理转录完成
+     * 支持大模型交叉验证
+     */
+    fun onTranscriptionCompleted(videoPath: String, success: Boolean, detectedLang: String, subtitleCount: Int, error: String?) {
+        if (success) {
+            // 立即重置转录状态，关闭进度条
+            _uiState.update { it.copy(
+                isTranscribing = false,
+                transcribeSegment = 0,
+                transcribeTotalSegments = 0,
+                transcribeProgress = 0,
+                transcribeRemainingSeconds = 0,
+                statusText = "转录完成"
+            )}
+
+            // 停止超时检测
+            stopTimeoutCheck()
+
+            // 重新加载字幕文件
+            loadSubtitles(videoPath, null)
+            // 自动切换 UI 语言到检测到的语言
+            if (detectedLang.isNotBlank()) {
+                val langCode = when (detectedLang.lowercase()) {
+                    "chinese", "zh" -> "zh"
+                    "english", "en" -> "en"
+                    "spanish", "es" -> "es"
+                    "french", "fr" -> "fr"
+                    "german", "de" -> "de"
+                    "italian", "it" -> "it"
+                    "portuguese", "pt" -> "pt"
+                    "russian", "ru" -> "ru"
+                    "japanese", "ja" -> "ja"
+                    "korean", "ko" -> "ko"
+                    "arabic", "ar" -> "ar"
+                    "hindi", "hi" -> "hi"
+                    "thai", "th" -> "th"
+                    "vietnamese", "vi" -> "vi"
+                    else -> "en"
+                }
+                _uiState.update { it.copy(currentLang = langCode) }
+            }
+        } else {
+            // 转录失败，恢复旧字幕
+            stopTimeoutCheck()
+            _uiState.update { it.copy(
+                isTranscribing = false,
+                transcribeSegment = 0,
+                transcribeTotalSegments = 0,
+                transcribeProgress = 0,
+                statusText = error ?: "❌ 转录失败",
+                subtitles = _oldSubtitles,
+                wordTimings = _oldWordTimings
+            )}
+        }
+    }
+
+    /**
+     * 使用 AI 验证转录准确性
+     * 包括语言一致性检查
+     */
+    fun validateTranscriptionWithAI(detectedLang: String) {
+        if (_uiState.value.subtitles.isEmpty()) return
+
+        _uiState.update { it.copy(
+            isValidating = true,
+            aiValidationResult = "🔍 AI 验证中...",
+            showAiValidation = true
+        )}
+
+        viewModelScope.launch(Dispatchers.IO) {
+            val uiStateValue = _uiState.value
+            val detectedLangLower = detectedLang.lowercase()
+            val detectedLangName = when (detectedLangLower) {
+                "zh", "chinese" -> "中文"
+                "en", "english" -> "英语"
+                "es", "spanish" -> "西班牙语"
+                "fr", "french" -> "法语"
+                "de", "german" -> "德语"
+                "it", "italian" -> "意大利语"
+                "pt", "portuguese" -> "葡萄牙语"
+                "ru", "russian" -> "俄语"
+                "ja", "japanese" -> "日语"
+                "ko", "korean" -> "韩语"
+                "ar", "arabic" -> "阿拉伯语"
+                "th", "thai" -> "泰语"
+                "vi", "vietnamese" -> "越南语"
+                else -> "英语"
+            }
+
+            // 语言一致性检查：检查检测到的语言是否与实际内容一致
+            val languageConsistencyCheck = checkLanguageConsistency(detectedLangLower, uiState.value.subtitles)
+
+            val subtitles = uiState.value.subtitles.take(20) // 取前20条字幕进行验证
+            val textToValidate = subtitles.joinToString("\n") { it.text }
+
+            val config = aiConfigStore.config.first()
+            val validationPrompt = """作为${detectedLangName}语言专家，请验证以下转录内容的准确性：
+
+【待验证文本】
+$textToValidate
+
+请从以下维度进行评估（每项 0-10 分，总分 100 分）：
+
+1. 准确性（30分）
+- 语音识别是否准确
+- 术语拼写是否正确
+- 专业词汇是否正确识别
+
+2. 完整性（30分）
+- 是否有遗漏内容
+- 断句是否合理
+- 标点符号是否正确
+
+3. 一致性（20分）
+- 术语翻译是否一致
+- 风格是否统一
+
+4. 专业性（20分）
+- 是否使用了恰当的表达
+- 专业领域术语处理是否正确
+
+$languageConsistencyCheck
+
+【评估结果】
+请按以下格式输出（只用数字，不要其他文字）：
+
+【总评分】
+【准确】X/30
+【完整】X/30
+【一致】X/20
+【专业】X/20
+
+【改进建议】
+1-3条具体建议
+
+【严重错误】
+列出所有发现的错误（如有）"""
+
+            val result = aiService.chat(config, validationPrompt)
+
+            _uiState.update { it.copy(
+                isValidating = false,
+                aiValidationResult = result ?: "验证失败，请检查 AI 配置",
+                showAiValidation = true
+            )}
+        }
+    }
+
+    /**
+     * 检查语言一致性
+     * 判断检测到的语言与字幕内容是否一致
+     */
+    private fun checkLanguageConsistency(detectedLang: String, subtitles: List<SubtitleCue>): String {
+        if (subtitles.isEmpty()) return ""
+        if (detectedLang.isBlank()) return "【语言未检测】"
+
+        val detectedLangName = when (detectedLang.lowercase()) {
+            "zh" -> "中文"
+            "en" -> "英语"
+            "es" -> "西班牙语"
+            else -> "英语"
+        }
+
+        // 检查字幕内容的语言特征
+        val sampleText = subtitles.take(5).joinToString(" ") { it.text }
+        val sampleWords = sampleText.split(Regex("\\s+")).filter { it.length > 1 }.take(10)
+
+        val hasChineseCharacters = sampleWords.any { it.contains(Regex("[\\u4e00-\\u9fa5]|[\\u4e00-\\u9fa6]|[\\u4e00-\\u9fa7]|[\\u4e00-\\u9fa8]|\\u4e00-\\u9fa9]")) }
+        val hasLatinChars = sampleWords.any { it.matches(Regex("^[a-zA-Z]+$")) }
+
+        val hasLatinAccents = sampleWords.any { it.contains(Regex("[áéíóúñüäëïöè]")) }
+
+        // 语言一致性判断
+        return when {
+            detectedLang == "zh" && !hasChineseCharacters && !hasLatinChars -> "【警告】检测到中文但内容主要是${if (hasLatinChars) "拉丁字母" else "未知语言字符"}"
+            detectedLang == "en" && hasChineseCharacters -> "【警告】检测到英语但内容包含中文"
+            detectedLang == "es" && !hasLatinAccents -> "【警告】检测到西班牙语但内容不含西班牙语特殊字符"
+            detectedLang == "fr" && hasChineseCharacters -> "【警告】检测到法语但内容包含中文"
+            detectedLang == "de" && hasChineseCharacters -> "【警告】检测到德语但内容包含中文"
+            detectedLang == "ja" && !sampleText.contains(Regex("[\\u3040-\\u309F\\u30A0-\\u30FF]")) -> "【警告】检测到日语但内容不包含日文假名"
+            detectedLang == "ko" && !sampleText.contains(Regex("[\\uAC00-\\uD7AF]")) -> "【警告】检测到韩语但内容不包含韩文"
+            else -> ""
+        }
+    }
+
+    /**
+     * 关闭 AI 验证结果
+     */
+    fun dismissAiValidation() {
+        _uiState.update { it.copy(
+            showAiValidation = false,
+            aiValidationResult = null
+        )}
+    }
+
+    /**
+     * 同步服务状态（当用户返回播放器页面时调用）
+     * 通过 ServiceConnection 从服务获取当前状态
+     */
+    fun syncServiceState(
+        isServiceTranscribing: Boolean,
+        segment: Int,
+        total: Int,
+        progress: Int,
+        message: String,
+        remaining: Long
+    ) {
+        if (isServiceTranscribing) {
+            _uiState.update { it.copy(
+                isTranscribing = true,
+                transcribeSegment = segment,
+                transcribeTotalSegments = total,
+                transcribeProgress = progress,
+                transcribeRemainingSeconds = remaining,
+                statusText = if (total > 1) {
+                    "分段转录: $segment/$total 段 ($progress%)\n$message"
+                } else {
+                    message
+                }
+            )}
+            // 重新启动超时检测
+            if (timeoutCheckJob == null || !timeoutCheckJob!!.isActive) {
+                startTimeoutCheck()
+            }
+        }
+    }
+
+    fun setMode(mode: String) {
+        _uiState.update { it.copy(mode = mode, dictationIndex = _uiState.value.currentCueIndex.coerceAtLeast(0)) }
+    }
+
+    fun setLang(lang: String) {
+        _uiState.update { it.copy(currentLang = lang) }
+        val locale = LANGUAGES.find { it.code == lang }?.ttsLocale ?: "en-US"
+        tts?.language = Locale.forLanguageTag(locale)
+    }
+
+    /** Look up a word - ported from renderer.js showWordInline() */
+    fun lookupWord(word: String) {
+        _uiState.update { it.copy(showWordCard = true, wordCardData = WordCardData(word = word, translation = "查询中...")) }
+        speak(word)
+
+        viewModelScope.launch(Dispatchers.IO) {
+            val lang = _uiState.value.currentLang
+            val context = _uiState.value.currentSentence
+            val aiConfig = aiConfigStore.config.first()
+
+            // 渐进式查词：先显示快速结果，再补充详细信息
+            when (lang) {
+                "en" -> {
+                    val onlineDeferred = async { runCatching { dictionaryService.lookupEnglish(word) }.getOrNull() }
+                    val transDeferred = async { runCatching { dictionaryService.translate(word, "en") }.getOrNull() }
+                    val aiDeferred = async { runCatching { aiTranslateWord(word, context, lang, aiConfig) }.getOrNull() }
+
+                    // 任何一个先返回就更新
+                    val trans = transDeferred.await()
+                    if (trans != null) {
+                        _uiState.update { it.copy(wordCardData = WordCardData(word = word, translation = trans)) }
+                    }
+
+                    val online = onlineDeferred.await()
+                    if (online != null) {
+                        _uiState.update { it.copy(wordCardData = WordCardData(
+                            word = word,
+                            phonetic = online.phonetic,
+                            translation = trans ?: online.translation,
+                            definitions = online.definitions,
+                            examples = online.examples
+                        )) }
+                    }
+
+                    val aiTrans = aiDeferred.await()
+                    val currentCard = _uiState.value.wordCardData
+                    _uiState.update { it.copy(wordCardData = WordCardData(
+                        word = word,
+                        phonetic = currentCard?.phonetic ?: online?.phonetic ?: "",
+                        translation = aiTrans ?: currentCard?.translation ?: trans ?: "未找到释义",
+                        definitions = currentCard?.definitions ?: online?.definitions ?: emptyList(),
+                        examples = currentCard?.examples ?: online?.examples ?: emptyList()
+                    )) }
+                }
+                "ja" -> {
+                    val onlineDeferred = async { runCatching { dictionaryService.lookupJapanese(word) }.getOrNull() }
+                    val transDeferred = async { runCatching { dictionaryService.translate(word, "ja") }.getOrNull() }
+                    val aiDeferred = async { runCatching { aiTranslateWord(word, context, lang, aiConfig) }.getOrNull() }
+
+                    val trans = transDeferred.await()
+                    if (trans != null) {
+                        _uiState.update { it.copy(wordCardData = WordCardData(word = word, translation = trans)) }
+                    }
+
+                    val online = onlineDeferred.await()
+                    val aiTrans = aiDeferred.await()
+                    _uiState.update { it.copy(wordCardData = WordCardData(
+                        word = word,
+                        phonetic = online?.phonetic ?: "",
+                        translation = aiTrans ?: trans ?: "未找到释义",
+                        definitions = online?.definitions ?: emptyList()
+                    )) }
+                }
+                else -> {
+                    val transDeferred = async { runCatching { dictionaryService.translate(word, lang) }.getOrNull() }
+                    val aiDeferred = async { runCatching { aiTranslateWord(word, context, lang, aiConfig) }.getOrNull() }
+
+                    val trans = transDeferred.await()
+                    if (trans != null) {
+                        _uiState.update { it.copy(wordCardData = WordCardData(word = word, translation = trans)) }
+                    }
+
+                    val aiTrans = aiDeferred.await()
+                    _uiState.update { it.copy(wordCardData = WordCardData(
+                        word = word,
+                        translation = aiTrans ?: trans ?: "未找到释义"
+                    )) }
+                }
+            }
+        }
+    }
+
+    private suspend fun aiTranslateWord(word: String, context: String, lang: String, config: AIConfig): String? {
+        val langName = LANGUAGES.find { it.code == lang }?.name ?: "英语"
+        val prompt = "将${langName}「${word}」翻译为中文。${if (context.isNotBlank()) "语境:\"$context\"。" else ""}只回复中文释义，多义项用/分隔，不要音译。"
+        return aiService.chat(config, prompt)
+    }
+
+    fun hideWordCard() { _uiState.update { it.copy(showWordCard = false) } }
+
+    /** AI analyze sentence - 增强版 */
+    fun analyzeSentence() {
+        val sentence = _uiState.value.currentSentence
+        if (sentence.isBlank()) return
+        _uiState.update { it.copy(isAnalyzing = true, aiAnalysisResult = "🤖 AI分析中...") }
+
+        viewModelScope.launch(Dispatchers.IO) {
+            val lang = _uiState.value.currentLang
+            val langName = LANGUAGES.find { it.code == lang }?.name ?: lang
+            val config = aiConfigStore.config.first()
+
+            // 使用增强的分析功能
+            val result = aiService.analyzeSentence(config, sentence, langName)
+            _uiState.update { it.copy(
+                isAnalyzing = false,
+                aiAnalysisResult = result ?: "AI未配置或请求失败，请在设置中配置API Key"
+            )}
+        }
+    }
+
+    /**
+     * 修复当前句子的转录错误
+     */
+    fun fixTranscription() {
+        val sentence = _uiState.value.currentSentence
+        if (sentence.isBlank()) return
+        _uiState.update { it.copy(isAnalyzing = true, aiAnalysisResult = "🔧 修复中...") }
+
+        viewModelScope.launch(Dispatchers.IO) {
+            val lang = _uiState.value.currentLang
+            val langName = LANGUAGES.find { it.code == lang }?.name ?: lang
+            val config = aiConfigStore.config.first()
+
+            val result = aiService.fixTranscription(config, sentence, langName)
+            _uiState.update { it.copy(
+                isAnalyzing = false,
+                aiAnalysisResult = result ?: "修复失败，请检查 AI 配置"
+            )}
+        }
+    }
+
+    /**
+     * 生成学习笔记（基于当前字幕）
+     */
+    fun generateStudyNotes() {
+        val sentences = _uiState.value.subtitles.take(10).map { it.text }
+        if (sentences.isEmpty()) return
+        _uiState.update { it.copy(isAnalyzing = true, aiAnalysisResult = "📝 生成笔记中...") }
+
+        viewModelScope.launch(Dispatchers.IO) {
+            val lang = _uiState.value.currentLang
+            val langName = LANGUAGES.find { it.code == lang }?.name ?: lang
+            val config = aiConfigStore.config.first()
+
+            val result = aiService.generateStudyNotes(config, sentences, langName)
+            _uiState.update { it.copy(
+                isAnalyzing = false,
+                aiAnalysisResult = result ?: "生成失败，请检查 AI 配置"
+            )}
+        }
+    }
+
+    /**
+     * 智能总结视频内容
+     */
+    fun summarizeVideo() {
+        val subtitles = _uiState.value.subtitles.map { it.text }
+        if (subtitles.isEmpty()) return
+        _uiState.update { it.copy(isAnalyzing = true, aiAnalysisResult = "📊 总结视频中...") }
+
+        viewModelScope.launch(Dispatchers.IO) {
+            val lang = _uiState.value.currentLang
+            val langName = LANGUAGES.find { it.code == lang }?.name ?: lang
+            val config = aiConfigStore.config.first()
+
+            val result = aiService.summarizeVideo(config, subtitles, langName)
+            _uiState.update { it.copy(
+                isAnalyzing = false,
+                aiAnalysisResult = result ?: "总结失败，请检查 AI 配置"
+            )}
+        }
+    }
+
+    /**
+     * 生成学习计划
+     */
+    fun generateLearningPlan(userLevel: String = "中级") {
+        val subtitles = _uiState.value.subtitles.take(20).map { it.text }
+        if (subtitles.isEmpty()) return
+        _uiState.update { it.copy(isAnalyzing = true, aiAnalysisResult = "📅 生成学习计划中...") }
+
+        viewModelScope.launch(Dispatchers.IO) {
+            val lang = _uiState.value.currentLang
+            val langName = LANGUAGES.find { it.code == lang }?.name ?: lang
+            val config = aiConfigStore.config.first()
+            val videoContent = subtitles.joinToString("\n")
+
+            val result = aiService.generateLearningPlan(config, videoContent, userLevel, langName)
+            _uiState.update { it.copy(
+                isAnalyzing = false,
+                aiAnalysisResult = result ?: "生成失败，请检查 AI 配置"
+            )}
+        }
+    }
+
+    /**
+     * 对比翻译当前句子
+     */
+    fun compareTranslations() {
+        val sentence = _uiState.value.currentSentence
+        if (sentence.isBlank()) return
+        _uiState.update { it.copy(isAnalyzing = true, aiAnalysisResult = "🔄 对比翻译中...") }
+
+        viewModelScope.launch(Dispatchers.IO) {
+            val lang = _uiState.value.currentLang
+            val langName = LANGUAGES.find { it.code == lang }?.name ?: lang
+            val config = aiConfigStore.config.first()
+
+            val result = aiService.compareTranslations(config, sentence, langName)
+            _uiState.update { it.copy(
+                isAnalyzing = false,
+                aiAnalysisResult = result ?: "对比失败，请检查 AI 配置"
+            )}
+        }
+    }
+
+    /**
+     * 解释文化背景
+     */
+    fun explainCulturalContext() {
+        val sentence = _uiState.value.currentSentence
+        if (sentence.isBlank()) return
+        _uiState.update { it.copy(isAnalyzing = true, aiAnalysisResult = "🌍 解释文化背景中...") }
+
+        viewModelScope.launch(Dispatchers.IO) {
+            val lang = _uiState.value.currentLang
+            val langName = LANGUAGES.find { it.code == lang }?.name ?: lang
+            val config = aiConfigStore.config.first()
+
+            val result = aiService.explainCulturalContext(config, sentence, langName)
+            _uiState.update { it.copy(
+                isAnalyzing = false,
+                aiAnalysisResult = result ?: "解释失败，请检查 AI 配置"
+            )}
+        }
+    }
+
+    /**
+     * 获取发音指导
+     */
+    fun getPronunciationGuide(word: String) {
+        if (word.isBlank()) return
+        _uiState.update { it.copy(isAnalyzing = true, aiAnalysisResult = "🗣️ 获取发音指导中...") }
+
+        viewModelScope.launch(Dispatchers.IO) {
+            val lang = _uiState.value.currentLang
+            val langName = LANGUAGES.find { it.code == lang }?.name ?: lang
+            val config = aiConfigStore.config.first()
+
+            val result = aiService.getPronunciationGuide(config, word, langName)
+            _uiState.update { it.copy(
+                isAnalyzing = false,
+                aiAnalysisResult = result ?: "获取失败，请检查 AI 配置"
+            )}
+        }
+    }
+
+    /** Favorite operations */
+    suspend fun isFavorite(word: String): Boolean {
+        return favoriteRepository.isFavorite(word, _uiState.value.currentLang)
+    }
+
+    fun toggleFavorite(word: String, phonetic: String = "", translation: String = "") {
+        android.util.Log.d("PlayerViewModel", "toggleFavorite: word=$word, lang=${_uiState.value.currentLang}")
+        viewModelScope.launch {
+            val lang = _uiState.value.currentLang
+            val isFav = favoriteRepository.isFavorite(word, lang)
+            android.util.Log.d("PlayerViewModel", "isFavorite: $isFav")
+            if (isFav) {
+                favoriteRepository.remove(word, lang)
+                android.util.Log.d("PlayerViewModel", "Removed from favorites")
+            } else {
+                favoriteRepository.add(word, lang, phonetic, translation, _uiState.value.currentSentence)
+                android.util.Log.d("PlayerViewModel", "Added to favorites")
+            }
+        }
+    }
+
+    /** TTS */
+    fun speak(text: String) {
+        tts?.speak(text, TextToSpeech.QUEUE_FLUSH, null, "word_tts")
+    }
+
+    /** Dictation */
+    fun nextDictation() {
+        val nextIdx = (_uiState.value.dictationIndex + 1).coerceAtMost(_uiState.value.subtitles.size - 1)
+        _uiState.update { it.copy(dictationIndex = nextIdx) }
+    }
+
+    /** Get aligned word timings for current cue */
+    fun getAlignedTimings(words: List<String>): List<WordTimestamp?> {
+        val state = _uiState.value
+        val cueIdx = state.currentCueIndex
+        if (cueIdx < 0 || cueIdx >= state.subtitles.size || state.wordTimings.isEmpty()) {
+            return List(words.size) { null }
+        }
+        val cue = state.subtitles[cueIdx]
+        return WordAligner.alignWords(words, state.wordTimings, cue.startMs / 1000.0, cue.endMs / 1000.0)
+    }
+
+    /** Format remaining time for display */
+    private fun formatRemainingTime(seconds: Long): String {
+        return when {
+            seconds < 60 -> "${seconds}秒"
+            seconds < 3600 -> "${seconds / 60}分${seconds % 60}秒"
+            else -> "${seconds / 3600}小时${(seconds % 3600) / 60}分"
+        }
+    }
+
+    /**
+     * 启动超时检测
+     */
+    private fun startTimeoutCheck() {
+        lastProgressUpdateTime = System.currentTimeMillis()
+        timeoutCheckJob?.cancel()
+        timeoutCheckJob = viewModelScope.launch {
+            while (isActive && _uiState.value.isTranscribing) {
+                delay(10000) // 每10秒检查一次
+                val timeSinceLastUpdate = System.currentTimeMillis() - lastProgressUpdateTime
+                if (timeSinceLastUpdate > TRANSCRIPTION_TIMEOUT_MS) {
+                    // 超时，提醒用户
+                    _uiState.update { it.copy(
+                        statusText = "⚠️ 转录可能卡住了\n\n已超过 ${TRANSCRIPTION_TIMEOUT_MS / 60000} 分钟无进度更新\n\n建议：\n1. 点击取消转录\n2. 检查网络连接\n3. 重新尝试转录"
+                    )}
+                    break
+                }
+            }
+        }
+    }
+
+    /**
+     * 停止超时检测
+     */
+    private fun stopTimeoutCheck() {
+        timeoutCheckJob?.cancel()
+        timeoutCheckJob = null
+    }
+
+    override fun onCleared() {
+        tts?.shutdown()
+        stopTimeoutCheck()
+        super.onCleared()
+    }
+}

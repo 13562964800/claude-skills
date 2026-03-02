@@ -1,0 +1,82 @@
+import requests, json, re
+
+PROMPT_TEMPLATE = '''你是一个专业的文档校对助手。请对比以下两段文字，找出所有不一致的地方。
+
+【录音转写文字】
+{audio_text}
+
+【Word文档原文】
+{doc_text}
+
+请以JSON格式返回对比结果，格式如下：
+{{
+  "diffs": [
+    {{
+      "docText": "文档中的原文片段",
+      "audioText": "录音中对应的文字（如果有）",
+      "type": "mismatch 或 missing_in_audio 或 extra_in_audio",
+      "position": 段落索引号（从0开始）
+    }}
+  ],
+  "summary": "总结说明，共发现多少处不一致"
+}}
+
+注意：
+- mismatch: 两边都有但内容不同
+- missing_in_audio: 文档有但录音没提到
+- extra_in_audio: 录音有但文档没有
+- 语义相同但表述不同的不算差异（如"价格高"和"价格偏高"算一致）
+- 口语化表达和书面表达的差异不算差异
+- 只返回JSON，不要其他内容'''
+
+def compare_texts(audio_text, doc_text, config):
+    from config import LLM_PROVIDERS
+    pid = config['llm_provider']
+    provider = LLM_PROVIDERS[pid]
+    keys = config.get('llm_keys', {}).get(pid, {})
+    if not keys.get('key'):
+        raise Exception('未配置大模型API Key')
+
+    model = keys.get('model') or provider['default_model']
+    prompt = PROMPT_TEMPLATE.format(audio_text=audio_text, doc_text=doc_text)
+
+    if pid == 'claude':
+        content = _call_claude(prompt, keys['key'], model)
+    else:
+        content = _call_openai_compat(prompt, keys['key'], provider['endpoint'], model)
+
+    m = re.search(r'\{[\s\S]*\}', content)
+    if not m:
+        return {'diffs': [], 'summary': '对比完成，未发现差异或解析失败'}
+    try:
+        return json.loads(m.group())
+    except:
+        return {'diffs': [], 'summary': '对比结果解析失败: ' + content[:200]}
+
+def _call_claude(prompt, api_key, model):
+    r = requests.post('https://api.anthropic.com/v1/messages', timeout=60,
+        headers={'Content-Type': 'application/json', 'x-api-key': api_key, 'anthropic-version': '2023-06-01'},
+        json={'model': model, 'max_tokens': 4096, 'messages': [{'role': 'user', 'content': prompt}]})
+    data = r.json()
+    return data.get('content', [{}])[0].get('text', '')
+
+def _call_openai_compat(prompt, api_key, endpoint, model):
+    r = requests.post(endpoint, timeout=60,
+        headers={'Content-Type': 'application/json', 'Authorization': f'Bearer {api_key}'},
+        json={'model': model, 'messages': [{'role': 'user', 'content': prompt}], 'temperature': 0.1})
+    data = r.json()
+    return data.get('choices', [{}])[0].get('message', {}).get('content', '')
+
+def test_llm(provider_id, api_key, model=None):
+    from config import LLM_PROVIDERS
+    provider = LLM_PROVIDERS[provider_id]
+    m = model or provider['default_model']
+    prompt = '请回复"连接成功"四个字。'
+    try:
+        if provider_id == 'claude':
+            content = _call_claude(prompt, api_key, m)
+        else:
+            content = _call_openai_compat(prompt, api_key, provider['endpoint'], m)
+        return (True, f'连接成功: {content[:50]}') if content else (False, '无响应')
+    except Exception as e:
+        return False, f'连接失败: {e}'

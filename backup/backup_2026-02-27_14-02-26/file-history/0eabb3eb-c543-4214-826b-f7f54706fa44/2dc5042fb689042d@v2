@@ -1,0 +1,62 @@
+package com.ai.hotspot.domain.model
+
+/**
+ * 大模型提供商配置
+ * 支持国内外8家主流模型服务商
+ */
+enum class LLMProvider(
+    val displayName: String,
+    val apiBaseUrl: String,
+    val requiresApiKey: Boolean = true
+) {
+    // 国内四大
+    ZHIPU("智谱AI", "https://open.bigmodel.cn/api/paas/v4/"),
+    KIMI("Kimi (月之暗面)", "https://api.moonshot.cn/v1/"),
+    QWEN("通义千问 (阿里)", "https://dashscope.aliyuncs.com/api/v1/"),
+    DEEPSEEK("DeepSeek", "https://api.deepseek.com/v1/"),
+
+    // 国外四大
+    OPENAI("OpenAI", "https://api.openai.com/v1/"),
+    ANTHROPIC("Anthropic (Claude)", "https://api.anthropic.com/v1/"),
+    GOOGLE("Google (Gemini)", "https://generativelanguage.googleapis.com/v1beta/"),
+    MISTRAL("Mistral AI", "https://api.mistral.ai/v1/");
+
+    companion object {
+        val domesticProviders = listOf(ZHIPU, KIMI, QWEN, DEEPSEEK)
+        val internationalProviders = listOf(OPENAI, ANTHROPIC, GOOGLE, MISTRAL)
+    }
+}
+
+/**
+ * LLM配置数据类
+ */
+data class LLMConfig(
+    val provider: LLMProvider,
+    val apiKey: String,
+    val model: String,
+    val isEnabled: Boolean = true
+) {
+    companion object {
+        val defaultModels = mapOf(
+            LLMProvider.ZHIPU to "glm-4",
+            LLMProvider.KIMI to "moonshot-v1-8k",
+            LLMProvider.QWEN to "qwen-turbo",
+            LLMProvider.DEEPSEEK to "deepseek-chat",
+            LLMProvider.OPENAI to "gpt-4o-mini",
+            LLMProvider.ANTHROPIC to "claude-3-haiku-20240307",
+            LLMProvider.GOOGLE to "gemini-1.5-flash",
+            LLMProvider.MISTRAL to "mistral-small-latest"
+        )
+
+        val displayModels = mapOf(
+            LLMProvider.ZHIPU to listOf("glm-4", "glm-4-flash", "glm-3-turbo"),
+            LLMProvider.KIMI to listOf("moonshot-v1-8k", "moonshot-v1-32k", "moonshot-v1-128k"),
+            LLMProvider.QWEN to listOf("qwen-turbo", "qwen-plus", "qwen-max"),
+            LLMProvider.DEEPSEEK to listOf("deepseek-chat", "deepseek-coder"),
+            LLMProvider.OPENAI to listOf("gpt-4o-mini", "gpt-4o", "gpt-4-turbo"),
+            LLMProvider.ANTHROPIC to listOf("claude-3-haiku-20240307", "claude-3-sonnet-20240229", "claude-3-opus-20240229"),
+            LLMProvider.GOOGLE to listOf("gemini-1.5-flash", "gemini-1.5-pro", "gemini-pro"),
+            LLMProvider.MISTRAL to listOf("mistral-small-latest", "mistral-medium-latest", "mistral-large-latest")
+        )
+    }
+}

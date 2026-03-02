@@ -1,0 +1,104 @@
+package com.shanfuchun.courtassistant.service
+
+import android.content.Context
+import androidx.core.content.FileProvider
+
+import com.google.mlkit.vision.common.InputImage
+import com.google.mlkit.vision.text.TextRecognition
+import com.google.mlkit.vision.text.chinese.ChineseTextRecognizerOptions
+import com.shanfuchun.courtassistant.data.AppDatabase
+import com.shanfuchun.courtassistant.data.SummonsInfo
+import com.tom_roush.pdfbox.pdmodel.PDDocument
+import com.tom_roush.pdfbox.rendering.PDFRenderer
+import com.tom_roush.pdfbox.text.PDFTextStripper
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.suspendCancellableCoroutine
+import kotlinx.coroutines.withContext
+import java.io.File
+import kotlin.coroutines.resume
+
+object PdfParser {
+
+    private val SUMMONS_KEYWORDS = listOf("传票", "开庭", "应诉", "法院", "出庭", "审判")
+
+    suspend fun parseAndSync(context: Context, db: AppDatabase, docId: Long) {
+        withContext(Dispatchers.IO) {
+            val doc = db.documentDao().getById(docId) ?: return@withContext
+            val file = File(doc.filePath)
+            if (!file.exists()) return@withContext
+
+            try {
+                var text = extractText(file)
+                if (text.isBlank()) text = ocrExtract(context, file)
+
+                val isSummons = SUMMONS_KEYWORDS.any { text.contains(it) }
+                if (!isSummons) {
+                    db.documentDao().update(doc.copy(parseStatus = 3))
+                    return@withContext
+                }
+
+                // 标记短信含传票
+                val sms = db.smsDao().getById(doc.smsId)
+                if (sms != null && !sms.hasSummons) {
+                    db.smsDao().update(sms.copy(hasSummons = true))
+                }
+
+                val info = TextParser.parse(text)
+                db.summonsDao().insert(
+                    SummonsInfo(
+                        documentId = docId, caseNo = info.caseNo, courtName = info.courtName,
+                        hearingTime = info.hearingTime, location = info.location,
+                        partyName = info.partyName, confidence = if (info.hearingTime > 0) 0.9f else 0.5f
+                    )
+                )
+
+                val synced = if (info.hearingTime > 0) {
+                    val pdfUri = try {
+                        val uri = FileProvider.getUriForFile(context, "${context.packageName}.fileprovider", file)
+                        uri.toString()
+                    } catch (_: Exception) { doc.filePath }
+                    CalendarHelper.syncHearing(context, db, info, docId, "document", pdfFilePath = pdfUri)
+                } else false
+
+                db.documentDao().update(doc.copy(parseStatus = 1, calendarSynced = synced))
+            } catch (e: Exception) {
+                db.documentDao().update(doc.copy(parseStatus = 2))
+            }
+        }
+    }
+
+    private fun extractText(file: File): String {
+        return try {
+            PDDocument.load(file).use { doc ->
+                PDFTextStripper().getText(doc).trim()
+            }
+        } catch (_: Exception) { "" }
+    }
+
+    private suspend fun ocrExtract(context: Context, file: File): String {
+        return try {
+            val pdDoc = PDDocument.load(file)
+            val renderer = PDFRenderer(pdDoc)
+            val sb = StringBuilder()
+            val pages = minOf(pdDoc.numberOfPages, 3) // OCR first 3 pages max
+            for (i in 0 until pages) {
+                val bmp = renderer.renderImageWithDPI(i, 200f)
+                val text = recognizeText(context, bmp)
+                sb.appendLine(text)
+                bmp.recycle()
+            }
+            pdDoc.close()
+            sb.toString().trim()
+        } catch (_: Exception) { "" }
+    }
+
+    private suspend fun recognizeText(context: Context, bitmap: android.graphics.Bitmap): String {
+        return suspendCancellableCoroutine { cont ->
+            val recognizer = TextRecognition.getClient(ChineseTextRecognizerOptions.Builder().build())
+            val image = InputImage.fromBitmap(bitmap, 0)
+            recognizer.process(image)
+                .addOnSuccessListener { cont.resume(it.text) }
+                .addOnFailureListener { cont.resume("") }
+        }
+    }
+}

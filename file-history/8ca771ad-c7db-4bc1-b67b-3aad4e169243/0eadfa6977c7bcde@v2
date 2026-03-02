@@ -1,0 +1,41 @@
+package com.videodownload.app.ui.video
+
+import android.app.Application
+import androidx.lifecycle.AndroidViewModel
+import androidx.lifecycle.viewModelScope
+import com.videodownload.app.data.AppDatabase
+import com.videodownload.app.data.model.TranscriptionEntity
+import com.videodownload.app.data.model.VideoEntity
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.launch
+
+class VideoDetailViewModel(application: Application) : AndroidViewModel(application) {
+
+    private val database = AppDatabase.getInstance(application)
+    private val videoDao = database.videoDao()
+    private val transcriptionDao = database.transcriptionDao()
+
+    private val _video = MutableStateFlow<VideoEntity?>(null)
+    val video: StateFlow<VideoEntity?> = _video.asStateFlow()
+
+    private val _transcription = MutableStateFlow<TranscriptionEntity?>(null)
+    val transcription: StateFlow<TranscriptionEntity?> = _transcription.asStateFlow()
+
+    fun loadVideo(videoId: String) {
+        viewModelScope.launch {
+            videoDao.getVideoFlow(videoId).collect { videoData ->
+                _video.value = videoData
+            }
+        }
+    }
+
+    fun loadTranscription(videoId: String) {
+        viewModelScope.launch {
+            transcriptionDao.getTranscriptionFlow(videoId).collect { transcriptionData ->
+                _transcription.value = transcriptionData
+            }
+        }
+    }
+}

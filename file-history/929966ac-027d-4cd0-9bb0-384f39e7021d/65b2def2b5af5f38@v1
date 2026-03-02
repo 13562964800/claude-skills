@@ -1,0 +1,171 @@
+package com.multilanglearner.ui.ai
+
+import androidx.lifecycle.ViewModel
+import androidx.lifecycle.viewModelScope
+import com.multilanglearner.data.network.AIService
+import com.multilanglearner.data.store.AIConfigStore
+import com.multilanglearner.domain.model.AIConfig
+import dagger.hilt.android.lifecycle.HiltViewModel
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.flow.*
+import kotlinx.coroutines.launch
+import okhttp3.*
+import okhttp3.MediaType.Companion.toMediaType
+import okhttp3.RequestBody.Companion.toRequestBody
+import java.util.concurrent.TimeUnit
+import javax.inject.Inject
+
+data class AISettingsUiState(
+    val provider: String = "deepseek",
+    val apiKey: String = "",
+    val baseUrl: String = "",
+    val model: String = "",
+    val maxTokens: String = "",
+    val temperature: String = "",
+    val groqWhisperEnabled: Boolean = true,
+    val whisperModel: String = "whisper-large-v3",
+    val subtitleTranslateMode: String = "none",
+    val groqApiKey: String = "",  // 专门的 Groq API Key 用于转录
+    val transcribeLanguage: String = "",  // 转录语言代码
+    val transcriptionMode: String = "cloud",  // 转录模式
+    val testResult: String = "",
+    val testSuccess: Boolean = false,
+    val saveSuccess: Boolean = false,
+    // 转录引擎测试
+    val transcribeTestResult: String = "",
+    val transcribeTestSuccess: Boolean = false,
+    val transcribeTesting: Boolean = false
+)
+
+@HiltViewModel
+class AISettingsViewModel @Inject constructor(
+    private val configStore: AIConfigStore,
+    private val aiService: AIService,
+    private val whisperService: com.multilanglearner.data.network.WhisperService
+) : ViewModel() {
+    private val _uiState = MutableStateFlow(AISettingsUiState())
+    val uiState: StateFlow<AISettingsUiState> = _uiState.asStateFlow()
+
+    init {
+        viewModelScope.launch {
+            configStore.config.first().let { cfg ->
+                _uiState.update {
+                    it.copy(
+                        provider = cfg.provider, apiKey = cfg.apiKey,
+                        baseUrl = cfg.baseUrl, model = cfg.model,
+                        maxTokens = cfg.maxTokens?.toString() ?: "",
+                        temperature = cfg.temperature?.toString() ?: "",
+                        groqWhisperEnabled = cfg.groqWhisperEnabled,
+                        whisperModel = cfg.whisperModel,
+                        subtitleTranslateMode = cfg.subtitleTranslateMode,
+                        groqApiKey = cfg.groqApiKey,
+                        transcribeLanguage = cfg.transcribeLanguage,
+                        transcriptionMode = cfg.transcriptionMode
+                    )
+                }
+            }
+        }
+    }
+
+    fun setProvider(p: String) { _uiState.update { it.copy(provider = p) } }
+    fun setApiKey(k: String) { _uiState.update { it.copy(apiKey = k) } }
+    fun setBaseUrl(u: String) { _uiState.update { it.copy(baseUrl = u) } }
+    fun setModel(m: String) { _uiState.update { it.copy(model = m) } }
+    fun setMaxTokens(t: String) { _uiState.update { it.copy(maxTokens = t) } }
+    fun setTemperature(t: String) { _uiState.update { it.copy(temperature = t) } }
+    fun setGroqWhisper(e: Boolean) { _uiState.update { it.copy(groqWhisperEnabled = e) } }
+    fun setWhisperModel(m: String) { _uiState.update { it.copy(whisperModel = m) } }
+    fun setTranslateMode(m: String) { _uiState.update { it.copy(subtitleTranslateMode = m) } }
+    fun setGroqApiKey(k: String) { _uiState.update { it.copy(groqApiKey = k) } }
+    fun setTranscribeLanguage(l: String) { _uiState.update { it.copy(transcribeLanguage = l) } }
+    fun setTranscriptionMode(m: String) { _uiState.update { it.copy(transcriptionMode = m) } }
+
+    fun save() {
+        viewModelScope.launch {
+            val state = _uiState.value
+            configStore.save(AIConfig(
+                provider = state.provider, apiKey = state.apiKey,
+                baseUrl = state.baseUrl, model = state.model,
+                maxTokens = state.maxTokens.toIntOrNull(),
+                temperature = state.temperature.toDoubleOrNull(),
+                groqWhisperEnabled = state.groqWhisperEnabled,
+                whisperModel = state.whisperModel,
+                subtitleTranslateMode = state.subtitleTranslateMode,
+                groqApiKey = state.groqApiKey,
+                transcribeLanguage = state.transcribeLanguage,
+                transcriptionMode = state.transcriptionMode
+            ))
+            // Show save success feedback
+            _uiState.update { it.copy(saveSuccess = true) }
+            kotlinx.coroutines.delay(1500)
+            _uiState.update { it.copy(saveSuccess = false) }
+        }
+    }
+
+    fun testConnection() {
+        _uiState.update { it.copy(testResult = "测试中...", testSuccess = false) }
+        viewModelScope.launch(Dispatchers.IO) {
+            val state = _uiState.value
+            val config = AIConfig(
+                provider = state.provider, apiKey = state.apiKey,
+                baseUrl = state.baseUrl, model = state.model,
+                maxTokens = state.maxTokens.toIntOrNull(),
+                temperature = state.temperature.toDoubleOrNull()
+            )
+            val result = aiService.chat(config, "请回复\"连接成功\"四个字")
+            _uiState.update {
+                if (result != null) it.copy(testResult = "✅ $result", testSuccess = true)
+                else it.copy(testResult = "❌ 连接失败，请检查设置", testSuccess = false)
+            }
+        }
+    }
+
+    /**
+     * 测试转录引擎连接
+     * 通过发送一个简单的 API 请求来验证 Groq API Key 是否有效
+     */
+    fun testTranscribeConnection() {
+        _uiState.update { it.copy(transcribeTestResult = "测试中...", transcribeTestSuccess = false, transcribeTesting = true) }
+        viewModelScope.launch(Dispatchers.IO) {
+            val state = _uiState.value
+            val groqKey = state.groqApiKey.ifBlank {
+                // 如果没有专门的 Groq Key，检查是否使用 Groq 作为 AI provider
+                if (state.provider == "groq") state.apiKey else ""
+            }
+
+            if (groqKey.isBlank()) {
+                _uiState.update { it.copy(
+                    transcribeTestResult = "❌ 请先输入 Groq API Key",
+                    transcribeTestSuccess = false,
+                    transcribeTesting = false
+                )}
+                return@launch
+            }
+
+            // 使用 AIService 测试连接
+            val config = AIConfig(
+                provider = "groq",
+                apiKey = groqKey,
+                baseUrl = "",
+                model = state.whisperModel
+            )
+
+            // 发送简单测试请求
+            val testResult = aiService.chat(config, "Hi")
+
+            if (testResult != null) {
+                _uiState.update { it.copy(
+                    transcribeTestResult = "✅ Groq API 连接成功",
+                    transcribeTestSuccess = true,
+                    transcribeTesting = false
+                )}
+            } else {
+                _uiState.update { it.copy(
+                    transcribeTestResult = "❌ 连接失败，请检查 API Key",
+                    transcribeTestSuccess = false,
+                    transcribeTesting = false
+                )}
+            }
+        }
+    }
+}

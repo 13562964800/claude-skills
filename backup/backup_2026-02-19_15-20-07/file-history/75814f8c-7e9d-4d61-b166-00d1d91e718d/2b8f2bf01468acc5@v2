@@ -1,0 +1,292 @@
+package com.courassistant.java.ui;
+
+import android.content.Context;
+import android.content.Intent;
+import android.content.SharedPreferences;
+import android.os.Bundle;
+import android.text.TextUtils;
+import android.view.LayoutInflater;
+import android.view.View;
+import android.view.ViewGroup;
+import android.widget.Button;
+import android.widget.ImageView;
+import android.widget.LinearLayout;
+
+import androidx.annotation.NonNull;
+import androidx.appcompat.app.AppCompatActivity;
+import androidx.viewpager.widget.PagerAdapter;
+import androidx.viewpager.widget.ViewPager;
+
+import com.courassistant.java.R;
+import com.courassistant.java.utils.DateUtils;
+
+import java.util.ArrayList;
+import java.util.List;
+
+/**
+ * 用户引导页
+ * 首次启动时展示功能介绍
+ *
+ * 宋氏美学，单夫纯律师 制作
+ */
+public class OnboardingActivity extends AppCompatActivity {
+
+    private static final String TAG = "OnboardingActivity";
+    private static final String PREF_ONBOARDING = "onboarding_completed";
+    private static final int TOTAL_PAGES = 4;
+
+    private ViewPager viewPager;
+    private LinearLayout dotsLayout;
+    private Button skipButton;
+    private Button nextButton;
+
+    private int currentPage = 0;
+
+    @Override
+    protected void onCreate(Bundle savedInstanceState) {
+        super.onCreate(savedInstanceState);
+
+        // 检查是否已完成引导
+        if (isOnboardingCompleted()) {
+            navigateToMain();
+            return;
+        }
+
+        setContentView(R.layout.activity_onboarding);
+
+        // 初始化视图
+        viewPager = findViewById(R.id.viewPager);
+        dotsLayout = findViewById(R.id.dotsLayout);
+        skipButton = findViewById(R.id.skipButton);
+        nextButton = findViewById(R.id.nextButton);
+
+        // 设置适配器
+        OnboardingAdapter adapter = new OnboardingAdapter();
+        viewPager.setAdapter(adapter);
+
+        // 添加页面变更监听
+        viewPager.addOnPageChangeListener(new ViewPager.OnPageChangeListener() {
+            @Override
+            public void onPageScrolled(int position, float positionOffset, int positionOffsetPixels) {
+            }
+
+            @Override
+            public void onPageSelected(int position) {
+                currentPage = position;
+                updateDots(position);
+                updateButtons();
+            }
+
+            @Override
+            public void onPageScrollStateChanged(int state) {
+            }
+        });
+
+        // 初始化指示点
+        setupDots();
+
+        // 按钮监听
+        skipButton.setOnClickListener(v -> {
+            // 标记为完成
+            markOnboardingCompleted();
+            navigateToMain();
+        });
+
+        nextButton.setOnClickListener(v -> {
+            if (currentPage < TOTAL_PAGES - 1) {
+                viewPager.setCurrentItem(currentPage + 1);
+            } else {
+                markOnboardingCompleted();
+                navigateToMain();
+            }
+        });
+
+        updateButtons();
+    }
+
+    /**
+     * 设置底部指示点
+     */
+    private void setupDots() {
+        dotsLayout.removeAllViews();
+
+        for (int i = 0; i < TOTAL_PAGES; i++) {
+            View dot = LayoutInflater.from(this).inflate(R.layout.item_onboarding_dot, dotsLayout, false);
+            dotsLayout.addView(dot);
+        }
+
+        updateDots(0);
+    }
+
+    /**
+     * 更新指示点
+     */
+    private void updateDots(int currentPosition) {
+        for (int i = 0; i < dotsLayout.getChildCount(); i++) {
+            View dot = dotsLayout.getChildAt(i);
+
+            if (i == currentPosition) {
+                dot.setSelected(true);
+                dot.setEnabled(true);
+                dot.setAlpha(1.0f);
+            } else {
+                dot.setSelected(false);
+                dot.setEnabled(false);
+                dot.setAlpha(0.5f);
+            }
+        }
+    }
+
+    /**
+     * 更新按钮状态
+     */
+    private void updateButtons() {
+        if (currentPage == TOTAL_PAGES - 1) {
+            nextButton.setText("开始使用");
+        } else {
+            nextButton.setText("下一步");
+        }
+    }
+
+    /**
+     * 检查是否已完成引导
+     */
+    private boolean isOnboardingCompleted() {
+        SharedPreferences prefs = getSharedPreferences(PREF_ONBOARDING, MODE_PRIVATE);
+        return prefs.getBoolean(PREF_ONBOARDING, false);
+    }
+
+    /**
+     * 标记引导已完成
+     */
+    private void markOnboardingCompleted() {
+        SharedPreferences prefs = getSharedPreferences(PREF_ONBOARDING, MODE_PRIVATE);
+        prefs.edit().putBoolean(PREF_ONBOARDING, true).apply();
+        com.courassistant.java.utils.LogUtils.logInfo(TAG, "用户引导已完成");
+    }
+
+    /**
+     * 导航到主界面
+     */
+    private void navigateToMain() {
+        Intent intent = new Intent(this, MainActivity.class);
+        startActivity(intent);
+        finish();
+        // 添加过渡动画
+        overridePendingTransition(R.anim.fade_in, R.anim.fade_out);
+    }
+
+    /**
+     * 引导页适配器
+     */
+    private class OnboardingAdapter extends PagerAdapter {
+
+        private final List<OnboardingPage> pages = new ArrayList<>();
+
+        public OnboardingAdapter() {
+            // 创建引导页
+            pages.add(new OnboardingPage(
+                "欢迎使用\nCourtAssistant",
+                "法院助手",
+                "专为法律从业者设计",
+                R.drawable.ic_onboarding_1,
+                "自动管理法院短信、下载传票PDF、解析开庭信息并同步到系统日历"
+            ));
+
+            pages.add(new OnboardingPage(
+                "智能短信解析",
+                "自动识别",
+                "法院通知",
+                R.drawable.ic_onboarding_2,
+                "自动监听法院短信，智能提取案号、开庭时间、法院名称等关键信息"
+            ));
+
+            pages.add(new OnboardingPage(
+                "PDF 文档管理",
+                "一键下载",
+                "传票和文书",
+                R.drawable.ic_onboarding_3,
+                "点击短信链接自动下载PDF，支持批量管理和快速查看"
+            ));
+
+            pages.add(new OnboardingPage(
+                "日历同步",
+                "开庭提醒",
+                "永不错过",
+                R.drawable.ic_onboarding_4,
+                "自动将开庭信息同步到系统日历，确保您不会错过任何庭审"
+            ));
+        }
+
+        @Override
+        public int getCount() {
+            return pages.size();
+        }
+
+        @Override
+        public boolean isViewFromObject(@NonNull View view, Object object) {
+            return view == object;
+        }
+
+        @Override
+        public Object instantiateItem(ViewGroup container, int position) {
+            View view = LayoutInflater.from(OnboardingActivity.this)
+                    .inflate(R.layout.item_onboarding_page, container, false);
+
+            OnboardingPage page = pages.get(position);
+
+            ImageView iconView = view.findViewById(R.id.pageIcon);
+            iconView.setImageResource(page.iconRes);
+
+            android.widget.TextView titleView = view.findViewById(R.id.pageTitle);
+            titleView.setText(page.title);
+
+            android.widget.TextView subtitleView = view.findViewById(R.id.pageSubtitle);
+            subtitleView.setText(page.subtitle);
+
+            android.widget.TextView descView = view.findViewById(R.id.pageDescription);
+            descView.setText(page.description);
+
+            container.addView(view);
+            return view;
+        }
+
+        @Override
+        public void destroyItem(ViewGroup container, int position, Object object) {
+            container.removeView((View) object);
+        }
+    }
+
+    /**
+     * 引导页数据模型
+     */
+    private static class OnboardingPage {
+        String title;
+        String subtitle;
+        String description;
+        int iconRes;
+
+        OnboardingPage(String title, String subtitle, String description, int iconRes) {
+            this.title = title;
+            this.subtitle = subtitle;
+            this.description = description;
+            this.iconRes = iconRes;
+        }
+    }
+
+    /**
+     * 静态方法：检查是否需要显示引导页
+     */
+    public static boolean shouldShow(Context context) {
+        SharedPreferences prefs = context.getSharedPreferences(PREF_ONBOARDING, MODE_PRIVATE);
+        return !prefs.getBoolean(PREF_ONBOARDING, false);
+    }
+
+    /**
+     * 静态方法：重置引导状态（用于测试）
+     */
+    public static void reset(Context context) {
+        SharedPreferences prefs = context.getSharedPreferences(PREF_ONBOARDING, MODE_PRIVATE);
+        prefs.edit().putBoolean(PREF_ONBOARDING, false).apply();
+    }
+}

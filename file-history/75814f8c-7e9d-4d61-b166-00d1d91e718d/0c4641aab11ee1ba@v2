@@ -1,0 +1,330 @@
+package com.courassistant.java.utils;
+
+import android.content.Context;
+import android.graphics.Bitmap;
+import android.graphics.BitmapFactory;
+import android.util.Log;
+import android.util.LruCache;
+
+import java.io.File;
+import java.io.FileOutputStream;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+
+/**
+ * 图片加载优化器
+ * 实现内存缓存和图片压缩
+ *
+ * 宋氏美学，单夫纯律师 制作
+ */
+public class ImageLoaderOptimizer {
+
+    private static final String TAG = "ImageLoaderOptimizer";
+
+    // 内存缓存配置
+    private static final int CACHE_SIZE = (int) (Runtime.getRuntime().maxMemory() / 8); // 1/8 可用内存
+    private static LruCache<String, Bitmap> memoryCache;
+    private static ExecutorService executor;
+
+    /**
+     * 初始化图片加载器
+     */
+    public static void initialize() {
+        if (memoryCache == null) {
+            memoryCache = new LruCache<String, Bitmap>(CACHE_SIZE) {
+                @Override
+                protected int sizeOf(String key, Bitmap bitmap) {
+                    // 返回 bitmap 的实际字节数
+                    return bitmap.getByteCount();
+                }
+            };
+            Log.d(TAG, "图片缓存初始化，缓存大小: " + (CACHE_SIZE / 1024) + " KB");
+        }
+
+        if (executor == null || executor.isShutdown()) {
+            executor = Executors.newFixedThreadPool(3); // 3个线程用于图片加载
+        }
+    }
+
+    /**
+     * 加载优化后的图片
+     * @param context 上下文
+     * @param imagePath 图片路径
+     * @param reqWidth 请求宽度
+     * @param reqHeight 请求高度
+     * @return 优化后的 Bitmap
+     */
+    public static Bitmap loadOptimizedImage(Context context, String imagePath, int reqWidth, int reqHeight) {
+        initialize();
+
+        // 1. 检查内存缓存
+        Bitmap cached = memoryCache.get(imagePath);
+        if (cached != null && !cached.isRecycled()) {
+            Log.d(TAG, "从缓存加载图片: " + imagePath);
+            return cached;
+        }
+
+        // 2. 计算采样率
+        BitmapFactory.Options options = new BitmapFactory.Options();
+        options.inJustDecodeBounds = true;
+        BitmapFactory.decodeFile(imagePath, options);
+
+        options.inSampleSize = calculateInSampleSize(options, reqWidth, reqHeight);
+
+        // 3. 解码图片
+        options.inJustDecodeBounds = false;
+        options.inPreferredConfig = Bitmap.Config.RGB_565; // 使用更少的内存
+        Bitmap bitmap = BitmapFactory.decodeFile(imagePath, options);
+
+        // 4. 加入缓存
+        if (bitmap != null) {
+            memoryCache.put(imagePath, bitmap);
+            Log.d(TAG, "图片已缓存: " + imagePath);
+        }
+
+        return bitmap;
+    }
+
+    /**
+     * 计算采样率
+     * @param options Bitmap 选项
+     * @param reqWidth 请求宽度
+     * @param reqHeight 请求高度
+     * @return 采样率 (2的幂次方)
+     */
+    private static int calculateInSampleSize(BitmapFactory.Options options, int reqWidth, int reqHeight) {
+        final int height = options.outHeight;
+        final int width = options.outWidth;
+        int inSampleSize = 1;
+
+        if (height > reqHeight || width > reqWidth) {
+            final int halfHeight = height / 2;
+            final int halfWidth = width / 2;
+
+            // 计算最大的 2 的幂次方
+            while ((halfHeight / inSampleSize) >= reqHeight
+                    && (halfWidth / inSampleSize) >= reqWidth) {
+                inSampleSize *= 2;
+            }
+        }
+
+        Log.d(TAG, String.format("图片采样率: %d (原始: %dx%d, 请求: %dx%d)",
+                    inSampleSize, width, height, reqWidth, reqHeight));
+
+        return inSampleSize;
+    }
+
+    /**
+     * 压缩并保存图片
+     * @param sourcePath 源文件路径
+     * @param targetPath 目标文件路径
+     * @param quality 质量 (0-100)
+     * @return 是否成功
+     */
+    public static boolean compressImage(String sourcePath, String targetPath, int quality) {
+        try {
+            // 1. 加载图片
+            BitmapFactory.Options options = new BitmapFactory.Options();
+            options.inPreferredConfig = Bitmap.Config.RGB_565;
+            Bitmap bitmap = BitmapFactory.decodeFile(sourcePath, options);
+
+            if (bitmap == null) {
+                Log.e(TAG, "图片加载失败: " + sourcePath);
+                return false;
+            }
+
+            // 2. 压缩图片
+            FileOutputStream fos = new FileOutputStream(targetPath);
+            boolean compressed = bitmap.compress(Bitmap.CompressFormat.JPEG, quality, fos);
+            fos.flush();
+            fos.close();
+
+            // 3. 回收 bitmap
+            bitmap.recycle();
+
+            if (compressed) {
+                File sourceFile = new File(sourcePath);
+                File targetFile = new File(targetPath);
+                long sourceSize = sourceFile.length();
+                long targetSize = targetFile.length();
+                float ratio = (1 - (float) targetSize / sourceSize) * 100;
+
+                Log.d(TAG, String.format("图片压缩成功: %s -> %s, 压缩率: %.1f%%",
+                            FileUtils.formatFileSize(sourceSize),
+                            FileUtils.formatFileSize(targetSize),
+                            ratio));
+            }
+
+            return compressed;
+
+        } catch (Exception e) {
+            Log.e(TAG, "图片压缩失败: " + sourcePath, e);
+            return false;
+        }
+    }
+
+    /**
+     * 异步加载图片
+     * @param imagePath 图片路径
+     * @param callback 回调接口
+     */
+    public static void loadAsync(String imagePath, int reqWidth, int reqHeight, ImageLoadCallback callback) {
+        executor.execute(() -> {
+            Bitmap bitmap = loadOptimizedImage(null, imagePath, reqWidth, reqHeight);
+            callback.onImageLoaded(bitmap);
+        });
+    }
+
+    /**
+     * 清除缓存
+     */
+    public static void clearCache() {
+        if (memoryCache != null) {
+            memoryCache.evictAll();
+            Log.d(TAG, "图片缓存已清除");
+        }
+    }
+
+    /**
+     * 获取缓存大小
+     */
+    public static int getCacheSize() {
+        if (memoryCache != null) {
+            return memoryCache.size();
+        }
+        return 0;
+    }
+
+    /**
+     * 关闭图片加载器
+     */
+    public static void shutdown() {
+        if (executor != null && !executor.isShutdown()) {
+            executor.shutdown();
+            clearCache();
+            Log.d(TAG, "图片加载器已关闭");
+        }
+    }
+
+    /**
+     * 图片加载回调接口
+     */
+    public interface ImageLoadCallback {
+        void onImageLoaded(Bitmap bitmap);
+        void onLoadError(String error);
+    }
+
+    /**
+     * 图片优化配置
+     */
+    public static class OptimizationConfig {
+
+        /**
+         * 图片尺寸优化建议
+         */
+        public static void provideOptimizationTips() {
+            Log.d(TAG, "图片优化建议:");
+            Log.d(TAG, "  1. 使用适当的图片分辨率");
+            Log.d(TAG, "     - 缩略图: 200x200 或更小");
+            Log.d(TAG, "     - 列表图: 400x400");
+            Log.d(TAG, "     - 原图: 根据屏幕尺寸");
+            Log.d(TAG, "  2. 使用 JPEG 格式 (比 PNG 小)");
+            Log.d(TAG, "  3. 压缩质量: 85% (质量和大小平衡)");
+            Log.d(TAG, "  4. 使用 WebP 格式 (更小，Android 4.0+)");
+            Log.d(TAG, "  5. 启用 RGB_565 配置 (减少50%内存)");
+            Log.d(TAG, "  6. 使用 inSampleSize 采样");
+        }
+
+        /**
+         * 推荐的图片尺寸
+         */
+        public static class RecommendedSizes {
+            public static final int THUMBNAIL_SIZE = 200; // 缩略图
+            public static final int LIST_SIZE = 400;     // 列表显示
+            public static final int FULL_SIZE = 1080;    // 全屏查看
+            public static final int MAX_CACHE_SIZE = 1024; // 最大缓存
+        }
+
+        /**
+         * 检查图片是否需要优化
+         * @param imagePath 图片路径
+         * @return 是否需要优化
+         */
+        public static boolean needsOptimization(String imagePath) {
+            File imageFile = new File(imagePath);
+            if (!imageFile.exists()) {
+                return false;
+            }
+
+            long fileSize = imageFile.length();
+            long warningThreshold = 500 * 1024; // 500KB
+
+            if (fileSize > warningThreshold) {
+                Log.w(TAG, String.format("图片过大建议优化: %s (%.1f KB)",
+                            imagePath, fileSize / 1024.0));
+                return true;
+            }
+
+            return false;
+        }
+    }
+
+    /**
+     * 批量图片压缩工具
+     */
+    public static class BatchImageCompressor {
+
+        /**
+         * 批量压缩目录中的图片
+         * @param directory 目录
+         * @param quality 压缩质量
+         * @return 压缩成功的数量
+         */
+        public static int compressDirectory(File directory, int quality) {
+            Log.d(TAG, "开始批量压缩: " + directory.getPath());
+
+            int compressedCount = 0;
+            int totalCount = 0;
+
+            File[] files = directory.listFiles();
+            if (files == null) {
+                Log.w(TAG, "目录为空或无法访问: " + directory.getPath());
+                return 0;
+            }
+
+            for (File file : files) {
+                if (file.isFile() && isImageFile(file)) {
+                    totalCount++;
+                    String sourcePath = file.getPath();
+                    String targetPath = file.getPath(); // 覆盖原文件
+
+                    if (compressImage(sourcePath, targetPath, quality)) {
+                        compressedCount++;
+                    }
+                }
+            }
+
+            Log.d(TAG, String.format("批量压缩完成: %d/%d", compressedCount, totalCount));
+            return compressedCount;
+        }
+
+        /**
+         * 判断是否为图片文件
+         */
+        private static boolean isImageFile(File file) {
+            String name = file.getName().toLowerCase();
+            return name.endsWith(".jpg") ||
+                   name.endsWith(".jpeg") ||
+                   name.endsWith(".png") ||
+                   name.endsWith(".webp");
+        }
+
+        /**
+         * 批量压缩进度监听
+         */
+        public interface CompressionProgressListener {
+            void onProgress(int current, int total);
+            void onComplete(int successCount, int totalCount);
+        }
+    }
+}

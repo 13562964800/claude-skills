@@ -1,0 +1,149 @@
+import ctypes
+import ctypes.wintypes
+import time
+import pyperclip
+
+_user32 = ctypes.windll.user32
+
+# SendInput 结构体定义
+INPUT_KEYBOARD = 1
+INPUT_MOUSE = 0
+KEYEVENTF_KEYUP = 0x0002
+KEYEVENTF_SCANCODE = 0x0008
+VK_CONTROL = 0x11
+VK_MENU = 0x12  # Alt
+VK_SHIFT = 0x10
+VK_V = 0x56
+VK_LWIN = 0x5B
+
+# WM 消息
+WM_PASTE = 0x0302
+
+
+class _KEYBDINPUT(ctypes.Structure):
+    _fields_ = [("wVk", ctypes.wintypes.WORD),
+                ("wScan", ctypes.wintypes.WORD),
+                ("dwFlags", ctypes.wintypes.DWORD),
+                ("time", ctypes.wintypes.DWORD),
+                ("dwExtraInfo", ctypes.POINTER(ctypes.c_ulong))]
+
+
+class _MOUSEINPUT(ctypes.Structure):
+    _fields_ = [("dx", ctypes.wintypes.LONG),
+                ("dy", ctypes.wintypes.LONG),
+                ("mouseData", ctypes.wintypes.DWORD),
+                ("dwFlags", ctypes.wintypes.DWORD),
+                ("time", ctypes.wintypes.DWORD),
+                ("dwExtraInfo", ctypes.POINTER(ctypes.c_ulong))]
+
+
+class _INPUT(ctypes.Structure):
+    class _U(ctypes.Union):
+        _fields_ = [("ki", _KEYBDINPUT), ("mi", _MOUSEINPUT)]
+    _anonymous_ = ("_u",)
+    _fields_ = [("type", ctypes.wintypes.DWORD), ("_u", _U)]
+
+
+def _send_key(vk, up=False):
+    inp = _INPUT(type=INPUT_KEYBOARD)
+    inp.ki.wVk = vk
+    inp.ki.dwFlags = KEYEVENTF_KEYUP if up else 0
+    ctypes.windll.user32.SendInput(1, ctypes.byref(inp), ctypes.sizeof(_INPUT))
+
+
+def _release_all_modifiers():
+    """释放所有可能被按住的修饰键，避免热键残留干扰"""
+    for vk in (VK_CONTROL, VK_MENU, VK_SHIFT, VK_LWIN):
+        _send_key(vk, up=True)
+
+
+def _send_ctrl_v():
+    """用 SendInput 发送 Ctrl+V"""
+    _release_all_modifiers()
+    time.sleep(0.05)
+    _send_key(VK_CONTROL)
+    _send_key(VK_V)
+    _send_key(VK_V, up=True)
+    _send_key(VK_CONTROL, up=True)
+
+
+def _try_wm_paste(hwnd):
+    """尝试用 WM_PASTE 消息粘贴到焦点控件"""
+    focused = _user32.GetFocus()
+    target = focused if focused else hwnd
+    if target:
+        _user32.SendMessageW(target, WM_PASTE, 0, 0)
+        return True
+    return False
+
+
+def _force_foreground(hwnd):
+    """强制将窗口设为前台，绕过 Windows 前台锁定限制"""
+    cur_thread = ctypes.windll.kernel32.GetCurrentThreadId()
+    fg_thread = _user32.GetWindowThreadProcessId(_user32.GetForegroundWindow(), None)
+    if cur_thread != fg_thread:
+        _user32.AttachThreadInput(cur_thread, fg_thread, True)
+    _send_key(VK_MENU)
+    _send_key(VK_MENU, up=True)
+    _user32.SetForegroundWindow(hwnd)
+    _user32.BringWindowToTop(hwnd)
+    if cur_thread != fg_thread:
+        _user32.AttachThreadInput(cur_thread, fg_thread, False)
+
+
+class FieldFiller:
+    def __init__(self):
+        self._last_hwnd = None
+        self._my_hwnd = None
+
+    def set_my_hwnd(self, hwnd):
+        self._my_hwnd = hwnd
+
+    def track_foreground(self):
+        """定时调用，跟踪非自身的前台窗口"""
+        hwnd = _user32.GetForegroundWindow()
+        if hwnd and hwnd != self._my_hwnd:
+            self._last_hwnd = hwnd
+
+    def remember_last_window(self, my_hwnd):
+        """记住当前前台窗口（如果不是自己的窗口）"""
+        hwnd = _user32.GetForegroundWindow()
+        if hwnd and hwnd != my_hwnd:
+            self._last_hwnd = hwnd
+
+    def _do_paste(self, text):
+        """粘贴文本：先尝试 Ctrl+V，如果目标窗口支持则也发 WM_PASTE"""
+        pyperclip.copy(text)
+        _send_ctrl_v()
+
+    def paste_text(self, text):
+        """设置剪贴板并发送Ctrl+V"""
+        self._do_paste(text)
+
+    def fill_to_last_window(self, text):
+        """切换到上一个窗口并粘贴"""
+        if not text:
+            return
+        pyperclip.copy(text)
+        if self._last_hwnd and _user32.IsWindow(self._last_hwnd):
+            _force_foreground(self._last_hwnd)
+            time.sleep(0.2)
+        _send_ctrl_v()
+
+    def click_and_paste(self, text):
+        """在鼠标当前位置点击后粘贴（热键用）"""
+        if not text:
+            return
+        # 先释放所有修饰键（Ctrl+Q 的 Ctrl 可能还按着）
+        _release_all_modifiers()
+        time.sleep(0.05)
+
+        # 点击鼠标当前位置获取焦点
+        from pynput.mouse import Controller as MouseController, Button
+        mouse = MouseController()
+        mouse.click(Button.left)
+        time.sleep(0.15)
+
+        # 粘贴
+        pyperclip.copy(text)
+        _send_ctrl_v()

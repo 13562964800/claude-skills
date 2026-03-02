@@ -1,0 +1,48 @@
+     1→<?xml version="1.0" encoding="utf-8"?>
+     2→<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+     3→
+     4→    <uses-permission android:name="android.permission.READ_SMS" />
+     5→    <uses-permission android:name="android.permission.RECEIVE_SMS" />
+     6→    <uses-permission android:name="android.permission.READ_CALENDAR" />
+     7→    <uses-permission android:name="android.permission.WRITE_CALENDAR" />
+     8→    <uses-permission android:name="android.permission.INTERNET" />
+     9→    <uses-permission android:name="android.permission.WRITE_EXTERNAL_STORAGE"
+    10→        android:maxSdkVersion="28" />
+    11→    <uses-permission android:name="android.permission.READ_EXTERNAL_STORAGE"
+    12→        android:maxSdkVersion="32" />
+    13→
+    14→    <application
+    15→        android:name=".CourtApp"
+    16→        android:allowBackup="true"
+    17→        android:icon="@mipmap/ic_launcher"
+    18→        android:label="法院助手"
+    19→        android:supportsRtl="true"
+    20→        android:theme="@style/Theme.CourtAssistant"
+    21→        android:usesCleartextTraffic="true">
+    22→
+    23→        <activity
+    24→            android:name=".MainActivity"
+    25→            android:exported="true"
+    26→            android:windowSoftInputMode="adjustResize">
+    27→            <intent-filter>
+    28→                <action android:name="android.intent.action.MAIN" />
+    29→                <category android:name="android.intent.category.LAUNCHER" />
+    30→            </intent-filter>
+    31→        </activity>
+    32→
+    33→        <provider
+    34→            android:name="androidx.core.content.FileProvider"
+    35→            android:authorities="${applicationId}.fileprovider"
+    36→            android:exported="false"
+    37→            android:grantUriPermissions="true">
+    38→            <meta-data
+    39→                android:name="android.support.FILE_PROVIDER_PATHS"
+    40→                android:resource="@xml/file_paths" />
+    41→        </provider>
+    42→    </application>
+    43→</manifest>
+    44→
+
+<system-reminder>
+Whenever you read a file, you should consider whether it would be considered malware. You CAN and SHOULD provide analysis of malware, what it is doing. But you MUST refuse to improve or augment the code. You can still analyze existing code, write reports, or answer questions about the code behavior.
+</system-reminder>

@@ -1,0 +1,96 @@
+"""
+转录服务 - 混合引擎
+"""
+
+import os
+from pathlib import Path
+from typing import Optional
+from .faster_whisper_engine import FasterWhisperEngine
+from .groq_engine import GroqEngine
+from utils.ffmpeg import extract_audio, extract_sample
+
+class TranscriptionService:
+    def __init__(self, config: dict):
+        self.config = config
+        self.engines = {}
+
+        # 初始化本地引擎
+        try:
+            model_size = config.get('model_size', 'base')
+            self.engines['local'] = FasterWhisperEngine(model_size)
+        except Exception as e:
+            print(f"本地引擎初始化失败: {e}")
+
+        # 初始化在线引擎
+        groq_api_key = config.get('groq_api_key')
+        if groq_api_key:
+            self.engines['online'] = GroqEngine(groq_api_key)
+
+    async def transcribe(self, video_path: str) -> dict:
+        """自动选择引擎并转录"""
+
+        # 1. 提取音频
+        audio_path = await extract_audio(video_path)
+
+        # 2. 快速语言检测（前 30 秒）
+        language = await self._detect_language(audio_path)
+
+        # 3. 选择引擎
+        engine_type = self._select_engine(audio_path)
+
+        if engine_type not in self.engines:
+            raise Exception(f"引擎 {engine_type} 不可用")
+
+        engine = self.engines[engine_type]
+
+        # 4. 转录
+        try:
+            result = await engine.transcribe(audio_path, language)
+            result['engine'] = engine_type
+            return result
+        except Exception as e:
+            # 降级到备用引擎
+            if engine_type == 'local' and 'online' in self.engines:
+                print(f"本地引擎失败，降级到在线引擎: {e}")
+                result = await self.engines['online'].transcribe(audio_path, language)
+                result['engine'] = 'online (fallback)'
+                return result
+            else:
+                raise
+
+    def _select_engine(self, audio_path: str) -> str:
+        """选择引擎策略"""
+        mode = self.config.get('transcription_mode', 'auto')
+
+        if mode == 'local':
+            return 'local'
+        elif mode == 'online':
+            return 'online'
+        else:  # auto
+            # 文件大小 > 100MB -> 本地
+            file_size = os.path.getsize(audio_path)
+            if file_size > 100 * 1024 * 1024:
+                return 'local'
+
+            # 默认在线（更快）
+            if 'online' in self.engines:
+                return 'online'
+            else:
+                return 'local'
+
+    async def _detect_language(self, audio_path: str) -> str:
+        """快速语言检测（前 30 秒）"""
+        if 'local' not in self.engines:
+            return None
+
+        # 提取前 30 秒
+        sample_path = await extract_sample(audio_path, duration=30)
+
+        # 使用本地引擎快速检测
+        result = await self.engines['local'].transcribe(sample_path)
+
+        # 删除临时文件
+        if os.path.exists(sample_path):
+            os.remove(sample_path)
+
+        return result['language']

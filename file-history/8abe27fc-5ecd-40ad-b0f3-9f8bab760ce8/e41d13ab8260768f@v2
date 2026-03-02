@@ -1,0 +1,229 @@
+#!/usr/bin/env python3
+"""
+两步方案:
+1. 提取所有SVG并保存为独立文件
+2. 使用Playwright/Selenium在浏览器中渲染SVG并截图保存为PNG
+3. 生成Word文档时引用PNG图片
+"""
+
+import re
+import os
+from pathlib import Path
+
+def extract_svgs_from_markdown(md_file, output_dir):
+    """从Markdown中提取所有SVG并保存为独立文件"""
+    print('第一步: 提取SVG文件...')
+
+    # 创建输出目录
+    svg_dir = Path(output_dir) / 'svgs'
+    svg_dir.mkdir(parents=True, exist_ok=True)
+
+    # 读取Markdown
+    with open(md_file, 'r', encoding='utf-8') as f:
+        content = f.read()
+
+    # 提取所有SVG
+    lines = content.split('\n')
+    svg_count = 0
+    i = 0
+    svg_files = []
+
+    while i < len(lines):
+        line = lines[i].strip()
+
+        # 找到插图标记
+        if line.startswith('【插图'):
+            # 提取插图描述
+            desc_match = re.match(r'【插图([^】]+)】', line)
+            if desc_match:
+                desc = desc_match.group(1)
+
+                # 检查下一行是否是SVG
+                if i + 1 < len(lines) and '<svg' in lines[i + 1]:
+                    # 提取完整SVG内容
+                    svg_start = i + 1
+                    svg_end = svg_start
+                    svg_lines = []
+
+                    while svg_end < len(lines):
+                        svg_lines.append(lines[svg_end])
+                        if '</svg>' in lines[svg_end]:
+                            break
+                        svg_end += 1
+
+                    if svg_end < len(lines):
+                        svg_content = '\n'.join(svg_lines)
+                        svg_count += 1
+
+                        # 生成文件名
+                        # 清理描述中的特殊字符
+                        safe_desc = re.sub(r'[^\w\-]', '_', desc)[:50]
+                        svg_filename = f'插图{svg_count:03d}_{safe_desc}.svg'
+                        svg_path = svg_dir / svg_filename
+
+                        # 保存SVG文件
+                        with open(svg_path, 'w', encoding='utf-8') as f:
+                            f.write(svg_content)
+
+                        svg_files.append({
+                            'id': svg_count,
+                            'desc': desc,
+                            'svg_path': str(svg_path),
+                            'png_path': str(svg_path).replace('.svg', '.png')
+                        })
+
+                        if svg_count % 20 == 0:
+                            print(f'  已提取 {svg_count} 个SVG...')
+
+                        i = svg_end
+
+        i += 1
+
+    print(f'✓ 提取完成: {svg_count} 个SVG文件')
+    return svg_files
+
+def create_html_converter(svg_files, output_dir):
+    """创建HTML文件用于批量转换SVG为PNG"""
+    print('\n第二步: 创建HTML转换器...')
+
+    html_content = '''<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <title>SVG to PNG Converter</title>
+    <style>
+        body { margin: 0; padding: 20px; background: #f0f0f0; }
+        .svg-container {
+            background: white;
+            margin: 20px 0;
+            padding: 10px;
+            border: 1px solid #ccc;
+        }
+        .svg-info {
+            font-family: Arial, sans-serif;
+            margin-bottom: 10px;
+            color: #333;
+        }
+    </style>
+</head>
+<body>
+'''
+
+    for item in svg_files:
+        svg_id = item['id']
+        desc = item['desc']
+        svg_path = item['svg_path']
+
+        # 读取SVG内容
+        with open(svg_path, 'r', encoding='utf-8') as f:
+            svg_content = f.read()
+
+        html_content += f'''
+    <div class="svg-container" id="svg-{svg_id}">
+        <div class="svg-info">插图{svg_id}: {desc}</div>
+        {svg_content}
+    </div>
+'''
+
+    html_content += '''
+</body>
+</html>
+'''
+
+    # 保存HTML文件
+    html_path = Path(output_dir) / 'svg_viewer.html'
+    with open(html_path, 'w', encoding='utf-8') as f:
+        f.write(html_content)
+
+    print(f'✓ HTML文件已创建: {html_path}')
+    return str(html_path)
+
+def create_screenshot_script(svg_files, output_dir):
+    """创建Playwright截图脚本"""
+    print('\n第三步: 创建截图脚本...')
+
+    script_content = '''#!/usr/bin/env python3
+"""使用Playwright截图SVG"""
+
+from playwright.sync_api import sync_playwright
+import time
+
+def screenshot_svgs():
+    with sync_playwright() as p:
+        browser = p.chromium.launch(headless=True)
+        page = browser.new_page(viewport={'width': 1200, 'height': 800})
+
+        # 打开HTML文件
+        html_path = 'file:///' + r'__HTML_PATH__'.replace('\\\\', '/')
+        page.goto(html_path)
+        time.sleep(2)  # 等待页面加载
+
+        # 截图每个SVG
+        svg_list = __SVG_LIST__
+
+        for item in svg_list:
+            svg_id = item['id']
+            png_path = item['png_path']
+
+            try:
+                # 定位SVG容器
+                element = page.locator(f'#svg-{svg_id}')
+                element.screenshot(path=png_path)
+                print(f'✓ 截图完成: 插图{svg_id}')
+            except Exception as e:
+                print(f'✗ 截图失败: 插图{svg_id} - {e}')
+
+        browser.close()
+        print('\\n✓ 所有截图完成!')
+
+if __name__ == '__main__':
+    screenshot_svgs()
+'''
+
+    # 替换占位符
+    html_path = Path(output_dir) / 'svg_viewer.html'
+    script_content = script_content.replace('__HTML_PATH__', str(html_path.absolute()))
+    script_content = script_content.replace('__SVG_LIST__', str(svg_files))
+
+    # 保存脚本
+    script_path = Path(output_dir) / 'screenshot_svgs.py'
+    with open(script_path, 'w', encoding='utf-8') as f:
+        f.write(script_content)
+
+    print(f'✓ 截图脚本已创建: {script_path}')
+    return str(script_path)
+
+def main():
+    md_file = 'AI前沿知识儿童科普画册-带全部插图.md'
+    output_dir = 'svg_export'
+
+    print('='*60)
+    print('SVG导出工具')
+    print('='*60)
+
+    # 第一步: 提取SVG
+    svg_files = extract_svgs_from_markdown(md_file, output_dir)
+
+    # 第二步: 创建HTML查看器
+    html_path = create_html_converter(svg_files, output_dir)
+
+    # 第三步: 创建截图脚本
+    script_path = create_screenshot_script(svg_files, output_dir)
+
+    print('\n' + '='*60)
+    print('准备工作完成!')
+    print('='*60)
+    print(f'\\n1. SVG文件已保存到: {output_dir}/svgs/')
+    print(f'2. HTML查看器: {html_path}')
+    print(f'3. 截图脚本: {script_path}')
+    print('\\n下一步操作:')
+    print('  方案A (推荐): 安装Playwright并运行截图脚本')
+    print('    pip install playwright')
+    print('    playwright install chromium')
+    print(f'    python {script_path}')
+    print('\\n  方案B: 在浏览器中打开HTML文件,手动截图')
+    print(f'    浏览器打开: {html_path}')
+    print('    使用浏览器开发者工具或截图工具保存每个SVG')
+
+if __name__ == '__main__':
+    main()

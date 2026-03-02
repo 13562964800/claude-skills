@@ -1,0 +1,10 @@
+from dataclasses import dataclass, field
+
+
+@dataclass
+class AuditLog:
+    actor_id: int
+    action: str
+    resource_type: str
+    resource_id: str
+    detail: dict = field(default=None)

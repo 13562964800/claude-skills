@@ -1,0 +1,1023 @@
+import sys, os, threading, time, tkinter as tk
+from tkinter import ttk, filedialog, messagebox, scrolledtext
+
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+from config import ASR_PROVIDERS, load_config, save_config, is_valid
+from transcribe import transcribe_audio, transcribe_with_timestamps, test_asr
+from compare import compare_texts
+from docx_util import parse_docx, generate_diff_docx
+from html_report import generate_html_report
+from magnifier import SimpleMagnifier, create_magnifier_button
+from themes import THEMES, THEME_ORDER, get_theme
+from error_handler import ErrorHandler
+from shortcuts_panel import ShortcutsPanel
+from notification import NotificationSound
+
+# Font size configuration
+FONT_SIZES = {
+    '特大': {'title': 28, 'header': 24, 'label': 20, 'button': 18, 'text': 20},
+    '大': {'title': 24, 'header': 20, 'label': 16, 'button': 14, 'text': 16},
+    '中': {'title': 20, 'header': 18, 'label': 14, 'button': 12, 'text': 14},
+    '小': {'title': 16, 'header': 14, 'label': 12, 'button': 10, 'text': 12},
+}
+DEFAULT_FONT_SIZE = '大'
+DEFAULT_THEME = 'summer'
+
+class App(tk.Tk):
+    def __init__(self):
+        super().__init__()
+        self.title('配音文字核对宝')
+        self.geometry('900x700')
+        self.audio_path = tk.StringVar()
+        self.doc_path = tk.StringVar()
+        self.status_var = tk.StringVar(value='就绪')
+        self.font_size_var = tk.StringVar(value=DEFAULT_FONT_SIZE)
+        self.theme_var = tk.StringVar(value=DEFAULT_THEME)
+        self.progress_var = tk.DoubleVar(value=0)
+        self.time_remaining_var = tk.StringVar(value='')
+        self.step_name_var = tk.StringVar(value='')
+        self.process_speed_var = tk.StringVar(value='')
+        self.process_start_time = None
+        self.processed_chars = 0
+
+        # 处理步骤定义
+        self.process_steps = {
+            1: {'name': '📝 转写录音', 'range': (0, 50)},
+            2: {'name': '🔍 对比内容', 'range': (50, 85)},
+            3: {'name': '📄 生成报告', 'range': (85, 100)},
+        }
+
+        # 初始化放大镜
+        self.magnifier = SimpleMagnifier(self, zoom_level=1.5, lens_size=300)
+
+        self._apply_theme()
+        self._build_notebook()
+
+        # 绑定鼠标移动事件用于放大镜跟踪
+        self._bind_mouse_tracking()
+
+        # 绑定快捷键
+        self._bind_shortcuts()
+
+        # 启用文件拖拽
+        self._enable_drag_drop()
+
+    def _get_font(self, element):
+        """Get font tuple based on current font size setting."""
+        size_key = self.font_size_var.get()
+        sizes = FONT_SIZES.get(size_key, FONT_SIZES[DEFAULT_FONT_SIZE])
+        base_size = sizes.get(element, 10)
+        weight = 'bold' if element in ['title', 'header', 'button', 'tab'] else 'normal'
+        return ('', base_size, weight)
+
+    def _apply_font_changes(self):
+        """Rebuild notebook to apply font size changes."""
+        for widget in self.nb.winfo_children():
+            self.nb.forget(widget)
+        self._build_home_tab()
+        self._build_result_tab()
+        self._build_settings_tab()
+
+    def _apply_theme(self):
+        """应用当前主题"""
+        theme_id = self.theme_var.get()
+        theme = get_theme(theme_id)
+        colors = theme['colors']
+
+        # 设置主窗口背景
+        self.configure(bg=colors['bg'])
+
+        style = ttk.Style()
+        style.theme_use('clam')
+        style.configure('TNotebook', background=colors['notebook'], borderwidth=0)
+        style.configure('TNotebook.Tab', background=colors['tab_bg'], foreground=colors['tab_text'], padding=[12,6], font=('',14,'bold'))
+        style.map('TNotebook.Tab', background=[('selected', colors['tab_active'])], foreground=[('selected', colors['tab_active_text'])])
+        style.configure('TFrame', background=colors['bg'])
+        style.configure('TLabel', background=colors['bg'], foreground=colors['label'])
+        style.configure('TButton', background=colors['button'], foreground='white', borderwidth=0, font=('',12,'bold'))
+        style.map('TButton', background=[('active', colors['button_hover'])])
+        style.configure('TLabelframe', background=colors['bg'], foreground=colors['label'], borderwidth=2, relief='solid')
+        style.configure('TLabelframe.Label', background=colors['bg'], foreground=colors['title'], font=('',12,'bold'))
+
+        # 保存当前主题色供其他组件使用
+        self.current_colors = colors
+
+    def _on_theme_change(self):
+        """主题切换回调"""
+        self._collect_keys()
+        self.config_data['theme'] = self.theme_var.get()
+        save_config(self.config_data)
+        # 重新应用主题并重建界面
+        self._apply_theme()
+        self._apply_font_changes()
+
+    def _build_notebook(self):
+        self.nb = ttk.Notebook(self)
+        self.nb.pack(fill='both', expand=True, padx=8, pady=8)
+        self._build_home_tab()
+        self._build_result_tab()
+        self._build_settings_tab()
+
+    # ===== Home Tab =====
+    def _build_home_tab(self):
+        f = ttk.Frame(self.nb, padding=20)
+        self.nb.add(f, text='  首页  ')
+
+        ttk.Label(f, text='选择文件', font=self._get_font('title')).pack(pady=(0,16))
+
+        # 拖拽区域 - 使用当前主题颜色
+        colors = self.current_colors
+        self.drop_frame = tk.Frame(f, bg=colors['drop_zone'], bd=2, relief='solid',
+            highlightbackground=colors['border'], highlightthickness=2)
+        self.drop_frame.pack(fill='x', pady=(0, 16), ipady=20)
+
+        drop_label = tk.Label(
+            self.drop_frame,
+            text='📂 拖拽文件到这里\n支持音频文件 (mp3/wav/m4a/flac)\n和Word文档 (.docx)',
+            bg=colors['drop_zone'],
+            fg=colors['label'],
+            font=('Arial', 14)
+        )
+        drop_label.pack()
+
+        bf1 = ttk.Frame(f)
+        bf1.pack(fill='x', pady=4)
+        ttk.Button(bf1, text='🎤 选择录音文件', command=self._pick_audio).pack(side='left')
+        ttk.Label(bf1, textvariable=self.audio_path, wraplength=400).pack(side='left', padx=8)
+
+        bf2 = ttk.Frame(f)
+        bf2.pack(fill='x', pady=4)
+        ttk.Button(bf2, text='📄 选择Word文档', command=self._pick_doc).pack(side='left')
+        ttk.Label(bf2, textvariable=self.doc_path, wraplength=400).pack(side='left', padx=8)
+
+        self.start_btn = ttk.Button(f, text='开始对比', command=self._start_compare)
+        self.start_btn.pack(pady=20)
+
+        # 进度显示区域
+        progress_frame = ttk.Frame(f)
+        progress_frame.pack(pady=8)
+
+        # 步骤名称
+        ttk.Label(progress_frame, textvariable=self.step_name_var, font=self._get_font('label')).pack(pady=(0,4))
+
+        # 进度条
+        self.progress = ttk.Progressbar(progress_frame, mode='determinate', variable=self.progress_var, maximum=100, length=400)
+        self.progress.pack()
+
+        # 状态信息行
+        status_info_frame = ttk.Frame(progress_frame)
+        status_info_frame.pack(pady=(4,0))
+        ttk.Label(status_info_frame, textvariable=self.time_remaining_var, font=('', 10)).pack(side='left', padx=(0,8))
+        ttk.Label(status_info_frame, textvariable=self.process_speed_var, font=('', 10)).pack(side='left')
+
+        ttk.Label(f, textvariable=self.status_var, foreground='#666').pack(pady=4)
+
+        # 快捷键提示和帮助按钮
+        shortcuts_frame = tk.Frame(f, bg=colors['bg'] if hasattr(self, 'current_colors') else '#FFF8DC')
+        shortcuts_frame.pack(pady=12)
+
+        tk.Label(
+            shortcuts_frame,
+            text='⌨ 快捷键: Ctrl+M 放大镜 | Ctrl++ 放大字体 | Ctrl+- 缩小字体',
+            bg=colors['bg'] if hasattr(self, 'current_colors') else '#FFF8DC',
+            fg=colors['title'] if hasattr(self, 'current_colors') else '#FF6B6B',
+            font=('Arial', 10)
+        ).pack(side='left')
+
+        ttk.Button(shortcuts_frame, text='? 帮助', width=6,
+            command=lambda: ShortcutsPanel.show(self)).pack(side='left', padx=(10, 0))
+
+    def _pick_audio(self):
+        p = filedialog.askopenfilename(title='选择录音文件',
+            filetypes=[('音频文件', '*.wav *.mp3 *.m4a *.flac *.ogg *.wma *.aac'), ('所有文件', '*.*')])
+        if p: self.audio_path.set(p)
+
+    def _pick_doc(self):
+        p = filedialog.askopenfilename(title='选择Word文档',
+            filetypes=[('Word文档', '*.docx'), ('所有文件', '*.*')])
+        if p: self.doc_path.set(p)
+
+    def _start_compare(self):
+        if not self.audio_path.get() or not self.doc_path.get():
+            messagebox.showwarning('提示', '请先选择录音和Word文档')
+            return
+        # Auto-save current settings before validating
+        self._collect_keys()
+        self.config_data['asr_provider'] = self.asr_var.get()
+        save_config(self.config_data)
+        config = self.config_data
+        if not is_valid(config):
+            messagebox.showwarning('提示', '请先在设置中配置API密钥')
+            self.nb.select(2)
+            return
+        self.start_btn.config(state='disabled')
+        self.progress_var.set(0)
+        self.time_remaining_var.set('正在初始化...')
+        self.process_start_time = time.time()
+        threading.Thread(target=self._do_compare, args=(config,), daemon=True).start()
+
+    def _update_progress(self, percent, status_msg, char_count=0):
+        """Update progress bar with detailed information."""
+        self.progress_var.set(percent)
+        self.status_var.set(status_msg)
+
+        # 确定当前步骤
+        current_step = None
+        for step_id, step_info in self.process_steps.items():
+            start, end = step_info['range']
+            if start <= percent < end or (percent == 100 and step_id == 3):
+                current_step = step_info
+                break
+
+        if current_step:
+            self.step_name_var.set(current_step['name'])
+
+        # 计算处理速度
+        if char_count > 0 and self.process_start_time:
+            elapsed = time.time() - self.process_start_time
+            if elapsed > 0:
+                speed = int(char_count / elapsed)
+                self.process_speed_var.set(f'处理速度: {speed} 字/秒')
+
+        # 估算剩余时间
+        if percent > 5 and self.process_start_time:
+            elapsed = time.time() - self.process_start_time
+            total_estimated = elapsed * 100 / percent
+            remaining = total_estimated - elapsed
+            if remaining > 60:
+                self.time_remaining_var.set(f'预计剩余: {int(remaining // 60)}分{int(remaining % 60)}秒')
+            else:
+                self.time_remaining_var.set(f'预计剩余: {int(remaining)}秒')
+
+    def _do_compare(self, config):
+        try:
+            # 步骤1: 转写录音 (0-50%)
+            self._update_progress(5, '准备转写...')
+
+            # ===== 性能优化：并行处理音频转写和文档解析 =====
+            audio_text = None
+            doc_text = None
+            paragraphs = None
+            word_timestamps = None
+            doc_error = None
+            audio_error = None
+
+            def parse_doc():
+                """并行：解析文档"""
+                nonlocal paragraphs, doc_text, doc_error
+                try:
+                    from docx_util import parse_docx
+                    paragraphs = parse_docx(self.doc_path.get())
+                    doc_text = '\n'.join(paragraphs)
+                except Exception as e:
+                    doc_error = e
+
+            def transcribe():
+                """并行：转写音频"""
+                nonlocal audio_text, word_timestamps, audio_error
+                try:
+                    word_timestamps = None
+                    try:
+                        # 尝试使用带时间戳的转写
+                        audio_text, word_timestamps = transcribe_with_timestamps(
+                            self.audio_path.get(), config, lambda m: self._update_progress(25, m, 0)
+                        )
+                    except Exception:
+                        # 降级到普通转写
+                        audio_text = transcribe_audio(
+                            self.audio_path.get(), config, lambda m: self._update_progress(25, m, 0)
+                        )
+                except Exception as e:
+                    audio_error = e
+
+            # 启动文档解析线程
+            doc_thread = threading.Thread(target=parse_doc, daemon=True)
+            doc_thread.start()
+
+            # 主线程处理音频转写
+            provider_name = ASR_PROVIDERS[config["asr_provider"]]["name"]
+            self._update_progress(15, f'正在转写录音 ({provider_name})...', 0)
+            transcribe()
+            doc_thread.join(timeout=5)  # 等待文档解析完成
+
+            # 检查错误
+            if audio_error:
+                raise audio_error
+            if doc_error:
+                raise doc_error
+
+            # 步骤1完成，更新字符数
+            char_count = len(audio_text) if audio_text else 0
+            self._update_progress(50, '转写完成', char_count)
+
+            # 步骤2: 对比内容 (50-85%)
+            self._update_progress(55, '正在逐字对比内容...', char_count)
+            result = compare_texts(audio_text, doc_text, config, word_timestamps=word_timestamps)
+            self._update_progress(85, '对比完成', char_count)
+
+            # 步骤3: 生成报告 (85-100%)
+            self._update_progress(90, '正在生成对比文档...', char_count)
+            output_path = generate_diff_docx(self.doc_path.get(), result.get('diffs', []), summary=result.get('summary'))
+            html_path = generate_html_report(result.get('diffs', []), result.get('summary', ''), audio_text, doc_text, self.audio_path.get())
+
+            self._update_progress(100, '完成!', char_count)
+
+            # 播放完成提示音（如果启用）
+            if self.sound_enabled_var.get():
+                NotificationSound.play_completion_sound()
+
+            self.after(0, lambda: self._show_result(output_path, html_path, result, audio_text, doc_text))
+        except Exception as e:
+            import traceback; traceback.print_exc()
+
+            # 使用友好的错误处理
+            error_code = ErrorHandler.parse_error(e)
+            error_msg = str(e)
+
+            self.after(0, lambda: self.status_var.set(f'错误: {error_msg[:50]}'))
+            self.after(0, lambda: self.time_remaining_var.set(''))
+            self.after(0, lambda: self.step_name_var.set(''))
+            self.after(0, lambda: self.process_speed_var.set(''))
+
+            # 显示友好的错误对话框
+            if error_code:
+                self.after(0, lambda: ErrorHandler.show_error(self, error_code, e))
+            else:
+                # 如果没有匹配的错误码，显示通用错误
+                self.after(0, lambda: ErrorHandler.show_error(self, 'GENERIC_ERROR', e))
+        finally:
+            self.after(0, self._reset_home)
+
+    def _reset_home(self):
+        self.progress_var.set(0)
+        self.time_remaining_var.set('')
+        self.step_name_var.set('')
+        self.process_speed_var.set('')
+        self.start_btn.config(state='normal')
+        self.status_var.set('就绪')
+
+    # ===== Result Tab =====
+    def _build_result_tab(self):
+        f = ttk.Frame(self.nb, padding=16)
+        self.nb.add(f, text='  结果  ')
+        self.result_frame = f
+
+        self.diff_count_var = tk.StringVar(value='尚未对比')
+        self.summary_var = tk.StringVar()
+        self.output_path_var = tk.StringVar()
+        self.html_path_var = tk.StringVar()
+
+        ttk.Label(f, textvariable=self.diff_count_var, font=self._get_font('header'), foreground='#e53935').pack(pady=(0,8))
+        ttk.Label(f, textvariable=self.summary_var, wraplength=600, foreground='#666', font=self._get_font('label')).pack(pady=(0,12))
+
+        pw = ttk.PanedWindow(f, orient='horizontal')
+        pw.pack(fill='both', expand=True)
+
+        # Left pane - Audio transcription with clear button
+        lf_frame = ttk.Frame(pw)
+        lf_header = ttk.Frame(lf_frame)
+        lf_header.pack(fill='x', pady=(4,0))
+        ttk.Label(lf_header, text='录音转写', font=self._get_font('label')).pack(side='left')
+        ttk.Button(lf_header, text='清除', command=lambda: self.audio_text_box.delete('1.0', 'end'), width=6).pack(side='right', padx=4)
+        lf = ttk.LabelFrame(lf_frame)
+        lf.pack(fill='both', expand=True)
+        self.audio_text_box = scrolledtext.ScrolledText(lf, wrap='word', width=35, height=18, font=self._get_font('text'))
+        self.audio_text_box.pack(fill='both', expand=True, padx=4, pady=4)
+        pw.add(lf_frame, weight=1)
+
+        # Right pane - Document text with clear button
+        rf_frame = ttk.Frame(pw)
+        rf_header = ttk.Frame(rf_frame)
+        rf_header.pack(fill='x', pady=(4,0))
+        ttk.Label(rf_header, text='文档原文', font=self._get_font('label')).pack(side='left')
+        ttk.Button(rf_header, text='清除', command=lambda: self.doc_text_box.delete('1.0', 'end'), width=6).pack(side='right', padx=4)
+        rf = ttk.LabelFrame(rf_frame)
+        rf.pack(fill='both', expand=True)
+        self.doc_text_box = scrolledtext.ScrolledText(rf, wrap='word', width=35, height=18, font=self._get_font('text'))
+        self.doc_text_box.pack(fill='both', expand=True, padx=4, pady=4)
+        pw.add(rf_frame, weight=1)
+
+        btn_f = ttk.Frame(f)
+        btn_f.pack(pady=12)
+        ttk.Button(btn_f, text='打开对比文档', command=self._open_result).pack(side='left', padx=4)
+        ttk.Button(btn_f, text='打开HTML报告', command=self._open_html).pack(side='left', padx=4)
+        ttk.Button(btn_f, text='打开所在文件夹', command=self._open_result_folder).pack(side='left', padx=4)
+        ttk.Button(btn_f, text='分享到微信', command=self._share_wechat).pack(side='left', padx=4)
+        create_magnifier_button(btn_f, self.magnifier).pack(side='left', padx=4)
+
+        # 快捷键提示
+        tk.Label(
+            f,
+            text='⌨ 快捷键: Ctrl+M 放大镜 | Ctrl++ 放大字体 | Ctrl+- 缩小字体',
+            bg='#FFF8DC',
+            fg='#FF6B6B',
+            font=('Arial', 10)
+        ).pack(pady=8)
+
+    def _show_result(self, output_path, html_path, result, audio_text, doc_text):
+        diffs = result.get('diffs', [])
+        self.diff_count_var.set(f'发现 {len(diffs)} 处差异')
+        self.summary_var.set(result.get('summary', ''))
+        self.output_path_var.set(output_path)
+        self.html_path_var.set(html_path)
+
+        self.audio_text_box.delete('1.0', 'end')
+        self.audio_text_box.insert('1.0', audio_text)
+        self.doc_text_box.delete('1.0', 'end')
+        self.doc_text_box.insert('1.0', doc_text)
+
+        self.nb.select(1)
+
+    def _open_result(self):
+        p = self.output_path_var.get()
+        if p and os.path.exists(p):
+            os.startfile(p)
+
+    def _open_html(self):
+        p = self.html_path_var.get()
+        if p and os.path.exists(p):
+            os.startfile(p)
+
+    def _open_result_folder(self):
+        p = self.output_path_var.get()
+        if p and os.path.exists(p):
+            os.startfile(os.path.dirname(p))
+
+    def _share_wechat(self):
+        p = self.output_path_var.get()
+        if not p or not os.path.exists(p):
+            messagebox.showwarning('提示', '请先完成对比生成文档')
+            return
+        import subprocess
+        # Copy file path to clipboard and open WeChat file transfer
+        self.clipboard_clear()
+        self.clipboard_append(p)
+        # Try to open via Windows Share dialog
+        try:
+            # 使用隐藏窗口的标志
+            hide_window = 0x08000000 if sys.platform == 'win32' else 0
+            if hasattr(subprocess, 'CREATE_NO_WINDOW'):
+                hide_window = subprocess.CREATE_NO_WINDOW
+            subprocess.Popen(['powershell', '-Command',
+                f'Start-Process "explorer.exe" "/select,\\"{p}\\""'],
+                creationflags=hide_window)
+            messagebox.showinfo('分享', f'文件路径已复制到剪贴板，已打开文件所在目录。\n请将文件拖入微信发送。\n\n文件：{os.path.basename(p)}')
+        except:
+            messagebox.showinfo('分享', f'文件路径已复制到剪贴板，请手动发送到微信。\n\n{p}')
+
+    # ===== Settings Tab =====
+    def _build_settings_tab(self):
+        f = ttk.Frame(self.nb, padding=12)
+        self.nb.add(f, text='  设置  ')
+
+        canvas = tk.Canvas(f, bg='#FFF8DC', highlightthickness=0)
+        scrollbar = ttk.Scrollbar(f, orient='vertical', command=canvas.yview)
+        self.settings_inner = ttk.Frame(canvas)
+        self.settings_inner.bind('<Configure>', lambda e: canvas.configure(scrollregion=canvas.bbox('all')))
+        canvas.create_window((0, 0), window=self.settings_inner, anchor='nw')
+        canvas.configure(yscrollcommand=scrollbar.set)
+        canvas.pack(side='left', fill='both', expand=True)
+        scrollbar.pack(side='right', fill='y')
+        canvas.bind('<MouseWheel>', lambda e: canvas.yview_scroll(-1*(e.delta//120), 'units'))
+
+        sf = self.settings_inner
+        self.config_data = load_config()
+        self.asr_var = tk.StringVar(value=self.config_data['asr_provider'])
+        self.llm_var = tk.StringVar(value=self.config_data.get('llm_provider', 'zhipu'))
+        self.font_size_var = tk.StringVar(value=self.config_data.get('font_size', DEFAULT_FONT_SIZE))
+        self.theme_var = tk.StringVar(value=self.config_data.get('theme', DEFAULT_THEME))
+        self.sound_enabled_var = tk.BooleanVar(value=self.config_data.get('sound_enabled', True))
+        self.key_entries = {}
+
+        # ASR section
+        ttk.Label(sf, text='语音转写服务', font=self._get_font('header')).pack(anchor='w', pady=(8,4))
+        asr_f = ttk.Frame(sf)
+        asr_f.pack(fill='x', pady=4)
+        for pid, info in ASR_PROVIDERS.items():
+            ttk.Radiobutton(asr_f, text=info['name'], variable=self.asr_var, value=pid,
+                command=self._on_asr_change).pack(side='left', padx=4)
+
+        self.asr_keys_frame = ttk.LabelFrame(sf, text='转写服务配置', padding=8)
+        self.asr_keys_frame.pack(fill='x', pady=4)
+        self._render_asr_keys()
+
+        # LLM section
+        from config import LLM_PROVIDERS
+        ttk.Label(sf, text='大模型服务（国内）', font=self._get_font('header')).pack(anchor='w', pady=(16,4))
+        cn_f = ttk.Frame(sf)
+        cn_f.pack(fill='x', pady=4)
+        for pid, info in LLM_PROVIDERS.items():
+            if info['region'] == 'cn':
+                ttk.Radiobutton(cn_f, text=info['name'], variable=self.llm_var, value=pid,
+                    command=self._on_llm_change).pack(side='left', padx=4)
+
+        ttk.Label(sf, text='大模型服务（国际）', font=self._get_font('header')).pack(anchor='w', pady=(12,4))
+        intl_f = ttk.Frame(sf)
+        intl_f.pack(fill='x', pady=4)
+        for pid, info in LLM_PROVIDERS.items():
+            if info['region'] == 'intl':
+                ttk.Radiobutton(intl_f, text=info['name'], variable=self.llm_var, value=pid,
+                    command=self._on_llm_change).pack(side='left', padx=4)
+
+        self.llm_keys_frame = ttk.LabelFrame(sf, text='大模型配置', padding=8)
+        self.llm_keys_frame.pack(fill='x', pady=4)
+        self._render_llm_keys()
+
+        # Theme section
+        ttk.Label(sf, text='🎨 界面主题', font=self._get_font('header')).pack(anchor='w', pady=(16,4))
+        theme_f = ttk.Frame(sf)
+        theme_f.pack(fill='x', pady=4)
+        for theme_id in THEME_ORDER:
+            theme = THEMES[theme_id]
+            ttk.Radiobutton(theme_f, text=f"{theme['icon']} {theme['name']}",
+                variable=self.theme_var, value=theme_id,
+                command=self._on_theme_change).pack(side='left', padx=8)
+
+        # Font size section
+        ttk.Label(sf, text='界面字体大小', font=self._get_font('header')).pack(anchor='w', pady=(16,4))
+        font_f = ttk.Frame(sf)
+        font_f.pack(fill='x', pady=4)
+        for size_key in ['特大', '大', '中', '小']:
+            ttk.Radiobutton(font_f, text=size_key, variable=self.font_size_var, value=size_key,
+                command=self._on_font_change).pack(side='left', padx=4)
+
+        # Sound notification section
+        ttk.Label(sf, text='🔔 提示音设置', font=self._get_font('header')).pack(anchor='w', pady=(16,4))
+        sound_frame = ttk.LabelFrame(sf, text='处理完成提示', padding=8)
+        sound_frame.pack(fill='x', pady=4)
+
+        ttk.Checkbutton(
+            sound_frame,
+            text='处理完成后播放提示音',
+            variable=self.sound_enabled_var,
+            onvalue=True,
+            offvalue=False
+        ).pack(anchor='w')
+
+        # Magnifier section
+        ttk.Label(sf, text='🔍 放大镜工具', font=self._get_font('header')).pack(anchor='w', pady=(16,4))
+        mag_frame = ttk.LabelFrame(sf, text='放大镜设置 (快捷键: Ctrl+M)', padding=8)
+        mag_frame.pack(fill='x', pady=4)
+
+        ttk.Label(mag_frame, text='放大倍数:').pack(anchor='w')
+        zoom_frame = ttk.Frame(mag_frame)
+        zoom_frame.pack(fill='x', pady=4)
+        self.zoom_var = tk.DoubleVar(value=1.5)
+        zoom_scale = tk.Scale(
+            zoom_frame, from_=1.2, to=3.0, resolution=0.1,
+            orient='horizontal', variable=self.zoom_var,
+            command=self._on_zoom_change, bg='#FFF8DC',
+            length=200, showvalue=True, font=('Arial', 10)
+        )
+        zoom_scale.pack(side='left', fill='x', expand=True)
+
+        mag_btn_frame = ttk.Frame(mag_frame)
+        mag_btn_frame.pack(fill='x', pady=8)
+        create_magnifier_button(mag_btn_frame, self.magnifier).pack(side='left', padx=4)
+
+        # 快捷键提示
+        tk.Label(
+            mag_frame,
+            text='⌨ 快捷键: Ctrl+M 打开/关闭放大镜 | Ctrl++ 放大字体 | Ctrl+- 缩小字体',
+            bg='#FFF8DC',
+            fg='#666',
+            font=('Arial', 9),
+            wraplength=500
+        ).pack(pady=4)
+
+        self.mouse_tracking_var = tk.BooleanVar(value=False)
+
+        ttk.Button(sf, text='保存所有设置', command=self._save_settings).pack(pady=16)
+
+    def _render_asr_keys(self):
+        for w in self.asr_keys_frame.winfo_children(): w.destroy()
+        pid = self.asr_var.get()
+        info = ASR_PROVIDERS[pid]
+
+        # Builtin providers don't need key input
+        if info.get('builtin'):
+            ttk.Label(self.asr_keys_frame, text='✓ 使用内置密钥，无需配置', foreground='green').pack(anchor='w', pady=8)
+            btn_f = ttk.Frame(self.asr_keys_frame)
+            btn_f.pack(pady=4)
+            ttk.Button(btn_f, text='测试连接', command=self._test_asr).pack()
+            return
+
+        keys = self.config_data.get('asr_keys', {}).get(pid, {})
+
+        for field in info['fields']:
+            label_map = {'key': 'API Key / AccessKey ID', 'secret': 'Secret', 'appKey': 'AppKey', 'region': 'Region'}
+            ttk.Label(self.asr_keys_frame, text=label_map.get(field, field)).pack(anchor='w')
+            e = ttk.Entry(self.asr_keys_frame, width=50, show='*' if field in ('key','secret') else '')
+            e.insert(0, keys.get(field, ''))
+            e.pack(fill='x', pady=(0,4))
+            self.key_entries[f'asr_{pid}_{field}'] = e
+
+        btn_f = ttk.Frame(self.asr_keys_frame)
+        btn_f.pack(pady=4)
+        ttk.Button(btn_f, text='测试连接', command=self._test_asr).pack()
+
+    def _render_llm_keys(self):
+        from config import LLM_PROVIDERS
+        for w in self.llm_keys_frame.winfo_children(): w.destroy()
+        pid = self.llm_var.get()
+        info = LLM_PROVIDERS[pid]
+        keys = self.config_data.get('llm_keys', {}).get(pid, {})
+
+        ttk.Label(self.llm_keys_frame, text='API Key').pack(anchor='w')
+        e = ttk.Entry(self.llm_keys_frame, width=50, show='*')
+        e.insert(0, keys.get('key', ''))
+        e.pack(fill='x', pady=(0,4))
+        self.key_entries[f'llm_{pid}_key'] = e
+
+        btn_f = ttk.Frame(self.llm_keys_frame)
+        btn_f.pack(pady=4)
+        ttk.Button(btn_f, text='测试连接', command=self._test_llm).pack()
+
+    def _on_asr_change(self):
+        self._collect_keys()
+        self._render_asr_keys()
+
+    def _on_llm_change(self):
+        self._collect_keys()
+        self._render_llm_keys()
+
+    def _on_font_change(self):
+        """Handle font size change - rebuild UI with new font size."""
+        # Save the current font setting
+        self._collect_keys()
+        self.config_data['font_size'] = self.font_size_var.get()
+        save_config(self.config_data)
+        # Rebuild UI
+        self._apply_font_changes()
+
+    def _collect_keys(self):
+        """Collect current key entries into config_data before switching provider."""
+        for k, e in list(self.key_entries.items()):
+            try:
+                val = e.get()
+            except:
+                continue
+            parts = k.split('_', 2)
+            if parts[0] == 'asr':
+                pid, field = parts[1], parts[2]
+                self.config_data.setdefault('asr_keys', {}).setdefault(pid, {})[field] = val
+            elif parts[0] == 'llm':
+                pid, field = parts[1], parts[2]
+                self.config_data.setdefault('llm_keys', {}).setdefault(pid, {})[field] = val
+        self.key_entries.clear()
+
+    def _test_asr(self):
+        self._collect_keys()
+        pid = self.asr_var.get()
+        keys = self.config_data.get('asr_keys', {}).get(pid, {})
+        ok, msg = test_asr(pid, keys)
+        messagebox.showinfo('成功' if ok else '失败', msg)
+
+    def _test_llm(self):
+        from compare import test_llm
+        self._collect_keys()
+        pid = self.llm_var.get()
+        keys = self.config_data.get('llm_keys', {}).get(pid, {})
+        ok, msg = test_llm(pid, keys.get('key', ''))
+        messagebox.showinfo('连通性测试', '✓ ' + msg if ok else '✗ ' + msg)
+
+    # ===== Magnifier Methods =====
+    def _bind_shortcuts(self):
+        """绑定快捷键"""
+        # F1: 显示快捷键帮助
+        self.bind('<F1>', lambda e: ShortcutsPanel.show(self))
+        # Ctrl+M: 切换放大镜
+        self.bind('<Control-m>', lambda e: self._toggle_magnifier_shortcut())
+        self.bind('<Control-M>', lambda e: self._toggle_magnifier_shortcut())
+        # Ctrl+Plus: 增大字体
+        self.bind('<Control-plus>', lambda e: self._increase_font())
+        self.bind('<Control-equal>', lambda e: self._increase_font())
+        # Ctrl+Minus: 减小字体
+        self.bind('<Control-minus>', lambda e: self._decrease_font())
+        # Ctrl+1/2/3: 切换标签页
+        self.bind('<Control-1>', lambda e: self._switch_tab(0))
+        self.bind('<Control-2>', lambda e: self._switch_tab(1))
+        self.bind('<Control-3>', lambda e: self._switch_tab(2))
+        # F5: 开始对比
+        self.bind('<F5>', lambda e: self._start_compare())
+        # Ctrl+O: 打开文件
+        self.bind('<Control-o>', lambda e: self._pick_audio())
+        self.bind('<Control-O>', lambda e: self._pick_audio())
+
+    def _switch_tab(self, index):
+        """切换到指定标签页"""
+        if hasattr(self, 'nb'):
+            self.nb.select(index)
+
+    def _toggle_magnifier_shortcut(self):
+        """快捷键切换放大镜"""
+        self.magnifier.toggle()
+        if self.magnifier.is_active:
+            self.status_var.set('放大镜已打开 (Ctrl+M 关闭)')
+        else:
+            self.status_var.set('放大镜已关闭')
+
+    def _increase_font(self):
+        """增大字体"""
+        sizes = ['小', '中', '大', '特大']
+        current = self.font_size_var.get()
+        try:
+            idx = sizes.index(current)
+            if idx < len(sizes) - 1:
+                self.font_size_var.set(sizes[idx + 1])
+                self._apply_font_changes()
+                self.status_var.set(f'字体已调整为: {sizes[idx + 1]} (Ctrl +/- 调整)')
+        except:
+            pass
+
+    def _decrease_font(self):
+        """减小字体"""
+        sizes = ['小', '中', '大', '特大']
+        current = self.font_size_var.get()
+        try:
+            idx = sizes.index(current)
+            if idx > 0:
+                self.font_size_var.set(sizes[idx - 1])
+                self._apply_font_changes()
+                self.status_var.set(f'字体已调整为: {sizes[idx - 1]} (Ctrl +/- 调整)')
+        except:
+            pass
+
+    def _on_zoom_change(self, value):
+        """Handle zoom level change."""
+        self.magnifier.set_zoom(float(value))
+
+    def _toggle_mouse_tracking(self):
+        """Toggle mouse tracking for magnifier."""
+        self.mouse_tracking_var.set(not self.mouse_tracking_var.get())
+        if self.mouse_tracking_var.get():
+            self.magnifier.show()
+            self.status_var.set('放大镜已启用，鼠标移动将自动跟踪')
+        else:
+            self.magnifier.hide()
+            self.status_var.set('放大镜已关闭')
+
+    def _bind_mouse_tracking(self):
+        """Bind mouse tracking events."""
+        self._tracking_enabled = False
+
+        def on_mouse_move(event):
+            if self.mouse_tracking_var.get() and self.magnifier.is_active:
+                # 获取鼠标下的控件
+                x, y = event.x_root, event.y_root
+                widget = event.widget
+
+                # 更新放大镜内容
+                try:
+                    self.magnifier.magnify_widget(widget)
+                except:
+                    pass
+
+        # 绑定鼠标移动事件到主窗口
+        self.bind('<Motion>', on_mouse_move)
+
+        # 也绑定到notebook以跟踪子控件
+        def bind_to_children(w):
+            try:
+                w.bind('<Motion>', on_mouse_move)
+                for child in w.winfo_children():
+                    bind_to_children(child)
+            except:
+                pass
+
+        self.after(1000, lambda: bind_to_children(self))
+
+    # ===== Drag & Drop Methods =====
+    def _enable_drag_drop(self):
+        """启用文件拖拽功能"""
+        try:
+            # 尝试使用 tkinterdnd2 (推荐)
+            from tkinterdnd2 import DND_FILES, TkinterDnD
+            # 需要先初始化 TkinterDnD
+            TkinterDnD().load_tk()
+            self.drop_target_register(DND_FILES)
+            self.dnd_bind('<<Drop>>', self._on_drop)
+            self.dnd_bind('<<DragEnter>>', self._on_drag_enter)
+            self.dnd_bind('<<DragLeave>>', self._on_drag_leave)
+        except Exception:
+            # 如果没有 tkinterdnd2 或初始化失败，尝试使用 Windows 原生支持
+            self._setup_windows_drop()
+
+    def _setup_windows_drop(self):
+        """设置 Windows 原生拖拽支持"""
+        try:
+            import ctypes
+            from ctypes import wintypes
+
+            # 定义 Windows API
+            WM_DROPFILES = 0x233
+            GWL_WNDPROC = -4
+
+            # 获取窗口句柄
+            hwnd = wintypes.HWND(int(self.winfo_id()))
+
+            # 定义窗口过程类型
+            WNDPROC = ctypes.WINFUNCTYPE(wintypes.LPARAM, wintypes.HWND,
+                                        wintypes.UINT, wintypes.WPARAM, wintypes.LPARAM)
+
+            # 保存原始窗口过程
+            self._oldwndproc = ctypes.windll.user32.GetWindowLongW(hwnd, GWL_WNDPROC)
+
+            # 定义新窗口过程
+            def new_wndproc(hwnd, msg, wparam, lparam):
+                if msg == WM_DROPFILES:
+                    # 处理文件拖放
+                    hdrop = wparam
+                    # 获取文件数量
+                    file_count = ctypes.windll.shell32.DragQueryFileW(hdrop, 0xFFFFFFFF, None, 0)
+
+                    files = []
+                    for i in range(file_count):
+                        # 获取文件名长度
+                        length = ctypes.windll.shell32.DragQueryFileW(hdrop, i, None, 0)
+                        # 分配缓冲区
+                        buffer = ctypes.create_unicode_buffer(length + 1)
+                        # 获取文件名
+                        ctypes.windll.shell32.DragQueryFileW(hdrop, i, buffer, length + 1)
+                        files.append(buffer.value)
+
+                    # 结束拖拽
+                    ctypes.windll.shell32.DragFinish(hdrop)
+
+                    # 处理文件
+                    if files:
+                        self.after(0, lambda f=files: self._process_dropped_files(f))
+                    return 0
+
+                # 调用原始窗口过程
+                return ctypes.windll.user32.CallWindowProcW(
+                    self._oldwndproc, hwnd, msg, wparam, lparam)
+
+            # 设置新窗口过程
+            self._newwndproc = WNDPROC(new_wndproc)
+            ctypes.windll.user32.SetWindowLongW(hwnd, GWL_WNDPROC, self._newwndproc)
+
+            # 设置窗口接受拖拽
+            WS_EX_ACCEPTFILES = 0x00000010
+            style = ctypes.windll.user32.GetWindowLongW(hwnd, -20)  # GWL_EXSTYLE
+            ctypes.windll.user32.SetWindowLongW(hwnd, -20, style | WS_EX_ACCEPTFILES)
+
+        except Exception as e:
+            # 失败则使用简单的点击区域
+            pass
+
+    def _on_drop(self, event):
+        """处理文件拖放事件 (tkinterdnd2)"""
+        try:
+            # 解析文件列表
+            data = event.data
+            # 去除花括号和空格
+            data = data.strip('{}').strip()
+            # 分割文件路径
+            files = [f.strip() for f in data.split('}') if f.strip()]
+            self._process_dropped_files(files)
+        except Exception as e:
+            self.status_var.set(f'拖拽处理失败: {str(e)[:50]}')
+
+    def _on_drag_enter(self, event):
+        """拖拽进入时的视觉效果"""
+        if hasattr(self, 'drop_frame'):
+            colors = self.current_colors
+            self.drop_frame.config(bg=colors['notebook'], highlightthickness=3)
+
+    def _on_drag_leave(self, event):
+        """拖拽离开时的视觉效果"""
+        if hasattr(self, 'drop_frame'):
+            colors = self.current_colors
+            self.drop_frame.config(bg=colors['drop_zone'], highlightthickness=2)
+
+    def _process_dropped_files(self, files):
+        """处理拖放的文件列表"""
+        if not files:
+            return
+
+        processed = 0
+        for filepath in files:
+            if not filepath:
+                continue
+
+            # 清理路径
+            filepath = filepath.strip().strip('{}').strip('"')
+
+            if not os.path.exists(filepath):
+                continue
+
+            # 检查文件扩展名
+            ext = os.path.splitext(filepath)[1].lower()
+
+            # 音频文件扩展名
+            audio_exts = {'.wav', '.mp3', '.m4a', '.flac', '.ogg', '.wma', '.aac', '.amr', '.opus'}
+            # 文档文件扩展名
+            doc_exts = {'.docx', '.doc', '.txt', '.rtf'}
+
+            if ext in audio_exts:
+                self.audio_path.set(filepath)
+                self.status_var.set(f'✓ 已添加音频: {os.path.basename(filepath)}')
+                processed += 1
+            elif ext in doc_exts:
+                self.doc_path.set(filepath)
+                self.status_var.set(f'✓ 已添加文档: {os.path.basename(filepath)}')
+                processed += 1
+            else:
+                # 未知文件类型，尝试自动识别
+                self._auto_detect_file_type(filepath)
+                processed += 1
+
+        # 更新拖拽区域显示
+        self._update_drop_display()
+
+        if processed > 0:
+            self.status_var.set(f'✓ 已添加 {processed} 个文件，可以开始对比')
+
+    def _auto_detect_file_type(self, filepath):
+        """自动识别文件类型"""
+        filename = os.path.basename(filepath).lower()
+
+        # 音频相关关键词
+        audio_keywords = ['录音', '音频', '声音', 'voice', 'audio', 'sound', 'record']
+        # 文档相关关键词
+        doc_keywords = ['文档', '原文', '文案', 'doc', 'text', 'script', '稿']
+
+        audio_score = sum(1 for kw in audio_keywords if kw in filename)
+        doc_score = sum(1 for kw in doc_keywords if kw in filename)
+
+        # 根据文件大小判断
+        try:
+            file_size = os.path.getsize(filepath)
+            if file_size > 1024 * 100:  # 大于100KB可能是音频
+                audio_score += 1
+            else:
+                doc_score += 1
+        except:
+            pass
+
+        if audio_score > doc_score:
+            self.audio_path.set(filepath)
+        elif doc_score > audio_score:
+            self.doc_path.set(filepath)
+        else:
+            # 无法确定，默认作为音频
+            self.audio_path.set(filepath)
+
+    def _update_drop_display(self):
+        """更新拖拽区域显示"""
+        audio_name = os.path.basename(self.audio_path.get()) if self.audio_path.get() else ''
+        doc_name = os.path.basename(self.doc_path.get()) if self.doc_path.get() else ''
+
+        for widget in self.drop_frame.winfo_children():
+            if audio_name or doc_name:
+                status_text = '✓ 已添加文件\n'
+                if audio_name:
+                    name = audio_name if len(audio_name) <= 25 else audio_name[:22] + '...'
+                    status_text += f'🎤 {name}\n'
+                if doc_name:
+                    name = doc_name if len(doc_name) <= 25 else doc_name[:22] + '...'
+                    status_text += f'📄 {name}'
+            else:
+                status_text = '📂 拖拽文件到这里\n音频 (mp3/wav/m4a) | 文档 (.docx)'
+            widget.config(text=status_text)
+
+        def on_mouse_move(event):
+            if self.mouse_tracking_var.get() and self.magnifier.is_active:
+                # 获取鼠标下的控件
+                x, y = event.x_root, event.y_root
+                widget = event.widget
+
+                # 更新放大镜内容
+                try:
+                    self.magnifier.magnify_widget(widget)
+                except:
+                    pass
+
+        # 绑定鼠标移动事件到主窗口
+        self.bind('<Motion>', on_mouse_move)
+
+        # 也绑定到notebook以跟踪子控件
+        def bind_to_children(w):
+            try:
+                w.bind('<Motion>', on_mouse_move)
+                for child in w.winfo_children():
+                    bind_to_children(child)
+            except:
+                pass
+
+        self.after(1000, lambda: bind_to_children(self))
+
+    def _save_settings(self):
+        self._collect_keys()
+        self.config_data['asr_provider'] = self.asr_var.get()
+        self.config_data['llm_provider'] = self.llm_var.get()
+        self.config_data['font_size'] = self.font_size_var.get()
+        self.config_data['theme'] = self.theme_var.get()
+        self.config_data['sound_enabled'] = self.sound_enabled_var.get()
+        save_config(self.config_data)
+        self.status_var.set('设置已保存')
+
+if __name__ == '__main__':
+    app = App()
+    app.mainloop()

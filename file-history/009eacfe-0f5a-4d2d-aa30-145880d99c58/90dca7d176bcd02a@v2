@@ -1,0 +1,290 @@
+package com.comparebao.core
+
+import android.content.Context
+import android.net.Uri
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
+import java.io.File
+
+/**
+ * 微信聊天记录导入器
+ * 支持从微信导入文档和录音
+ */
+class WeChatImporter(private val context: Context) {
+
+    /**
+     * 微信数据库路径（需要Root或通过备份获取）
+     */
+    private val wechatDbPaths = listOf(
+        "/data/data/com.tencent.mm/MicroMsg/{uin}/EnMicroMsg.db",
+        "/data/data/com.tencent.mm/MicroMsg/{uin}/MSG0.db"
+    )
+
+    /**
+     * 微信语音文件存储路径
+     */
+    private val wechatVoicePaths = listOf(
+        "/data/data/com.tencent.mm/MicroMsg/{uin}/voice2/",
+        "/data/data/com.tencent.mm/MicroMsg/{uin}/voice/"
+    )
+
+    /**
+     * 导入结果
+     */
+    data class ImportResult(
+        val success: Boolean,
+        val message: String,
+        val textContent: String? = null,
+        val audioFiles: List<File>? = null
+    )
+
+    /**
+     * 聊天消息
+     */
+    data class ChatMessage(
+        val id: Long,
+        val content: String,
+        val type: Int,          // 消息类型：1=文本，3=图片，34=语音，43=视频，49=文件
+        val createTime: Long,
+        val talker: String,     // 发送者ID
+        val voicePath: String? = null,  // 语音文件路径
+        val duration: Int = 0   // 语音时长（秒）
+    )
+
+    /**
+     * 从微信导出的文本文件导入
+     * 支持微信聊天记录导出的 TXT 格式
+     */
+    suspend fun importFromTextFile(uri: Uri): ImportResult = withContext(Dispatchers.IO) {
+        try {
+            val text = context.contentResolver.openInputStream(uri)?.bufferedReader()?.use { it.readText() }
+                ?: return@withContext ImportResult(false, "无法读取文件")
+
+            // 解析微信导出格式
+            val messages = parseWechatExportText(text)
+
+            // 提取文本内容
+            val content = messages.filter { it.type == 1 }
+                .joinToString("\n") { "${it.talker}: ${it.content}" }
+
+            ImportResult(
+                success = true,
+                message = "成功导入 ${messages.size} 条消息",
+                textContent = content
+            )
+        } catch (e: Exception) {
+            ImportResult(false, "导入失败: ${e.message}")
+        }
+    }
+
+    /**
+     * 从微信数据库导入（需要Root权限）
+     */
+    suspend fun importFromDatabase(dbPath: String): ImportResult = withContext(Dispatchers.IO) {
+        try {
+            // 检查文件是否存在
+            val dbFile = File(dbPath)
+            if (!dbFile.exists()) {
+                return@withContext ImportResult(false, "数据库文件不存在")
+            }
+
+            // TODO: 实现SQLCipher解密和数据库读取
+            // 微信数据库使用SQLCipher加密，密钥由IMEI+UIN生成
+
+            ImportResult(false, "需要SQLCipher支持，请使用其他导入方式")
+        } catch (e: Exception) {
+            ImportResult(false, "数据库导入失败: ${e.message}")
+        }
+    }
+
+    /**
+     * 扫描微信语音文件
+     */
+    suspend fun scanVoiceFiles(basePath: String): List<File> = withContext(Dispatchers.IO) {
+        val voiceFiles = mutableListOf<File>()
+
+        try {
+            val baseDir = File(basePath)
+            if (baseDir.exists() && baseDir.isDirectory) {
+                // 微信语音文件格式：msg_xxx.silk
+                baseDir.walkTopDown()
+                    .filter { it.isFile && it.extension.equals("silk", true) }
+                    .forEach { voiceFiles.add(it) }
+            }
+        } catch (e: Exception) {
+            e.printStackTrace()
+        }
+
+        voiceFiles
+    }
+
+    /**
+     * 解析微信导出文本格式
+     *
+     * 微信导出文本格式示例：
+     * ***********************
+     * *  消息导出
+     * ***********************
+     *
+     * 张三 2024/01/15 10:30:00
+     * 这是一条测试消息
+     *
+     * 李四 2024/01/15 10:31:00
+     * 这是回复消息
+     * [语音]
+     */
+    private fun parseWechatExportText(text: String): List<ChatMessage> {
+        val messages = mutableListOf<ChatMessage>()
+        val lines = text.lines()
+        var currentTalker = ""
+        var currentContent = StringBuilder()
+        var currentTime = System.currentTimeMillis()
+
+        for (line in lines) {
+            val trimmedLine = line.trim()
+
+            // 检查是否是新的消息头（包含时间）
+            if (trimmedLine.matches(Regex(".+\\s+\\d{4}/\\d{2}/\\d{2}\\s+\\d{2}:\\d{2}:\\d{2}"))) {
+                // 保存上一条消息
+                if (currentContent.isNotEmpty()) {
+                    messages.add(
+                        ChatMessage(
+                            id = messages.size.toLong(),
+                            content = currentContent.toString(),
+                            type = 1,
+                            createTime = currentTime,
+                            talker = currentTalker
+                        )
+                    )
+                    currentContent = StringBuilder()
+                }
+
+                // 解析新消息头
+                val parts = trimmedLine.split(Regex("\\s+"), limit = 2)
+                currentTalker = parts.first()
+                // 解析时间（简化处理）
+                currentTime = System.currentTimeMillis()
+            } else if (trimmedLine.isNotEmpty() && !trimmedLine.startsWith("*")) {
+                // 消息内容
+                if (currentContent.isNotEmpty()) {
+                    currentContent.append("\n")
+                }
+                currentContent.append(trimmedLine)
+            }
+        }
+
+        // 保存最后一条消息
+        if (currentContent.isNotEmpty()) {
+            messages.add(
+                ChatMessage(
+                    id = messages.size.toLong(),
+                    content = currentContent.toString(),
+                    type = 1,
+                    createTime = currentTime,
+                    talker = currentTalker
+                )
+            )
+        }
+
+        return messages
+    }
+
+    /**
+     * 从目录批量导入音频文件
+     */
+    suspend fun importAudioFromDirectory(directoryUri: Uri): ImportResult = withContext(Dispatchers.IO) {
+        try {
+            val audioFiles = mutableListOf<File>()
+
+            // 读取目录中的文件
+            context.contentResolver.openInputStream(directoryUri)?.use { inputStream ->
+                // TODO: 实现目录遍历和音频文件识别
+            }
+
+            ImportResult(
+                success = true,
+                message = "找到 ${audioFiles.size} 个音频文件",
+                audioFiles = audioFiles
+            )
+        } catch (e: Exception) {
+            ImportResult(false, "音频导入失败: ${e.message}")
+        }
+    }
+
+    /**
+     * 生成微信数据库解密密钥
+     * @param imei 设备IMEI
+     * @param uin 微信UIN
+     * @return 解密密钥（7位MD5）
+     */
+    fun generateDbKey(imei: String, uin: String): String {
+        val combined = imei + uin
+        val md5 = java.security.MessageDigest.getInstance("MD5")
+        val digest = md5.digest(combined.toByteArray())
+        return digest.take(7).joinToString("") { "%02x".format(it) }
+    }
+
+    /**
+     * 检查设备是否有Root权限
+     */
+    fun checkRootAccess(): Boolean {
+        return try {
+            val process = Runtime.getRuntime().exec(arrayOf("su", "-c", "id"))
+            val output = process.inputStream.bufferedReader().readText()
+            output.contains("uid=0")
+        } catch (e: Exception) {
+            false
+        }
+    }
+
+    /**
+     * 获取微信UIN
+     * 从微信偏好设置文件中读取
+     */
+    suspend fun getWechatUin(): String? = withContext(Dispatchers.IO) {
+        try {
+            val prefFile = File("/data/data/com.tencent.mm/shared_prefs/auth_info.xml")
+            if (!prefFile.exists()) return@withContext null
+
+            // 解析XML获取UIN
+            // TODO: 实现XML解析
+            null
+        } catch (e: Exception) {
+            null
+        }
+    }
+}
+
+/**
+ * SILK音频解码器
+ * 用于解码微信语音消息
+ */
+class SilkDecoder {
+
+    /**
+     * 将SILK格式转换为PCM
+     * @param silkFile SILK文件
+     * @param pcmFile 输出PCM文件
+     */
+    suspend fun decodeToPcm(silkFile: File, pcmFile: File): Boolean {
+        // TODO: 实现SILK解码
+        // 需要集成 silk-v3-decoder 或使用FFmpeg
+        return false
+    }
+
+    /**
+     * 将SILK格式转换为MP3/WAV
+     * @param silkFile SILK文件
+     * @param outputFile 输出文件
+     * @param format 输出格式 (mp3/wav)
+     */
+    suspend fun convertToCommonFormat(
+        silkFile: File,
+        outputFile: File,
+        format: String = "mp3"
+    ): Boolean {
+        // TODO: 实现格式转换
+        // 流程：SILK -> PCM -> MP3/WAV
+        return false
+    }
+}

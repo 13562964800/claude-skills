@@ -1,0 +1,17 @@
+import subprocess, sys, os
+
+if __name__ == '__main__':
+    src = os.path.dirname(os.path.abspath(__file__))
+    subprocess.run([
+        sys.executable, '-m', 'PyInstaller',
+        '--onefile', '--windowed',
+        '--name', '录音文档对比',
+        '--add-data', f'{src}/config.py;.',
+        '--add-data', f'{src}/transcribe.py;.',
+        '--add-data', f'{src}/compare.py;.',
+        '--add-data', f'{src}/docx_util.py;.',
+        '--hidden-import', 'pydub',
+        '--hidden-import', 'docx',
+        '--hidden-import', 'requests',
+        os.path.join(src, 'main.py'),
+    ], cwd=src)

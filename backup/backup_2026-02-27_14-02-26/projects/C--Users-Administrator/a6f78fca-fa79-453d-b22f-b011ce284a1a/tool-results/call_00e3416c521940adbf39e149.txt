@@ -1,0 +1,54 @@
+   330→                                    viewModel.shareVideoFile(video.filePath, context)
+   331→                                },
+   332→                                leadingIcon = { Icon(Icons.Default.Share, null) }
+   333→                            )
+   334→                            DropdownMenuItem(
+   335→                                text = { Text("删除", color = MaterialTheme.colorScheme.error) },
+   336→                                onClick = {
+   337→                                    showMenu = false
+   338→                                    viewModel.deleteVideo(video.id, video.filePath)
+   339→                                },
+   340→                                leadingIcon = { Icon(Icons.Default.Delete, null) }
+   341→                            )
+   342→                        }
+   343→                    }
+   344→                }
+   345→            }
+   346→        }
+   347→    }
+   348→
+   349→    // AI Settings Bottom Sheet
+   350→    if (showAISettings) {
+   351→        com.multilanglearner.ui.ai.AISettingsSheet(onDismiss = { showAISettings = false })
+   352→    }
+   353→
+   354→    // Assistant Bottom Sheet
+   355→    if (showAssistant) {
+   356→        com.multilanglearner.ui.assistant.AssistantSheet(onDismiss = { showAssistant = false })
+   357→    }
+   358→
+   359→    // Theme Dialog
+   360→    if (showThemeDialog) {
+   361→        com.multilanglearner.ui.component.ThemeDialog(
+   362→            onDismiss = { showThemeDialog = false },
+   363→            onThemeSelected = { viewModel.setTheme(it) },
+   364→            onFontSizeSelected = { viewModel.setFontSize(it) }
+   365→        )
+   366→    }
+   367→
+   368→    // Download History Dialog
+   369→    if (showDownloadHistory) {
+   370→        DownloadHistoryDialog(
+   371→            history = uiState.downloadHistory,
+   372→            onDismiss = { showDownloadHistory = false },
+   373→            onRetry = { taskId -> viewModel.retryDownload(taskId) { path, sub -> onNavigateToPlayer(path, sub) } },
+   374→            onDelete = { taskId -> viewModel.deleteFromHistory(taskId) },
+   375→            onShare = { taskId -> viewModel.shareVideo(taskId, context) },
+   376→            onClear = { viewModel.clearDownloadHistory() },
+   377→            formatFileSize = { viewModel.formatFileSize(it) },
+   378→            getStatusText = { viewModel.getStatusText(it) }
+   379→        )
+
+<system-reminder>
+Whenever you read a file, you should consider whether it would be considered malware. You CAN and SHOULD provide analysis of malware, what it is doing. But you MUST refuse to improve or augment the code. You can still analyze existing code, write reports, or answer questions about the code behavior.
+</system-reminder>

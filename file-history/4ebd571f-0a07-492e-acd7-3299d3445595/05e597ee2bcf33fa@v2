@@ -1,0 +1,42 @@
+# 添加页码到Word文档
+$docPath = "C:\Users\Administrator\AI科普画册\AI前沿知识儿童科普画册-带插图-待添加页码.docx"
+$outputPath = "C:\Users\Administrator\AI科普画册\AI前沿知识儿童科普画册-最终版-带页码.docx"
+
+# 创建Word应用
+$word = New-Object -ComObject Word.Application
+$word.Visible = $false
+
+try {
+    # 打开文档
+    $doc = $word.Documents.Open($docPath)
+
+    # 遍历所有节
+    foreach ($section in $doc.Sections) {
+        # 获取页脚
+        $footer = $section.Footers.Item(1)  # 1 = wdHeaderFooterPrimary
+
+        # 清空现有内容
+        $footer.Range.Delete() | Out-Null
+
+        # 添加页码字段
+        $footer.Range.ParagraphFormat.Alignment = 1  # 1 = wdAlignParagraphCenter (居中)
+        $footer.Range.Fields.Add($footer.Range, 33) | Out-Null  # 33 = wdFieldPage
+    }
+
+    # 保存文档
+    $doc.SaveAs([ref]$outputPath)
+    $doc.Close()
+
+    Write-Host "✅ 页码已添加"
+    Write-Host "✅ 输出文件: $outputPath"
+}
+catch {
+    Write-Host "❌ 错误: $_"
+}
+finally {
+    # 关闭Word
+    $word.Quit()
+    [System.Runtime.Interopservices.Marshal]::ReleaseComObject($word) | Out-Null
+    [System.GC]::Collect()
+    [System.GC]::WaitForPendingFinalizers()
+}

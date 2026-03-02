@@ -1,0 +1,22 @@
+package com.court.assistant.data.db
+
+import androidx.room.*
+
+@Entity(
+    tableName = "court_sms",
+    indices = [Index(value = ["bodyHash", "sender"], unique = true)]
+)
+data class CourtSmsEntity(
+    @PrimaryKey(autoGenerate = true) val id: Long = 0,
+    val sender: String,
+    val body: String,
+    val bodyHash: Int,
+    val receivedAt: Long,
+    val caseNumber: String?,
+    val courtName: String?,
+    val hearingTime: Long?,
+    val partyNames: String?,
+    val webUrl: String?,
+    val calendarEventId: Long? = null,
+    val expectedPdfCount: Int = 0  // 网页上检测到的PDF数量
+)

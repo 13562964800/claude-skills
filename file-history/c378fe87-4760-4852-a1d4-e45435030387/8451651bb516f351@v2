@@ -1,0 +1,198 @@
+#!/usr/bin/env python3
+# -*- coding: utf-8 -*-
+"""
+继续生成插图 1-5 到 1-12 (共8个)
+"""
+
+import re
+
+# 读取当前文档
+with open(r'C:\Users\Administrator\AI科普画册\AI科普画册-插图进行中.md', 'r', encoding='utf-8') as f:
+    content = f.read()
+
+# 插图1-5: 小朋友对着智能音箱说话
+svg_1_5 = '''<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 800 450" style="background:#F3E5F5">
+  <!-- 小朋友 -->
+  <g transform="translate(200, 200)">
+    <circle cx="0" cy="0" r="50" fill="#FFD4A3" stroke="#E6A86E" stroke-width="3"/>
+    <path d="M -35 -10 Q -45 -30 -25 -38 Q 0 -45 25 -38 Q 45 -30 35 -10" fill="#8B4513"/>
+    <circle cx="-15" cy="-5" r="6" fill="#333"/>
+    <circle cx="15" cy="-5" r="6" fill="#333"/>
+    <ellipse cx="0" cy="15" rx="12" ry="8" fill="#FF6B6B"/>
+    <rect x="-35" y="50" width="70" height="90" rx="15" fill="#9C27B0" stroke="#7B1FA2" stroke-width="3"/>
+    <rect x="-60" y="65" width="25" height="18" rx="9" fill="#FFD4A3" stroke="#E6A86E" stroke-width="2"/>
+    <rect x="35" y="65" width="25" height="18" rx="9" fill="#FFD4A3" stroke="#E6A86E" stroke-width="2"/>
+  </g>
+
+  <!-- 声波 -->
+  <g id="sound-waves">
+    <path d="M 270 200 Q 320 180 370 200" stroke="#9C27B0" stroke-width="3" fill="none" opacity="0.6">
+      <animate attributeName="opacity" values="0.6;0.2;0.6" dur="1s" repeatCount="indefinite"/>
+    </path>
+    <path d="M 280 200 Q 320 170 360 200" stroke="#9C27B0" stroke-width="2" fill="none" opacity="0.4">
+      <animate attributeName="opacity" values="0.4;0.1;0.4" dur="1s" begin="0.2s" repeatCount="indefinite"/>
+    </path>
+  </g>
+
+  <!-- 对话气泡 -->
+  <g transform="translate(150, 100)">
+    <rect width="180" height="70" rx="15" fill="#FFF" stroke="#9C27B0" stroke-width="3"/>
+    <text x="90" y="35" font-size="24" text-anchor="middle" fill="#333">今天天气</text>
+    <text x="90" y="60" font-size="24" text-anchor="middle" fill="#333">怎么样？</text>
+  </g>
+
+  <!-- 智能音箱 -->
+  <g transform="translate(550, 220)">
+    <ellipse cx="0" cy="0" rx="70" ry="90" fill="#424242" stroke="#212121" stroke-width="4"/>
+    <ellipse cx="0" cy="-30" rx="50" ry="50" fill="#1976D2">
+      <animate attributeName="ry" values="50;55;50" dur="1.5s" repeatCount="indefinite"/>
+    </ellipse>
+    <circle cx="0" cy="-30" r="25" fill="#64B5F6" opacity="0.6">
+      <animate attributeName="r" values="25;35;25" dur="1.5s" repeatCount="indefinite"/>
+      <animate attributeName="opacity" values="0.6;0.2;0.6" dur="1.5s" repeatCount="indefinite"/>
+    </circle>
+    <text x="0" y="50" font-size="35" text-anchor="middle">🔊</text>
+  </g>
+
+  <!-- 音箱回复气泡 -->
+  <g transform="translate(480, 100)">
+    <rect width="220" height="90" rx="15" fill="#E3F2FD" stroke="#2196F3" stroke-width="3"/>
+    <text x="110" y="30" font-size="20" text-anchor="middle" fill="#333">今天晴天</text>
+    <text x="110" y="55" font-size="20" text-anchor="middle" fill="#333">温度25度</text>
+    <text x="110" y="80" font-size="28" text-anchor="middle">☀️</text>
+  </g>
+
+  <!-- 标题 -->
+  <text x="400" y="400" font-size="26" text-anchor="middle" fill="#7B1FA2">智能音箱听懂你的话！</text>
+</svg>'''
+
+# 插图1-6: AI创作艺术作品
+svg_1_6 = '''<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 800 450" style="background:#FFF3E0">
+  <!-- 标题 -->
+  <text x="400" y="50" font-size="34" font-weight="bold" text-anchor="middle" fill="#E65100">AI的创作</text>
+
+  <!-- AI机器人艺术家 -->
+  <g transform="translate(400, 180)">
+    <rect x="-50" y="0" width="100" height="120" rx="15" fill="#FF9800" stroke="#E65100" stroke-width="3"/>
+    <rect x="-40" y="-60" width="80" height="70" rx="12" fill="#FFB74D" stroke="#E65100" stroke-width="3"/>
+    <circle cx="-20" cy="-35" r="10" fill="#FFF"/>
+    <circle cx="20" cy="-35" r="10" fill="#FFF"/>
+    <circle cx="-19" cy="-33" r="5" fill="#333"/>
+    <circle cx="21" cy="-33" r="5" fill="#333"/>
+    <path d="M -15 -10 Q 0 -5 15 -10" stroke="#333" stroke-width="3" fill="none"/>
+    <!-- 画笔手臂 -->
+    <g transform="rotate(-30)">
+      <rect x="50" y="-10" width="60" height="15" rx="8" fill="#FF9800" stroke="#E65100" stroke-width="2"/>
+      <rect x="110" y="-15" width="30" height="25" rx="5" fill="#8D6E63"/>
+      <line x1="125" y1="-15" x2="125" y2="-35" stroke="#333" stroke-width="3"/>
+    </g>
+  </g>
+
+  <!-- 创作的作品 -->
+  <!-- 绘画 -->
+  <g transform="translate(120, 120)">
+    <rect width="140" height="110" rx="8" fill="#FFF" stroke="#FF9800" stroke-width="3"/>
+    <rect x="10" y="10" width="120" height="90" fill="#E1F5FE"/>
+    <circle cx="40" cy="40" r="15" fill="#FFEB3B"/>
+    <path d="M 60 70 L 80 50 L 100 70 L 110 60" stroke="#4CAF50" stroke-width="3" fill="none"/>
+    <text x="70" y="135" font-size="18" text-anchor="middle" fill="#E65100">🎨 绘画</text>
+  </g>
+
+  <!-- 音乐 -->
+  <g transform="translate(330, 280)">
+    <rect width="140" height="110" rx="8" fill="#FFF" stroke="#FF9800" stroke-width="3"/>
+    <text x="70" y="45" font-size="45" text-anchor="middle">🎵</text>
+    <text x="70" y="80" font-size="35" text-anchor="middle">🎶</text>
+    <text x="70" y="135" font-size="18" text-anchor="middle" fill="#E65100">音乐</text>
+  </g>
+
+  <!-- 诗歌 -->
+  <g transform="translate(540, 120)">
+    <rect width="140" height="110" rx="8" fill="#FFF" stroke="#FF9800" stroke-width="3"/>
+    <text x="70" y="30" font-size="16" text-anchor="middle" fill="#333">春眠不觉晓</text>
+    <text x="70" y="50" font-size="16" text-anchor="middle" fill="#333">处处闻啼鸟</text>
+    <text x="70" y="70" font-size="16" text-anchor="middle" fill="#333">夜来风雨声</text>
+    <text x="70" y="90" font-size="16" text-anchor="middle" fill="#333">花落知多少</text>
+    <text x="70" y="135" font-size="18" text-anchor="middle" fill="#E65100">✍️ 诗歌</text>
+  </g>
+
+  <!-- 装饰星星 -->
+  <text x="80" y="80" font-size="30" opacity="0.4">✨</text>
+  <text x="720" y="100" font-size="30" opacity="0.4">✨</text>
+  <text x="300" y="400" font-size="30" opacity="0.4">⭐</text>
+</svg>'''
+
+# 插图1-7: AI辅导作业
+svg_1_7 = '''<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 800 450" style="background:#E8EAF6">
+  <!-- 电脑屏幕 -->
+  <g transform="translate(250, 100)">
+    <rect width="300" height="220" rx="12" fill="#37474F" stroke="#263238" stroke-width="4"/>
+    <rect x="10" y="10" width="280" height="180" fill="#FFF"/>
+
+    <!-- 屏幕内容 - 数学题 -->
+    <text x="150" y="50" font-size="28" text-anchor="middle" fill="#333">12 + 8 = ?</text>
+
+    <!-- AI助手头像 -->
+    <circle cx="60" cy="120" r="30" fill="#5C6BC0" stroke="#3F51B5" stroke-width="2"/>
+    <circle cx="50" cy="115" r="6" fill="#FFF"/>
+    <circle cx="70" cy="115" r="6" fill="#FFF"/>
+    <circle cx="51" cy="116" r="3" fill="#333"/>
+    <circle cx="71" cy="116" r="3" fill="#333"/>
+    <path d="M 50 130 Q 60 137 70 130" stroke="#FFF" stroke-width="2" fill="none"/>
+
+    <!-- 解答提示 -->
+    <rect x="100" y="100" width="170" height="70" rx="10" fill="#E8EAF6" stroke="#5C6BC0" stroke-width="2"/>
+    <text x="185" y="125" font-size="18" text-anchor="middle" fill="#333">让我帮你</text>
+    <text x="185" y="148" font-size="18" text-anchor="middle" fill="#333">10+8=18</text>
+    <text x="185" y="168" font-size="18" text-anchor="middle" fill="#333">所以12+8=20</text>
+
+    <!-- 键盘 -->
+    <rect y="220" width="300" height="40" rx="8" fill="#546E7A" stroke="#37474F" stroke-width="2"/>
+    <rect x="10" y="228" width="25" height="20" rx="3" fill="#78909C"/>
+    <rect x="40" y="228" width="25" height="20" rx="3" fill="#78909C"/>
+    <rect x="70" y="228" width="25" height="20" rx="3" fill="#78909C"/>
+  </g>
+
+  <!-- 小朋友 -->
+  <g transform="translate(150, 280)">
+    <circle cx="0" cy="0" r="40" fill="#FFD4A3" stroke="#E6A86E" stroke-width="3"/>
+    <path d="M -28 -8 Q -35 -25 -20 -32 Q 0 -38 20 -32 Q 35 -25 28 -8" fill="#8B4513"/>
+    <circle cx="-12" cy="-3" r="5" fill="#333"/>
+    <circle cx="12" cy="-3" r="5" fill="#333"/>
+    <path d="M -12 12 Q 0 18 12 12" stroke="#333" stroke-width="2" fill="none"/>
+    <rect x="-30" y="40" width="60" height="80" rx="12" fill="#42A5F5" stroke="#1976D2" stroke-width="3"/>
+  </g>
+
+  <!-- 思考泡泡 -->
+  <g transform="translate(100, 200)">
+    <circle cx="0" cy="0" r="35" fill="#FFF" stroke="#5C6BC0" stroke-width="2"/>
+    <text x="0" y="10" font-size="30" text-anchor="middle">💡</text>
+    <circle cx="20" cy="25" r="8" fill="#FFF" stroke="#5C6BC0" stroke-width="2"/>
+    <circle cx="30" cy="40" r="5" fill="#FFF" stroke="#5C6BC0" stroke-width="2"/>
+  </g>
+
+  <!-- 标题 -->
+  <text x="400" y="420" font-size="26" text-anchor="middle" fill="#3F51B5">AI助手帮你学习！</text>
+</svg>'''
+
+print("正在生成插图1-5到1-7...")
+
+# 替换插图
+patterns_and_svgs = [
+    (r'【插图1-5：[^】]+】\n\n\n', f'【插图1-5：小朋友对着智能音箱说话，音箱显示出理解的内容】\n\n{svg_1_5}\n\n'),
+    (r'【插图1-6：[^】]+】\n\n\n', f'【插图1-6：AI创作的各种艺术作品——绘画、音乐、诗歌】\n\n{svg_1_6}\n\n'),
+    (r'【插图1-7：[^】]+】\n\n\n', f'【插图1-7：AI助手在屏幕上辅导小朋友做作业】\n\n{svg_1_7}\n\n'),
+]
+
+for pattern, replacement in patterns_and_svgs:
+    content = re.sub(pattern, replacement, content, count=1)
+
+# 保存
+with open(r'C:\Users\Administrator\AI科普画册\AI科普画册-插图进行中.md', 'w', encoding='utf-8') as f:
+    f.write(content)
+
+print("✓ 插图1-5已生成: 智能音箱对话")
+print("✓ 插图1-6已生成: AI创作艺术")
+print("✓ 插图1-7已生成: AI辅导作业")
+print(f"进度: 7/124 (5.6%)")
+print("\n继续生成中...")

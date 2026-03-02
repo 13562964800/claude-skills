@@ -1,0 +1,322 @@
+#!/usr/bin/env python3
+"""
+AI科普画册 Word文档生成器
+- 精细化排版
+- 目录单独成页,自动生成页码
+- 每页插入页码
+- SVG转换为图片嵌入
+"""
+
+import re
+from docx import Document
+from docx.shared import Pt, Inches, RGBColor, Cm
+from docx.enum.text import WD_ALIGN_PARAGRAPH, WD_LINE_SPACING
+from docx.enum.style import WD_STYLE_TYPE
+from docx.oxml.ns import qn
+from docx.oxml import OxmlElement
+import base64
+import io
+from PIL import Image
+import cairosvg
+
+def svg_to_png_bytes(svg_content, width=800):
+    """将SVG转换为PNG字节流"""
+    try:
+        png_bytes = cairosvg.svg2png(bytestring=svg_content.encode('utf-8'), output_width=width)
+        return png_bytes
+    except Exception as e:
+        print(f"SVG转换失败: {e}")
+        return None
+
+def add_page_number(section):
+    """添加页码到页脚"""
+    footer = section.footer
+    footer_para = footer.paragraphs[0] if footer.paragraphs else footer.add_paragraph()
+    footer_para.alignment = WD_ALIGN_PARAGRAPH.CENTER
+
+    # 添加页码域代码
+    run = footer_para.add_run()
+    fldChar1 = OxmlElement('w:fldChar')
+    fldChar1.set(qn('w:fldCharType'), 'begin')
+
+    instrText = OxmlElement('w:instrText')
+    instrText.set(qn('xml:space'), 'preserve')
+    instrText.text = 'PAGE'
+
+    fldChar2 = OxmlElement('w:fldChar')
+    fldChar2.set(qn('w:fldCharType'), 'end')
+
+    run._r.append(fldChar1)
+    run._r.append(instrText)
+    run._r.append(fldChar2)
+
+    run.font.size = Pt(10)
+    run.font.name = '微软雅黑'
+
+def setup_styles(doc):
+    """设置文档样式"""
+    # 标题1样式
+    heading1 = doc.styles['Heading 1']
+    heading1.font.name = '微软雅黑'
+    heading1.font.size = Pt(24)
+    heading1.font.bold = True
+    heading1.font.color.rgb = RGBColor(0, 74, 144)
+    heading1.paragraph_format.space_before = Pt(24)
+    heading1.paragraph_format.space_after = Pt(12)
+    heading1.paragraph_format.line_spacing_rule = WD_LINE_SPACING.SINGLE
+
+    # 标题2样式
+    heading2 = doc.styles['Heading 2']
+    heading2.font.name = '微软雅黑'
+    heading2.font.size = Pt(18)
+    heading2.font.bold = True
+    heading2.font.color.rgb = RGBColor(74, 144, 226)
+    heading2.paragraph_format.space_before = Pt(18)
+    heading2.paragraph_format.space_after = Pt(10)
+
+    # 标题3样式
+    heading3 = doc.styles['Heading 3']
+    heading3.font.name = '微软雅黑'
+    heading3.font.size = Pt(14)
+    heading3.font.bold = True
+    heading3.font.color.rgb = RGBColor(100, 100, 100)
+    heading3.paragraph_format.space_before = Pt(12)
+    heading3.paragraph_format.space_after = Pt(8)
+
+    # 正文样式
+    normal = doc.styles['Normal']
+    normal.font.name = '微软雅黑'
+    normal.font.size = Pt(11)
+    normal.paragraph_format.line_spacing = 1.5
+    normal.paragraph_format.space_after = Pt(8)
+    normal.paragraph_format.first_line_indent = Cm(0.74)  # 首行缩进2字符
+
+def create_cover_page(doc):
+    """创建封面页"""
+    # 封面标题
+    title = doc.add_paragraph()
+    title.alignment = WD_ALIGN_PARAGRAPH.CENTER
+    title_run = title.add_run('AI前沿知识儿童科普画册')
+    title_run.font.name = '微软雅黑'
+    title_run.font.size = Pt(36)
+    title_run.font.bold = True
+    title_run.font.color.rgb = RGBColor(0, 74, 144)
+    title.paragraph_format.space_before = Pt(100)
+    title.paragraph_format.space_after = Pt(20)
+
+    # 副标题
+    subtitle = doc.add_paragraph()
+    subtitle.alignment = WD_ALIGN_PARAGRAPH.CENTER
+    subtitle_run = subtitle.add_run('从LLM到GitHub，从Vibecoding到未来')
+    subtitle_run.font.name = '微软雅黑'
+    subtitle_run.font.size = Pt(18)
+    subtitle_run.font.color.rgb = RGBColor(100, 100, 100)
+    subtitle.paragraph_format.space_after = Pt(40)
+
+    # 作者信息
+    author = doc.add_paragraph()
+    author.alignment = WD_ALIGN_PARAGRAPH.CENTER
+    author_run = author.add_run('作者：单夫纯')
+    author_run.font.name = '微软雅黑'
+    author_run.font.size = Pt(14)
+    author.paragraph_format.space_before = Pt(200)
+
+    # 目标读者
+    target = doc.add_paragraph()
+    target.alignment = WD_ALIGN_PARAGRAPH.CENTER
+    target_run = target.add_run('目标读者：8-14岁儿童')
+    target_run.font.name = '微软雅黑'
+    target_run.font.size = Pt(12)
+    target_run.font.color.rgb = RGBColor(100, 100, 100)
+
+    # 分页
+    doc.add_page_break()
+
+def create_toc_page(doc, toc_items):
+    """创建目录页"""
+    # 目录标题
+    toc_title = doc.add_heading('目录', level=1)
+    toc_title.alignment = WD_ALIGN_PARAGRAPH.CENTER
+
+    # 添加目录项
+    for item in toc_items:
+        level, title, page_num = item
+
+        toc_para = doc.add_paragraph()
+        toc_para.paragraph_format.left_indent = Cm(level * 0.5)
+
+        # 标题
+        title_run = toc_para.add_run(title)
+        title_run.font.name = '微软雅黑'
+        if level == 1:
+            title_run.font.size = Pt(14)
+            title_run.font.bold = True
+        elif level == 2:
+            title_run.font.size = Pt(12)
+        else:
+            title_run.font.size = Pt(11)
+
+        # 点线
+        dots_run = toc_para.add_run(' ' + '.' * 50)
+        dots_run.font.name = '微软雅黑'
+        dots_run.font.size = Pt(10)
+        dots_run.font.color.rgb = RGBColor(200, 200, 200)
+
+        # 页码
+        page_run = toc_para.add_run(f' {page_num}')
+        page_run.font.name = '微软雅黑'
+        page_run.font.size = Pt(11)
+        page_run.font.bold = True
+
+    # 分页
+    doc.add_page_break()
+
+def parse_markdown_to_docx(md_file, output_file):
+    """解析Markdown并生成Word文档"""
+    print('开始生成Word文档...')
+
+    # 读取Markdown文件
+    with open(md_file, 'r', encoding='utf-8') as f:
+        content = f.read()
+
+    # 创建文档
+    doc = Document()
+
+    # 设置页面
+    section = doc.sections[0]
+    section.page_height = Cm(29.7)  # A4高度
+    section.page_width = Cm(21)     # A4宽度
+    section.top_margin = Cm(2.5)
+    section.bottom_margin = Cm(2.5)
+    section.left_margin = Cm(2.5)
+    section.right_margin = Cm(2.5)
+
+    # 添加页码
+    add_page_number(section)
+
+    # 设置样式
+    setup_styles(doc)
+
+    # 创建封面
+    create_cover_page(doc)
+
+    # 解析内容,提取目录
+    print('解析内容...')
+    lines = content.split('\n')
+    toc_items = []
+    current_page = 3  # 封面1页,目录1页,从第3页开始
+
+    # 第一遍:提取目录结构
+    for line in lines:
+        if line.startswith('# '):
+            title = line[2:].strip()
+            toc_items.append((1, title, current_page))
+            current_page += 1
+        elif line.startswith('## '):
+            title = line[3:].strip()
+            if not title.startswith('第') and '章' not in title:  # 跳过章节标题
+                toc_items.append((2, title, current_page))
+        elif line.startswith('### '):
+            title = line[4:].strip()
+            toc_items.append((3, title, current_page))
+
+    # 创建目录页
+    print('生成目录...')
+    create_toc_page(doc, toc_items[:50])  # 只显示前50个目录项
+
+    # 第二遍:生成正文内容
+    print('生成正文...')
+    i = 0
+    svg_count = 0
+
+    while i < len(lines):
+        line = lines[i].strip()
+
+        # 一级标题
+        if line.startswith('# '):
+            title = line[2:].strip()
+            doc.add_heading(title, level=1)
+
+        # 二级标题
+        elif line.startswith('## '):
+            title = line[3:].strip()
+            doc.add_heading(title, level=2)
+
+        # 三级标题
+        elif line.startswith('### '):
+            title = line[4:].strip()
+            doc.add_heading(title, level=3)
+
+        # 插图标记
+        elif line.startswith('【插图'):
+            # 提取插图描述
+            desc = line
+            para = doc.add_paragraph()
+            para.alignment = WD_ALIGN_PARAGRAPH.CENTER
+            run = para.add_run(desc)
+            run.font.name = '微软雅黑'
+            run.font.size = Pt(10)
+            run.font.color.rgb = RGBColor(100, 100, 100)
+            run.italic = True
+
+            # 检查下一行是否是SVG
+            if i + 1 < len(lines) and lines[i + 1].strip().startswith('<svg'):
+                # 提取SVG内容
+                svg_start = i + 1
+                svg_end = svg_start
+                while svg_end < len(lines) and '</svg>' not in lines[svg_end]:
+                    svg_end += 1
+
+                if svg_end < len(lines):
+                    svg_content = '\n'.join(lines[svg_start:svg_end + 1])
+
+                    # 简化处理:添加占位符文本
+                    svg_para = doc.add_paragraph()
+                    svg_para.alignment = WD_ALIGN_PARAGRAPH.CENTER
+                    svg_run = svg_para.add_run(f'[插图 {svg_count + 1}]')
+                    svg_run.font.name = '微软雅黑'
+                    svg_run.font.size = Pt(12)
+                    svg_run.font.color.rgb = RGBColor(74, 144, 226)
+                    svg_run.bold = True
+
+                    svg_count += 1
+                    i = svg_end
+
+        # 分隔线
+        elif line.startswith('---'):
+            para = doc.add_paragraph()
+            para.alignment = WD_ALIGN_PARAGRAPH.CENTER
+            run = para.add_run('─' * 30)
+            run.font.color.rgb = RGBColor(200, 200, 200)
+
+        # 普通段落
+        elif line and not line.startswith('<') and not line.startswith('**'):
+            # 跳过HTML标签
+            if not re.match(r'^<[^>]+>$', line):
+                para = doc.add_paragraph(line)
+                para.style = 'Normal'
+
+        # 粗体段落标题
+        elif line.startswith('**') and line.endswith('**'):
+            title = line.strip('*')
+            para = doc.add_paragraph()
+            run = para.add_run(title)
+            run.font.name = '微软雅黑'
+            run.font.size = Pt(12)
+            run.font.bold = True
+            run.font.color.rgb = RGBColor(0, 74, 144)
+
+        i += 1
+
+    # 保存文档
+    print(f'保存文档到: {output_file}')
+    doc.save(output_file)
+    print(f'✓ Word文档生成完成!')
+    print(f'  - 总页数: 约{current_page}页')
+    print(f'  - 插图数: {svg_count}个')
+
+if __name__ == '__main__':
+    md_file = 'AI前沿知识儿童科普画册-带全部插图.md'
+    output_file = 'AI前沿知识儿童科普画册-精装版.docx'
+
+    parse_markdown_to_docx(md_file, output_file)

@@ -1,0 +1,175 @@
+"""Android端Python引擎 - 被Java通过Chaquopy调用"""
+import os, re
+from difflib import SequenceMatcher
+
+
+# ===== 文档解析 =====
+def parse_docx(filepath):
+    ext = os.path.splitext(filepath)[1].lower()
+    if ext == '.txt':
+        with open(filepath, 'r', encoding='utf-8') as f:
+            return [l.strip() for l in f if l.strip()]
+    # docx用zipfile解析（不依赖python-docx）
+    import zipfile
+    from xml.etree import ElementTree
+    ns = '{http://schemas.openxmlformats.org/wordprocessingml/2006/main}'
+    paragraphs = []
+    with zipfile.ZipFile(filepath) as z:
+        with z.open('word/document.xml') as f:
+            tree = ElementTree.parse(f)
+    for p in tree.iter(f'{ns}p'):
+        texts = [t.text for t in p.iter(f'{ns}t') if t.text]
+        line = ''.join(texts).strip()
+        if line:
+            paragraphs.append(line)
+    return paragraphs
+
+
+# ===== 文本规范化 =====
+_RE_PUNCT = re.compile(r'[，。！？；：、\u201c\u201d\u2018\u2019（）【】《》…—·\s,.!?;:\'"()\[\]{}\-]')
+FILLER_WORDS = {'嗯', '呃', '啊', '哦', '呢', '吧', '嘛', '哈', '噢', '诶', '那个', '就是', '然后'}
+CN_NUM = {'0':'零','1':'一','2':'二','3':'三','4':'四','5':'五','6':'六','7':'七','8':'八','9':'九'}
+
+def _norm(text):
+    return _RE_PUNCT.sub('', text)
+
+def _segment(text):
+    return [c for c in text if c.strip()]
+
+def _num_reading(text):
+    result = re.sub(r'(\d{4})年', lambda m: ''.join(CN_NUM.get(d,d) for d in m.group(1))+'年', text)
+    result = re.sub(r'(\d+)%', lambda m: '百分之'+''.join(CN_NUM.get(d,d) for d in m.group(1)), result)
+    return re.sub(r'(\d+)', lambda m: ''.join(CN_NUM.get(d,d) for d in m.group(1)), result)
+
+def _same_pinyin(a, b):
+    a_c, b_c = _norm(a), _norm(b)
+    if not a_c or not b_c:
+        return False
+    if a_c == b_c:
+        return True
+    if _num_reading(a_c) == _num_reading(b_c):
+        return True
+    try:
+        from pypinyin import pinyin, Style
+        return pinyin(a_c, style=Style.TONE3) == pinyin(b_c, style=Style.TONE3)
+    except:
+        return False
+
+
+# ===== 对比算法 =====
+def compare_texts(audio_text, doc_text):
+    doc_paragraphs = [p.strip() for p in doc_text.split('\n') if p.strip()]
+    audio_norm = _norm(audio_text)
+    doc_norm = _norm(doc_text)
+    audio_words = _segment(audio_norm)
+    doc_words = _segment(doc_norm)
+
+    matcher = SequenceMatcher(None, doc_words, audio_words)
+    diffs = []
+
+    for tag, i1, i2, j1, j2 in matcher.get_opcodes():
+        if tag == 'equal':
+            continue
+        doc_frag = ''.join(doc_words[i1:i2])
+        audio_frag = ''.join(audio_words[j1:j2])
+
+        if tag == 'insert' and audio_frag in FILLER_WORDS:
+            continue
+        if tag == 'delete' and doc_frag in FILLER_WORDS:
+            continue
+        if tag == 'replace' and _same_pinyin(doc_frag, audio_frag):
+            continue
+        if all(_RE_PUNCT.match(c) for c in doc_frag if c.strip()) and all(_RE_PUNCT.match(c) for c in audio_frag if c.strip()):
+            continue
+
+        dtype = '误读' if tag == 'replace' else ('漏读' if tag == 'delete' else '多读')
+        if tag == 'replace':
+            diffs.append(f'[{dtype}] 原文: {doc_frag} → 录音: {audio_frag}')
+        elif tag == 'delete':
+            diffs.append(f'[{dtype}] {doc_frag}')
+        else:
+            diffs.append(f'[{dtype}] {audio_frag}')
+
+    total = max(len(doc_norm), 1)
+    diff_chars = sum(len(d) for d in diffs)
+    n_mis = sum(1 for d in diffs if d.startswith('[误读'))
+    n_miss = sum(1 for d in diffs if d.startswith('[漏读'))
+    n_extra = sum(1 for d in diffs if d.startswith('[多读'))
+    accuracy = max(0, (1 - len(diffs) * 3 / total) * 100)
+
+    summary = f'共{len(diffs)}处差异：{n_mis}处误读，{n_miss}处漏读，{n_extra}处多读\n准确率约 {accuracy:.1f}%'
+    return summary, diffs
+
+
+# ===== 语音转录 =====
+def transcribe_sherpa(audio_path, model_dir):
+    import sherpa_onnx, wave, struct
+    model_path = os.path.join(model_dir, 'model.int8.onnx')
+    tokens_path = os.path.join(model_dir, 'tokens.txt')
+
+    recognizer = sherpa_onnx.OfflineRecognizer.from_paraformer(
+        paraformer=model_path, tokens=tokens_path,
+        num_threads=4, sample_rate=16000, decoding_method='greedy_search')
+
+    with wave.open(audio_path, 'rb') as wf:
+        samples = wf.readframes(wf.getnframes())
+    samples = struct.unpack(f'{len(samples)//2}h', samples)
+    samples = [s / 32768.0 for s in samples]
+
+    stream = recognizer.create_stream()
+    stream.accept_waveform(16000, samples)
+    recognizer.decode_stream(stream)
+    return stream.result.text.strip()
+
+
+def preprocess_audio(filepath, cache_dir):
+    """简单的音频预处理 - 转为16kHz WAV"""
+    out = os.path.join(cache_dir, 'preprocessed.wav')
+    try:
+        import subprocess
+        subprocess.run(['ffmpeg', '-y', '-i', filepath, '-ac', '1', '-ar', '16000',
+                        '-acodec', 'pcm_s16le', out],
+                       capture_output=True, timeout=60)
+        if os.path.exists(out) and os.path.getsize(out) > 100:
+            return out
+    except:
+        pass
+    return filepath
+
+
+# ===== Java调用入口 =====
+def run_compare(audio_path, doc_path, files_dir):
+    """被MainActivity.java调用的主入口"""
+    # 预处理音频
+    cache_dir = os.path.join(files_dir, 'cache')
+    os.makedirs(cache_dir, exist_ok=True)
+    processed = preprocess_audio(audio_path, cache_dir)
+
+    # 转录
+    model_dir = os.path.join(files_dir, 'models', 'paraformer')
+    if os.path.exists(os.path.join(model_dir, 'model.int8.onnx')):
+        audio_text = transcribe_sherpa(processed, model_dir)
+    else:
+        # 回退到百度API
+        import requests, base64, json
+        resp = requests.post('https://aip.baidubce.com/oauth/2.0/token',
+            params={'grant_type':'client_credentials',
+                    'client_id':'WRNGMiXLtsPvIAeh9pFhnM2W',
+                    'client_secret':'e6nlIRVT25qSuABjRmx21kRoHha2w4t4'}, timeout=10)
+        token = resp.json().get('access_token','')
+        with open(processed, 'rb') as f:
+            data = f.read()
+        r = requests.post('https://vop.baidu.com/server_api',
+            json={'format':'wav','rate':16000,'channel':1,'cuid':'voicedoc',
+                  'token':token,'speech':base64.b64encode(data).decode(),'len':len(data),'dev_pid':1537},
+            timeout=60)
+        audio_text = ''.join(r.json().get('result', ['转录失败']))
+
+    # 解析文档
+    paragraphs = parse_docx(doc_path)
+    doc_text = '\n'.join(paragraphs)
+
+    # 对比
+    summary, diffs = compare_texts(audio_text, doc_text)
+
+    return {'summary': summary, 'details': '\n'.join(diffs)}

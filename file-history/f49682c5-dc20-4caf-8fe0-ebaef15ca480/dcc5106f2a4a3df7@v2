@@ -1,0 +1,497 @@
+import os, sys, tempfile, subprocess, requests, hmac, hashlib, base64, json, time
+from urllib.parse import quote
+from datetime import datetime, timezone
+import opencc
+
+_funasr_proc = None
+_converter = None
+
+# 隐藏子进程窗口的标志 (Windows: 0x08000000, 其他: 0)
+_HIDE_WINDOW = 0x08000000 if sys.platform == 'win32' else 0
+# 同时设置 subprocess.CREATE_NO_WINDOW (如果可用)
+if hasattr(subprocess, 'CREATE_NO_WINDOW'):
+    _HIDE_WINDOW = getattr(subprocess, 'CREATE_NO_WINDOW', _HIDE_WINDOW)
+
+def _get_converter():
+    """Get OpenCC converter instance for Traditional to Simplified Chinese."""
+    global _converter
+    if _converter is None:
+        try:
+            import opencc
+            _converter = opencc.OpenCC('t2s')  # Traditional to Simplified
+        except ImportError:
+            _converter = None
+    return _converter
+
+def _to_simplified(text):
+    """Convert Traditional Chinese to Simplified Chinese."""
+    converter = _get_converter()
+    if converter:
+        try:
+            return converter.convert(text)
+        except:
+            pass
+    return text  # Return original if conversion fails
+
+def preprocess_audio(filepath, progress_cb=None):
+    """Normalize volume and reduce noise using ffmpeg. Returns path to processed file."""
+    if progress_cb: progress_cb('正在预处理音频（降噪+音量归一化）...')
+    out = os.path.join(tempfile.gettempdir(), 'vdc_preprocessed.wav')
+    subprocess.run([
+        'ffmpeg', '-y', '-i', filepath,
+        '-af', 'highpass=f=80,lowpass=f=8000,afftdn=nf=-25,loudnorm=I=-16:TP=-1.5:LRA=11',
+        '-ac', '1', '-ar', '16000', out
+    ], capture_output=True, creationflags=_HIDE_WINDOW)
+    return out if os.path.exists(out) else filepath
+
+def _ensure_funasr_running():
+    """Auto-start FunASR server if not running."""
+    global _funasr_proc
+    try:
+        r = requests.get('http://localhost:8765/health', timeout=2)
+        if r.status_code == 200:
+            return
+    except:
+        pass
+    # Try to start the server
+    python_exe = os.path.expanduser('~/funasr-venv/Scripts/python.exe')
+    server_script = os.path.expanduser('~/.clawdbot/skills/funasr-transcribe/scripts/server.py')
+    if not os.path.exists(python_exe) or not os.path.exists(server_script):
+        raise Exception('FunASR环境未安装，请检查 ~/funasr-venv 和 ~/.clawdbot/skills/funasr-transcribe')
+    _funasr_proc = subprocess.Popen(
+        [python_exe, server_script],
+        stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
+        creationflags=_HIDE_WINDOW,
+    )
+    # Wait for server to be ready
+    for _ in range(60):
+        time.sleep(1)
+        try:
+            r = requests.get('http://localhost:8765/health', timeout=2)
+            if r.status_code == 200:
+                return
+        except:
+            pass
+    raise Exception('FunASR服务启动超时，请手动运行:\n' + python_exe + ' ' + server_script)
+
+def transcribe_audio(filepath, config, progress_cb=None):
+    from config import get_builtin_keys
+    pid = config['asr_provider']
+    keys = config.get('asr_keys', {}).get(pid, {})
+    # Use builtin keys if available
+    if not keys:
+        keys = get_builtin_keys(pid)
+    # Preprocess audio
+    if config.get('preprocess', True):
+        filepath = preprocess_audio(filepath, progress_cb)
+    if pid == 'funasr':
+        return _transcribe_funasr(filepath, progress_cb)
+    elif pid == 'aliyun':
+        return _transcribe_chunked(filepath, lambda f: _transcribe_aliyun(f, keys), progress_cb)
+    elif pid == 'baidu' or pid == 'baidu_builtin':
+        return _transcribe_baidu_chunked(filepath, keys, progress_cb)
+    elif pid == 'groq_whisper':
+        return _transcribe_ffmpeg_chunked(filepath, lambda f: _transcribe_groq(f, keys['key']), progress_cb)
+    elif pid == 'openai_whisper':
+        return _transcribe_ffmpeg_chunked(filepath, lambda f: _transcribe_whisper(f, keys['key']), progress_cb)
+    else:
+        raise Exception(f'{pid} 转写暂未实现')
+
+def transcribe_with_timestamps(filepath, config, progress_cb=None):
+    """Transcribe with word-level timestamps using stable-ts."""
+    if config.get('preprocess', True):
+        filepath = preprocess_audio(filepath, progress_cb)
+    if progress_cb: progress_cb('正在加载stable-ts模型（首次较慢）...')
+    import stable_whisper
+    model = stable_whisper.load_model('base')
+    if progress_cb: progress_cb('正在转写并对齐时间戳...')
+    result = model.transcribe(filepath, language='zh')
+    words = []
+    for seg in result.segments:
+        for w in seg.words:
+            words.append({'word': w.word.strip(), 'start': w.start, 'end': w.end, 'confidence': getattr(w, 'probability', 0.0)})
+    text = ''.join(w['word'] for w in words)
+    return text, words
+
+# --- FunASR (local server) ---
+def _transcribe_funasr(filepath, progress_cb=None):
+    if progress_cb: progress_cb('正在启动FunASR服务...')
+    _ensure_funasr_running()
+    if progress_cb: progress_cb('正在调用本地FunASR服务...')
+    r = requests.post('http://localhost:8765/transcribe',
+        json={'file_path': os.path.abspath(filepath)}, timeout=600)
+    data = r.json()
+    if data.get('success'):
+        text = data.get('text', '')
+        # Convert Traditional Chinese to Simplified Chinese
+        text = _to_simplified(text)
+        return text
+    raise Exception(data.get('error', '转写失败'))
+
+# --- Chunked transcription for cloud APIs ---
+def _transcribe_chunked(filepath, transcribe_fn, progress_cb=None):
+    from pydub import AudioSegment
+    if progress_cb: progress_cb('正在加载音频...')
+    audio = AudioSegment.from_file(filepath)
+    duration_s = len(audio) / 1000
+
+    if duration_s <= 60:
+        if progress_cb: progress_cb('正在转写...')
+        return transcribe_fn(filepath)
+
+    # Split into chunks at silence points
+    from pydub.silence import split_on_silence
+    if progress_cb: progress_cb('长语音，正在分块...')
+    chunks = split_on_silence(audio, min_silence_len=500, silence_thresh=-40, keep_silence=300)
+
+    # Merge small chunks, split large ones to keep each ≤ 55s
+    merged = []
+    buf = AudioSegment.empty()
+    for c in chunks:
+        if len(buf) + len(c) <= 55000:
+            buf += c
+        else:
+            if len(buf) > 0:
+                merged.append(buf)
+            if len(c) > 55000:
+                # Hard split
+                for i in range(0, len(c), 55000):
+                    merged.append(c[i:i+55000])
+            else:
+                buf = c
+                continue
+            buf = AudioSegment.empty()
+    if len(buf) > 0:
+        merged.append(buf)
+
+    if not merged:
+        merged = [audio]
+
+    results = []
+    tmpdir = tempfile.mkdtemp()
+    for i, chunk in enumerate(merged):
+        if progress_cb: progress_cb(f'转写分块 {i+1}/{len(merged)}...')
+        tmp = os.path.join(tmpdir, f'chunk_{i}.wav')
+        chunk.export(tmp, format='wav')
+        results.append(transcribe_fn(tmp))
+        os.remove(tmp)
+
+    return ' '.join(results)
+
+# --- FFmpeg-based chunked transcription (no pydub dependency) ---
+def _transcribe_ffmpeg_chunked(filepath, transcribe_fn, progress_cb=None):
+    if progress_cb: progress_cb('正在检测音频时长...')
+    # Get duration via ffprobe
+    result = subprocess.run(['ffprobe', '-v', 'quiet', '-print_format', 'json', '-show_format', filepath],
+        capture_output=True, text=True, creationflags=getattr(subprocess, 'CREATE_NO_WINDOW', 0))
+    duration_s = float(json.loads(result.stdout).get('format', {}).get('duration', 0))
+
+    if duration_s <= 55:
+        if progress_cb: progress_cb('正在转写...')
+        return transcribe_fn(filepath)
+
+    # Split into 55-second chunks using ffmpeg
+    tmpdir = tempfile.mkdtemp()
+    chunk_pattern = os.path.join(tmpdir, 'chunk_%03d.wav')
+    subprocess.run(['ffmpeg', '-i', filepath, '-f', 'segment', '-segment_time', '55',
+        '-ac', '1', '-ar', '16000', '-y', chunk_pattern],
+        capture_output=True, creationflags=getattr(subprocess, 'CREATE_NO_WINDOW', 0))
+
+    chunks = sorted([os.path.join(tmpdir, f) for f in os.listdir(tmpdir) if f.startswith('chunk_')])
+    if not chunks:
+        if progress_cb: progress_cb('正在转写...')
+        return transcribe_fn(filepath)
+
+    results = []
+    for i, chunk in enumerate(chunks):
+        if progress_cb: progress_cb(f'转写分块 {i+1}/{len(chunks)}...')
+        results.append(transcribe_fn(chunk))
+        os.remove(chunk)
+    os.rmdir(tmpdir)
+    return ' '.join(results)
+
+# --- Aliyun ASR ---
+def _transcribe_aliyun(filepath, keys):
+    ak_id, ak_secret, app_key = keys.get('key',''), keys.get('secret',''), keys.get('appKey','')
+    if not all([ak_id, ak_secret, app_key]):
+        raise Exception('请配置阿里云 AccessKey ID、Secret 和 AppKey')
+
+    # Get token
+    nonce = os.urandom(8).hex()
+    ts = datetime.now(timezone.utc).strftime('%Y-%m-%dT%H:%M:%SZ')
+    params = {
+        'AccessKeyId': ak_id, 'Action': 'CreateToken', 'Format': 'JSON',
+        'RegionId': 'cn-shanghai', 'SignatureMethod': 'HMAC-SHA1',
+        'SignatureNonce': nonce, 'SignatureVersion': '1.0',
+        'Timestamp': ts, 'Version': '2019-02-28',
+    }
+    canon = '&'.join(f'{quote(k, safe="")}={quote(params[k], safe="")}' for k in sorted(params))
+    sts = f'GET&{quote("/", safe="")}&{quote(canon, safe="")}'
+    sig = base64.b64encode(hmac.new((ak_secret + '&').encode(), sts.encode(), hashlib.sha1).digest()).decode()
+    params['Signature'] = sig
+    query = '&'.join(f'{quote(k, safe="")}={quote(v, safe="")}' for k, v in params.items())
+    resp = requests.get(f'https://nls-meta.cn-shanghai.aliyuncs.com/?{query}', timeout=10)
+    token = resp.json().get('Token', {}).get('Id')
+    if not token:
+        raise Exception('获取阿里云Token失败: ' + resp.text[:200])
+
+    # Transcribe
+    with open(filepath, 'rb') as f:
+        audio_data = f.read()
+    url = f'https://nls-gateway-cn-shanghai.aliyuncs.com/stream/v1/asr?appkey={app_key}&format=wav&sample_rate=16000&enable_punctuation_prediction=true&enable_inverse_text_normalization=true'
+    resp = requests.post(url, headers={'X-NLS-Token': token, 'Content-Type': 'application/octet-stream'}, data=audio_data, timeout=60)
+    result = resp.json()
+    if result.get('status') == 20000000 and result.get('result'):
+        return result['result']
+    raise Exception('阿里云识别失败: ' + json.dumps(result, ensure_ascii=False)[:200])
+
+# --- Baidu ASR chunked (with proper format conversion) ---
+def _transcribe_baidu_chunked(filepath, keys, progress_cb=None):
+    """Handle Baidu ASR with automatic chunking for long audio."""
+    # First, convert to proper format (16kHz, mono)
+    tmp_normalized = os.path.join(tempfile.gettempdir(), 'baidu_normalized.wav')
+    if progress_cb:
+        progress_cb('正在转换音频格式...')
+    subprocess.run([
+        'ffmpeg', '-y', '-i', filepath,
+        '-acodec', 'pcm_s16le',
+        '-ac', '1',
+        '-ar', '16000',
+        tmp_normalized
+    ], capture_output=True, creationflags=getattr(subprocess, 'CREATE_NO_WINDOW', 0))
+
+    if not os.path.exists(tmp_normalized):
+        # Fallback: use original
+        tmp_normalized = filepath
+
+    # Get duration
+    result = subprocess.run(['ffprobe', '-v', 'quiet', '-print_format', 'json', '-show_format', tmp_normalized],
+        capture_output=True, text=True, creationflags=getattr(subprocess, 'CREATE_NO_WINDOW', 0))
+    try:
+        duration_s = float(json.loads(result.stdout).get('format', {}).get('duration', 0))
+    except:
+        duration_s = 0
+
+    # If short enough, transcribe directly
+    if duration_s <= 55:
+        if progress_cb:
+            progress_cb('正在转写...')
+        text = _transcribe_baidu_single(tmp_normalized, keys)
+        if tmp_normalized != filepath and os.path.exists(tmp_normalized):
+            os.remove(tmp_normalized)
+        return text
+
+    # Long audio: split into 55-second chunks
+    if progress_cb:
+        progress_cb(f'长语音({int(duration_s)}秒)，正在分段...')
+    tmpdir = tempfile.mkdtemp()
+    chunk_pattern = os.path.join(tmpdir, 'chunk_%03d.wav')
+    subprocess.run(['ffmpeg', '-i', tmp_normalized, '-f', 'segment', '-segment_time', '55',
+        '-ac', '1', '-ar', '16000', '-y', chunk_pattern],
+        capture_output=True, creationflags=getattr(subprocess, 'CREATE_NO_WINDOW', 0))
+
+    chunks = sorted([os.path.join(tmpdir, f) for f in os.listdir(tmpdir) if f.startswith('chunk_')])
+
+    if not chunks:
+        if tmp_normalized != filepath and os.path.exists(tmp_normalized):
+            os.remove(tmp_normalized)
+        raise Exception('音频分段失败')
+
+    results = []
+    for i, chunk in enumerate(chunks):
+        if progress_cb:
+            progress_cb(f'转写分块 {i+1}/{len(chunks)}...')
+        try:
+            text = _transcribe_baidu_single(chunk, keys)
+            results.append(text)
+        except Exception as e:
+            # Continue with next chunk on error
+            results.append(f'[{e}]')
+        os.remove(chunk)
+
+    os.rmdir(tmpdir)
+    if tmp_normalized != filepath and os.path.exists(tmp_normalized):
+        os.remove(tmp_normalized)
+
+    return ' '.join(results)
+
+def _transcribe_baidu_single(filepath, keys):
+    """Transcribe a single audio file (must be <= 60s)."""
+    api_key, secret_key = keys.get('key', ''), keys.get('secret', '')
+    app_id = keys.get('app_id', '')
+    if not api_key or not secret_key:
+        raise Exception('请配置百度 API Key 和 Secret Key')
+
+    # Get access token with caching
+    if not hasattr(_transcribe_baidu_single, '_token'):
+        _transcribe_baidu_single._token = None
+        _transcribe_baidu_single._token_keys = None
+
+    if _transcribe_baidu_single._token_keys != (api_key, secret_key):
+        resp = requests.post('https://aip.baidubce.com/oauth/2.0/token',
+            params={'grant_type': 'client_credentials', 'client_id': api_key, 'client_secret': secret_key}, timeout=10)
+        data = resp.json()
+        token = data.get('access_token')
+        if not token:
+            raise Exception('获取百度Token失败: ' + resp.text[:200])
+        _transcribe_baidu_single._token = token
+        _transcribe_baidu_single._token_keys = (api_key, secret_key)
+    else:
+        token = _transcribe_baidu_single._token
+
+    with open(filepath, 'rb') as f:
+        audio_data = f.read()
+
+    # Check audio length
+    audio_len = len(audio_data)
+    if audio_len > 2 * 1024 * 1024:
+        raise Exception(f'音频文件过大({audio_len/1024/1024:.1f}MB)，请使用60秒以内的音频')
+
+    # dev_pid: 1537=普通话(支持简单的英文识别), 1737=英语
+    payload = {
+        'format': 'wav',
+        'rate': 16000,
+        'channel': 1,
+        'cuid': app_id or 'voice_doc_compare',
+        'token': token,
+        'speech': base64.b64encode(audio_data).decode(),
+        'len': audio_len,
+        'dev_pid': 1537  # 普通话
+    }
+    resp = requests.post('https://vop.baidu.com/server_api',
+        json=payload, timeout=60)
+    result = resp.json()
+    err_no = result.get('err_no', -1)
+    if err_no == 0:
+        return ''.join(result.get('result', []))
+
+    # 详细的错误码说明
+    error_messages = {
+        3301: '音频质量过差，无法识别',
+        3302: '鉴权失败，请检查API Key',
+        3303: '语音服务器后端问题',
+        3307: '音频时长过长，超过60秒限制',
+        3308: '音频过长',
+        3309: '音频格式问题',
+        3310: '音频采样率不正确',
+        3311: '音频编码不正确',
+        3312: '音频参数不正确',
+        3333: '服务器错误',
+        3001: '语音识别服务器内部错误',
+        3003: '语音识别后端系统错误',
+    }
+    err_msg = error_messages.get(err_no, result.get('err_msg', '未知错误'))
+    raise Exception(f'百度识别失败[{err_no}]: {err_msg}')
+
+# --- Groq Whisper ---
+def _transcribe_groq(filepath, api_key):
+    with open(filepath, 'rb') as f:
+        resp = requests.post('https://api.groq.com/openai/v1/audio/transcriptions',
+            headers={'Authorization': f'Bearer {api_key}'},
+            files={'file': (os.path.basename(filepath), f, 'audio/wav')},
+            data={'model': 'whisper-large-v3', 'language': 'zh', 'response_format': 'verbose_json'}, timeout=120)
+    data = resp.json()
+    if 'text' in data:
+        return data['text']
+    raise Exception('Groq Whisper识别失败: ' + json.dumps(data, ensure_ascii=False)[:200])
+
+# --- OpenAI Whisper ---
+def _transcribe_whisper(filepath, api_key):
+    with open(filepath, 'rb') as f:
+        resp = requests.post('https://api.openai.com/v1/audio/transcriptions',
+            headers={'Authorization': f'Bearer {api_key}'},
+            files={'file': (os.path.basename(filepath), f, 'audio/wav')},
+            data={'model': 'whisper-1'}, timeout=60)
+    data = resp.json()
+    if 'text' in data:
+        return data['text']
+    raise Exception('Whisper识别失败: ' + json.dumps(data, ensure_ascii=False)[:200])
+
+# --- Test connection ---
+def test_asr(provider_id, keys):
+    from config import BUILTIN_BAIDU_KEYS
+    if provider_id == 'funasr':
+        try:
+            _ensure_funasr_running()
+            return True, '✓ FunASR服务运行中'
+        except Exception as e:
+            return False, f'FunASR启动失败: {str(e)[:60]}'
+    elif provider_id == 'baidu_builtin':
+        # Test builtin baidu keys
+        try:
+            resp = requests.post('https://aip.baidubce.com/oauth/2.0/token',
+                params={'grant_type': 'client_credentials', 'client_id': BUILTIN_BAIDU_KEYS['key'], 'client_secret': BUILTIN_BAIDU_KEYS['secret']}, timeout=10)
+            data = resp.json()
+            if 'error' in data:
+                return False, f'内置密钥失效: {data.get("error_description", data.get("error", ""))}'
+            if data.get('access_token'):
+                return True, '✓ 内置百度API连接成功'
+            return False, '获取Token失败'
+        except requests.exceptions.Timeout:
+            return False, '连接超时，请检查网络'
+        except requests.exceptions.ConnectionError:
+            return False, '网络连接失败'
+        except Exception as e:
+            return False, f'连接失败: {e}'
+    elif provider_id == 'aliyun':
+        if not keys.get('key') or not keys.get('secret') or not keys.get('appKey'):
+            return False, '请填写 AccessKey ID、Secret 和 AppKey'
+        try:
+            # Try to get token to validate credentials
+            nonce = os.urandom(8).hex()
+            ts = datetime.now(timezone.utc).strftime('%Y-%m-%dT%H:%M:%SZ')
+            params = {
+                'AccessKeyId': keys['key'], 'Action': 'CreateToken', 'Format': 'JSON',
+                'RegionId': 'cn-shanghai', 'SignatureMethod': 'HMAC-SHA1',
+                'SignatureNonce': nonce, 'SignatureVersion': '1.0',
+                'Timestamp': ts, 'Version': '2019-02-28',
+            }
+            canon = '&'.join(f'{quote(k, safe="")}={quote(params[k], safe="")}' for k in sorted(params))
+            sts = f'GET&{quote("/", safe="")}&{quote(canon, safe="")}'
+            sig = base64.b64encode(hmac.new((keys['secret'] + '&').encode(), sts.encode(), hashlib.sha1).digest()).decode()
+            params['Signature'] = sig
+            query = '&'.join(f'{quote(k, safe="")}={quote(v, safe="")}' for k, v in params.items())
+            resp = requests.get(f'https://nls-meta.cn-shanghai.aliyuncs.com/?{query}', timeout=10)
+            if resp.json().get('Token', {}).get('Id'):
+                return True, '✓ 阿里云API连接成功'
+            return False, '阿里云认证失败: ' + resp.text[:60]
+        except requests.exceptions.Timeout:
+            return False, '连接超时，请检查网络'
+        except requests.exceptions.ConnectionError:
+            return False, '网络连接失败'
+        except Exception as e:
+            return False, f'连接失败: {str(e)[:60]}'
+    elif provider_id == 'baidu':
+        if not keys.get('key') or not keys.get('secret'):
+            return False, '请填写 API Key 和 Secret Key'
+        try:
+            resp = requests.post('https://aip.baidubce.com/oauth/2.0/token',
+                params={'grant_type': 'client_credentials', 'client_id': keys['key'], 'client_secret': keys['secret']}, timeout=10)
+            data = resp.json()
+            if 'error' in data:
+                return False, f'百度认证失败: {data.get("error_description", data.get("error", ""))}'
+            if data.get('access_token'):
+                return True, '✓ 百度API连接成功'
+            return False, '获取Token失败: ' + resp.text[:100]
+        except requests.exceptions.Timeout:
+            return False, '连接超时，请检查网络'
+        except requests.exceptions.ConnectionError:
+            return False, '网络连接失败'
+        except Exception as e:
+            return False, f'连接失败: {e}'
+    elif provider_id == 'groq_whisper':
+        api_key = keys.get('key', '')
+        if not api_key:
+            return False, '请填写 API Key'
+        if not api_key.startswith('gsk_'):
+            return False, 'Groq API Key 格式错误（应以 gsk_ 开头）'
+        return True, '✓ Groq API Key 格式正确'
+    elif provider_id == 'openai_whisper':
+        api_key = keys.get('key', '')
+        if not api_key:
+            return False, '请填写 API Key'
+        if not api_key.startswith('sk-'):
+            return False, 'OpenAI API Key 格式错误（应以 sk- 开头）'
+        return True, '✓ OpenAI API Key 格式正确'
+    else:
+        return True, '配置已保存，将在转写时验证'

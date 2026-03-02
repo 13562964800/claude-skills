@@ -1,0 +1,9 @@
+{
+  "id": "5",
+  "subject": "改进WebViewActivity实现",
+  "description": "改进WebViewActivity实现\n\n要求：\n1. 显示PDF卡片列表，不要重复\n2. 确保数量与网页一致（扫描多次去重）\n3. 文件名必须与网页显示一致\n4. 所有PDF下载完成后才关闭\n\n实现方式：\n- scanForPdfs：使用Set去重，避免重复添加\n- handlePdfDownload：追踪每个PDF的下载状态\n- showPdfCardsOverlay：根据下载状态显示卡片\n- 只有全部下载完成才finish()",
+  "activeForm": "改进WebViewActivity实现",
+  "status": "pending",
+  "blocks": [],
+  "blockedBy": []
+}

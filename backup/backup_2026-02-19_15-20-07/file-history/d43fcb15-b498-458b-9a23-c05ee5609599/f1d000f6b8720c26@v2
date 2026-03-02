@@ -1,0 +1,56 @@
+# -*- coding: utf-8 -*-
+"""提示音模块 - 处理完成时的音频提醒"""
+
+import sys
+import threading
+
+class NotificationSound:
+    """提示音管理器"""
+
+    @staticmethod
+    def play_completion_sound():
+        """播放完成提示音"""
+        try:
+            if sys.platform == 'win32':
+                # Windows: 使用系统提示音
+                import winsound
+                # 播放"星号"系统声音（通常比较清脆）
+                winsound.MessageBeep(winsound.MB_ICONASTERISK)
+
+                # 或者使用自定义频率
+                # winsound.Beep(880, 200)  # A5音符，200毫秒
+            else:
+                # macOS/Linux: 使用终端铃声
+                print('\a', end='', flush=True)
+        except Exception:
+            # 静默失败，不影响程序运行
+            pass
+
+    @staticmethod
+    def play_notification_sound(sound_type='completion'):
+        """播放指定类型的提示音
+
+        Args:
+            sound_type: 提示音类型 ('completion', 'error', 'warning')
+        """
+        try:
+            if sys.platform == 'win32':
+                import winsound
+
+                sound_map = {
+                    'completion': winsound.MB_ICONASTERISK,  # 完成提示
+                    'error': winsound.MB_ICONHAND,            # 错误提示
+                    'warning': winsound.MB_ICONEXCLAMATION,   # 警告提示
+                }
+
+                sound_id = sound_map.get(sound_type, winsound.MB_ICONASTERISK)
+                winsound.MessageBeep(sound_id)
+
+                # 完成提示可以播放两声
+                if sound_type == 'completion':
+                    threading.Timer(0.15, lambda: winsound.MessageBeep(sound_id)).start()
+
+            else:
+                print('\a', end='', flush=True)
+        except Exception:
+            pass

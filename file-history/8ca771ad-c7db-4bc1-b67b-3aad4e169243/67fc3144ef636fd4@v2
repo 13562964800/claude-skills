@@ -1,0 +1,136 @@
+# 🚀 快速参考卡片
+
+## 一分钟快速开始
+
+```bash
+# 1. 安装依赖
+cd ~/video-download-service
+pip install -r requirements.txt
+
+# 2. 启动服务
+python server.py
+
+# 3. 安装扩展
+# Chrome → chrome://extensions/ → 加载 video-downloader-extension
+
+# 4. 开始使用
+# 访问 YouTube/B站 → 点击"下载转录"按钮
+```
+
+## 📁 项目位置
+
+- **扩展**: `~/video-downloader-extension/`
+- **服务**: `~/video-download-service/`
+- **下载**: `~/Downloads/videos/`
+
+## 🔧 常用命令
+
+```bash
+# 检查环境
+cd ~/video-download-service && ./check_env.bat
+
+# 安装依赖
+./install.bat
+
+# 启动服务
+./start.bat
+
+# 测试服务
+python test_service.py
+
+# 验证服务
+curl http://localhost:8765/health
+
+# 更新 yt-dlp
+pip install --upgrade yt-dlp
+```
+
+## ⚙️ 配置文件
+
+**位置**: `~/video-download-service/config.yaml`
+
+```yaml
+# 下载目录
+download:
+  output_dir: ~/Downloads/videos
+
+# 转录引擎
+transcription:
+  transcription_mode: auto  # auto/local/online
+  model_size: base          # tiny/base/small/medium/large-v3
+  groq_api_key: ""          # Groq API Key
+```
+
+## 🌐 支持的网站
+
+- ✅ YouTube
+- ✅ B站 (Bilibili)
+- ✅ 抖音 (Douyin)
+- ✅ 1000+ 其他网站（yt-dlp 支持）
+
+## 🎙️ 转录引擎
+
+| 引擎 | 速度 | 成本 | 网络 | 适合 |
+|------|------|------|------|------|
+| 在线 (Groq) | 1-2x | 按次 | 必需 | 小文件 |
+| 本地 (Whisper) | 4x | 免费 | 无需 | 大文件 |
+
+## 📊 文件统计
+
+- **总文件**: 39 个
+- **代码行**: 1447 行
+- **模块**: 4 个（解析、下载、转录、存储）
+
+## 🔗 重要链接
+
+- **Groq API**: https://console.groq.com/
+- **FFmpeg**: https://ffmpeg.org/download.html
+- **yt-dlp**: https://github.com/yt-dlp/yt-dlp
+- **NSSM**: https://nssm.cc/download
+
+## 🐛 故障排除
+
+| 问题 | 解决方案 |
+|------|---------|
+| 服务无法启动 | 检查端口 8765，确认依赖已安装 |
+| 扩展无法连接 | 确认服务已启动，访问 /health |
+| YouTube 解析失败 | 登录 YouTube，更新 yt-dlp |
+| 转录失败 | 检查 FFmpeg，查看服务日志 |
+
+## 📖 文档索引
+
+- **完整文档**: `README.md`
+- **快速开始**: `QUICKSTART.md`
+- **安装指南**: `INSTALLATION_GUIDE.md`
+- **项目总结**: `PROJECT_SUMMARY.md`
+- **项目清单**: `PROJECT_CHECKLIST.md`
+- **中文说明**: `video-download-service/README_CN.md`
+
+## 🎯 核心功能
+
+- ✅ 一键下载视频
+- ✅ 自动转录文字
+- ✅ 混合引擎（在线/本地）
+- ✅ 实时进度推送
+- ✅ 多平台支持
+- ✅ Cookie 自动管理
+
+## 📞 获取帮助
+
+1. 查看文档（见上方索引）
+2. 运行测试脚本: `python test_service.py`
+3. 查看服务日志（控制台输出）
+4. 检查浏览器控制台（F12）
+
+## 🎉 开始使用
+
+1. 启动服务: `cd ~/video-download-service && ./start.bat`
+2. 安装扩展: Chrome → `chrome://extensions/`
+3. 访问视频: YouTube/B站
+4. 点击按钮: "下载转录"
+5. 等待完成: 查看通知
+6. 查看结果: `~/Downloads/videos/`
+
+---
+
+**版本**: v1.0.0 | **日期**: 2026-03-01 | **许可**: MIT

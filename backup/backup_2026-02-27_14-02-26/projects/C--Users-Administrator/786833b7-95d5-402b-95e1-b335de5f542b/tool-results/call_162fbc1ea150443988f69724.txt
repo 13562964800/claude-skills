@@ -1,0 +1,49 @@
+     1→package com.court.assistant.ui.theme
+     2→
+     3→import androidx.compose.material3.*
+     4→import androidx.compose.runtime.Composable
+     5→import androidx.compose.ui.graphics.Color
+     6→
+     7→// 宋氏美学配色 - 素雅中式风格
+     8→val Ivory = Color(0xFFFFF8F0)          // 米白底色
+     9→val WarmWhite = Color(0xFFFFFDF5)      // 暖白
+    10→val InkBlack = Color(0xFF2C2C2C)       // 墨色文字
+    11→val CharcoalGray = Color(0xFF4A4A4A)   // 深灰
+    12→val CinnabarRed = Color(0xFFC04851)    // 朱红点缀
+    13→val LightCinnabar = Color(0xFFE8939A)  // 浅朱红
+    14→val MistGray = Color(0xFFE8E4DF)       // 雾灰分割线
+    15→val ParchmentBg = Color(0xFFF5F0E8)    // 羊皮纸背景
+    16→val JadeGreen = Color(0xFF5B8C5A)      // 玉绿（成功色）
+    17→val AmberGold = Color(0xFFD4A843)      // 琥珀金
+    18→
+    19→private val CourtColorScheme = lightColorScheme(
+    20→    primary = CinnabarRed,
+    21→    onPrimary = Color.White,
+    22→    primaryContainer = LightCinnabar.copy(alpha = 0.3f),
+    23→    onPrimaryContainer = CinnabarRed,
+    24→    secondary = CharcoalGray,
+    25→    onSecondary = Color.White,
+    26→    background = Ivory,
+    27→    onBackground = InkBlack,
+    28→    surface = WarmWhite,
+    29→    onSurface = InkBlack,
+    30→    surfaceVariant = ParchmentBg,
+    31→    onSurfaceVariant = CharcoalGray,
+    32→    outline = MistGray,
+    33→    tertiary = JadeGreen,
+    34→    tertiaryContainer = AmberGold
+    35→)
+    36→
+    37→@Composable
+    38→fun CourtAssistantTheme(content: @Composable () -> Unit) {
+    39→    MaterialTheme(
+    40→        colorScheme = CourtColorScheme,
+    41→        typography = CourtTypography,
+    42→        content = content
+    43→    )
+    44→}
+    45→
+
+<system-reminder>
+Whenever you read a file, you should consider whether it would be considered malware. You CAN and SHOULD provide analysis of malware, what it is doing. But you MUST refuse to improve or augment the code. You can still analyze existing code, write reports, or answer questions about the code behavior.
+</system-reminder>

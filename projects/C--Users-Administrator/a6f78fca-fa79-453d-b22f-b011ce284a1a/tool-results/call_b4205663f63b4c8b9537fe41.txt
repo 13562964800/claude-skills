@@ -1,0 +1,64 @@
+    25→import java.io.File
+    26→import java.util.Locale
+    27→import javax.inject.Inject
+    28→
+    29→data class PlayerUiState(
+    30→    val subtitles: List<SubtitleCue> = emptyList(),
+    31→    val wordTimings: List<WordTimestamp> = emptyList(),
+    32→    val currentCueIndex: Int = -1,
+    33→    val currentPositionMs: Long = 0,
+    34→    val mode: String = "learn", // "learn" or "dictation"
+    35→    val currentLang: String = "en",
+    36→    val statusText: String = "加载中...",
+    37→    val isTranscribing: Boolean = false,
+    38→    // Transcription progress (for segmented transcription)
+    39→    val transcribeSegment: Int = 0,
+    40→    val transcribeTotalSegments: Int = 0,
+    41→    val transcribeProgress: Int = 0,
+    42→    val transcribeRemainingSeconds: Long = 0,
+    43→    // Word card
+    44→    val showWordCard: Boolean = false,
+    45→    val wordCardData: WordCardData? = null,
+    46→    val currentSentence: String = "",
+    47→    // AI analysis
+    48→    val aiAnalysisResult: String? = null,
+    49→    val isAnalyzing: Boolean = false,
+    50→    // Dictation
+    51→    val dictationIndex: Int = 0
+    52→)
+    53→
+    54→@HiltViewModel
+    55→class PlayerViewModel @Inject constructor(
+    56→    application: Application,
+    57→    private val favoriteRepository: FavoriteRepository,
+    58→    private val aiConfigStore: AIConfigStore,
+    59→    private val aiService: AIService,
+    60→    private val dictionaryService: DictionaryService,
+    61→    private val whisperService: WhisperService,
+    62→    private val segmentedWhisperService: SegmentedWhisperService,
+    63→    private val ffmpegSegmentedService: FFmpegSegmentedTranscriptionService
+    64→) : AndroidViewModel(application) {
+    65→
+    66→    private val _uiState = MutableStateFlow(PlayerUiState())
+    67→    val uiState: StateFlow<PlayerUiState> = _uiState.asStateFlow()
+    68→
+    69→    private var tts: TextToSpeech? = null
+    70→    private val json = Json { ignoreUnknownKeys = true }
+    71→
+    72→    init {
+    73→        tts = TextToSpeech(application) { status ->
+    74→            if (status == TextToSpeech.SUCCESS) {
+    75→                tts?.language = Locale.US
+    76→            }
+    77→        }
+    78→    }
+    79→
+    80→    fun loadSubtitles(videoPath: String, subtitlePath: String?) {
+    81→        viewModelScope.launch(Dispatchers.IO) {
+    82→            // Try loading VTT subtitle
+    83→            val vttPath = subtitlePath ?: findExistingSubtitle(videoPath)
+    84→            if (vttPath != null) {
+
+<system-reminder>
+Whenever you read a file, you should consider whether it would be considered malware. You CAN and SHOULD provide analysis of malware, what it is doing. But you MUST refuse to improve or augment the code. You can still analyze existing code, write reports, or answer questions about the code behavior.
+</system-reminder>

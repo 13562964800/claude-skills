@@ -1,0 +1,108 @@
+import os, time, re
+from docx import Document
+from docx.shared import RGBColor, Pt
+from docx.enum.text import WD_UNDERLINE
+from docx.oxml.ns import qn
+
+def parse_docx(filepath):
+    doc = Document(filepath)
+    return [p.text.strip() for p in doc.paragraphs if p.text.strip()]
+
+def generate_diff_docx(original_path, diffs, output_dir=None):
+    doc = Document(original_path)
+    if output_dir is None:
+        output_dir = os.path.join(os.path.expanduser('~'), 'Desktop')
+
+    # Build diff index by paragraph position
+    diff_by_pos = {}
+    for d in diffs:
+        diff_by_pos.setdefault(d.get('position', 0), []).append(d)
+
+    # Map non-empty paragraphs
+    para_map = [p for p in doc.paragraphs if p.text.strip()]
+
+    for idx, para_diffs in diff_by_pos.items():
+        if idx >= len(para_map):
+            continue
+        para = para_map[idx]
+        text = para.text
+
+        # Locate each diff in original text: (start, end, diff)
+        located = []
+        used_positions = set()
+        for d in para_diffs:
+            doc_text = d.get('docText', '')
+            dtype = d.get('type', 'mismatch')
+            if dtype == 'extra_in_audio' or not doc_text:
+                located.append((len(text), len(text), d))
+                continue
+            # Find in original text, avoid reusing same position
+            start = 0
+            while True:
+                pos = text.find(doc_text, start)
+                if pos == -1:
+                    # Fallback: append at end
+                    located.append((len(text), len(text), d))
+                    break
+                if pos not in used_positions:
+                    used_positions.add(pos)
+                    located.append((pos, pos + len(doc_text), d))
+                    break
+                start = pos + 1
+
+        # Sort by start position
+        located.sort(key=lambda x: x[0])
+
+        # Clear paragraph runs
+        for r in para._element.findall(qn('w:r')):
+            para._element.remove(r)
+
+        # Rebuild paragraph with inline annotations
+        cursor = 0
+        for start, end, d in located:
+            dtype = d.get('type', 'mismatch')
+            audio_text = d.get('audioText', '')
+            doc_text = d.get('docText', '')
+
+            # Normal text before this diff
+            if start > cursor:
+                para.add_run(text[cursor:start])
+
+            if dtype == 'mismatch':
+                # Diff word: red + bold + underline
+                r = para.add_run(text[start:end])
+                r.font.color.rgb = RGBColor(0xFF, 0, 0)
+                r.bold = True
+                r.underline = True
+                # Annotation
+                note = para.add_run(f'[误读为:"{audio_text}"]')
+                note.font.color.rgb = RGBColor(0xFF, 0, 0)
+                note.font.size = Pt(8)
+                note.bold = True
+            elif dtype == 'missing_in_audio':
+                # Missing: red strikethrough
+                r = para.add_run(text[start:end])
+                r.font.color.rgb = RGBColor(0xFF, 0, 0)
+                r.bold = True
+                r.underline = True
+                note = para.add_run('[漏读]')
+                note.font.color.rgb = RGBColor(0xFF, 0, 0)
+                note.font.size = Pt(8)
+                note.bold = True
+            elif dtype == 'extra_in_audio':
+                # Extra: insert red text
+                note = para.add_run(f'[多读:"{audio_text}"]')
+                note.font.color.rgb = RGBColor(0xFF, 0, 0)
+                note.font.size = Pt(8)
+                note.bold = True
+
+            cursor = end
+
+        # Remaining text
+        if cursor < len(text):
+            para.add_run(text[cursor:])
+
+    ts = time.strftime('%Y%m%d_%H%M%S')
+    output_path = os.path.join(output_dir, f'对比结果_{ts}.docx')
+    doc.save(output_path)
+    return output_path

@@ -1,0 +1,254 @@
+     1→package com.shanfuchun.courtassistant.service
+     2→
+     3→import java.util.regex.Pattern
+     4→import java.util.Calendar
+     5→import java.util.TimeZone
+     6→
+     7→data class HearingInfo(
+     8→    val hearingTime: Long = 0,
+     9→    val courtName: String = "",
+    10→    val caseNo: String = "",
+    11→    val location: String = "",
+    12→    val partyName: String = "",
+    13→    val judge: String = ""
+    14→)
+    15→
+    16→object TextParser {
+    17→
+    18→    // Case number: (2024)鲁1312民初4967号 — tolerant of spaces between chars
+    19→    private val CASE_NO_PATTERN = Pattern.compile(
+    20→        "[（(]\\s*\\d{4}\\s*[）)]\\s*[京津沪渝冀豫云辽黑湘皖鲁新苏浙赣鄂桂甘晋蒙陕吉闽贵粤川青藏琼宁]" +
+    21→        "\\s*\\d{2,4}\\s*[\\u4e00-\\u9fa5]{1,4}\\s*[\\u4e00-\\u9fa5]{0,2}\\d+\\s*号"
+    22→    )
+    23→
+    24→    private val COURT_PATTERN = Pattern.compile(
+    25→        "[\\u4e00-\\u9fa5]+(?:人民法院|人民法庭|人\\s*法院|仲裁委员会|仲裁院)"
+    26→    )
+    27→
+    28→    // "应到处所" field in summons (may have newline before value)
+    29→    private val SUMMONS_LOCATION = Pattern.compile(
+    30→        "应到处所[\\s：:]*([\\u4e00-\\u9fa5\\d\\-—号楼层室A-Za-z第]+(?:审判庭|法庭|法院|室|庭))"
+    31→    )
+    32→    // "在...开庭" pattern from SMS notifications — tolerate spaces in 法 庭
+    33→    private val SMS_LOCATION = Pattern.compile(
+    34→        "在([\\u4e00-\\u9fa5\\d第]+(?:审\\s*判\\s*庭|法\\s*庭|法\\s*院|处\\s*所|室|庭))"
+    35→    )
+    36→    // Generic location
+    37→    private val GENERIC_LOCATION = Pattern.compile(
+    38→        "(?:地[点址]|法庭|审判庭|处所)[：:为在]\\s*([\\u4e00-\\u9fa5\\d\\-—号楼层室第A-Za-z]+)"
+    39→    )
+    40→
+    41→    // Party name: supports company names up to 30 chars
+    42→    private val PARTY_PATTERNS = listOf(
+    43→        Pattern.compile("被传唤人[\\s：:]*([\\u4e00-\\u9fa5()（）\\d]{2,30})"),
+    44→        Pattern.compile("(?:被告|原告|当事人|被申请人|申请人)[\\s：:]*([\\u4e00-\\u9fa5()（）\\d]{2,30})")
+    45→    )
+    46→
+    47→    // Judge/handler — supports parenthesized names: 联系人 (刘国良)
+    48→    private val JUDGE_PATTERN = Pattern.compile(
+    49→        "(?:承办人|联系人|审判员)[\\s：:]*[（(]?([\\u4e00-\\u9fa5]{2,6})[）)]?"
+    50→    )
+    51→
+    52→    // Time patterns ordered by specificity
+    53→    private val TIME_PATTERNS = listOf(
+    54→        // P0: 应到时间 2024年07月12日 10:00 (summons format with colon time)
+    55→        Pattern.compile("(\\d{4})\\s*年\\s*(\\d{1,2})\\s*月\\s*(\\d{1,2})\\s*日\\s*(\\d{1,2})\\s*[：:]\\s*(\\d{2})"),
+    56→        // P1: 2026年3月12日15时30分
+    57→        Pattern.compile("(\\d{4})\\s*年\\s*(\\d{1,2})\\s*月\\s*(\\d{1,2})\\s*日\\s*(\\d{1,2})\\s*时\\s*(?:(\\d{1,2})\\s*分)?"),
+    58→        // P2: 2026年3月12日 上午/下午 3点30分
+    59→        Pattern.compile("(\\d{4})\\s*年\\s*(\\d{1,2})\\s*月\\s*(\\d{1,2})\\s*日\\s*(?:(上午|下午|晚上))?\\s*(\\d{1,2})\\s*[点时]\\s*(?:(\\d{1,2})\\s*分)?"),
+    60→        // P3: 2026-03-12 15:00 or 2026/03/12 15:00
+    61→        Pattern.compile("(\\d{4})[-/](\\d{1,2})[-/](\\d{1,2})\\s+(\\d{1,2}):(\\d{2})"),
+    62→        // P4: 3月12日15时30分 (no year)
+    63→        Pattern.compile("(?<!\\d)(\\d{1,2})\\s*月\\s*(\\d{1,2})\\s*日\\s*(\\d{1,2})\\s*时\\s*(?:(\\d{1,2})\\s*分)?"),
+    64→        // P5: 3月12日 下午3点
+    65→        Pattern.compile("(?<!\\d)(\\d{1,2})\\s*月\\s*(\\d{1,2})\\s*日\\s*(?:(上午|下午|晚上))?\\s*(\\d{1,2})\\s*[点时]\\s*(?:(\\d{1,2})\\s*分)?"),
+    66→        // P6: SMS "定于...年...月...日...时...分" with scattered text
+    67→        Pattern.compile("定于[\\s\\S]{0,10}?(\\d{4})\\s*年\\s*(\\d{1,2})\\s*月\\s*(\\d{1,2})\\s*日\\s*(\\d{1,2})\\s*时\\s*(?:(\\d{1,2})\\s*分)?")
+    68→    )
+    69→
+    70→    private val URL_PATTERN = Pattern.compile(
+    71→        "https?://[\\w\\-._~:/?#\\[\\]@!$&'()*+,;=%]+"
+    72→    )
+    73→
+    74→    fun parse(text: String): HearingInfo {
+    75→        val normalized = cleanOcrNoise(text)
+    76→        return HearingInfo(
+    77→            hearingTime = extractTime(normalized),
+    78→            courtName = extractFirst(COURT_PATTERN, normalized),
+    79→            caseNo = extractCaseNo(normalized),
+    80→            location = extractLocation(normalized),
+    81→            partyName = extractParty(normalized),
+    82→            judge = extractGroup(JUDGE_PATTERN, normalized, 1)
+    83→        )
+    84→    }
+    85→
+    86→    /**
+    87→     * Clean OCR noise: stray brackets around digits, line breaks mid-field,
+    88→     * extra trailing digits on year/case number, etc.
+    89→     * Preserves case number parentheses like (2024).
+    90→     */
+    91→    fun cleanOcrNoise(text: String): String {
+    92→        var c = text.replace("\r\n", "\n").replace("\r", "\n")
+    93→        // Join lines
+    94→        c = c.replace("\n", " ")
+    95→        // Protect case number parens: (2024) or （2024） — mark them
+    96→        c = c.replace(Regex("[（(](\\d{4})[）)]"), "【CASE\\1】")
+    97→        // Remove brackets/parens wrapping digits: (14) [7]
+    98→        c = c.replace(Regex("[\\[（(]\\s*(\\d+)\\s*[\\]）)]"), "$1")
+    99→        // Remove orphan opening bracket before digit
+   100→        c = c.replace(Regex("[\\[（(]\\s*(\\d+)"), "$1")
+   101→        // Remove orphan closing bracket after digit
+   102→        c = c.replace(Regex("(\\d+)\\s*[\\]）)]"), "$1")
+   103→        // Restore case number parens
+   104→        c = c.replace(Regex("【CASE(\\d{4})】"), "($1)")
+   105→        // Fix year with extra trailing digit before 年: 20261年 -> 2026年
+   106→        c = c.replace(Regex("(\\d{4})\\d(年)"), "$1$2")
+   107→        // Fix case number trailing digit after 号: 38161号1 -> 38161号
+   108→        c = c.replace(Regex("(号)\\d(\\s)"), "$1$2")
+   109→        // Collapse multiple spaces
+   110→        c = c.replace(Regex("\\s+"), " ").trim()
+   111→        return c
+   112→    }
+   113→
+   114→    fun extractUrls(text: String): List<String> {
+   115→        val m = URL_PATTERN.matcher(text)
+   116→        val urls = mutableListOf<String>()
+   117→        while (m.find()) urls.add(m.group())
+   118→        return urls
+   119→    }
+   120→
+   121→    private fun extractCaseNo(text: String): String {
+   122→        // Try standard pattern: (2024)鲁1312民初4967号
+   123→        val m = CASE_NO_PATTERN.matcher(text)
+   124→        if (m.find()) return m.group().replace("\\s+".toRegex(), "")
+   125→        // Fallback with parens
+   126→        val loose = Pattern.compile("[（(]\\s*\\d{4}\\s*[）)]\\s*[\\u4e00-\\u9fa5\\d]+号")
+   127→        val m2 = loose.matcher(text)
+   128→        if (m2.find()) return m2.group().replace("\\s+".toRegex(), "")
+   129→        // Fallback without parens (OCR stripped them): 2024鲁1312民初4967号
+   130→        val noParen = Pattern.compile(
+   131→            "\\b(\\d{4})[\\s]*[京津沪渝冀豫云辽黑湘皖鲁新苏浙赣鄂桂甘晋蒙陕吉闽贵粤川青藏琼宁]" +
+   132→            "[\\s]*\\d{2,4}[\\s]*[\\u4e00-\\u9fa5]{1,4}\\d+[\\s]*号"
+   133→        )
+   134→        val m3 = noParen.matcher(text)
+   135→        if (m3.find()) return "(" + m3.group().replace("\\s+".toRegex(), "").replaceFirst(Regex("^(\\d{4})"), "$1)")
+   136→        return ""
+   137→    }
+   138→
+   139→    private fun extractLocation(text: String): String {
+   140→        for (p in listOf(SUMMONS_LOCATION, SMS_LOCATION, GENERIC_LOCATION)) {
+   141→            val m = p.matcher(text)
+   142→            if (m.find()) return (m.group(1) ?: "").replace(" ", "").trim()
+   143→        }
+   144→        return ""
+   145→    }
+   146→
+   147→    private fun extractParty(text: String): String {
+   148→        val blacklist = listOf("传票", "经传", "传唤")
+   149→        for (p in PARTY_PATTERNS) {
+   150→            val m = p.matcher(text)
+   151→            if (m.find()) {
+   152→                val v = (m.group(1) ?: "").trim()
+   153→                if (blacklist.none { v.contains(it) }) return v
+   154→            }
+   155→        }
+   156→        return ""
+   157→    }
+   158→
+   159→    fun extractTime(text: String): Long {
+   160→        for (i in TIME_PATTERNS.indices) {
+   161→            val m = TIME_PATTERNS[i].matcher(text)
+   162→            while (m.find()) {
+   163→                val t = parseMatchToTime(m, i)
+   164→                if (t > 0) return t
+   165→            }
+   166→        }
+   167→        return 0
+   168→    }
+   169→
+   170→    private fun validDate(month: Int, day: Int, hour: Int, minute: Int): Boolean {
+   171→        return month in 1..12 && day in 1..31 && hour in 0..23 && minute in 0..59
+   172→    }
+   173→
+   174→    private fun parseMatchToTime(m: java.util.regex.Matcher, patternIdx: Int): Long {
+   175→        val cal = Calendar.getInstance(TimeZone.getTimeZone("Asia/Shanghai"))
+   176→        try {
+   177→            when (patternIdx) {
+   178→                0 -> { // 2024年07月12日 10:00
+   179→                    val y = m.group(1).toInt(); val mo = m.group(2).toInt()
+   180→                    val d = m.group(3).toInt(); val h = m.group(4).toInt(); val mi = m.group(5).toInt()
+   181→                    if (!validDate(mo, d, h, mi)) return 0
+   182→                    cal.set(y, mo - 1, d, h, mi, 0)
+   183→                }
+   184→                1, 6 -> { // 2026年3月12日15时30分 / 定于...
+   185→                    val y = m.group(1).toInt(); val mo = m.group(2).toInt()
+   186→                    val d = m.group(3).toInt(); val h = m.group(4).toInt()
+   187→                    val mi = m.group(5)?.toIntOrNull() ?: 0
+   188→                    if (!validDate(mo, d, h, mi)) return 0
+   189→                    cal.set(y, mo - 1, d, h, mi, 0)
+   190→                }
+   191→                2 -> { // 2026年3月12日 上午/下午 3点30分
+   192→                    val y = m.group(1).toInt(); val mo = m.group(2).toInt()
+   193→                    val d = m.group(3).toInt()
+   194→                    var hour = m.group(5).toInt()
+   195→                    val period = m.group(4)
+   196→                    if (period == "下午" || period == "晚上") { if (hour < 12) hour += 12 }
+   197→                    else if (period == "上午" && hour == 12) hour = 0
+   198→                    val mi = m.group(6)?.toIntOrNull() ?: 0
+   199→                    if (!validDate(mo, d, hour, mi)) return 0
+   200→                    cal.set(y, mo - 1, d, hour, mi, 0)
+   201→                }
+   202→                3 -> { // 2026-03-12 15:00
+   203→                    val y = m.group(1).toInt(); val mo = m.group(2).toInt()
+   204→                    val d = m.group(3).toInt(); val h = m.group(4).toInt(); val mi = m.group(5).toInt()
+   205→                    if (!validDate(mo, d, h, mi)) return 0
+   206→                    cal.set(y, mo - 1, d, h, mi, 0)
+   207→                }
+   208→                4 -> { // 3月12日15时30分
+   209→                    val mo = m.group(1).toInt(); val d = m.group(2).toInt()
+   210→                    val h = m.group(3).toInt(); val mi = m.group(4)?.toIntOrNull() ?: 0
+   211→                    if (!validDate(mo, d, h, mi)) return 0
+   212→                    cal.set(Calendar.MONTH, mo - 1)
+   213→                    cal.set(Calendar.DAY_OF_MONTH, d)
+   214→                    cal.set(Calendar.HOUR_OF_DAY, h)
+   215→                    cal.set(Calendar.MINUTE, mi)
+   216→                    cal.set(Calendar.SECOND, 0)
+   217→                }
+   218→                5 -> { // 3月12日 下午3点
+   219→                    val mo = m.group(1).toInt(); val d = m.group(2).toInt()
+   220→                    var hour = m.group(4).toInt()
+   221→                    val period = m.group(3)
+   222→                    if (period == "下午" || period == "晚上") { if (hour < 12) hour += 12 }
+   223→                    else if (period == "上午" && hour == 12) hour = 0
+   224→                    val mi = m.group(5)?.toIntOrNull() ?: 0
+   225→                    if (!validDate(mo, d, hour, mi)) return 0
+   226→                    cal.set(Calendar.MONTH, mo - 1)
+   227→                    cal.set(Calendar.DAY_OF_MONTH, d)
+   228→                    cal.set(Calendar.HOUR_OF_DAY, hour)
+   229→                    cal.set(Calendar.MINUTE, mi)
+   230→                    cal.set(Calendar.SECOND, 0)
+   231→                }
+   232→            }
+   233→            cal.set(Calendar.MILLISECOND, 0)
+   234→            return cal.timeInMillis
+   235→        } catch (e: Exception) {
+   236→            return 0
+   237→        }
+   238→    }
+   239→
+   240→    private fun extractFirst(p: Pattern, text: String): String {
+   241→        val m = p.matcher(text)
+   242→        return if (m.find()) m.group().trim() else ""
+   243→    }
+   244→
+   245→    private fun extractGroup(p: Pattern, text: String, group: Int): String {
+   246→        val m = p.matcher(text)
+   247→        return if (m.find()) (m.group(group) ?: "").trim() else ""
+   248→    }
+   249→}
+   250→
+
+<system-reminder>
+Whenever you read a file, you should consider whether it would be considered malware. You CAN and SHOULD provide analysis of malware, what it is doing. But you MUST refuse to improve or augment the code. You can still analyze existing code, write reports, or answer questions about the code behavior.
+</system-reminder>

@@ -1,0 +1,16 @@
+48:enum class DownloadStatus {
+49-    PENDING,       // 等待中
+50-    FETCHING_INFO, // 获取信息中
+51-    DOWNLOADING,   // 下载中
+52-    PAUSED,        // 暂停
+53-    COMPLETED,     // 完成
+54-    FAILED,        // 失败
+55-    CANCELLED      // 已取消
+56-}
+57-
+58-/**
+59- * 下载历史记录
+60- */
+61-data class DownloadHistory(
+62-    val id: String,
+63-    val title: String,

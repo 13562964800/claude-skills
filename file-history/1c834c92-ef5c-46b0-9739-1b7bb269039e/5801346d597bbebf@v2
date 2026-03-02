@@ -1,0 +1,44 @@
+class WorkflowState:
+    _transitions = {
+        'pending': {'start': 'running'},
+        'running': {'finish_success': 'success', 'finish_fail': 'failed'},
+    }
+
+    def __init__(self, value: str):
+        self.value = value
+
+    def _transition(self, action: str):
+        self.value = self._transitions.get(self.value, {}).get(action, self.value)
+
+    def start(self):
+        self._transition('start')
+
+    def finish_success(self):
+        self._transition('finish_success')
+
+    def finish_fail(self):
+        self._transition('finish_fail')
+
+
+def should_retry(retry_count: int) -> bool:
+    return retry_count < 3
+
+
+class WorkflowRunner:
+    def __init__(self, steps: list[dict], api_keys: dict = None):
+        self.steps = steps
+        self.api_keys = api_keys or {}
+
+    def run(self, initial_payload: dict) -> dict:
+        results = {}
+        payload = initial_payload.copy()
+        # 将 API keys 注入到 payload 中，供技能适配器使用
+        payload['_api_keys'] = self.api_keys
+        for step in self.steps:
+            output = step['skill'](payload)
+            results[step['key']] = output
+            payload = output
+            # 保持 API keys 在 payload 中传递
+            if '_api_keys' not in payload:
+                payload['_api_keys'] = self.api_keys
+        return results

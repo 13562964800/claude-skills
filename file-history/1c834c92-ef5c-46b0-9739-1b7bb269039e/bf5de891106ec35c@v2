@@ -1,0 +1,19 @@
+from app.skills.base import SkillAdapter, LLMRouter
+
+
+class LitigationAnalysisAdapter(SkillAdapter):
+    name = 'litigation-analysis'
+
+    def __init__(self):
+        self.router = LLMRouter(primary='claude-opus-4-6', fallback='deepseek/deepseek-chat')
+
+    def run(self, payload: dict) -> dict:
+        text = payload.get('text', '')
+        if not text:
+            return {'error': 'text required'}
+        api_keys = payload.get('_api_keys', {})
+        result = self.router.complete([
+            {'role': 'system', 'content': '你是诉讼分析专家，分析判决书，提取争点、风险点，给出上诉/再审建议。'},
+            {'role': 'user', 'content': text},
+        ], custom_keys=api_keys)
+        return {'analysis': result}

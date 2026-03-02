@@ -1,0 +1,153 @@
+#!/usr/bin/env python3
+# -*- coding: utf-8 -*-
+"""
+生成插图1-1: 一个友好的机器人向小朋友挥手，周围漂浮着手机、平板、游戏机等设备
+上下文: 欢迎来到AI世界，介绍AI在日常设备中的应用
+"""
+
+svg_code = '''<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 800 450" style="background:#E8F4F8">
+  <!-- 友好的机器人 (中央主角) -->
+  <g id="robot">
+    <!-- 机器人身体 -->
+    <rect x="320" y="180" width="160" height="180" rx="20" fill="#4A9EFF" stroke="#2E5C8A" stroke-width="4"/>
+
+    <!-- 机器人头部 -->
+    <rect x="340" y="120" width="120" height="100" rx="15" fill="#5DADE2" stroke="#2E5C8A" stroke-width="4"/>
+
+    <!-- 可爱的大眼睛 -->
+    <circle cx="370" cy="155" r="15" fill="#FFF"/>
+    <circle cx="430" cy="155" r="15" fill="#FFF"/>
+    <circle cx="373" cy="158" r="8" fill="#333"/>
+    <circle cx="433" cy="158" r="8" fill="#333"/>
+
+    <!-- 开心的笑脸 -->
+    <path d="M 360 185 Q 400 200 440 185" stroke="#333" stroke-width="4" fill="none" stroke-linecap="round"/>
+
+    <!-- 天线 -->
+    <line x1="400" y1="120" x2="400" y2="90" stroke="#2E5C8A" stroke-width="4"/>
+    <circle cx="400" cy="85" r="10" fill="#FF6B6B">
+      <animate attributeName="opacity" values="1;0.3;1" dur="1.5s" repeatCount="indefinite"/>
+    </circle>
+
+    <!-- 挥手的手臂 -->
+    <g id="waving-arm">
+      <rect x="480" y="220" width="60" height="20" rx="10" fill="#4A9EFF" stroke="#2E5C8A" stroke-width="3"/>
+      <circle cx="545" cy="230" r="18" fill="#5DADE2" stroke="#2E5C8A" stroke-width="3"/>
+      <animateTransform
+        attributeName="transform"
+        type="rotate"
+        values="0 480 230; -20 480 230; 0 480 230"
+        dur="1s"
+        repeatCount="indefinite"/>
+    </g>
+
+    <!-- 另一只手臂 -->
+    <rect x="260" y="220" width="60" height="20" rx="10" fill="#4A9EFF" stroke="#2E5C8A" stroke-width="3"/>
+    <circle cx="255" cy="230" r="18" fill="#5DADE2" stroke="#2E5C8A" stroke-width="3"/>
+
+    <!-- 腿部 -->
+    <rect x="345" y="360" width="45" height="60" rx="8" fill="#4A9EFF" stroke="#2E5C8A" stroke-width="3"/>
+    <rect x="410" y="360" width="45" height="60" rx="8" fill="#4A9EFF" stroke="#2E5C8A" stroke-width="3"/>
+  </g>
+
+  <!-- 小朋友 -->
+  <g id="child" transform="translate(580, 260)">
+    <!-- 头部 -->
+    <circle cx="0" cy="0" r="35" fill="#FFD4A3" stroke="#E6A86E" stroke-width="3"/>
+    <!-- 头发 -->
+    <path d="M -28 -8 Q -35 -25 -20 -32 Q 0 -38 20 -32 Q 35 -25 28 -8" fill="#8B4513"/>
+    <!-- 眼睛 -->
+    <circle cx="-12" cy="-5" r="4" fill="#333"/>
+    <circle cx="12" cy="-5" r="4" fill="#333"/>
+    <!-- 开心的笑容 -->
+    <path d="M -15 12 Q 0 18 15 12" stroke="#333" stroke-width="3" fill="none"/>
+    <!-- 身体 -->
+    <rect x="-28" y="35" width="56" height="70" rx="12" fill="#FF9999" stroke="#E67373" stroke-width="3"/>
+    <!-- 手臂 -->
+    <rect x="-50" y="45" width="22" height="15" rx="8" fill="#FFD4A3" stroke="#E6A86E" stroke-width="2"/>
+    <rect x="28" y="45" width="22" height="15" rx="8" fill="#FFD4A3" stroke="#E6A86E" stroke-width="2"/>
+  </g>
+
+  <!-- 漂浮的设备 -->
+  <!-- 手机 -->
+  <g id="phone" transform="translate(120, 150)">
+    <rect width="70" height="120" rx="8" fill="#333" stroke="#000" stroke-width="3"/>
+    <rect x="8" y="15" width="54" height="90" fill="#87CEEB"/>
+    <circle cx="35" cy="112" r="5" fill="#666"/>
+    <text x="35" y="60" font-size="30" text-anchor="middle" fill="#FFF">📱</text>
+    <animateTransform
+      attributeName="transform"
+      type="translate"
+      values="120 150; 120 140; 120 150"
+      dur="2s"
+      repeatCount="indefinite"/>
+  </g>
+
+  <!-- 平板 -->
+  <g id="tablet" transform="translate(650, 120)">
+    <rect width="110" height="85" rx="8" fill="#555" stroke="#000" stroke-width="3"/>
+    <rect x="8" y="8" width="94" height="69" fill="#90EE90"/>
+    <text x="55" y="55" font-size="35" text-anchor="middle">💻</text>
+    <animateTransform
+      attributeName="transform"
+      type="translate"
+      values="650 120; 650 110; 650 120"
+      dur="2.5s"
+      repeatCount="indefinite"/>
+  </g>
+
+  <!-- 游戏机 -->
+  <g id="gamepad" transform="translate(150, 320)">
+    <rect width="90" height="65" rx="12" fill="#E74C3C" stroke="#C0392B" stroke-width="3"/>
+    <rect x="15" y="15" width="35" height="35" fill="#333"/>
+    <circle cx="70" cy="25" r="8" fill="#F39C12" stroke="#D68910" stroke-width="2"/>
+    <circle cx="70" cy="45" r="8" fill="#3498DB" stroke="#2980B9" stroke-width="2"/>
+    <text x="45" y="45" font-size="25">🎮</text>
+    <animateTransform
+      attributeName="transform"
+      type="translate"
+      values="150 320; 150 310; 150 320"
+      dur="2.2s"
+      repeatCount="indefinite"/>
+  </g>
+
+  <!-- 智能音箱 -->
+  <g id="speaker" transform="translate(680, 300)">
+    <ellipse cx="0" cy="0" rx="40" ry="50" fill="#34495E" stroke="#2C3E50" stroke-width="3"/>
+    <circle cx="0" cy="-10" r="15" fill="#3498DB">
+      <animate attributeName="r" values="15;18;15" dur="1.5s" repeatCount="indefinite"/>
+    </circle>
+    <text x="0" y="30" font-size="25" text-anchor="middle">🔊</text>
+    <animateTransform
+      attributeName="transform"
+      type="translate"
+      values="680 300; 680 290; 680 300"
+      dur="2.8s"
+      repeatCount="indefinite"/>
+  </g>
+
+  <!-- 装饰性星星 -->
+  <text x="250" y="100" font-size="30" opacity="0.6">✨</text>
+  <text x="550" y="90" font-size="30" opacity="0.6">✨</text>
+  <text x="100" y="250" font-size="25" opacity="0.5">⭐</text>
+  <text x="720" y="200" font-size="25" opacity="0.5">⭐</text>
+</svg>'''
+
+# 读取文档
+input_file = r'C:\Users\Administrator\AI科普画册\AI科普画册-待插图版.md'
+with open(input_file, 'r', encoding='utf-8') as f:
+    content = f.read()
+
+# 替换第一个插图
+import re
+pattern = r'【插图1-1：[^】]+】\n\n\n'
+replacement = f'【插图1-1：一个友好的机器人向小朋友挥手，周围漂浮着手机、平板、游戏机等设备】\n\n{svg_code}\n\n'
+content = re.sub(pattern, replacement, content, count=1)
+
+# 保存
+output_file = r'C:\Users\Administrator\AI科普画册\AI科普画册-插图进行中.md'
+with open(output_file, 'w', encoding='utf-8') as f:
+    f.write(content)
+
+print("✓ 插图1-1已生成并插入文档")
+print(f"  输出文件: {output_file}")

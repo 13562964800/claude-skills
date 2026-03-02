@@ -1,0 +1,291 @@
+# LegalFlow Studio
+
+> 法律智能生产中台 - AI-Powered Legal Workflow Orchestration Platform
+
+基于 FastAPI + Next.js 的法律 AI 工作流编排平台，支持多模型 LLM 路由、技能适配器和完整的用户认证系统。
+
+## 🚀 快速开始
+
+### 前置要求
+- Python 3.12+
+- Node.js 18+
+- SQLite
+
+### 后端启动
+```bash
+cd apps/api
+pip install -r requirements.txt
+alembic upgrade head
+uvicorn app.main:app --reload --port 8000
+```
+
+### 前端启动
+```bash
+cd apps/web
+npm install
+npm run dev
+```
+
+访问：
+- 后端 API: http://localhost:8000
+- 前端应用: http://localhost:3000
+- API 文档: http://localhost:8000/docs
+
+## 📋 功能特性
+
+### ✅ 已实现
+
+#### 认证系统
+- 用户注册/登录
+- Token 认证
+- 个人资料管理
+- 角色权限控制（lawyer, admin）
+
+#### 项目管理
+- 创建项目（诉讼/咨询/内容）
+- 项目列表查询
+- 项目状态管理
+
+#### 文档中心
+- 文档查看
+- Markdown 导出
+- Word 文档导出
+
+#### 工作流编排
+- 4 个内置技能模板：
+  - 法律文本格式化
+  - 问答提取
+  - 诉讼分析
+  - 方案书生成
+- 多模型 LLM 路由（主模型 + 备用模型）
+- 顺序执行工作流
+
+#### 知识库
+- Q&A 存储
+- 全文搜索
+- 标签管理
+
+### 🚧 开发中
+- Celery 异步任务队列
+- 工作流 DAG 可视化
+- JWT 认证升级
+
+## 🏗️ 技术架构
+
+### 后端技术栈
+- **框架**: FastAPI 0.115+
+- **ORM**: SQLAlchemy 2.0
+- **数据库**: SQLite (开发) / PostgreSQL (生产)
+- **迁移**: Alembic
+- **LLM**: LiteLLM (多模型统一接口)
+- **测试**: pytest
+
+### 前端技术栈
+- **框架**: Next.js 15 (App Router)
+- **语言**: TypeScript
+- **UI**: React 18
+- **状态**: React Hooks
+- **HTTP**: Fetch API
+
+### 支持的 LLM 模型
+- Anthropic Claude (claude-opus-4-6)
+- OpenAI GPT (gpt-4o)
+- Google Gemini
+- DeepSeek
+- Qwen (通义千问)
+- ZhipuAI (智谱)
+
+## 📁 项目结构
+
+```
+legalflow-studio/
+├── apps/
+│   ├── api/                    # FastAPI 后端
+│   │   ├── app/
+│   │   │   ├── api/           # API 路由
+│   │   │   ├── models/        # SQLAlchemy 模型
+│   │   │   ├── services/      # 业务逻辑
+│   │   │   ├── skills/        # LLM 技能适配器
+│   │   │   └── core/          # 配置和权限
+│   │   ├── alembic/           # 数据库迁移
+│   │   └── tests/             # 后端测试
+│   └── web/                   # Next.js 前端
+│       ├── app/               # 页面路由
+│       └── lib/               # API 客户端
+├── docs/
+│   ├── plans/                 # 开发计划
+│   └── runbooks/              # 运维手册
+├── tests/                     # E2E 测试
+└── CLAUDE.md                  # AI 开发配置
+```
+
+## 🔌 API 端点
+
+### 认证
+- `POST /api/v1/auth/register` - 用户注册
+- `POST /api/v1/auth/login` - 用户登录
+- `GET /api/v1/auth/me` - 获取当前用户
+
+### 项目
+- `POST /api/v1/projects` - 创建项目
+- `GET /api/v1/projects` - 列出项目
+
+### 文档
+- `GET /api/v1/documents/{id}` - 获取文档
+- `POST /api/v1/documents/{id}/export/md` - 导出 Markdown
+- `POST /api/v1/documents/{id}/export/word` - 导出 Word
+
+### 工作流
+- `POST /api/v1/workflow-runs` - 启动工作流
+- `GET /api/v1/workflow-runs/{id}` - 查询工作流状态
+
+### 知识库
+- `POST /api/v1/knowledge` - 创建知识条目
+- `GET /api/v1/knowledge` - 搜索知识库
+
+## 🧪 测试
+
+```bash
+# 运行所有测试
+cd apps/api
+pytest tests/ ../../tests/ -v
+
+# 运行特定测试
+pytest tests/test_auth.py -v
+
+# 查看覆盖率
+pytest --cov=app tests/
+```
+
+**当前测试状态**: ✅ 78/78 通过
+
+## 🔐 环境变量
+
+创建 `apps/api/.env` 文件：
+
+```bash
+# LLM API Keys
+ANTHROPIC_API_KEY=sk-ant-xxx
+OPENAI_API_KEY=sk-xxx
+GEMINI_API_KEY=xxx
+DEEPSEEK_API_KEY=sk-xxx
+QWEN_API_KEY=sk-xxx
+ZHIPUAI_API_KEY=xxx
+
+# Database
+DATABASE_URL=sqlite:///./legalflow.db
+
+# Frontend
+NEXT_PUBLIC_API_URL=http://localhost:8000
+```
+
+## 📊 开发进度
+
+### Phase 1: 核心 API ✅
+- 项目管理 API
+- 文档导出功能
+- 基础权限控制
+
+### Phase 2: 前端集成 ✅
+- Next.js 页面开发
+- API 客户端封装
+- 7 个功能页面
+
+### Phase 3: 工作流编排 ✅
+- WorkflowRunner 引擎
+- 4 个技能适配器
+- 多模型 LLM 路由
+
+### Phase 4: 认证系统 ✅
+- 用户注册/登录
+- Token 认证
+- 个人资料管理
+
+### Phase 5: 计划中 🚧
+- Celery 任务队列
+- JWT 认证升级
+- 工作流可视化
+
+## 🎯 技能适配器
+
+### 1. 法律文本格式化 (legal-text-format)
+- **主模型**: claude-opus-4-6
+- **备用**: qwen/qwen-max
+- **功能**: 将法律文本转换为规范 Markdown 格式
+
+### 2. 问答提取 (legal-qa-extractor)
+- **主模型**: qwen/qwen-max
+- **备用**: zhipuai/glm-4
+- **功能**: 从沟通记录中提取 Q&A 对
+
+### 3. 诉讼分析 (litigation-analysis)
+- **主模型**: claude-opus-4-6
+- **备用**: deepseek/deepseek-chat
+- **功能**: 分析判决书，生成上诉/再审建议
+
+### 4. 方案书生成 (legal-proposal-generator)
+- **主模型**: gpt-4o
+- **备用**: claude-opus-4-6
+- **功能**: 生成法律服务方案书
+
+## 🛠️ 开发工具
+
+### 数据库迁移
+```bash
+# 创建迁移
+alembic revision --autogenerate -m "description"
+
+# 应用迁移
+alembic upgrade head
+
+# 回滚迁移
+alembic downgrade -1
+```
+
+### 代码格式化
+```bash
+# Python
+black apps/api/app
+ruff check apps/api/app
+
+# TypeScript
+cd apps/web
+npm run lint
+```
+
+## 📝 Git 提交规范
+
+- `feat:` 新功能
+- `fix:` 修复 bug
+- `test:` 添加测试
+- `docs:` 文档更新
+- `refactor:` 重构代码
+- `chore:` 构建/工具变更
+
+## 🤝 贡献指南
+
+1. Fork 项目
+2. 创建特性分支 (`git checkout -b feature/amazing-feature`)
+3. 提交改动 (`git commit -m 'feat: add amazing feature'`)
+4. 推送到分支 (`git push origin feature/amazing-feature`)
+5. 创建 Pull Request
+
+## 📄 许可证
+
+MIT License
+
+## 👥 团队
+
+- 开发: Claude Opus 4.6
+- 架构: TDD + YOLO 模式
+
+## 📞 联系方式
+
+- Issues: [GitHub Issues](https://github.com/yourusername/legalflow-studio/issues)
+- Email: support@legalflow.studio
+
+---
+
+**最后更新**: 2026-02-27
+**版本**: 0.4.0
+**测试覆盖**: 78 个测试全部通过

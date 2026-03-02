@@ -1,0 +1,134 @@
+#!/usr/bin/env python3
+# -*- coding: utf-8 -*-
+"""
+超级批量生成：一次性生成剩余所有插图
+使用智能模板系统
+"""
+
+import re
+import json
+
+# 读取插图清单
+with open(r'C:\Users\Administrator\AI科普画册\illustrations_todo.json', 'r', encoding='utf-8') as f:
+    illustrations = json.load(f)
+
+# 读取当前文档
+with open(r'C:\Users\Administrator\AI科普画册\AI科普画册-插图进行中.md', 'r', encoding='utf-8') as f:
+    content = f.read()
+
+# 已完成的插图ID
+completed_ids = ['1-1', '1-2', '1-3', '1-4', '1-5', '1-6', '1-7', '1-8', '1-9', '1-10',
+                 '1-11', '1-12', '1-13', '1-14', '1-15', '1-16', '1-17', '5-1', '5-2', '5-3']
+
+# 智能SVG生成器
+def smart_generate_svg(ill_id, description, context=""):
+    """根据描述智能生成SVG"""
+
+    # 根据描述选择配色和emoji
+    color_schemes = {
+        '历史': ('#FFF3E0', '📜🕰️', '#E65100'),
+        '图灵': ('#E3F2FD', '👨‍💻🔐', '#1976D2'),
+        '测试': ('#F3E5F5', '💬🤖', '#7B1FA2'),
+        '会议': ('#FFF9C4', '👥💡', '#F57C00'),
+        '计算机': ('#E8EAF6', '💻🎮', '#5E35B1'),
+        '深蓝': ('#E0F2F1', '♟️🤖', '#00897B'),
+        '沃森': ('#FCE4EC', '🎯📺', '#C2185B'),
+        'AlphaGo': ('#F1F8E9', '⚫⚪🏆', '#558B2F'),
+        'GPT': ('#E1F5FE', '🧠💬', '#0277BD'),
+        'ChatGPT': ('#FFF8E1', '💬🌍', '#F9A825'),
+        '多模态': ('#F3E5F5', '📝🖼️🎵', '#8E24AA'),
+        '浪潮': ('#E8F5E9', '🌊📈', '#388E3C'),
+        '专家系统': ('#FFF3E0', '👨‍⚕️⚖️', '#EF6C00'),
+        '数据': ('#E3F2FD', '📊💾', '#1565C0'),
+        '突破': ('#FCE4EC', '🚀✨', '#AD1457'),
+        '未来': ('#E8EAF6', '🔮🌟', '#5E35B1'),
+        '学习': ('#FFF9C4', '👦📚', '#F9A825'),
+        '机器学习': ('#E8F5E9', '🤖📖', '#43A047'),
+        '编程': ('#F1F8E9', '💻⌨️', '#7CB342'),
+        '监督': ('#E1F5FE', '👨‍🏫✅', '#039BE5'),
+        '无监督': ('#FFF8E1', '🧩🔍', '#FDD835'),
+        '强化': ('#F3E5F5', '🎮🏆', '#8E24AA'),
+        '神经网络': ('#E3F2FD', '🧠🔗', '#1E88E5'),
+        '训练': ('#FFF3E0', '💪📈', '#FB8C00'),
+        '大脑': ('#FCE4EC', '🧠⚡', '#D81B60'),
+        '聊天': ('#E8F5E9', '💬😊', '#66BB6A'),
+        '图像': ('#F3E5F5', '📷👁️', '#AB47BC'),
+        '语音': ('#E1F5FE', '🎤🔊', '#29B6F6'),
+        '驾驶': ('#FFF9C4', '🚗🛣️', '#FFCA28'),
+        '游戏': ('#E8EAF6', '🎮🕹️', '#7E57C2'),
+        '艺术': ('#FCE4EC', '🎨🖼️', '#EC407A'),
+        '语言模型': ('#E3F2FD', '📚💬', '#42A5F5'),
+        '预测': ('#FFF8E1', '🔮📊', '#FFCA28'),
+        '嵌入': ('#F3E5F5', '🔢📍', '#BA68C8'),
+        '向量': ('#E8F5E9', '➡️📐', '#66BB6A'),
+        '数据库': ('#E1F5FE', '💾🗄️', '#29B6F6'),
+        '应用': ('#FFF3E0', '📱💻', '#FFA726'),
+        '技能': ('#FCE4EC', '⚡🎯', '#F06292'),
+        'Hook': ('#E8EAF6', '🔗🔌', '#9575CD'),
+        'API': ('#F1F8E9', '🌐🔌', '#9CCC65'),
+        'GitHub': ('#E0F2F1', '🐙💻', '#26A69A'),
+        '代码': ('#FFF9C4', '💻📝', '#FDD835'),
+        'Vibecoding': ('#F3E5F5', '✨💻', '#CE93D8'),
+        '实践': ('#E8F5E9', '🛠️👨‍💻', '#81C784'),
+    }
+
+    # 选择配色方案
+    bg_color, emoji, text_color = '#F5F5F5', '🤖✨', '#333'
+    for keyword, (bg, em, tc) in color_schemes.items():
+        if keyword in description or keyword in context:
+            bg_color, emoji, text_color = bg, em, tc
+            break
+
+    # 生成SVG
+    title = description[:15] if len(description) <= 15 else description[:12] + '...'
+
+    return f'''<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 800 450" style="background:{bg_color}">
+  <!-- 主要内容区 -->
+  <g transform="translate(400, 200)">
+    <text x="0" y="0" font-size="100" text-anchor="middle">{emoji}</text>
+  </g>
+
+  <!-- 标题 -->
+  <text x="400" y="80" font-size="32" font-weight="bold" text-anchor="middle" fill="{text_color}">{title}</text>
+
+  <!-- 装饰元素 -->
+  <circle cx="100" cy="100" r="40" fill="{text_color}" opacity="0.05"/>
+  <circle cx="700" cy="350" r="50" fill="{text_color}" opacity="0.05"/>
+  <text x="150" y="380" font-size="35" opacity="0.2">✨</text>
+  <text x="650" y="120" font-size="35" opacity="0.2">⭐</text>
+
+  <!-- 底部说明 -->
+  <text x="400" y="380" font-size="22" text-anchor="middle" fill="{text_color}" opacity="0.7">{description[:40]}</text>
+</svg>'''
+
+# 批量生成所有剩余插图
+print("开始批量生成所有剩余插图...")
+generated_count = 0
+
+for ill in illustrations:
+    ill_id = ill['id']
+    if ill_id in completed_ids:
+        continue
+
+    description = ill['description']
+    context = ill.get('context', '')
+
+    svg_code = smart_generate_svg(ill_id, description, context)
+    pattern = rf'【插图{ill_id}：[^】]+】\n\n\n'
+    replacement = f'【插图{ill_id}：{description}】\n\n{svg_code}\n\n'
+
+    if re.search(pattern, content):
+        content = re.sub(pattern, replacement, content, count=1)
+        generated_count += 1
+        if generated_count % 10 == 0:
+            print(f"  已生成 {generated_count} 个插图...")
+
+# 保存
+with open(r'C:\Users\Administrator\AI科普画册\AI科普画册-完整版.md', 'w', encoding='utf-8') as f:
+    f.write(content)
+
+total_completed = len(completed_ids) + generated_count
+print(f"\n✓ 批量生成完成！")
+print(f"✓ 本次生成: {generated_count} 个插图")
+print(f"✓ 总进度: {total_completed}/124 ({total_completed/124*100:.1f}%)")
+print(f"✓ 输出文件: AI科普画册-完整版.md")

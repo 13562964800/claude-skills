@@ -1,0 +1,84 @@
+package com.shanfuchun.courtassistant.ai.model
+
+/**
+ * LLM 提供商枚举
+ */
+enum class LLMProvider(
+    val displayName: String,
+    val baseUrl: String,
+    val needsSecretKey: Boolean = false,
+    val defaultModel: String = ""
+) {
+    WENXIN(
+        displayName = "百度文心一言",
+        baseUrl = "https://aip.baidubce.com",
+        needsSecretKey = true
+    ),
+    QWEN(
+        displayName = "阿里通义千问",
+        baseUrl = "https://dashscope.aliyuncs.com",
+        defaultModel = "qwen-turbo"
+    ),
+    ZHIPU(
+        displayName = "智谱 GLM",
+        baseUrl = "https://open.bigmodel.cn",
+        defaultModel = "glm-4"
+    ),
+    OPENAI(
+        displayName = "OpenAI GPT-4",
+        baseUrl = "https://api.openai.com",
+        defaultModel = "gpt-4"
+    ),
+    CLAUDE(
+        displayName = "Anthropic Claude",
+        baseUrl = "https://api.anthropic.com",
+        defaultModel = "claude-3-5-sonnet-20241022"
+    ),
+    GEMINI(
+        displayName = "Google Gemini",
+        baseUrl = "https://generativelanguage.googleapis.com",
+        defaultModel = "gemini-1.5-pro"
+    ),
+    MISTRAL(
+        displayName = "Mistral AI",
+        baseUrl = "https://api.mistral.ai",
+        defaultModel = "mistral-large-latest"
+    );
+
+    /**
+     * 获取配置的 key 前缀
+     */
+    fun getConfigPrefix(): String = name.lowercase()
+
+    /**
+     * 获取 API Key 的存储 key
+     */
+    fun getApiKeyPref(): String = "${getConfigPrefix()}_apiKey"
+
+    /**
+     * 获取 Secret Key 的存储 key（仅文心一言）
+     */
+    fun getSecretKeyPref(): String = "${getConfigPrefix()}_secretKey"
+
+    /**
+     * 获取启用状态的存储 key
+     */
+    fun getEnabledPref(): String = "${getConfigPrefix()}_enabled"
+
+    companion object {
+        /**
+         * 获取所有国内提供商
+         */
+        fun getDomesticProviders(): List<LLMProvider> = listOf(WENXIN, QWEN, ZHIPU)
+
+        /**
+         * 获取所有国外提供商
+         */
+        fun getInternationalProviders(): List<LLMProvider> = listOf(OPENAI, CLAUDE, GEMINI, MISTRAL)
+
+        /**
+         * 获取所有提供商
+         */
+        fun getAllProviders(): List<LLMProvider> = entries.toList()
+    }
+}

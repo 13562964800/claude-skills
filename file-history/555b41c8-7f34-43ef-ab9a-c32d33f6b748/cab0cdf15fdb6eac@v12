@@ -1,0 +1,292 @@
+package com.shanfuchun.courtassistant.util.network
+
+import android.content.Context
+import android.net.ConnectivityManager
+import android.net.Network
+import android.net.NetworkCapabilities
+import android.net.NetworkRequest
+import android.os.Build
+import androidx.lifecycle.LiveData
+import androidx.lifecycle.MutableLiveData
+import kotlinx.coroutines.suspendCancellableCoroutine
+import java.net.HttpURLConnection
+import java.net.URL
+import kotlin.coroutines.resume
+import kotlin.coroutines.resumeWithException
+
+/**
+ * 网络状态辅助类
+ *
+ * 提供网络状态检测功能：
+ * - 检查网络连接状态
+ * - 判断网络类型（WiFi/Mobile）
+ * - 网络状态监听
+ * - 网络可用性测试
+ */
+object NetworkHelper {
+
+    private lateinit var appContext: Context
+    private val connectivityManager get() = appContext.getSystemService(Context.CONNECTIVITY_SERVICE) as ConnectivityManager
+
+    // 网络状态 LiveData
+    private val _networkState = MutableLiveData<NetworkState>()
+    val networkState: LiveData<NetworkState> get() = _networkState
+
+    private var networkCallback: ConnectivityManager.NetworkCallback? = null
+
+    /**
+     * 网络状态数据类
+     */
+    data class NetworkState(
+        val isConnected: Boolean,
+        val isWifi: Boolean = false,
+        val isMobile: Boolean = false,
+        val isAvailable: Boolean = false
+    ) {
+        companion object {
+            fun disconnected() = NetworkState(false)
+        }
+    }
+
+    /**
+     * 初始化（必须在 Application 类中调用）
+     * @param context 应用上下文
+     */
+    fun init(context: Context) {
+        appContext = context.applicationContext
+    }
+
+    /**
+     * 检查网络是否连接
+     * @return 是否连接
+     */
+    fun isConnected(): Boolean {
+        return try {
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+                val network = connectivityManager.activeNetwork ?: return false
+                val capabilities = connectivityManager.getNetworkCapabilities(network) ?: return false
+                capabilities.hasCapability(NetworkCapabilities.NET_CAPABILITY_INTERNET)
+            } else {
+                @Suppress("DEPRECATION")
+                val networkInfo = connectivityManager.activeNetworkInfo
+                networkInfo?.isConnected == true
+            }
+        } catch (e: Exception) {
+            false
+        }
+    }
+
+    /**
+     * 检查网络是否可用（可上网）
+     * @return 是否可用
+     */
+    fun isAvailable(): Boolean {
+        return isConnected() && checkInternetAccess()
+    }
+
+    /**
+     * 检查是否使用 WiFi
+     * @return 是否是 WiFi
+     */
+    fun isWifi(): Boolean {
+        return try {
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+                val network = connectivityManager.activeNetwork ?: return false
+                val capabilities = connectivityManager.getNetworkCapabilities(network) ?: return false
+                capabilities.hasTransport(NetworkCapabilities.TRANSPORT_WIFI)
+            } else {
+                @Suppress("DEPRECATION")
+                connectivityManager.activeNetworkInfo?.type == ConnectivityManager.TYPE_WIFI
+            }
+        } catch (e: Exception) {
+            false
+        }
+    }
+
+    /**
+     * 检查是否使用移动网络
+     * @return 是否是移动网络
+     */
+    fun isMobile(): Boolean {
+        return try {
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+                val network = connectivityManager.activeNetwork ?: return false
+                val capabilities = connectivityManager.getNetworkCapabilities(network) ?: return false
+                capabilities.hasTransport(NetworkCapabilities.TRANSPORT_CELLULAR)
+            } else {
+                @Suppress("DEPRECATION")
+                connectivityManager.activeNetworkInfo?.type == ConnectivityManager.TYPE_MOBILE
+            }
+        } catch (e: Exception) {
+            false
+        }
+    }
+
+    /**
+     * 获取当前网络状态
+     * @return 网络状态
+     */
+    fun getNetworkState(): NetworkState {
+        if (!isConnected()) return NetworkState.disconnected()
+
+        return NetworkState(
+            isConnected = true,
+            isWifi = isWifi(),
+            isMobile = isMobile(),
+            isAvailable = checkInternetAccess()
+        )
+    }
+
+    /**
+     * 测试互联网访问（通过连接公共DNS）
+     * @return 是否可访问互联网
+     */
+    private fun checkInternetAccess(): Boolean {
+        return try {
+            val url = URL("https://www.baidu.com")
+            val connection = url.openConnection() as HttpURLConnection
+            connection.connectTimeout = 3000
+            connection.readTimeout = 3000
+            connection.requestMethod = "HEAD"
+            connection.responseCode == HttpURLConnection.HTTP_OK
+        } catch (e: Exception) {
+            false
+        }
+    }
+
+    /**
+     * 开始监听网络状态变化
+     */
+    fun startNetworkMonitoring() {
+        stopNetworkMonitoring()
+
+        val request = NetworkRequest.Builder()
+            .addCapability(NetworkCapabilities.NET_CAPABILITY_INTERNET)
+            .build()
+
+        networkCallback = object : ConnectivityManager.NetworkCallback() {
+            override fun onAvailable(network: Network) {
+                _networkState.postValue(getNetworkState())
+            }
+
+            override fun onLost(network: Network) {
+                _networkState.postValue(NetworkState.disconnected())
+            }
+
+            override fun onCapabilitiesChanged(
+                network: Network,
+                networkCapabilities: NetworkCapabilities
+            ) {
+                _networkState.postValue(getNetworkState())
+            }
+        }
+
+        networkCallback?.let {
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N) {
+                connectivityManager.registerDefaultNetworkCallback(it)
+            } else {
+                @Suppress("DEPRECATION")
+                connectivityManager.registerNetworkCallback(request, it)
+            }
+        }
+
+        // 初始状态
+        _networkState.postValue(getNetworkState())
+    }
+
+    /**
+     * 停止监听网络状态变化
+     */
+    fun stopNetworkMonitoring() {
+        networkCallback?.let {
+            connectivityManager.unregisterNetworkCallback(it)
+        }
+        networkCallback = null
+    }
+
+    /**
+     * 检查URL是否可访问
+     * @param urlString URL字符串
+     * @param timeout 超时时间（毫秒）
+     * @return 是否可访问
+     */
+    suspend fun isUrlReachable(urlString: String, timeout: Int = 5000): Boolean = suspendCancellableCoroutine { cont ->
+        try {
+            val url = URL(urlString)
+            val connection = url.openConnection() as HttpURLConnection
+            connection.connectTimeout = timeout
+            connection.readTimeout = timeout
+            connection.requestMethod = "HEAD"
+
+            Thread {
+                try {
+                    val reachable = connection.responseCode == HttpURLConnection.HTTP_OK
+                    connection.disconnect()
+                    if (cont.isActive) cont.resume(reachable)
+                } catch (e: Exception) {
+                    if (cont.isActive) cont.resume(false)
+                }
+            }.start()
+        } catch (e: Exception) {
+            if (cont.isActive) cont.resume(false)
+        }
+    }
+
+    /**
+     * 获取网络类型描述
+     * @return 网络类型描述字符串
+     */
+    fun getNetworkTypeDescription(): String {
+        return when {
+            !isConnected() -> "无网络"
+            isWifi() -> "WiFi"
+            isMobile() -> "移动网络"
+            else -> "未知网络"
+        }
+    }
+
+    /**
+     * 检查是否需要显示网络警告
+     * @return 是否需要显示
+     */
+    fun shouldShowNetworkWarning(): Boolean {
+        val state = getNetworkState()
+        return !state.isConnected || state.isMobile
+    }
+
+    /**
+     * 创建网络监听器
+     * @param onNetworkChanged 网络状态变化回调
+     */
+    fun createNetworkListener(onNetworkChanged: (NetworkState) -> Unit): ConnectivityManager.NetworkCallback {
+        return object : ConnectivityManager.NetworkCallback() {
+            override fun onAvailable(network: Network) {
+                onNetworkChanged(getNetworkState())
+            }
+
+            override fun onLost(network: Network) {
+                onNetworkChanged(NetworkState.disconnected())
+            }
+        }
+    }
+
+    /**
+     * 注册网络监听器
+     * @param callback 网络回调对象
+     */
+    fun registerNetworkCallback(callback: ConnectivityManager.NetworkCallback) {
+        val request = NetworkRequest.Builder()
+            .addCapability(NetworkCapabilities.NET_CAPABILITY_INTERNET)
+            .build()
+
+        connectivityManager.registerNetworkCallback(request, callback)
+    }
+
+    /**
+     * 注销网络监听器
+     * @param callback 网络回调对象
+     */
+    fun unregisterNetworkCallback(callback: ConnectivityManager.NetworkCallback) {
+        connectivityManager.unregisterNetworkCallback(callback)
+    }
+}

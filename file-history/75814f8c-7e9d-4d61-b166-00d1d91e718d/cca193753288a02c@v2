@@ -1,0 +1,152 @@
+package com.shanfuchun.courtassistant.ai.orchestrator
+
+import com.shanfuchun.courtassistant.ai.model.LLMResult
+import kotlin.math.max
+
+/**
+ * 结果对比器
+ * 用于从多个 LLM 返回的结果中选择最优的
+ */
+class ResultComparator {
+
+    /**
+     * 从多个结果中选择最优的
+     * @param results 所有 LLM 返回的结果
+     * @return 最优结果，如果没有有效结果则返回 null
+     */
+    fun selectBest(results: List<LLMResult>): LLMResult? {
+        val successful = results.filter { it.success && it.response.isValid() }
+        if (successful.isEmpty()) {
+            // 如果没有完全成功的，尝试返回部分成功的结果
+            val partialSuccess = results.filter { it.success }
+            if (partialSuccess.isEmpty()) return null
+            return selectByScore(partialSuccess)
+        }
+
+        // 首先尝试寻找共识（多个结果一致）
+        val consensus = findConsensus(successful)
+        if (consensus != null) {
+            return consensus
+        }
+
+        // 如果没有共识，按评分选择
+        return selectByScore(successful)
+    }
+
+    /**
+     * 按综合评分选择最优结果
+     */
+    private fun selectByScore(results: List<LLMResult>): LLMResult? {
+        return results.maxByOrNull { it.getScore() }
+    }
+
+    /**
+     * 寻找多个结果中的共识
+     * 如果多个提供商返回相同的结果（如案号、开庭时间一致），则认为达成共识
+     */
+    private fun findConsensus(results: List<LLMResult>): LLMResult? {
+        if (results.size < 2) return null
+
+        // 按案号分组
+        val byCaseNo = results.filter { it.response.caseNo != null }
+            .groupBy { it.response.caseNo }
+
+        // 如果有多个结果具有相同的案号，优先选择这些结果
+        val consensusGroup = byCaseNo.values.maxByOrNull { it.size }
+        if (consensusGroup != null && consensusGroup.size >= 2) {
+            // 在达成共识的结果中，选择评分最高的
+            return consensusGroup.maxByOrNull { it.getScore() }
+        }
+
+        // 如果没有案号一致，检查开庭时间
+        val byTime = results.filter { it.response.hearingTime != null }
+            .groupBy { it.response.hearingTime }
+
+        val timeConsensus = byTime.values.maxByOrNull { it.size }
+        if (timeConsensus != null && timeConsensus.size >= 2) {
+            return timeConsensus.maxByOrNull { it.getScore() }
+        }
+
+        return null
+    }
+
+    /**
+     * 计算两个结果的相似度
+     * @return 0-1 之间的值，1 表示完全相同
+     */
+    fun calculateSimilarity(r1: LLMResult, r2: LLMResult): Float {
+        val e1 = r1.response
+        val e2 = r2.response
+
+        var score = 0f
+        var count = 0
+
+        // 比较案号
+        if (e1.caseNo != null && e2.caseNo != null) {
+            count++
+            if (e1.caseNo == e2.caseNo) {
+                score += 1f
+            } else if (e1.caseNo?.caseId() == e2.caseNo?.caseId()) {
+                // 提取案号中的数字部分进行比较
+                score += 0.8f
+            }
+        }
+
+        // 比较法院
+        if (e1.courtName != null && e2.courtName != null) {
+            count++
+            if (e1.courtName == e2.courtName) {
+                score += 1f
+            } else {
+                // 检查是否是同一法院的不同表述
+                val s1 = e1.courtName.simplifiedCourtName
+                val s2 = e2.courtName.simplifiedCourtName
+                if (s1 == s2 || s1.contains(s2) || s2.contains(s1)) {
+                    score += 0.7f
+                }
+            }
+        }
+
+        // 比较开庭时间（允许一定误差）
+        if (e1.hearingTime != null && e2.hearingTime != null) {
+            count++
+            val diff = kotlin.math.abs(e1.hearingTime - e2.hearingTime)
+            when {
+                diff == 0L -> score += 1f
+                diff < 60000 -> score += 0.95f  // 1分钟内
+                diff < 3600000 -> score += 0.7f  // 1小时内
+                diff < 86400000 -> score += 0.3f  // 1天内
+            }
+        }
+
+        // 比较地点
+        if (e1.location != null && e2.location != null) {
+            count++
+            if (e1.location == e2.location) {
+                score += 1f
+            } else if (e1.location.contains(e2.location) || e2.location.contains(e1.location)) {
+                score += 0.6f
+            }
+        }
+
+        return if (count > 0) score / count else 0f
+    }
+
+    /**
+     * 从案号中提取唯一标识（数字部分）
+     */
+    private fun String.caseId(): String {
+        return this.filter { it.isDigit() }
+    }
+
+    /**
+     * 简化法院名称（去除"人民法院"、"市"、"省"等）
+     */
+    private val String.simplifiedCourtName: String
+        get() = this.replace("人民法院", "")
+            .replace("省", "")
+            .replace("市", "")
+            .replace("区", "")
+            .replace("县", "")
+            .trim()
+}

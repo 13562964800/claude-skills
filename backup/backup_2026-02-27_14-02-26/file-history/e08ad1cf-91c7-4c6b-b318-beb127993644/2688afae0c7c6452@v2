@@ -1,0 +1,36 @@
+import requests
+
+
+class LLMClient:
+    def __init__(self, base_url, api_key, model, provider_key="openai"):
+        self.base_url = base_url.rstrip("/")
+        self.api_key = api_key
+        self.model = model
+        self.provider_key = provider_key
+
+    def test_connection(self):
+        """发送最小请求测试连通性，返回 (success, message)"""
+        try:
+            if self.provider_key == "anthropic":
+                url = f"{self.base_url}/messages"
+                headers = {
+                    "x-api-key": self.api_key,
+                    "anthropic-version": "2023-06-01",
+                    "Content-Type": "application/json",
+                }
+                body = {"model": self.model, "max_tokens": 10,
+                        "messages": [{"role": "user", "content": "Hi"}]}
+            else:
+                url = f"{self.base_url}/chat/completions"
+                headers = {
+                    "Authorization": f"Bearer {self.api_key}",
+                    "Content-Type": "application/json",
+                }
+                body = {"model": self.model, "max_tokens": 10,
+                        "messages": [{"role": "user", "content": "Hi"}]}
+            resp = requests.post(url, json=body, headers=headers, timeout=15)
+            if resp.status_code == 200:
+                return True, "连接成功"
+            return False, f"HTTP {resp.status_code}: {resp.text[:200]}"
+        except Exception as e:
+            return False, str(e)

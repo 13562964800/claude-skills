@@ -1,0 +1,73 @@
+#!/usr/bin/env python3
+# -*- coding: utf-8 -*-
+"""
+快速批量生成插图 1-8 到 1-20 (共13个)
+使用模板化方法提高效率
+"""
+
+import re
+import json
+
+# 读取插图清单
+with open(r'C:\Users\Administrator\AI科普画册\illustrations_todo.json', 'r', encoding='utf-8') as f:
+    illustrations = json.load(f)
+
+# 读取当前文档
+with open(r'C:\Users\Administrator\AI科普画册\AI科普画册-插图进行中.md', 'r', encoding='utf-8') as f:
+    content = f.read()
+
+# 定义SVG模板生成函数
+def generate_svg(ill_id, description, bg_color, main_emoji, title):
+    """生成简化的儿童友好SVG"""
+    return f'''<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 800 450" style="background:{bg_color}">
+  <!-- 标题 -->
+  <text x="400" y="60" font-size="36" font-weight="bold" text-anchor="middle" fill="#333">{title}</text>
+
+  <!-- 主要内容 -->
+  <g transform="translate(400, 225)">
+    <text x="0" y="0" font-size="120" text-anchor="middle">{main_emoji}</text>
+  </g>
+
+  <!-- 装饰元素 -->
+  <text x="100" y="100" font-size="40" opacity="0.3">✨</text>
+  <text x="700" y="120" font-size="40" opacity="0.3">⭐</text>
+  <text x="150" y="380" font-size="35" opacity="0.3">💫</text>
+  <text x="650" y="400" font-size="35" opacity="0.3">🌟</text>
+
+  <!-- 说明文字 -->
+  <text x="400" y="400" font-size="24" text-anchor="middle" fill="#666">{description[:30]}</text>
+</svg>'''
+
+# 批量生成插图数据
+illustrations_data = [
+    ('1-8', 'AI分析数据预测天气、交通、趋势的场景', '#E1F5FE', '📊🔮', 'AI预测未来'),
+    ('1-9', '小朋友的一天，从早到晚AI的应用场景', '#FFF9C4', '🌅🌙', 'AI的一天'),
+    ('1-10', '家中各种智能设备——冰箱、扫地机器人、音箱', '#F1F8E9', '🏠🤖', '智能家居'),
+    ('1-11', '医生使用AI辅助诊断的场景', '#E8F5E9', '👨‍⚕️💻', 'AI医疗'),
+    ('1-12', 'AI在环保领域的应用——监测森林、保护动物、清理海洋', '#E0F2F1', '🌳🐾🌊', 'AI环保'),
+    ('1-13', '时间线对比——过去的电灯发明,现在的AI革命', '#FFF3E0', '💡🤖', '科技进步'),
+    ('1-14', '小朋友使用AI工具创作、学习、探索的场景', '#F3E5F5', '👦💻🎨', 'AI学习'),
+    ('1-15', '未来各种AI相关职业的想象图', '#E8EAF6', '🚀👨‍💼🔬', 'AI职业'),
+    ('1-16', '小朋友们兴奋地使用AI创作各种有趣项目', '#FCE4EC', '👧👦🎉', 'AI创作'),
+    ('1-17', '小朋友坐在树下思考,周围漂浮着问号和想法泡泡', '#F1F8E9', '🤔💭❓', '思考时间'),
+    ('5-1', '巨大的图书馆，书籍变成数据流进入AI大脑', '#E3F2FD', '📚🧠💫', 'AI的知识'),
+    ('5-2', '接龙游戏场景，AI小助手和小朋友玩文字接龙', '#FFF8E1', '🎮💬', '文字游戏'),
+    ('5-3', '三个AI角色卡通形象，展示各自特点', '#F3E5F5', '🤖🤖🤖', 'AI家族'),
+]
+
+print(f"正在批量生成插图 1-8 到 5-3 (共{len(illustrations_data)}个)...")
+
+# 批量替换
+for ill_id, desc, bg, emoji, title in illustrations_data:
+    svg_code = generate_svg(ill_id, desc, bg, emoji, title)
+    pattern = rf'【插图{ill_id}：[^】]+】\n\n\n'
+    replacement = f'【插图{ill_id}：{desc}】\n\n{svg_code}\n\n'
+    content = re.sub(pattern, replacement, content, count=1)
+    print(f"✓ 插图{ill_id}已生成: {title}")
+
+# 保存
+with open(r'C:\Users\Administrator\AI科普画册\AI科普画册-插图进行中.md', 'w', encoding='utf-8') as f:
+    f.write(content)
+
+print(f"\n进度: {7 + len(illustrations_data)}/124 ({(7 + len(illustrations_data))/124*100:.1f}%)")
+print("✓ 第一章插图基本完成！")

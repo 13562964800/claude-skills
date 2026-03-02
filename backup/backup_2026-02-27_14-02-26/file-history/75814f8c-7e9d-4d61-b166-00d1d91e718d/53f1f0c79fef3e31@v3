@@ -1,0 +1,497 @@
+package com.courassistant.java.repository;
+
+import android.content.Context;
+import android.util.Log;
+
+import androidx.lifecycle.MutableLiveData;
+
+import com.shanfuchun.courtassistant.java.database.CourtDocumentDao;
+import com.shanfuchun.courtassistant.java.database.CourtDocumentEntity;
+import com.shanfuchun.courtassistant.java.database.CourtDatabase;
+import com.shanfuchun.courtassistant.java.model.CourtDocument;
+
+import java.io.File;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+
+/**
+ * 文档数据仓库
+ * 单例模式，提供统一的文档访问接口
+ *
+ * 宋氏美学，单夫纯律师 制作
+ */
+public class DocumentRepository {
+
+    private static final String TAG = "DocumentRepository";
+
+    private static DocumentRepository instance;
+    private CourtDocumentDao documentDao;
+    private ExecutorService executor;
+    private MutableLiveData<List<CourtDocument>> allDocsLiveData;
+
+    private DocumentRepository(Context context) {
+        CourtDatabase database = CourtDatabase.getInstance(context);
+        documentDao = database.courtDocumentDao();
+        executor = Executors.newFixedThreadPool(4);
+        allDocsLiveData = new MutableLiveData<>();
+    }
+
+    /**
+     * 获取仓库实例
+     */
+    public static synchronized DocumentRepository getInstance(Context context) {
+        if (instance == null) {
+            instance = new DocumentRepository(context.getApplicationContext());
+        }
+        return instance;
+    }
+
+    /**
+     * 插入文档
+     */
+    public void insertDocument(CourtDocument document, OnResultCallback callback) {
+        executor.execute(() -> {
+            try {
+                CourtDocumentEntity entity = convertToEntity(document);
+                long id = documentDao.insert(entity);
+                document.setId(id);
+                Log.d(TAG, "文档插入成功: " + document.getFileName());
+                if (callback != null) {
+                    callback.onSuccess(id);
+                }
+            } catch (Exception e) {
+                Log.e(TAG, "文档插入失败", e);
+                if (callback != null) {
+                    callback.onError(e.getMessage());
+                }
+            }
+        });
+    }
+
+    /**
+     * 批量插入文档
+     */
+    public void insertDocuments(List<CourtDocument> documents, OnResultCallback callback) {
+        executor.execute(() -> {
+            try {
+                List<CourtDocumentEntity> entities = new ArrayList<>();
+                for (CourtDocument doc : documents) {
+                    entities.add(convertToEntity(doc));
+                }
+                List<Long> ids = documentDao.insertAll(entities);
+                Log.d(TAG, "批量插入文档成功: " + ids.size() + " 条");
+                if (callback != null) {
+                    callback.onSuccess(ids.size());
+                }
+            } catch (Exception e) {
+                Log.e(TAG, "批量插入文档失败", e);
+                if (callback != null) {
+                    callback.onError(e.getMessage());
+                }
+            }
+        });
+    }
+
+    /**
+     * 更新文档
+     */
+    public void updateDocument(CourtDocument document, OnResultCallback callback) {
+        executor.execute(() -> {
+            try {
+                CourtDocumentEntity entity = convertToEntity(document);
+                int rows = documentDao.update(entity);
+                Log.d(TAG, "文档更新成功: " + document.getFileName());
+                if (callback != null) {
+                    callback.onSuccess(rows);
+                }
+            } catch (Exception e) {
+                Log.e(TAG, "文档更新失败", e);
+                if (callback != null) {
+                    callback.onError(e.getMessage());
+                }
+            }
+        });
+    }
+
+    /**
+     * 删除文档
+     */
+    public void deleteDocument(long documentId, OnResultCallback callback) {
+        executor.execute(() -> {
+            try {
+                // 先获取文件路径
+                CourtDocumentEntity entity = documentDao.getById(documentId);
+                if (entity != null && entity.getFilePath() != null) {
+                    // 删除文件
+                    File file = new File(entity.getFilePath());
+                    if (file.exists()) {
+                        boolean deleted = file.delete();
+                        if (deleted) {
+                            Log.d(TAG, "文件删除成功: " + entity.getFilePath());
+                        }
+                    }
+                }
+
+                // 删除数据库记录
+                documentDao.deleteById(documentId);
+                Log.d(TAG, "文档删除成功: id=" + documentId);
+                if (callback != null) {
+                    callback.onSuccess(true);
+                }
+            } catch (Exception e) {
+                Log.e(TAG, "文档删除失败", e);
+                if (callback != null) {
+                    callback.onError(e.getMessage());
+                }
+            }
+        });
+    }
+
+    /**
+     * 根据ID获取文档
+     */
+    public void getDocumentById(long id, OnDocumentCallback callback) {
+        executor.execute(() -> {
+            try {
+                CourtDocumentEntity entity = documentDao.getById(id);
+                CourtDocument document = convertToModel(entity);
+                if (callback != null) {
+                    callback.onResult(document);
+                }
+            } catch (Exception e) {
+                Log.e(TAG, "获取文档失败", e);
+                if (callback != null) {
+                    callback.onError(e.getMessage());
+                }
+            }
+        });
+    }
+
+    /**
+     * 获取所有文档
+     */
+    public void getAllDocuments(OnDocumentsCallback callback) {
+        executor.execute(() -> {
+            try {
+                List<CourtDocumentEntity> entities = documentDao.getAll();
+                List<CourtDocument> documents = new ArrayList<>();
+                for (CourtDocumentEntity entity : entities) {
+                    documents.add(convertToModel(entity));
+                }
+                if (callback != null) {
+                    callback.onResult(documents);
+                }
+            } catch (Exception e) {
+                Log.e(TAG, "获取所有文档失败", e);
+                if (callback != null) {
+                    callback.onError(e.getMessage());
+                }
+            }
+        });
+    }
+
+    /**
+     * 获取所有文档（LiveData）
+     */
+    public MutableLiveData<List<CourtDocument>> getAllDocumentsLiveData() {
+        executor.execute(() -> {
+            List<CourtDocumentEntity> entities = documentDao.getAll();
+            List<CourtDocument> documents = new ArrayList<>();
+            for (CourtDocumentEntity entity : entities) {
+                documents.add(convertToModel(entity));
+            }
+            allDocsLiveData.postValue(documents);
+        });
+        return allDocsLiveData;
+    }
+
+    /**
+     * 根据案件ID获取文档
+     */
+    public void getDocumentsByCaseId(long caseId, OnDocumentsCallback callback) {
+        executor.execute(() -> {
+            try {
+                List<CourtDocumentEntity> entities = documentDao.getByCaseId(caseId);
+                List<CourtDocument> documents = new ArrayList<>();
+                for (CourtDocumentEntity entity : entities) {
+                    documents.add(convertToModel(entity));
+                }
+                if (callback != null) {
+                    callback.onResult(documents);
+                }
+            } catch (Exception e) {
+                Log.e(TAG, "根据案件ID获取文档失败", e);
+                if (callback != null) {
+                    callback.onError(e.getMessage());
+                }
+            }
+        });
+    }
+
+    /**
+     * 获取传票文档
+     */
+    public void getSummonsDocuments(OnDocumentsCallback callback) {
+        executor.execute(() -> {
+            try {
+                List<CourtDocumentEntity> entities = documentDao.getSummons();
+                List<CourtDocument> documents = new ArrayList<>();
+                for (CourtDocumentEntity entity : entities) {
+                    documents.add(convertToModel(entity));
+                }
+                if (callback != null) {
+                    callback.onResult(documents);
+                }
+            } catch (Exception e) {
+                Log.e(TAG, "获取传票文档失败", e);
+                if (callback != null) {
+                    callback.onError(e.getMessage());
+                }
+            }
+        });
+    }
+
+    /**
+     * 获取未同步到日历的传票
+     */
+    public void getUnsyncedSummons(OnDocumentsCallback callback) {
+        executor.execute(() -> {
+            try {
+                List<CourtDocumentEntity> entities = documentDao.getUnsyncedSummons();
+                List<CourtDocument> documents = new ArrayList<>();
+                for (CourtDocumentEntity entity : entities) {
+                    documents.add(convertToModel(entity));
+                }
+                if (callback != null) {
+                    callback.onResult(documents);
+                }
+            } catch (Exception e) {
+                Log.e(TAG, "获取未同步传票失败", e);
+                if (callback != null) {
+                    callback.onError(e.getMessage());
+                }
+            }
+        });
+    }
+
+    /**
+     * 搜索文档
+     */
+    public void searchDocuments(String keyword, OnDocumentsCallback callback) {
+        executor.execute(() -> {
+            try {
+                List<CourtDocumentEntity> entities = documentDao.searchByFileName(keyword);
+                List<CourtDocument> documents = new ArrayList<>();
+                for (CourtDocumentEntity entity : entities) {
+                    documents.add(convertToModel(entity));
+                }
+                if (callback != null) {
+                    callback.onResult(documents);
+                }
+            } catch (Exception e) {
+                Log.e(TAG, "搜索文档失败", e);
+                if (callback != null) {
+                    callback.onError(e.getMessage());
+                }
+            }
+        });
+    }
+
+    /**
+     * 获取最近的文档
+     */
+    public void getRecentDocuments(int limit, OnDocumentsCallback callback) {
+        executor.execute(() -> {
+            try {
+                List<CourtDocumentEntity> entities = documentDao.getRecentDocuments(limit);
+                List<CourtDocument> documents = new ArrayList<>();
+                for (CourtDocumentEntity entity : entities) {
+                    documents.add(convertToModel(entity));
+                }
+                if (callback != null) {
+                    callback.onResult(documents);
+                }
+            } catch (Exception e) {
+                Log.e(TAG, "获取最近文档失败", e);
+                if (callback != null) {
+                    callback.onError(e.getMessage());
+                }
+            }
+        });
+    }
+
+    /**
+     * 更新文档解析状态
+     */
+    public void updateParseStatus(long documentId, int status, OnResultCallback callback) {
+        executor.execute(() -> {
+            try {
+                documentDao.updateParseStatus(documentId, status);
+                Log.d(TAG, "更新解析状态成功: id=" + documentId + ", status=" + status);
+                if (callback != null) {
+                    callback.onSuccess(true);
+                }
+            } catch (Exception e) {
+                Log.e(TAG, "更新解析状态失败", e);
+                if (callback != null) {
+                    callback.onError(e.getMessage());
+                }
+            }
+        });
+    }
+
+    /**
+     * 更新文档日历同步状态
+     */
+    public void updateCalendarSynced(long documentId, boolean synced, OnResultCallback callback) {
+        executor.execute(() -> {
+            try {
+                documentDao.updateCalendarSynced(documentId, synced);
+                Log.d(TAG, "更新日历同步状态成功: id=" + documentId + ", synced=" + synced);
+                if (callback != null) {
+                    callback.onSuccess(true);
+                }
+            } catch (Exception e) {
+                Log.e(TAG, "更新日历同步状态失败", e);
+                if (callback != null) {
+                    callback.onError(e.getMessage());
+                }
+            }
+        });
+    }
+
+    /**
+     * 清理旧文档
+     */
+    public void cleanOldDocuments(long beforeTime, OnResultCallback callback) {
+        executor.execute(() -> {
+            try {
+                List<CourtDocumentEntity> entities = documentDao.getOldDocuments(beforeTime);
+                int count = 0;
+
+                for (CourtDocumentEntity entity : entities) {
+                    // 删除文件
+                    if (entity.getFilePath() != null) {
+                        File file = new File(entity.getFilePath());
+                        if (file.exists()) {
+                            file.delete();
+                        }
+                    }
+                    count++;
+                }
+
+                // 删除数据库记录
+                documentDao.deleteOldDocuments(beforeTime);
+                Log.d(TAG, "清理旧文档成功: " + count + " 条");
+                if (callback != null) {
+                    callback.onSuccess(count);
+                }
+            } catch (Exception e) {
+                Log.e(TAG, "清理旧文档失败", e);
+                if (callback != null) {
+                    callback.onError(e.getMessage());
+                }
+            }
+        });
+    }
+
+    /**
+     * 统计文档数量
+     */
+    public void getDocumentCount(OnResultCallback callback) {
+        executor.execute(() -> {
+            try {
+                int count = documentDao.getCount();
+                if (callback != null) {
+                    callback.onSuccess(count);
+                }
+            } catch (Exception e) {
+                Log.e(TAG, "统计文档数量失败", e);
+                if (callback != null) {
+                    callback.onError(e.getMessage());
+                }
+            }
+        });
+    }
+
+    /**
+     * 转换为实体
+     */
+    private CourtDocumentEntity convertToEntity(CourtDocument model) {
+        if (model == null) return null;
+
+        CourtDocumentEntity entity = new CourtDocumentEntity();
+        entity.setId(model.getId());
+        entity.setCaseId(model.getCaseId());
+        entity.setFileName(model.getFileName());
+        entity.setFilePath(model.getFilePath());
+        entity.setFileSize(model.getFileSize());
+        entity.setFileType(model.getFileType());
+        entity.setDownloadUrl(model.getDownloadUrl());
+        entity.setIsSummons(model.getIsSummons() ? 1 : 0);
+        entity.setDownloadTime(model.getDownloadTime());
+        entity.setParseStatus(model.getParseStatus());
+        entity.setCalendarSynced(model.getCalendarSynced() ? 1 : 0);
+        entity.setCreatedAt(model.getCreatedAt());
+        entity.setUpdatedAt(model.getUpdatedAt());
+        return entity;
+    }
+
+    /**
+     * 转换为模型
+     */
+    private CourtDocument convertToModel(CourtDocumentEntity entity) {
+        if (entity == null) return null;
+
+        CourtDocument model = new CourtDocument();
+        model.setId(entity.getId());
+        model.setCaseId(entity.getCaseId());
+        model.setFileName(entity.getFileName());
+        model.setFilePath(entity.getFilePath());
+        model.setFileSize(entity.getFileSize());
+        model.setFileType(entity.getFileType());
+        model.setDownloadUrl(entity.getDownloadUrl());
+        model.setIsSummons(entity.getIsSummons() == 1);
+        model.setDownloadTime(entity.getDownloadTime());
+        model.setParseStatus(entity.getParseStatus());
+        model.setCalendarSynced(entity.getCalendarSynced() == 1);
+        model.setCreatedAt(entity.getCreatedAt());
+        model.setUpdatedAt(entity.getUpdatedAt());
+        return model;
+    }
+
+    /**
+     * 回调接口 - 单个结果
+     */
+    public interface OnResultCallback {
+        void onSuccess(Object result);
+        void onError(String error);
+    }
+
+    /**
+     * 回调接口 - 文档结果
+     */
+    public interface OnDocumentCallback {
+        void onResult(CourtDocument document);
+        void onError(String error);
+    }
+
+    /**
+     * 回调接口 - 文档列表结果
+     */
+    public interface OnDocumentsCallback {
+        void onResult(List<CourtDocument> documents);
+        void onError(String error);
+    }
+
+    /**
+     * 关闭仓库
+     */
+    public void close() {
+        if (executor != null && !executor.isShutdown()) {
+            executor.shutdown();
+        }
+    }
+}

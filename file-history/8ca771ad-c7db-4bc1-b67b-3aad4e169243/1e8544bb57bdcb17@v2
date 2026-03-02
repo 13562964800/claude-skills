@@ -1,0 +1,30 @@
+"""
+Groq API 在线引擎
+"""
+
+import openai
+from typing import Optional
+
+class GroqEngine:
+    def __init__(self, api_key: str):
+        self.client = openai.OpenAI(
+            api_key=api_key,
+            base_url="https://api.groq.com/openai/v1"
+        )
+
+    async def transcribe(self, audio_path: str, language: Optional[str] = None) -> dict:
+        """转录音频"""
+        with open(audio_path, 'rb') as f:
+            response = self.client.audio.transcriptions.create(
+                model="whisper-large-v3-turbo",
+                file=f,
+                language=language,
+                response_format="verbose_json",
+                timestamp_granularities=["word"],
+            )
+
+        return {
+            'text': response.text,
+            'words': response.words if hasattr(response, 'words') else [],
+            'language': response.language if hasattr(response, 'language') else language,
+        }

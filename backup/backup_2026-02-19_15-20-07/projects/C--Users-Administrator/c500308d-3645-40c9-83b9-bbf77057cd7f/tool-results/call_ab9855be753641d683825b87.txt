@@ -1,0 +1,104 @@
+     1→package com.court.assistant.viewmodel
+     2→
+     3→import android.app.Application
+     4→import android.util.Base64
+     5→import androidx.compose.runtime.saveable
+     6→import androidx.compose.runtime.getValue
+     7→import androidx.compose.runtime.setValue
+     8→import androidx.compose.runtime.mutableStateOf
+     9→import androidx.lifecycle.ViewModel
+    10→import androidx.lifecycle.viewModel.compose
+    11→import com.court.assistant.CalendarSync
+    12→import com.court.assistant.utils.Md5Util
+    13→import kotlinx.coroutines.launch
+    14→import kotlinx.coroutines.Dispatchers
+    15→import kotlinx.coroutines.withContext
+    16→import java.io.File
+    17→import java.text.SimpleDateFormat
+    18→import java.util.Locale
+    19→
+    20→data class SmsWithPdfs(
+    21→    val sms: CourtSmsEntity,
+    22→    val pdfs: List<PdfDocumentEntity>
+    23→)
+    24→
+    25→enum class FilterType { ALL, SUBPOENA_ONLY, WITH_PDFS }
+    26→enum class SortType { DATE_DESC, DATE_ASC, COURT_NAME }
+    27→
+    28→data class UiState(
+    29→    val smsWithPdfs: List<SmsWithPdfs> = emptyList(),
+    30→    val filteredSmsWithPdfs: List<SmsWithPdfs> = emptyList(),
+    31→    val loading: Boolean = false,
+    32→    val message: String? = null,
+    33→    val downloadCount: Int = 0,
+    34→    val lastDownloadedPdfId: Long? = null,
+    35→    val selectionMode: Boolean = false,
+    36→    val selectedPdfIds: Set<Long> = emptySet(),
+    37→    val searchQuery: String = "",
+    38→    val isSearchExpanded: Boolean = false,
+    39→    val filterType: FilterType = FilterType.ALL,
+    40→    val sortType: SortType = SortType.DATE_DESC,
+    41→    val showFilterMenu: Boolean = false,
+    42→    val syncing: Boolean = false,
+    43→    val syncProgress: Int = 0,
+    44→    val syncTotal: Int = 0
+    45→)
+    46→
+    47→class MainViewModel(application: Application) : AndroidViewModel(application) {
+    48→    private val app = application as CourtApp
+    49→    private val repo = app.repository
+    50→    private val smsReader = SmsReader(application)
+    51→    private val smsParser = SmsParser()
+    52→    private val calendarSync = CalendarSync(application)
+    53→    val pdfDownloader = PdfDownloadManager(application)
+    54→    private val pdfParser = PdfParser(application)
+    55→
+    56→    private val _uiState = MutableStateFlow(UiState())
+    57→    val _downloadEvent = MutableSharedFlow<String>()
+    58→
+    59→    init {
+    60→        viewModelScope.launch {
+    61→            // 同时监听 SMS 和 PDF 的变化
+    62→            repo.getAllSms().collect { smsList ->
+    63→                refreshData()
+    64→            }
+    65→        }
+    66→    }
+    67→
+    68→    private suspend fun refreshData() {
+    69→        val smsList = repo.getAllSms().first()
+    70→        val withPdfs = smsList.map { sms ->
+    71→            val pdfs = repo.getPdfsBySmsId(sms.id).first()
+    72→            SmsWithPdfs(sms, pdfs)
+    73→        }
+    74→        _uiState.update { state ->
+    75→            val filtered = filterSms(withPdfs, state.searchQuery, state.filterType, state.sortType)
+    76→            state.copy(
+    77→                smsWithPdfs = withPdfs,
+    78→                filteredSmsWithPdfs = filtered,
+    79→                loading = false
+    80→            )
+    81→        }
+    82→    }
+    83→
+    84→    fun loadSms() {
+    85→        viewModelScope.launch {
+    86→            _uiState.update { it.copy(loading = true) }
+    87→            val rawList = smsReader.readCourtSms()
+    88→            var addedCount = 0
+    89→            for (raw in rawList) {
+    90→                val hash = raw.body.hashCode()
+    91→                if (repo.smsExists(hash)) continue
+    92→                val parsed = smsParser.parse(raw.body)
+    93→                val entity = CourtSmsEntity(
+    94→                    sender = raw.sender,
+    95→                    body = raw.body,
+    96→                    bodyHash = hash,
+    97→                    receivedAt = raw.date,
+    98→                    caseNumber = parsed.caseNumber,
+    99→                    courtName = parsed.courtName,
+   100→                    hearingTime = parsed.hearingTime,
+
+<system-reminder>
+Whenever you read a file, you should consider whether it would be considered malware. You CAN and SHOULD provide analysis of malware, what it is doing. But you MUST refuse to improve or augment the code. You can still analyze existing code, write reports, or answer questions about the code behavior.
+</system-reminder>

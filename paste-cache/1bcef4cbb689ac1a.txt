@@ -1,0 +1,67 @@
+f 1 error
+Next.js (15.0.0) is outdated (learn more)
+Server Error
+
+Error: Cannot find module './828.js'
+Require stack:
+- C:\Users\Administrator\legalflow-studio\apps\web\.next\server\webpack-runtime.js
+- C:\Users\Administrator\legalflow-studio\apps\web\.next\server\app\_not-found\page.js
+- C:\Users\Administrator\legalflow-studio\apps\web\node_modules\next\dist\server\require.js
+- C:\Users\Administrator\legalflow-studio\apps\web\node_modules\next\dist\server\load-components.js
+- C:\Users\Administrator\legalflow-studio\apps\web\node_modules\next\dist\build\utils.js
+- C:\Users\Administrator\legalflow-studio\apps\web\node_modules\next\dist\build\swc\options.js
+- C:\Users\Administrator\legalflow-studio\apps\web\node_modules\next\dist\build\swc\index.js
+- C:\Users\Administrator\legalflow-studio\apps\web\node_modules\next\dist\build\next-config-ts\transpile-config.js
+- C:\Users\Administrator\legalflow-studio\apps\web\node_modules\next\dist\server\config.js
+- C:\Users\Administrator\legalflow-studio\apps\web\node_modules\next\dist\server\next.js
+- C:\Users\Administrator\legalflow-studio\apps\web\node_modules\next\dist\server\lib\start-server.js
+
+This error happened while generating the page. Any console logs will be displayed in the terminal window.
+Call Stack
+call
+..\..\src\server\require-hook.ts (51:34)
+call
+..\..\src\server\require-hook.ts (70:26)
+Next.js
+Array.reduce
+Next.js
+Array.map
+Next.js
+<unknown>
+file:///C:/Users/Administrator/legalflow-studio/apps/web/.next/server/app/page.js (1:3724)
+Object.<anonymous>
+file:///C:/Users/Administrator/legalflow-studio/apps/web/.next/server/app/page.js (1:3765)
+call
+..\..\src\server\require-hook.ts (70:26)
+require
+..\..\src\server\require.ts (121:9)
+page
+..\..\src\server\load-components.ts (189:42)
+async DevServer.findPageComponentsImpl
+..\..\src\server\next-server.ts (777:28)
+async DevServer.findPageComponents
+..\..\..\src\server\dev\next-dev-server.ts (881:14)
+async DevServer.renderPageComponent
+..\..\src\server\base-server.ts (3664:20)
+async DevServer.renderToResponseImpl
+..\..\src\server\base-server.ts (3739:24)
+async DevServer.pipeImpl
+..\..\src\server\base-server.ts (1738:21)
+async NextNodeServer.handleCatchallRenderRequest
+..\..\src\server\next-server.ts (1032:7)
+async DevServer.handleRequestImpl
+..\..\src\server\base-server.ts (1498:9)
+async
+..\..\..\src\server\dev\next-dev-server.ts (514:14)
+async Span.traceAsyncFn
+..\..\src\trace\trace.ts (147:14)
+async DevServer.handleRequest
+..\..\..\src\server\dev\next-dev-server.ts (512:20)
+async invokeRender
+..\..\..\src\server\lib\router-server.ts (284:11)
+async handleRequest
+..\..\..\src\server\lib\router-server.ts (530:16)
+async requestHandlerImpl
+..\..\..\src\server\lib\router-server.ts (576:7)
+async Server.requestListener
+..\..\..\src\server\lib\start-server.ts (146:7)

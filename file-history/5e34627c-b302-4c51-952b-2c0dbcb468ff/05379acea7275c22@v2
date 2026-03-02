@@ -1,0 +1,129 @@
+# PowerShell脚本：修复页码显示问题
+
+param(
+    [string]$DocPath = "C:\Users\Administrator\AI科普画册\AI前沿知识儿童科普画册-最终成品.docx",
+    [string]$OutputPath = "C:\Users\Administrator\AI科普画册\AI前沿知识儿童科普画册-带页码成品.docx"
+)
+
+Write-Host "=" * 70 -ForegroundColor Cyan
+Write-Host "📄 修复页码显示" -ForegroundColor Cyan
+Write-Host "=" * 70 -ForegroundColor Cyan
+
+if (-not (Test-Path $DocPath)) {
+    Write-Host "❌ 找不到文档: $DocPath" -ForegroundColor Red
+    exit 1
+}
+
+Write-Host "`n📂 输入文件: $DocPath" -ForegroundColor Yellow
+Write-Host "📂 输出文件: $OutputPath`n" -ForegroundColor Yellow
+
+try {
+    Write-Host "📖 启动Word应用程序..." -ForegroundColor Green
+    $word = New-Object -ComObject Word.Application
+    $word.Visible = $false
+
+    Write-Host "📖 打开Word文档..." -ForegroundColor Green
+    $doc = $word.Documents.Open($DocPath)
+
+    $totalPages = $doc.ComputeStatistics(2)
+    $sectionCount = $doc.Sections.Count
+    Write-Host "文档总页数: $totalPages" -ForegroundColor Cyan
+    Write-Host "文档节数: $sectionCount`n" -ForegroundColor Cyan
+
+    # 删除所有现有页码
+    Write-Host "🗑️  删除现有页码..." -ForegroundColor Yellow
+    for ($i = 1; $i -le $sectionCount; $i++) {
+        $section = $doc.Sections.Item($i)
+        foreach ($footer in $section.Footers) {
+            try {
+                $footer.Range.Delete() | Out-Null
+            } catch {}
+        }
+    }
+    Write-Host "  ✓ 已删除所有现有页码`n" -ForegroundColor Green
+
+    # 为每一节重新添加页码
+    Write-Host "📄 为所有页面添加页码..." -ForegroundColor Green
+
+    for ($i = 1; $i -le $sectionCount; $i++) {
+        $section = $doc.Sections.Item($i)
+
+        # 获取主页脚
+        $footer = $section.Footers.Item(1)  # wdHeaderFooterPrimary = 1
+
+        # 断开与前一节的链接
+        if ($i -gt 1) {
+            $footer.LinkToPrevious = $false
+        }
+
+        # 第1节（封面）和第2节（扉页）不显示页码
+        if ($i -le 2) {
+            $footer.Range.Text = ""
+            Write-Host "  节 $i : 不显示页码（封面/扉页）" -ForegroundColor Yellow
+        }
+        else {
+            # 清空页脚
+            $footer.Range.Text = ""
+
+            # 设置居中对齐
+            $footer.Range.ParagraphFormat.Alignment = 1  # wdAlignParagraphCenter
+
+            # 添加页码域
+            $field = $footer.Range.Fields.Add($footer.Range, 33)  # wdFieldPage = 33
+
+            # 设置字体
+            $footer.Range.Font.Size = 11
+            $footer.Range.Font.Name = "Arial"
+
+            Write-Host "  节 $i : 已添加页码（居中）" -ForegroundColor Green
+        }
+    }
+
+    # 更新所有域
+    Write-Host "`n📑 更新所有域..." -ForegroundColor Green
+    foreach ($field in $doc.Fields) {
+        try { $field.Update() | Out-Null } catch {}
+    }
+    Write-Host "  ✓ 所有域已更新" -ForegroundColor Green
+
+    # 保存文档
+    Write-Host "`n💾 保存文档..." -ForegroundColor Green
+    $doc.SaveAs([ref]$OutputPath)
+    $docSize = [math]::Round((Get-Item $OutputPath).Length / 1MB, 2)
+    Write-Host "  ✓ Word文档已保存 ($docSize MB)" -ForegroundColor Green
+
+    # 转换为PDF
+    Write-Host "📄 转换为PDF..." -ForegroundColor Green
+    $pdfPath = $OutputPath -replace '\.docx$', '.pdf'
+    $doc.SaveAs([ref]$pdfPath, [ref]17)
+    $pdfSize = [math]::Round((Get-Item $pdfPath).Length / 1MB, 2)
+    Write-Host "  ✓ PDF已生成 ($pdfSize MB)" -ForegroundColor Green
+
+    $doc.Close()
+    $word.Quit()
+
+    # 释放COM对象
+    [System.Runtime.Interopservices.Marshal]::ReleaseComObject($doc) | Out-Null
+    [System.Runtime.Interopservices.Marshal]::ReleaseComObject($word) | Out-Null
+    [System.GC]::Collect()
+    [System.GC]::WaitForPendingFinalizers()
+
+    Write-Host "`n" + ("=" * 70) -ForegroundColor Cyan
+    Write-Host "✅ 页码修复完成！" -ForegroundColor Green
+    Write-Host "`n📊 完成情况：" -ForegroundColor Yellow
+    Write-Host "   ✓ 第1-2页（封面、扉页）：无页码" -ForegroundColor Green
+    Write-Host "   ✓ 第3页开始：页面底部居中显示页码" -ForegroundColor Green
+    Write-Host "   ✓ 总页数：$totalPages 页" -ForegroundColor Green
+    Write-Host "`n📁 输出文件：" -ForegroundColor Yellow
+    Write-Host "   Word: $OutputPath ($docSize MB)" -ForegroundColor Green
+    Write-Host "   PDF:  $pdfPath ($pdfSize MB)" -ForegroundColor Green
+    Write-Host ("=" * 70) -ForegroundColor Cyan
+}
+catch {
+    Write-Host "`n❌ 错误: $_" -ForegroundColor Red
+    Write-Host $_.Exception.Message -ForegroundColor Red
+
+    # 清理
+    if ($doc) { try { $doc.Close() } catch {} }
+    if ($word) { try { $word.Quit() } catch {} }
+}

@@ -1,0 +1,35 @@
+package com.formfiller.ime
+
+import com.formfiller.data.Field
+
+/**
+ * 根据输入框的 hint/label 匹配最合适的字段
+ */
+object FieldMatcher {
+
+    fun match(hint: String?, fields: List<Field>): List<Field> {
+        if (hint.isNullOrBlank()) return fields
+        val h = hint.lowercase()
+        val matched = fields.filter { matchScore(h, it) > 0 }.sortedByDescending { matchScore(h, it) }
+        return if (matched.isNotEmpty()) matched else fields
+    }
+
+    private fun matchScore(hint: String, field: Field): Int {
+        val type = field.fieldType
+        val label = field.label.lowercase()
+        // 按字段类型匹配
+        val typeScore = when (type) {
+            "name" -> if (hint.containsAny("姓名", "name", "称")) 10 else 0
+            "id_number" -> if (hint.containsAny("身份证", "证件", "id")) 10 else 0
+            "phone" -> if (hint.containsAny("手机", "电话", "phone", "tel", "联系")) 10 else 0
+            "address" -> if (hint.containsAny("地址", "住所", "address", "住址")) 10 else 0
+            "company" -> if (hint.containsAny("公司", "单位", "company", "企业", "机构")) 10 else 0
+            else -> 0
+        }
+        // 按 label 文本匹配
+        val labelScore = if (hint.contains(label) || label.contains(hint)) 5 else 0
+        return typeScore + labelScore
+    }
+
+    private fun String.containsAny(vararg keywords: String) = keywords.any { this.contains(it) }
+}

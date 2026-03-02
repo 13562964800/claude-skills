@@ -1,0 +1,76 @@
+{
+  "name": "multilang-video-learner",
+  "version": "2.0.0",
+  "description": "多语言视频学习软件",
+  "author": "单夫纯律师",
+  "copyright": "Copyright © 2026 单夫纯律师. All Rights Reserved.",
+  "main": "main.js",
+  "scripts": {
+    "start": "electron .",
+    "obfuscate": "node obfuscate.js",
+    "prebuild": "node obfuscate.js",
+    "build": "electron-builder"
+  },
+  "devDependencies": {
+    "electron": "^30.0.0",
+    "electron-builder": "^25.1.8",
+    "javascript-obfuscator": "^5.3.0"
+  },
+  "dependencies": {
+    "better-sqlite3": "^11.0.0"
+  },
+  "build": {
+    "appId": "com.shanfuchun.multilang-learner",
+    "productName": "多语言视频学习",
+    "copyright": "Copyright © 2026 单夫纯律师. All Rights Reserved.",
+    "directories": {
+      "output": "dist"
+    },
+    "files": [
+      "package.json",
+      "node_modules/**/*",
+      {
+        "from": "obfuscated",
+        "to": ".",
+        "filter": ["main.js", "renderer.js"]
+      },
+      "index.html",
+      "styles.css",
+      "ai_config.json"
+    ],
+    "extraResources": [
+      {
+        "from": "bin",
+        "to": "bin",
+        "filter": ["**/*"]
+      },
+      {
+        "from": "regulations.json",
+        "to": "regulations.json"
+      }
+    ],
+    "win": {
+      "target": [
+        {
+          "target": "nsis",
+          "arch": ["x64"]
+        }
+      ],
+      "icon": "icon.ico",
+      "legalTrademarks": "单夫纯律师 保留一切权利"
+    },
+    "nsis": {
+      "oneClick": false,
+      "allowToChangeInstallationDirectory": true,
+      "installerLanguages": ["zh_CN"],
+      "language": "2052",
+      "createDesktopShortcut": true,
+      "createStartMenuShortcut": true,
+      "shortcutName": "多语言视频学习",
+      "license": "LICENSE.txt",
+      "installerIcon": "icon.ico",
+      "uninstallerIcon": "icon.ico",
+      "installerHeaderIcon": "icon.ico"
+    }
+  }
+}

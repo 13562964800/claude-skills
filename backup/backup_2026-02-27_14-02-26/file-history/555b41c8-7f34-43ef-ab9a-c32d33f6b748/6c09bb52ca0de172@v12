@@ -1,0 +1,223 @@
+package com.shanfuchun.courtassistant.util.date
+
+import java.text.SimpleDateFormat
+import java.util.*
+
+/**
+ * 日期格式化工具类
+ *
+ * 统一管理所有日期格式化操作，消除重复代码
+ * 提供3种常用的日期格式化方法：
+ * - formatDateTime: 完整日期时间格式 (yyyy-MM-dd HH:mm)
+ * - formatDateShort: 简短日期格式 (MM-dd HH:mm)
+ * - formatTimeOnly: 仅时间格式 (HH:mm)
+ */
+object DateUtils {
+
+    private val dateTimeFormat = SimpleDateFormat("yyyy-MM-dd HH:mm", Locale.CHINA)
+    private val dateShortFormat = SimpleDateFormat("MM-dd HH:mm", Locale.CHINA)
+    private val timeFormat = SimpleDateFormat("HH:mm", Locale.CHINA)
+    private val fullDateFormat = SimpleDateFormat("yyyy年MM月dd日 HH:mm", Locale.CHINA)
+    private val monthDayFormat = SimpleDateFormat("MM月dd日", Locale.CHINA)
+
+    /**
+     * 格式化完整日期时间
+     * @param date 日期对象
+     * @return 格式化后的字符串 (yyyy-MM-dd HH:mm)
+     */
+    fun formatDateTime(date: Date): String {
+        return dateTimeFormat.format(date)
+    }
+
+    /**
+     * 格式化中文完整日期时间
+     * @param date 日期对象
+     * @return 格式化后的字符串 (yyyy年MM月dd日 HH:mm)
+     */
+    fun formatFullDateTime(date: Date): String {
+        return fullDateFormat.format(date)
+    }
+
+    /**
+     * 格式化简短日期时间
+     * @param date 日期对象
+     * @return 格式化后的字符串 (MM-dd HH:mm)
+     */
+    fun formatDateShort(date: Date): String {
+        return dateShortFormat.format(date)
+    }
+
+    /**
+     * 仅格式化时间部分
+     * @param date 日期对象
+     * @return 格式化后的字符串 (HH:mm)
+     */
+    fun formatTimeOnly(date: Date): String {
+        return timeFormat.format(date)
+    }
+
+    /**
+     * 格式化月日
+     * @param date 日期对象
+     * @return 格式化后的字符串 (MM月dd日)
+     */
+    fun formatMonthDay(date: Date): String {
+        return monthDayFormat.format(date)
+    }
+
+    /**
+     * 从时间戳格式化完整日期时间
+     * @param timestamp 时间戳（毫秒）
+     * @return 格式化后的字符串 (yyyy-MM-dd HH:mm)
+     */
+    fun formatDateTime(timestamp: Long): String {
+        return if (timestamp > 0) {
+            formatDateTime(Date(timestamp))
+        } else {
+            ""
+        }
+    }
+
+    /**
+     * 从时间戳格式化中文完整日期时间
+     * @param timestamp 时间戳（毫秒）
+     * @return 格式化后的字符串 (yyyy年MM月dd日 HH:mm)
+     */
+    fun formatFullDateTime(timestamp: Long): String {
+        return if (timestamp > 0) {
+            formatFullDateTime(Date(timestamp))
+        } else {
+            ""
+        }
+    }
+
+    /**
+     * 从时间戳格式化简短日期时间
+     * @param timestamp 时间戳（毫秒）
+     * @return 格式化后的字符串 (MM-dd HH:mm)
+     */
+    fun formatDateShort(timestamp: Long): String {
+        return if (timestamp > 0) {
+            formatDateShort(Date(timestamp))
+        } else {
+            ""
+        }
+    }
+
+    /**
+     * 从时间戳格式化时间部分
+     * @param timestamp 时间戳（毫秒）
+     * @return 格式化后的字符串 (HH:mm)
+     */
+    fun formatTimeOnly(timestamp: Long): String {
+        return if (timestamp > 0) {
+            formatTimeOnly(Date(timestamp))
+        } else {
+            ""
+        }
+    }
+
+    /**
+     * 从时间戳格式化月日
+     * @param timestamp 时间戳（毫秒）
+     * @return 格式化后的字符串 (MM月dd日)
+     */
+    fun formatMonthDay(timestamp: Long): String {
+        return if (timestamp > 0) {
+            formatMonthDay(Date(timestamp))
+        } else {
+            ""
+        }
+    }
+
+    /**
+     * 解析日期字符串为 Date 对象
+     * @param dateStr 日期字符串
+     * @param pattern 格式模式
+     * @return Date 对象，解析失败返回 null
+     */
+    fun parse(dateStr: String, pattern: String = "yyyy-MM-dd HH:mm"): Date? {
+        return try {
+            SimpleDateFormat(pattern, Locale.CHINA).parse(dateStr)
+        } catch (e: Exception) {
+            null
+        }
+    }
+
+    /**
+     * 获取相对时间描述
+     * @param timestamp 时间戳（毫秒）
+     * @return 相对时间描述（如：刚刚、5分钟前、今天 10:30）
+     */
+    fun getRelativeTime(timestamp: Long): String {
+        if (timestamp <= 0) return ""
+
+        val now = System.currentTimeMillis()
+        val diff = now - timestamp
+
+        return when {
+            diff < 60 * 1000 -> "刚刚"
+            diff < 60 * 60 * 1000 -> "${diff / (60 * 1000)}分钟前"
+            diff < 24 * 60 * 60 * 1000 -> {
+                val hours = diff / (60 * 60 * 1000)
+                if (hours < 6) "${hours}小时前"
+                else "今天 ${formatTimeOnly(timestamp)}"
+            }
+            diff < 48 * 60 * 60 * 1000 -> "昨天 ${formatTimeOnly(timestamp)}"
+            else -> formatDateShort(timestamp)
+        }
+    }
+
+    /**
+     * 获取今天的开始时间（00:00:00）
+     * @return 今天开始的时间戳
+     */
+    fun getTodayStart(): Long {
+        val calendar = Calendar.getInstance()
+        calendar.set(Calendar.HOUR_OF_DAY, 0)
+        calendar.set(Calendar.MINUTE, 0)
+        calendar.set(Calendar.SECOND, 0)
+        calendar.set(Calendar.MILLISECOND, 0)
+        return calendar.timeInMillis
+    }
+
+    /**
+     * 获取今天的结束时间（23:59:59）
+     * @return 今天结束的时间戳
+     */
+    fun getTodayEnd(): Long {
+        val calendar = Calendar.getInstance()
+        calendar.set(Calendar.HOUR_OF_DAY, 23)
+        calendar.set(Calendar.MINUTE, 59)
+        calendar.set(Calendar.SECOND, 59)
+        calendar.set(Calendar.MILLISECOND, 999)
+        return calendar.timeInMillis
+    }
+
+    /**
+     * 判断是否是今天
+     * @param timestamp 时间戳
+     * @return 是否是今天
+     */
+    fun isToday(timestamp: Long): Boolean {
+        val date = Date(timestamp)
+        val today = Date()
+        return date.day == today.day &&
+                date.month == today.month &&
+                date.year == today.year
+    }
+
+    /**
+     * 判断是否是昨天
+     * @param timestamp 时间戳
+     * @return 是否是昨天
+     */
+    fun isYesterday(timestamp: Long): Boolean {
+        val yesterday = System.currentTimeMillis() - 24 * 60 * 60 * 1000
+        val date = Date(timestamp)
+        val yesterdayDate = Date(yesterday)
+        return date.day == yesterdayDate.day &&
+                date.month == yesterdayDate.month &&
+                date.year == yesterdayDate.year
+    }
+}

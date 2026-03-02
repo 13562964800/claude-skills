@@ -1,0 +1,213 @@
+# 视频下载转录系统
+
+浏览器扩展 + 本地服务架构，支持 YouTube、B站等平台的视频下载和自动转录。
+
+## 系统架构
+
+- **浏览器扩展**: 自动侦测视频页面，一键提取链接
+- **本地服务**: FastAPI + yt-dlp + faster-whisper/Groq API
+- **混合转录引擎**: 在线/本地自动切换，支持降级
+
+## 快速开始
+
+### 1. 安装依赖
+
+```bash
+# Python 依赖
+cd video-download-service
+pip install -r requirements.txt
+
+# 系统依赖
+# - FFmpeg: https://ffmpeg.org/download.html
+# - yt-dlp: 已包含在 requirements.txt
+```
+
+### 2. 配置服务
+
+编辑 `config.yaml`:
+
+```yaml
+transcription:
+  transcription_mode: auto  # auto, local, online
+  groq_api_key: "your-api-key-here"  # 可选，用于在线转录
+```
+
+### 3. 启动服务
+
+```bash
+cd video-download-service
+python server.py
+```
+
+服务将在 `http://localhost:8765` 启动。
+
+### 4. 安装浏览器扩展
+
+1. 打开 Chrome/Edge 浏览器
+2. 访问 `chrome://extensions/`
+3. 开启"开发者模式"
+4. 点击"加载已解压的扩展程序"
+5. 选择 `video-downloader-extension` 目录
+
+### 5. 使用
+
+1. 访问 YouTube 或 B站视频页面
+2. 点击页面上的"下载转录"按钮
+3. 视频将自动下载并转录
+4. 转录结果保存为 Markdown 文件
+
+## 功能特性
+
+### 浏览器扩展
+- ✅ YouTube 视频检测和链接提取
+- ✅ B站视频检测和链接提取
+- ✅ 自动 Cookie 管理
+- ✅ 实时进度显示
+- ✅ 任务队列管理
+
+### 本地服务
+- ✅ yt-dlp 视频解析和下载
+- ✅ 混合转录引擎（faster-whisper + Groq API）
+- ✅ 自动语言检测
+- ✅ 引擎自动选择和降级
+- ✅ WebSocket 实时通信
+- ✅ SQLite 任务历史
+
+### 转录引擎
+
+| 引擎 | 速度 | 准确度 | 成本 | 网络 |
+|------|------|--------|------|------|
+| faster-whisper | 4x 实时 | 高 | 免费 | 无需 |
+| Groq API | 1-2x 实时 | 高 | 按次 | 必需 |
+
+## 目录结构
+
+```
+video-downloader-extension/
+├── manifest.json              # 扩展配置
+├── background.js              # 后台脚本
+├── content/
+│   ├── youtube.js            # YouTube 注入
+│   ├── bilibili.js           # B站 注入
+│   └── styles.css            # 样式
+└── popup/
+    ├── popup.html            # 弹出界面
+    └── popup.js              # 界面逻辑
+
+video-download-service/
+├── server.py                  # FastAPI 服务器
+├── config.yaml               # 配置文件
+├── requirements.txt          # Python 依赖
+├── parsers/
+│   └── ytdlp_parser.py       # yt-dlp 解析器
+├── downloaders/
+│   └── ytdlp_downloader.py   # yt-dlp 下载器
+├── transcription/
+│   ├── faster_whisper_engine.py  # 本地引擎
+│   ├── groq_engine.py            # 在线引擎
+│   └── transcription_service.py  # 转录服务
+├── storage/
+│   └── database.py           # SQLite 数据库
+└── utils/
+    ├── ffmpeg.py             # FFmpeg 工具
+    └── config.py             # 配置加载
+```
+
+## 配置说明
+
+### 转录模式
+
+- `auto`: 自动选择（文件 > 100MB 使用本地，否则使用在线）
+- `local`: 强制使用本地引擎（faster-whisper）
+- `online`: 强制使用在线引擎（Groq API）
+
+### 模型大小
+
+- `tiny`: 最快，准确度较低
+- `base`: 平衡（推荐）
+- `small`: 较准确
+- `medium`: 很准确
+- `large-v3`: 最准确，最慢
+
+## 故障排除
+
+### 服务无法启动
+
+1. 检查端口 8765 是否被占用
+2. 确认 Python 依赖已安装
+3. 确认 FFmpeg 已安装并在 PATH 中
+
+### 扩展无法连接服务
+
+1. 确认服务已启动（访问 http://localhost:8765/health）
+2. 检查浏览器控制台错误信息
+3. 确认 WebSocket 连接未被防火墙阻止
+
+### YouTube 解析失败
+
+1. 尝试在浏览器中登录 YouTube
+2. 扩展会自动获取 Cookie
+3. 如果仍然失败，可能是 yt-dlp 需要更新
+
+### 转录失败
+
+1. 检查 FFmpeg 是否正确安装
+2. 确认音频文件已成功提取
+3. 如果使用在线引擎，检查 API Key 是否正确
+4. 查看服务日志获取详细错误信息
+
+## 高级功能
+
+### 安装为 Windows 服务
+
+使用 NSSM 将服务安装为 Windows 服务：
+
+```bash
+# 下载 NSSM: https://nssm.cc/download
+
+# 安装服务
+nssm install VideoDownloadService "C:\Python\python.exe" "C:\path\to\server.py"
+
+# 配置服务
+nssm set VideoDownloadService AppDirectory "C:\path\to\video-download-service"
+nssm set VideoDownloadService DisplayName "视频下载转录服务"
+nssm set VideoDownloadService Start SERVICE_AUTO_START
+
+# 启动服务
+nssm start VideoDownloadService
+```
+
+### 批量下载
+
+通过 API 批量提交下载任务：
+
+```python
+import requests
+
+urls = [
+    "https://www.youtube.com/watch?v=xxx",
+    "https://www.bilibili.com/video/BVxxx",
+]
+
+for url in urls:
+    requests.post("http://localhost:8765/download", json={
+        "url": url
+    })
+```
+
+## 技术栈
+
+- **前端**: Vanilla JavaScript (Chrome Extension API)
+- **后端**: FastAPI + Python 3.10+
+- **视频处理**: yt-dlp + FFmpeg
+- **转录**: faster-whisper + Groq API
+- **数据库**: SQLite
+- **通信**: WebSocket
+
+## 许可证
+
+MIT License
+
+## 贡献
+
+欢迎提交 Issue 和 Pull Request！

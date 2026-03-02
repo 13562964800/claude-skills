@@ -1,0 +1,33 @@
+[app]
+title = 配音文字核对宝
+package.name = voicedoccompare
+package.domain = com.voicedoc
+source.dir = ./app
+source.include_exts = py,png,jpg,kv,atlas,json
+version = 1.0.0
+
+requirements = python3,kivy,requests,pyjnius,android,pillow
+
+android.permissions = INTERNET,READ_EXTERNAL_STORAGE,WRITE_EXTERNAL_STORAGE,RECORD_AUDIO
+android.api = 33
+android.minapi = 24
+android.ndk = 25b
+android.accept_sdk_license = True
+android.arch = arm64-v8a
+
+# Share Intent: 接收微信分享的音频和文档
+android.manifest.intent_filters = intent_filters.xml
+
+# 全屏
+fullscreen = 0
+orientation = portrait
+
+# 图标
+# icon.filename = %(source.dir)s/icon.png
+
+# 日志
+log_level = 2
+
+[buildozer]
+log_level = 2
+warn_on_root = 1

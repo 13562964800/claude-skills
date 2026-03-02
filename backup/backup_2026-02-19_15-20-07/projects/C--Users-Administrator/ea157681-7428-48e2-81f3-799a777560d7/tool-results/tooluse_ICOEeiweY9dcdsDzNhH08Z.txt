@@ -1,0 +1,606 @@
+     1→const { ipcRenderer } = require('electron');
+     2→
+     3→// DOM
+     4→const urlInput = document.getElementById('urlInput');
+     5→const pasteBtn = document.getElementById('pasteBtn');
+     6→const langSelect = document.getElementById('langSelect');
+     7→const downloadBtn = document.getElementById('downloadBtn');
+     8→const progressRow = document.getElementById('progressRow');
+     9→const progressFill = document.getElementById('progressFill');
+    10→const statusText = document.getElementById('statusText');
+    11→const videoSelect = document.getElementById('videoSelect');
+    12→const playerArea = document.getElementById('playerArea');
+    13→const videoPlayer = document.getElementById('videoPlayer');
+    14→const subtitleArea = document.getElementById('subtitleArea');
+    15→const subtitleText = document.getElementById('subtitleText');
+    16→const aiAnalyzeBtn = document.getElementById('aiAnalyzeBtn');
+    17→const aiResult = document.getElementById('aiResult');
+    18→const dictationArea = document.getElementById('dictationArea');
+    19→const dictationSentence = document.getElementById('dictationSentence');
+    20→const speakBtn = document.getElementById('speakBtn');
+    21→const checkBtn = document.getElementById('checkBtn');
+    22→const nextBtn = document.getElementById('nextBtn');
+    23→const learnModeBtn = document.getElementById('learnModeBtn');
+    24→const dictationModeBtn = document.getElementById('dictationModeBtn');
+    25→const wordPopup = document.getElementById('wordPopup');
+    26→const popupWord = document.getElementById('popupWord');
+    27→const popupPhonetic = document.getElementById('popupPhonetic');
+    28→const popupSpeak = document.getElementById('popupSpeak');
+    29→const popupClose = document.getElementById('popupClose');
+    30→const popupTranslation = document.getElementById('popupTranslation');
+    31→const popupExamples = document.getElementById('popupExamples');
+    32→const popupAiBtn = document.getElementById('popupAiBtn');
+    33→const popupAiResult = document.getElementById('popupAiResult');
+    34→const aiSettingsBtn = document.getElementById('aiSettingsBtn');
+    35→const aiModal = document.getElementById('aiModal');
+    36→const aiModalClose = document.getElementById('aiModalClose');
+    37→const aiProvider = document.getElementById('aiProvider');
+    38→const aiApiKey = document.getElementById('aiApiKey');
+    39→const aiBaseUrl = document.getElementById('aiBaseUrl');
+    40→const aiModel = document.getElementById('aiModel');
+    41→const aiPresetInfo = document.getElementById('aiPresetInfo');
+    42→const aiSaveBtn = document.getElementById('aiSaveBtn');
+    43→const aiTestBtn = document.getElementById('aiTestBtn');
+    44→const aiTestResult = document.getElementById('aiTestResult');
+    45→
+    46→const wordInlinePanel = document.getElementById('wordInlinePanel');
+    47→const inlineWord = document.getElementById('inlineWord');
+    48→const inlinePhonetic = document.getElementById('inlinePhonetic');
+    49→const inlineSpeak = document.getElementById('inlineSpeak');
+    50→const inlineTranslation = document.getElementById('inlineTranslation');
+    51→const inlineDefs = document.getElementById('inlineDefs');
+    52→const inlineDefsSection = document.getElementById('inlineDefsSection');
+    53→const inlineExamples = document.getElementById('inlineExamples');
+    54→const inlineExamplesSection = document.getElementById('inlineExamplesSection');
+    55→
+    56→let subtitles = [];
+    57→let currentSubIndex = -1;
+    58→let currentMode = 'learn';
+    59→let currentLang = 'en';
+    60→let languages = {};
+    61→let aiProviders = {};
+    62→let dictationIndex = 0;
+    63→let currentSentence = '';
+    64→
+    65→// 初始化
+    66→(async () => {
+    67→  languages = await ipcRenderer.invoke('get-languages');
+    68→  for (const [code, info] of Object.entries(languages)) {
+    69→    const opt = document.createElement('option');
+    70→    opt.value = code; opt.textContent = info.name;
+    71→    langSelect.appendChild(opt);
+    72→  }
+    73→  langSelect.value = 'en';
+    74→
+    75→  aiProviders = await ipcRenderer.invoke('get-ai-providers');
+    76→  for (const [key, info] of Object.entries(aiProviders)) {
+    77→    const opt = document.createElement('option');
+    78→    opt.value = key; opt.textContent = info.name;
+    79→    aiProvider.appendChild(opt);
+    80→  }
+    81→
+    82→  const cfg = await ipcRenderer.invoke('get-ai-config');
+    83→  aiProvider.value = cfg.provider || 'deepseek';
+    84→  aiApiKey.value = cfg.apiKey || '';
+    85→  aiBaseUrl.value = cfg.baseUrl || '';
+    86→  aiModel.value = cfg.model || '';
+    87→  updatePresetInfo();
+    88→
+    89→  refreshVideoList();
+    90→})();
+    91→
+    92→// AI设置
+    93→aiSettingsBtn.addEventListener('click', () => aiModal.classList.add('show'));
+    94→aiModalClose.addEventListener('click', () => aiModal.classList.remove('show'));
+    95→aiModal.addEventListener('click', (e) => { if (e.target === aiModal) aiModal.classList.remove('show'); });
+    96→
+    97→aiProvider.addEventListener('change', updatePresetInfo);
+    98→function updatePresetInfo() {
+    99→  const p = aiProviders[aiProvider.value];
+   100→  if (p) aiPresetInfo.textContent = `默认: ${p.baseUrl} | 模型: ${p.model}`;
+   101→}
+   102→
+   103→aiSaveBtn.addEventListener('click', async () => {
+   104→  await ipcRenderer.invoke('save-ai-config', {
+   105→    provider: aiProvider.value,
+   106→    apiKey: aiApiKey.value.trim(),
+   107→    baseUrl: aiBaseUrl.value.trim(),
+   108→    model: aiModel.value.trim()
+   109→  });
+   110→  aiModal.classList.remove('show');
+   111→});
+   112→
+   113→aiTestBtn.addEventListener('click', async () => {
+   114→  const cfg = {
+   115→    provider: aiProvider.value,
+   116→    apiKey: aiApiKey.value.trim(),
+   117→    baseUrl: aiBaseUrl.value.trim(),
+   118→    model: aiModel.value.trim()
+   119→  };
+   120→  aiTestResult.textContent = '测试中...';
+   121→  aiTestResult.style.color = 'rgba(255,255,255,0.6)';
+   122→  const res = await ipcRenderer.invoke('test-ai-connection', cfg);
+   123→  aiTestResult.style.color = res.success ? '#4ade80' : '#f87171';
+   124→  aiTestResult.textContent = res.success ? '✅ ' + res.message : '❌ ' + res.message;
+   125→});
+   126→
+   127→// 导入本地视频
+   128→document.getElementById('importBtn').addEventListener('click', async () => {
+   129→  const result = await ipcRenderer.invoke('import-video');
+   130→  if (result) {
+   131→    await refreshVideoList();
+   132→    loadVideo(result.videoPath, result.subtitlePath);
+   133→  }
+   134→});
+   135→
+   136→// 监听语音识别状态
+   137→ipcRenderer.on('subtitle-status', (_, msg) => {
+   138→  subtitleText.textContent = msg;
+   139→});
+   140→
+   141→// 粘贴
+   142→pasteBtn.addEventListener('click', async () => {
+   143→  try {
+   144→    const text = await navigator.clipboard.readText();
+   145→    const m = text.match(/https?:\/\/[^\s"'<>]+/);
+   146→    urlInput.value = m ? m[0] : text.trim();
+   147→  } catch(e) {}
+   148→});
+   149→
+   150→// 下载
+   151→downloadBtn.addEventListener('click', async () => {
+   152→  const url = urlInput.value.trim();
+   153→  if (!url) return;
+   154→  currentLang = langSelect.value;
+   155→  downloadBtn.disabled = true;
+   156→  progressRow.style.display = 'flex';
+   157→  progressFill.style.width = '0%';
+   158→  statusText.textContent = '正在下载...';
+   159→  const result = await ipcRenderer.invoke('download-video', url, currentLang);
+   160→  downloadBtn.disabled = false;
+   161→  if (result.success) {
+   162→    progressFill.style.width = '100%';
+   163→    statusText.textContent = '下载完成!';
+   164→    await refreshVideoList();
+   165→    if (result.videoPath) loadVideo(result.videoPath, result.subtitlePath);
+   166→  } else {
+   167→    statusText.textContent = '失败: ' + result.error;
+   168→  }
+   169→});
+   170→
+   171→ipcRenderer.on('download-progress', (_, p) => {
+   172→  progressFill.style.width = p.percent + '%';
+   173→  statusText.textContent = `下载中 ${p.percent.toFixed(0)}%`;
+   174→});
+   175→
+   176→// 视频列表
+   177→async function refreshVideoList() {
+   178→  const videos = await ipcRenderer.invoke('list-videos');
+   179→  videoSelect.innerHTML = '<option value="">-- 选择视频 --</option>';
+   180→  for (const v of videos) {
+   181→    const opt = document.createElement('option');
+   182→    opt.value = JSON.stringify(v); opt.textContent = v.name;
+   183→    videoSelect.appendChild(opt);
+   184→  }
+   185→}
+   186→
+   187→videoSelect.addEventListener('change', () => {
+   188→  if (!videoSelect.value) return;
+   189→  loadVideo(...(v => [v.videoPath, v.subtitlePath])(JSON.parse(videoSelect.value)));
+   190→});
+   191→
+   192→async function loadVideo(videoPath, subtitlePath) {
+   193→  playerArea.style.display = 'block';
+   194→  videoPlayer.src = 'file:///' + videoPath.replace(/\\/g, '/');
+   195→  subtitles = []; currentSubIndex = -1;
+   196→  subtitleText.textContent = '加载字幕中...';
+   197→  aiAnalyzeBtn.style.display = 'none';
+   198→  aiResult.style.display = 'none';
+   199→  const subtitleList = document.getElementById('subtitleList');
+   200→  subtitleList.innerHTML = '';
+   201→
+   202→  let loaded = false;
+   203→  if (subtitlePath) {
+   204→    const vtt = await ipcRenderer.invoke('read-subtitle', subtitlePath);
+   205→    if (vtt) {
+   206→      subtitles = parseVTT(vtt);
+   207→      if (subtitles.length > 0) {
+   208→        buildSubtitleList();
+   209→        subtitleText.textContent = `已加载 ${subtitles.length} 条字幕，播放视频即可同步显示`;
+   210→        loaded = true;
+   211→      }
+   212→    }
+   213→  }
+   214→  if (!loaded) {
+   215→    subtitleText.textContent = '无字幕文件，正在启动语音识别服务...';
+   216→    const vttPath = await ipcRenderer.invoke('generate-subtitle', videoPath);
+   217→    if (vttPath) {
+   218→      const vtt = await ipcRenderer.invoke('read-subtitle', vttPath);
+   219→      if (vtt) {
+   220→        subtitles = parseVTT(vtt);
+   221→        if (subtitles.length > 0) {
+   222→          buildSubtitleList();
+   223→          subtitleText.textContent = `语音识别完成，已生成 ${subtitles.length} 条字幕`;
+   224→          loaded = true;
+   225→        }
+   226→      }
+   227→    }
+   228→    if (!loaded) subtitleText.textContent = '语音识别失败，请确认 funasr 服务已启动';
+   229→  }
+   230→}
+   231→
+   232→// VTT解析 (处理YouTube自动字幕的双行格式)
+   233→function parseVTT(vtt) {
+   234→  const raw = [];
+   235→  for (const block of vtt.split(/\n\n+/)) {
+   236→    const lines = block.trim().split('\n');
+   237→    for (let i = 0; i < lines.length; i++) {
+   238→      const m = lines[i].match(/(\d{2}):(\d{2}):(\d{2})\.(\d{3})\s*-->\s*(\d{2}):(\d{2}):(\d{2})\.(\d{3})/);
+   239→      if (!m) continue;
+   240→      const start = +m[1]*3600 + +m[2]*60 + +m[3] + +m[4]/1000;
+   241→      const end = +m[5]*3600 + +m[6]*60 + +m[7] + +m[8]/1000;
+   242→      // 跳过极短条目(YouTube自动字幕的过渡帧)
+   243→      if (end - start < 0.05) break;
+   244→      // 取最后一行非空文本(YouTube双行字幕中新内容在最后一行)
+   245→      const textLines = lines.slice(i+1).map(l => l.replace(/<[^>]+>/g, '').trim()).filter(Boolean);
+   246→      const text = textLines.length > 0 ? textLines[textLines.length - 1] : '';
+   247→      if (text) raw.push({ start, end, text });
+   248→      break;
+   249→    }
+   250→  }
+   251→  // 合并连续相同文本，去重
+   252→  const result = [];
+   253→  for (const s of raw) {
+   254→    if (result.length > 0 && result[result.length-1].text === s.text) {
+   255→      result[result.length-1].end = s.end; // 延长时间
+   256→    } else {
+   257→      result.push({ ...s });
+   258→    }
+   259→  }
+   260→  return result;
+   261→}
+   262→
+   263→// 字幕同步 (用setInterval确保可靠触发)
+   264→let syncTimer = null;
+   265→function startSubtitleSync() {
+   266→  if (syncTimer) clearInterval(syncTimer);
+   267→  syncTimer = setInterval(() => {
+   268→    if (!subtitles.length || currentMode !== 'learn' || videoPlayer.paused) return;
+   269→    const t = videoPlayer.currentTime;
+   270→    // 二分查找当前时间对应的字幕
+   271→    let lo = 0, hi = subtitles.length - 1, idx = -1;
+   272→    while (lo <= hi) {
+   273→      const mid = (lo + hi) >> 1;
+   274→      if (t >= subtitles[mid].start && t <= subtitles[mid].end) { idx = mid; break; }
+   275→      if (t < subtitles[mid].start) hi = mid - 1;
+   276→      else lo = mid + 1;
+   277→    }
+   278→    if (idx < 0) {
+   279→      // 找最近的前一条字幕
+   280→      for (let i = subtitles.length - 1; i >= 0; i--) {
+   281→        if (subtitles[i].start <= t) { idx = i; break; }
+   282→      }
+   283→      if (idx < 0) idx = 0;
+   284→    }
+   285→    if (idx !== currentSubIndex) {
+   286→      currentSubIndex = idx;
+   287→      currentSentence = subtitles[idx].text;
+   288→      renderSubtitle(currentSentence);
+   289→      aiAnalyzeBtn.style.display = 'inline-block';
+   290→      aiResult.style.display = 'none';
+   291→      highlightSubtitleList(idx);
+   292→    }
+   293→  }, 100);
+   294→}
+   295→videoPlayer.addEventListener('play', startSubtitleSync);
+   296→videoPlayer.addEventListener('seeked', () => { currentSubIndex = -1; });
+   297→
+   298→function renderSubtitle(text) {
+   299→  subtitleText.innerHTML = '';
+   300→  wordInlinePanel.style.display = 'none';
+   301→  for (const w of text.split(/(\s+)/)) {
+   302→    if (/^\s+$/.test(w)) { subtitleText.appendChild(document.createTextNode(' ')); continue; }
+   303→    const span = document.createElement('span');
+   304→    span.className = 'word'; span.textContent = w;
+   305→    span.addEventListener('click', (e) => {
+   306→      e.stopPropagation();
+   307→      const clean = cleanWord(w);
+   308→      if (clean) showWordInline(clean);
+   309→    });
+   310→    subtitleText.appendChild(span);
+   311→  }
+   312→}
+   313→
+   314→function cleanWord(w) {
+   315→  return w.replace(/[^\p{L}\p{M}'-]/gu, '');
+   316→}
+   317→
+   318→// 字幕滚动列表
+   319→function formatTime(s) {
+   320→  const m = Math.floor(s / 60), sec = Math.floor(s % 60);
+   321→  return m + ':' + String(sec).padStart(2, '0');
+   322→}
+   323→
+   324→function buildSubtitleList() {
+   325→  const list = document.getElementById('subtitleList');
+   326→  list.innerHTML = '';
+   327→  subtitles.forEach((s, i) => {
+   328→    const row = document.createElement('div');
+   329→    row.className = 'sub-list-item';
+   330→    row.dataset.idx = i;
+   331→    row.innerHTML = `<span class="sub-time">${formatTime(s.start)}</span><span class="sub-content">${s.text}</span>`;
+   332→    row.addEventListener('click', () => {
+   333→      videoPlayer.currentTime = s.start;
+   334→      videoPlayer.play();
+   335→    });
+   336→    list.appendChild(row);
+   337→  });
+   338→}
+   339→
+   340→function highlightSubtitleList(idx) {
+   341→  const list = document.getElementById('subtitleList');
+   342→  list.querySelectorAll('.sub-list-item').forEach(el => el.classList.remove('active'));
+   343→  const active = list.querySelector(`[data-idx="${idx}"]`);
+   344→  if (active) {
+   345→    active.classList.add('active');
+   346→    active.scrollIntoView({ behavior: 'smooth', block: 'center' });
+   347→  }
+   348→}
+   349→
+   350→// AI分析句子
+   351→aiAnalyzeBtn.addEventListener('click', async () => {
+   352→  if (!currentSentence) return;
+   353→  aiResult.style.display = 'block';
+   354→  aiResult.textContent = '🤖 AI分析中...';
+   355→  const result = await ipcRenderer.invoke('ai-analyze-sentence', currentSentence, currentLang);
+   356→  aiResult.textContent = result || 'AI未配置或请求失败，请在设置中配置API Key';
+   357→});
+   358→
+   359→// 模式切换
+   360→learnModeBtn.addEventListener('click', () => switchMode('learn'));
+   361→dictationModeBtn.addEventListener('click', () => switchMode('dictation'));
+   362→
+   363→function switchMode(mode) {
+   364→  currentMode = mode;
+   365→  learnModeBtn.classList.toggle('active', mode === 'learn');
+   366→  dictationModeBtn.classList.toggle('active', mode === 'dictation');
+   367→  subtitleArea.style.display = mode === 'learn' ? 'block' : 'none';
+   368→  document.getElementById('subtitleList').style.display = mode === 'learn' ? 'block' : 'none';
+   369→  dictationArea.style.display = mode === 'dictation' ? 'block' : 'none';
+   370→  aiResult.style.display = 'none';
+   371→  if (mode === 'dictation') {
+   372→    dictationIndex = currentSubIndex >= 0 ? currentSubIndex : 0;
+   373→    renderDictation();
+   374→  } else if (mode === 'learn') {
+   375→    // 切回学习模式时强制刷新字幕
+   376→    currentSubIndex = -1;
+   377→  }
+   378→}
+   379→
+   380→// 听写模式
+   381→function renderDictation() {
+   382→  dictationSentence.innerHTML = '';
+   383→  if (dictationIndex < 0 || dictationIndex >= subtitles.length) {
+   384→    dictationSentence.textContent = '没有字幕可用'; return;
+   385→  }
+   386→  const text = subtitles[dictationIndex].text;
+   387→  for (const w of text.split(/\s+/).filter(Boolean)) {
+   388→    const group = document.createElement('div');
+   389→    group.className = 'dict-word-group';
+   390→    const input = document.createElement('input');
+   391→    input.type = 'text';
+   392→    input.dataset.answer = cleanWord(w);
+   393→    input.style.width = Math.max(50, w.length * 12) + 'px';
+   394→    group.appendChild(input);
+   395→    const clickable = document.createElement('span');
+   396→    clickable.className = 'word-clickable'; clickable.textContent = '查词';
+   397→    clickable.addEventListener('click', (e) => {
+   398→      e.stopPropagation();
+   399→      const clean = cleanWord(w);
+   400→      if (clean) showWordPopup(clean, e.clientX, e.clientY);
+   401→    });
+   402→    group.appendChild(clickable);
+   403→    dictationSentence.appendChild(group);
+   404→  }
+   405→}
+   406→
+   407→speakBtn.addEventListener('click', () => {
+   408→  if (dictationIndex >= 0 && dictationIndex < subtitles.length) speak(subtitles[dictationIndex].text);
+   409→});
+   410→
+   411→checkBtn.addEventListener('click', () => {
+   412→  dictationSentence.querySelectorAll('input').forEach(input => {
+   413→    const answer = input.dataset.answer.toLowerCase();
+   414→    const val = input.value.trim().toLowerCase();
+   415→    if (val === answer) {
+   416→      input.className = 'correct';
+   417→    } else {
+   418→      input.className = 'wrong';
+   419→      let hint = input.parentElement.querySelector('.answer-hint');
+   420→      if (!hint) { hint = document.createElement('div'); hint.className = 'answer-hint'; input.parentElement.appendChild(hint); }
+   421→      hint.textContent = input.dataset.answer;
+   422→    }
+   423→  });
+   424→});
+   425→
+   426→nextBtn.addEventListener('click', () => {
+   427→  dictationIndex = Math.min(dictationIndex + 1, subtitles.length - 1);
+   428→  renderDictation();
+   429→  if (subtitles[dictationIndex]) videoPlayer.currentTime = subtitles[dictationIndex].start;
+   430→});
+   431→
+   432→// TTS
+   433→function speak(text, lang) {
+   434→  speechSynthesis.cancel();
+   435→  const u = new SpeechSynthesisUtterance(text);
+   436→  u.lang = lang || (languages[currentLang]?.tts || 'en-US');
+   437→  u.rate = 0.9;
+   438→  speechSynthesis.speak(u);
+   439→}
+   440→
+   441→// 音形义例句四位一体内联显示
+   442→async function showWordInline(word) {
+   443→  wordInlinePanel.style.display = 'block';
+   444→  inlineWord.textContent = word;
+   445→  inlinePhonetic.textContent = '';
+   446→  inlineTranslation.textContent = '查询中...';
+   447→  inlineDefs.innerHTML = '';
+   448→  inlineExamples.innerHTML = '';
+   449→  inlineDefsSection.style.display = 'none';
+   450→  inlineExamplesSection.style.display = 'none';
+   451→  speak(word);
+   452→
+   453→  if (currentLang === 'en') {
+   454→    const [ecdict, online, aiTrans] = await Promise.all([
+   455→      ipcRenderer.invoke('lookup-word', word),
+   456→      ipcRenderer.invoke('fetch-examples', word),
+   457→      ipcRenderer.invoke('ai-translate-word', word, currentSentence)
+   458→    ]);
+   459→    if (ecdict?.phonetic) inlinePhonetic.textContent = '/' + ecdict.phonetic + '/';
+   460→    else if (online?.phonetic) inlinePhonetic.textContent = online.phonetic;
+   461→    if (aiTrans) {
+   462→      inlineTranslation.textContent = aiTrans;
+   463→    } else if (ecdict?.translation) {
+   464→      inlineTranslation.textContent = ecdict.translation;
+   465→    } else {
+   466→      const tr = await ipcRenderer.invoke('translate-word', word, 'en');
+   467→      inlineTranslation.textContent = tr?.translation || '未找到释义';
+   468→    }
+   469→    if (online) {
+   470→      if (online.definitions?.length) {
+   471→        inlineDefsSection.style.display = 'block';
+   472→        inlineDefs.innerHTML = online.definitions.map(d =>
+   473→          `<div class="def-item"><span class="pos">${d.partOfSpeech || ''}</span>${d.definition}</div>`
+   474→        ).join('');
+   475→      }
+   476→      if (online.examples?.length) {
+   477→        inlineExamplesSection.style.display = 'block';
+   478→        inlineExamples.innerHTML = online.examples.map(e =>
+   479→          `<div class="example">${e}</div>`
+   480→        ).join('');
+   481→      }
+   482→    }
+   483→  } else {
+   484→    const [tr, aiTrans, online] = await Promise.all([
+   485→      ipcRenderer.invoke('translate-word', word, currentLang),
+   486→      ipcRenderer.invoke('ai-translate-word', word, currentSentence),
+   487→      ipcRenderer.invoke('fetch-examples', word, currentLang)
+   488→    ]);
+   489→    if (online?.phonetic) inlinePhonetic.textContent = online.phonetic;
+   490→    inlineTranslation.textContent = aiTrans || tr?.translation || '未找到释义';
+   491→    if (online?.definitions?.length) {
+   492→      inlineDefsSection.style.display = 'block';
+   493→      inlineDefs.innerHTML = online.definitions.map(d =>
+   494→        `<div class="def-item"><span class="pos">${d.partOfSpeech || ''}</span>${d.definition}</div>`
+   495→      ).join('');
+   496→    }
+   497→    if (online?.examples?.length) {
+   498→      inlineExamplesSection.style.display = 'block';
+   499→      inlineExamples.innerHTML = online.examples.map(e =>
+   500→        `<div class="example">${e}</div>`
+   501→      ).join('');
+   502→    }
+   503→  }
+   504→}
+   505→
+   506→// 单词弹窗
+   507→async function showWordPopup(word, x, y) {
+   508→  popupWord.textContent = word;
+   509→  popupPhonetic.textContent = '';
+   510→  popupTranslation.textContent = '查询中...';
+   511→  popupExamples.innerHTML = '';
+   512→  popupAiResult.style.display = 'none';
+   513→  wordPopup.style.display = 'block';
+   514→
+   515→  let left = x + 10, top = y + 10;
+   516→  if (left + 340 > window.innerWidth) left = window.innerWidth - 350;
+   517→  if (top + 300 > window.innerHeight) top = y - 310;
+   518→  if (left < 10) left = 10; if (top < 10) top = 10;
+   519→  wordPopup.style.left = left + 'px'; wordPopup.style.top = top + 'px';
+   520→
+   521→  speak(word);
+   522→
+   523→  if (currentLang === 'en') {
+   524→    const [ecdict, online] = await Promise.all([
+   525→      ipcRenderer.invoke('lookup-word', word),
+   526→      ipcRenderer.invoke('fetch-examples', word)
+   527→    ]);
+   528→    let trans = '';
+   529→    if (ecdict?.translation) {
+   530→      trans = ecdict.translation;
+   531→      if (ecdict.phonetic) popupPhonetic.textContent = '/' + ecdict.phonetic + '/';
+   532→    } else {
+   533→      const tr = await ipcRenderer.invoke('translate-word', word, 'en');
+   534→      trans = tr?.translation || '未找到释义';
+   535→    }
+   536→    popupTranslation.textContent = trans;
+   537→    if (online) {
+   538→      if (online.phonetic && !popupPhonetic.textContent) popupPhonetic.textContent = online.phonetic;
+   539→      let html = '';
+   540→      if (online.examples) html += online.examples.map(e => `<div class="example">${e}</div>`).join('');
+   541→      popupExamples.innerHTML = html;
+   542→    }
+   543→  } else {
+   544→    const [tr, online] = await Promise.all([
+   545→      ipcRenderer.invoke('translate-word', word, currentLang),
+   546→      ipcRenderer.invoke('fetch-examples', word, currentLang)
+   547→    ]);
+   548→    if (online?.phonetic) popupPhonetic.textContent = online.phonetic;
+   549→    popupTranslation.textContent = tr?.translation || '未找到释义';
+   550→    if (online) {
+   551→      let html = '';
+   552→      if (online.definitions) html += online.definitions.map(d => `<div class="def-item"><span class="pos">${d.partOfSpeech || ''}</span>${d.definition}</div>`).join('');
+   553→      if (online.examples) html += online.examples.map(e => `<div class="example">${e}</div>`).join('');
+   554→      popupExamples.innerHTML = html;
+   555→    }
+   556→  }
+   557→}
+   558→
+   559→// AI智能释义按钮
+   560→popupAiBtn.addEventListener('click', async () => {
+   561→  const word = popupWord.textContent;
+   562→  if (!word) return;
+   563→  popupAiResult.style.display = 'block';
+   564→  popupAiResult.textContent = '🤖 AI分析中...';
+   565→  const result = await ipcRenderer.invoke('ai-lookup', word, currentLang, currentSentence);
+   566→  popupAiResult.textContent = result || 'AI未配置，请点击右上角 ⚙AI 设置';
+   567→});
+   568→
+   569→popupSpeak.addEventListener('click', () => speak(popupWord.textContent));
+   570→popupClose.addEventListener('click', () => wordPopup.style.display = 'none');
+   571→
+   572→document.addEventListener('click', (e) => {
+   573→  if (!wordPopup.contains(e.target) && !e.target.classList.contains('word') && !e.target.classList.contains('word-clickable')) {
+   574→    wordPopup.style.display = 'none';
+   575→  }
+   576→  if (!wordInlinePanel.contains(e.target) && !e.target.classList.contains('word')) {
+   577→    wordInlinePanel.style.display = 'none';
+   578→  }
+   579→});
+   580→
+   581→// 内联面板发音
+   582→inlineSpeak.addEventListener('click', () => speak(inlineWord.textContent));
+   583→
+   584→// 主题切换
+   585→const themeSelect = document.getElementById('themeSelect');
+   586→themeSelect.value = localStorage.getItem('theme') || 'aurora';
+   587→document.documentElement.setAttribute('data-theme', themeSelect.value === 'aurora' ? '' : themeSelect.value);
+   588→themeSelect.addEventListener('change', () => {
+   589→  const theme = themeSelect.value;
+   590→  localStorage.setItem('theme', theme);
+   591→  document.documentElement.setAttribute('data-theme', theme === 'aurora' ? '' : theme);
+   592→});
+   593→
+   594→// 字号切换
+   595→const fontSizeSelect = document.getElementById('fontSizeSelect');
+   596→fontSizeSelect.addEventListener('change', () => {
+   597→  document.body.className = document.body.className.replace(/font-\S+/g, '');
+   598→  document.body.classList.add('font-' + fontSizeSelect.value);
+   599→});
+   600→document.body.classList.add('font-medium');
+   601→
+   602→langSelect.addEventListener('change', () => {
+   603→  currentLang = langSelect.value;
+   604→  ipcRenderer.invoke('set-current-lang', currentLang);
+   605→});
+   606→

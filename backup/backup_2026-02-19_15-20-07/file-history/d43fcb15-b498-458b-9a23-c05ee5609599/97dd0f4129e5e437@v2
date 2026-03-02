@@ -1,0 +1,197 @@
+# -*- coding: utf-8 -*-
+"""快捷键面板模块 - 显示和搜索快捷键"""
+
+import tkinter as tk
+from tkinter import ttk, scrolledtext
+
+class ShortcutsPanel:
+    """快捷键面板 - 显示所有可用的快捷键"""
+
+    # 快捷键定义
+    SHORTCUTS = {
+        '文件操作': [
+            {'key': 'Ctrl+O', 'desc': '打开文件'},
+            {'key': 'Ctrl+S', 'desc': '保存设置'},
+        ],
+        '编辑操作': [
+            {'key': 'Ctrl+C', 'desc': '复制'},
+            {'key': 'Ctrl+V', 'desc': '粘贴'},
+            {'key': 'Ctrl+A', 'desc': '全选'},
+        ],
+        '视图控制': [
+            {'key': 'Ctrl+M', 'desc': '切换放大镜'},
+            {'key': 'Ctrl++', 'desc': '放大字体'},
+            {'key': 'Ctrl+-', 'desc': '缩小字体'},
+        ],
+        '操作控制': [
+            {'key': 'F5', 'desc': '开始对比'},
+            {'key': 'Esc', 'desc': '关闭对话框'},
+        ],
+        '标签页切换': [
+            {'key': 'Ctrl+1', 'desc': '切换到首页'},
+            {'key': 'Ctrl+2', 'desc': '切换到结果页'},
+            {'key': 'Ctrl+3', 'desc': '切换到设置页'},
+        ],
+    }
+
+    @classmethod
+    def show(cls, parent):
+        """显示快捷键面板
+
+        Args:
+            parent: 父窗口
+        """
+        dialog = tk.Toplevel(parent)
+        dialog.title('快捷键帮助')
+        dialog.geometry('500x450')
+        dialog.resizable(True, True)
+
+        # 居中显示
+        dialog.transient(parent)
+        dialog.grab_set()
+
+        # 主框架
+        main_frame = tk.Frame(dialog, padx=20, pady=20)
+        main_frame.pack(fill='both', expand=True)
+
+        # 标题
+        title_label = tk.Label(main_frame, text='⌨ 快捷键列表',
+            font=('Arial', 16, 'bold'))
+        title_label.pack(pady=(0, 15))
+
+        # 搜索框
+        search_frame = tk.Frame(main_frame)
+        search_frame.pack(fill='x', pady=(0, 10))
+
+        tk.Label(search_frame, text='🔍 搜索:').pack(side='left', padx=(0, 5))
+
+        search_var = tk.StringVar()
+        search_var.trace('w', lambda *args: cls._filter_shortcuts(
+            search_var.get(), content_frame, all_items))
+
+        search_entry = tk.Entry(search_frame, textvariable=search_var,
+            font=('Arial', 11))
+        search_entry.pack(side='left', fill='x', expand=True)
+        search_entry.focus_set()
+
+        # 内容区域（使用Canvas支持滚动）
+        canvas_frame = tk.Frame(main_frame)
+        canvas_frame.pack(fill='both', expand=True)
+
+        canvas = tk.Canvas(canvas_frame, highlightthickness=0)
+        scrollbar = ttk.Scrollbar(canvas_frame, orient='vertical',
+            command=canvas.yview)
+
+        content_frame = tk.Frame(canvas)
+        content_frame.bind('<Configure>',
+            lambda e: canvas.configure(scrollregion=canvas.bbox('all')))
+
+        canvas.create_window((0, 0), window=content_frame, anchor='nw')
+        canvas.configure(yscrollcommand=scrollbar.set)
+
+        canvas.pack(side='left', fill='both', expand=True)
+        scrollbar.pack(side='right', fill='y')
+
+        # 鼠标滚轮支持
+        def _on_mousewheel(event):
+            canvas.yview_scroll(int(-1*(event.delta/120)), 'units')
+        canvas.bind_all('<MouseWheel>', _on_mousewheel)
+
+        # 创建所有快捷键项并保存引用
+        all_items = cls._create_shortcut_items(content_frame)
+
+        # 关闭按钮
+        close_btn = tk.Button(main_frame, text='关闭',
+            command=dialog.destroy,
+            font=('Arial', 11), padx=20, pady=8, relief='flat')
+        close_btn.pack(pady=(15, 0))
+
+        # 绑定Esc键关闭
+        dialog.bind('<Escape>', lambda e: dialog.destroy())
+
+    @classmethod
+    def _create_shortcut_items(cls, parent):
+        """创建所有快捷键项"""
+        items = []
+
+        for category, shortcuts in cls.SHORTCUTS.items():
+            # 分类标题
+            cat_frame = tk.Frame(parent, bg='#f5f5f5', pady=8)
+            cat_frame.pack(fill='x', pady=(10, 5))
+
+            cat_label = tk.Label(cat_frame, text=category,
+                font=('Arial', 11, 'bold'), bg='#f5f5f5', anchor='w')
+            cat_label.pack(fill='x', padx=10)
+
+            items.append(('category', category, cat_frame))
+
+            # 快捷键列表
+            for sc in shortcuts:
+                item_frame = tk.Frame(parent, pady=4)
+                item_frame.pack(fill='x', padx=10)
+
+                # 快捷键
+                key_label = tk.Label(item_frame, text=sc['key'],
+                    font=('Consolas', 10, 'bold'), width=15, anchor='w')
+                key_label.pack(side='left')
+
+                # 分隔线
+                tk.Label(item_frame, text='—').pack(side='left', padx=5)
+
+                # 描述
+                desc_label = tk.Label(item_frame, text=sc['desc'],
+                    font=('Arial', 10), anchor='w')
+                desc_label.pack(side='left', fill='x', expand=True)
+
+                items.append(('item', f"{category}|{sc['key']}", item_frame))
+
+        return items
+
+    @classmethod
+    def _filter_shortcuts(cls, search_text, content_frame, all_items):
+        """根据搜索文本过滤快捷键
+
+        Args:
+            search_text: 搜索文本
+            content_frame: 内容框架
+            all_items: 所有项列表
+        """
+        search_text = search_text.lower().strip()
+
+        for item_type, item_id, item_widget in all_items:
+            if item_type == 'category':
+                # 分类标题
+                # 检查该分类下是否有匹配的快捷键
+                has_visible_items = False
+                for it_type, it_id, it_widget in all_items:
+                    if it_type == 'item' and it_id.startswith(item_id + '|'):
+                        item_key = it_id.split('|')[1].lower()
+                        if search_text in item_key or cls._match_desc(it_widget, search_text):
+                            has_visible_items = True
+                            break
+
+                if has_visible_items or not search_text:
+                    item_widget.pack(fill='x', pady=(10, 5))
+                else:
+                    item_widget.pack_forget()
+
+            elif item_type == 'item':
+                # 快捷键项
+                category, key = item_id.split('|', 1)
+                key_lower = key.lower()
+
+                # 检查快捷键或描述是否匹配
+                if not search_text or search_text in key_lower or cls._match_desc(item_widget, search_text):
+                    item_widget.pack(fill='x', padx=10)
+                else:
+                    item_widget.pack_forget()
+
+    @classmethod
+    def _match_desc(cls, item_widget, search_text):
+        """检查描述是否匹配搜索文本"""
+        for child in item_widget.winfo_children():
+            if isinstance(child, tk.Label) and child.cget('font') != '':
+                desc = child.cget('text').lower()
+                if search_text in desc:
+                    return True
+        return False

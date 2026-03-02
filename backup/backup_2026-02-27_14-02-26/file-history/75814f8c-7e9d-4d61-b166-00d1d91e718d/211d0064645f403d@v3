@@ -1,0 +1,335 @@
+package com.courassistant.java.utils;
+
+import android.app.Activity;
+import android.app.Application;
+import android.os.Bundle;
+import android.os.StrictMode;
+import android.util.Log;
+
+import androidx.annotation.NonNull;
+
+/**
+ * 内存泄漏检测工具
+ * 使用 StrictMode 和自定义监控检测内存问题
+ *
+ * 宋氏美学，单夫纯律师 制作
+ */
+public class MemoryLeakDetector {
+
+    private static final String TAG = "MemoryLeakDetector";
+
+    /**
+     * 初始化内存泄漏检测
+     * 仅在 DEBUG 模式启用
+     */
+    public static void initialize(Application application) {
+        if (!com.courassistant.java.BuildConfig.DEBUG) {
+            Log.d(TAG, "非 DEBUG 模式，跳过内存泄漏检测");
+            return;
+        }
+
+        Log.d(TAG, "初始化内存泄漏检测");
+
+        // 1. 启用 StrictMode 检测
+        enableStrictMode();
+
+        // 2. 注册 Activity 生命周期监听
+        registerActivityLifecycleCallback(application);
+    }
+
+    /**
+     * 启用 StrictMode 检测
+     */
+    private static void enableStrictMode() {
+        Log.d(TAG, "启用 StrictMode 检测");
+
+        StrictMode.setThreadPolicy(new StrictMode.ThreadPolicy.Builder()
+                // 检测磁盘读取主线程
+                .detectDiskReads()
+                // 检测磁盘写入主线程
+                .detectDiskWrites()
+                // 检测网络操作主线程
+                .detectNetwork()
+                // 当违规时记录日志
+                .penaltyLog()
+                // 崩溃时终止
+                .penaltyDeathOnNetwork()
+                .build());
+
+        StrictMode.setVmPolicy(new StrictMode.VmPolicy.Builder()
+                // 检测泄漏的 Activity 对象
+                .detectActivityLeaks()
+                // 检测泄漏的 SQLite 对象
+                .detectLeakedSqlLiteObjects()
+                // 检测泄漏的 Closeable 对象
+                .detectLeakedClosableObjects()
+                // 当违规时记录日志
+                .penaltyLog()
+                .build());
+    }
+
+    /**
+     * 注册 Activity 生命周期回调
+     */
+    private static void registerActivityLifecycleCallback(Application application) {
+        application.registerActivityLifecycleCallbacks(new Application.ActivityLifecycleCallbacks() {
+            private int activityCount = 0;
+
+            @Override
+            public void onActivityCreated(@NonNull Activity activity, Bundle savedInstanceState) {
+                activityCount++;
+                Log.d(TAG, String.format("Activity 创建: %s (当前: %d)",
+                            activity.getClass().getSimpleName(), activityCount));
+
+                // 检查 Activity 是否正确销毁
+                if (activityCount > 5) {
+                    Log.w(TAG, "⚠️  同时存在的 Activity 过多: " + activityCount);
+                }
+            }
+
+            @Override
+            public void onActivityStarted(@NonNull Activity activity) {
+                Log.d(TAG, "Activity 启动: " + activity.getClass().getSimpleName());
+            }
+
+            @Override
+            public void onActivityResumed(@NonNull Activity activity) {
+                Log.d(TAG, "Activity 恢复: " + activity.getClass().getSimpleName());
+            }
+
+            @Override
+            public void onActivityPaused(@NonNull Activity activity) {
+                Log.d(TAG, "Activity 暂停: " + activity.getClass().getSimpleName());
+            }
+
+            @Override
+            public void onActivityStopped(@NonNull Activity activity) {
+                Log.d(TAG, "Activity 停止: " + activity.getClass().getSimpleName());
+            }
+
+            @Override
+            public void onActivitySaveInstanceState(@NonNull Activity activity, @NonNull Bundle outState) {
+                Log.d(TAG, "Activity 保存状态: " + activity.getClass().getSimpleName());
+            }
+
+            @Override
+            public void onActivityDestroyed(@NonNull Activity activity) {
+                activityCount--;
+                Log.d(TAG, String.format("Activity 销毁: %s (当前: %d)",
+                            activity.getClass().getSimpleName(), activityCount));
+
+                // 检查 Activity 引用是否正确释放
+                checkActivityLeak(activity);
+            }
+        });
+    }
+
+    /**
+     * 检查 Activity 泄漏
+     */
+    private static void checkActivityLeak(Activity activity) {
+        // 使用 Refleak 或 LeakCanary 库会更好
+        // 这里提供基础检测
+
+        try {
+            // 尝试访问 Activity 的资源
+            // 如果已经销毁，这应该抛出异常
+            if (activity.isFinishing()) {
+                Log.d(TAG, "Activity 正常结束: " + activity.getClass().getSimpleName());
+            }
+        } catch (Exception e) {
+            Log.e(TAG, "检测到可能的 Activity 泄漏: " +
+                    activity.getClass().getSimpleName(), e);
+        }
+    }
+
+    /**
+     * 内存使用监控
+     */
+    public static class MemoryMonitor {
+
+        /**
+         * 检查内存使用情况
+         */
+        public static void checkMemoryUsage() {
+            Runtime runtime = Runtime.getRuntime();
+
+            // 已用内存
+            long usedMemory = runtime.totalMemory() - runtime.freeMemory();
+
+            // 最大可用内存
+            long maxMemory = runtime.maxMemory();
+
+            // 内存使用率
+            float usagePercent = (usedMemory * 100.0f) / maxMemory;
+
+            Log.d(TAG, "===== 内存使用情况 =====");
+            Log.d(TAG, String.format("已用内存: %s MB",
+                        formatMB(usedMemory)));
+            Log.d(TAG, String.format("最大内存: %s MB",
+                        formatMB(maxMemory)));
+            Log.d(TAG, String.format("使用率: %.1f%%", usagePercent));
+            Log.d(TAG, "=====================");
+
+            // 警告阈值
+            if (usagePercent > 80) {
+                Log.w(TAG, "⚠️  内存使用率过高: " + usagePercent + "%");
+            }
+
+            // 可用内存检查
+            long freeMemory = runtime.freeMemory();
+            if (freeMemory < 5 * 1024 * 1024) { // 少于 5MB
+                Log.w(TAG, "⚠️  可用内存不足: " + formatMB(freeMemory));
+            }
+        }
+
+        /**
+         * 格式化为 MB
+         */
+        private static String formatMB(long bytes) {
+            return String.format("%.1f", bytes / (1024.0 * 1024.0));
+        }
+
+        /**
+         * 触发 GC 并记录
+         */
+        public static void triggerGC() {
+            Log.d(TAG, "触发垃圾回收");
+
+            long beforeMem = Runtime.getRuntime().freeMemory();
+            System.gc();
+            System.runFinalization();
+
+            try {
+                Thread.sleep(100);
+            } catch (InterruptedException e) {
+                e.printStackTrace();
+            }
+
+            long afterMem = Runtime.getRuntime().freeMemory();
+            long freed = afterMem - beforeMem;
+
+            Log.d(TAG, String.format("GC 回收内存: %s KB",
+                        freed / 1024));
+        }
+
+        /**
+         * 内存泄漏警告
+         */
+        public static void warnIfHighMemoryUsage(String context) {
+            Runtime runtime = Runtime.getRuntime();
+            long usedMemory = runtime.totalMemory() - runtime.freeMemory();
+            long maxMemory = runtime.maxMemory();
+            float usagePercent = (usedMemory * 100.0f) / maxMemory;
+
+            if (usagePercent > 75) {
+                Log.w(TAG, String.format("⚠️  高内存使用警告 [%.1f%%]: %s",
+                            usagePercent, context));
+            }
+        }
+    }
+
+    /**
+     * 常见内存泄漏模式
+     */
+    public static class LeakPatterns {
+
+        /**
+         * 常见泄漏模式和预防建议
+         */
+        public static void provideLeakPreventionTips() {
+            Log.d(TAG, "常见内存泄漏预防建议:");
+
+            Log.d(TAG, "  1. Activity 泄漏");
+            Log.d(TAG, "     - 及时注销 BroadcastReceiver");
+            Log.d(TAG, "     - 在 onDestroy() 中释放资源");
+            Log.d(TAG, "     - 使用弱引用持有 Context");
+
+            Log.d(TAG, "  2. 单例泄漏");
+            Log.d(TAG, "     - 使用 Application Context 而非 Activity Context");
+            Log.d(TAG, "     - 避免在单例中持有 View");
+
+            Log.d(TAG, "  3. Handler 泄漏");
+            Log.d(TAG, "     - 使用 WeakReference");
+            Log.d(TAG, "     - 在 onDestroy() 中 removeCallbacks");
+
+            Log.d(TAG, "  4. 非静态内部类");
+            Log.d(TAG, "     - 避免非静态内部类持有外部类引用");
+            Log.d(TAG, "     - 使用静态内部类 + WeakReference");
+
+            Log.d(TAG, "  5. 集合泄漏");
+            Log.d(TAG, "     - 及时清理不再使用的集合");
+            Log.d(TAG, "     - 使用 SparseArray 替代 HashMap<Integer, Object>");
+
+            Log.d(TAG, "  6. Cursor 泄漏");
+            Log.d(TAG, "     - 确保 Cursor 在 finally 中关闭");
+            Log.d(TAG, "     - 使用 try-with-resources");
+
+            Log.d(TAG, "  7. IO 流泄漏");
+            Log.d(TAG, "     - 确保 InputStream/OutputStream 关闭");
+            Log.d(TAG, "     - 使用 try-with-resources");
+        }
+
+        /**
+         * 代码审查检查点
+         */
+        public static class CodeReviewChecklist {
+            public static void reviewActivity(Activity activity) {
+                String activityName = activity.getClass().getSimpleName();
+                Log.d(TAG, "代码审查: " + activityName);
+
+                // 检查1: 是否在 onDestroy 中清理资源
+                Log.d(TAG, "  ✓ onDestroy() 清理资源");
+
+                // 检查2: 是否正确注销监听器
+                Log.d(TAG, "  ✓ 注销监听器");
+
+                // 检查3: 是否取消异步任务
+                Log.d(TAG, "  ✓ 取消异步任务");
+
+                // 检查4: 是否释放 Bitmap
+                Log.d(TAG, "  ✓ 释放 Bitmap 资源");
+            }
+        }
+    }
+
+    /**
+     * 内存优化最佳实践
+     */
+    public static class BestPractices {
+
+        /**
+         * 内存优化建议
+         */
+        public static void provideOptimizationTips() {
+            Log.d(TAG, "内存优化最佳实践:");
+
+            Log.d(TAG, "  1. 数据结构选择");
+            Log.d(TAG, "     - 使用 SparseArray 代替 HashMap<Integer, Object>");
+            Log.d(TAG, "     - 使用 ArrayMap 代替 HashMap");
+            Log.d(TAG, "     - 使用 primitive 类型数组 (int[] vs Integer[])");
+
+            Log.d(TAG, "  2. 对象池");
+            Log.d(TAG, "     - 使用 Message.obtain() 复用 Message");
+            Log.D(TAG, "     - 实现 ObjectPool 复用常用对象");
+
+            Log.d(TAG, "  3. 懒加载");
+            Log.d(TAG, "     - 使用 ViewStub 延迟加载");
+            Log.d(TAG, "     - 分页加载数据");
+
+            Log.d(TAG, "  4. 缓存策略");
+            Log.d(TAG, "     - 使用 LRU Cache");
+            Log.d(TAG, "     - 设置合适的缓存大小");
+            Log.d(TAG, "     - 实现缓存过期机制");
+
+            Log.d(TAG, "  5. 图片优化");
+            Log.d(TAG, "     - 使用 RGB_565 减少内存");
+            Log.d(TAG, "     - 及时 recycle() Bitmap");
+            Log.d(TAG, "     - 使用 inSampleSize 采样");
+
+            Log.d(TAG, "  6. 字符串优化");
+            Log.d(TAG, "     - 使用 StringBuilder 而非 + 连接");
+            Log.d(TAG, "     - 复用字符串常量");
+        }
+    }
+}

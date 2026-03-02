@@ -1,0 +1,371 @@
+package com.courassistant.java.database;
+
+import android.content.Context;
+import android.util.Log;
+
+import com.shanfuchun.courtassistant.java.utils.FileUtils;
+
+/**
+ * 数据库索引优化
+ * 为 Room 数据库添加索引以提升查询性能
+ *
+ * 宋氏美学，单夫纯律师 制作
+ */
+public class IndexSetup {
+
+    private static final String TAG = "IndexSetup";
+
+    /**
+     * 索引定义
+     * 建议在 Entity 类中使用 @Index 注解
+     */
+
+    /**
+     * CourtCaseEntity 索引建议
+     * 已在 CourtCaseEntity.java 中通过 @Index 注解定义
+     *
+     * 推荐索引:
+     * - case_no (案号查询)
+     * - hearing_date (开庭日期范围查询)
+     * - court_short_name (法院查询)
+     * - created_at (时间排序)
+     */
+
+    /**
+     * CourtMessageEntity 索引建议
+     * 推荐索引:
+     * - sender (发送者查询)
+     * - receive_time (时间范围查询)
+     * - is_parsed (解析状态筛选)
+     * - created_at (时间排序)
+     */
+
+    /**
+     * CourtDocumentEntity 索引建议
+     * 推荐索引:
+     * - case_id (案件关联查询)
+     * - file_name (文件名搜索)
+     * - download_time (下载时间排序)
+     * - is_summons (传票筛选)
+     * - calendar_synced (同步状态筛选)
+     * - created_at (时间排序)
+     */
+
+    /**
+     * CalendarSyncRecordEntity 索引建议
+     * 推荐索引:
+     * - case_id (案件关联)
+     * - sync_time (同步时间查询)
+     * - status (状态筛选)
+     */
+
+    /**
+     * 创建数据库视图以优化复杂查询
+     */
+    public static final String CREATE_CASES_WITH_DOCS_VIEW =
+        "CREATE VIEW IF NOT EXISTS cases_with_documents AS " +
+        "SELECT c.*, " +
+        "COUNT(d.id) as document_count, " +
+        "SUM(CASE WHEN d.is_summons = 1 THEN 1 ELSE 0 END) as summons_count " +
+        "FROM court_cases c " +
+        "LEFT JOIN court_documents d ON c.id = d.case_id " +
+        "GROUP BY c.id";
+
+    /**
+     * 创建搜索视图
+     */
+    public static final String CREATE_SEARCH_VIEW =
+        "CREATE VIRTUAL TABLE IF NOT EXISTS court_search USING FTS5(" +
+        "'court_cases' (case_no, court_full_name, party_name), " +
+        "'court_messages' (content), " +
+        "'court_documents' (file_name)" +
+        ")";
+
+    /**
+     * 数据库性能优化配置
+     */
+    public static class PerformanceConfig {
+
+        /**
+         * 查询优化建议
+         */
+        public static void optimizeQueries() {
+            Log.d(TAG, "数据库查询优化建议:");
+
+            // 1. 使用索引列
+            Log.d(TAG, "  1. 确保查询使用索引列");
+
+            // 2. 避免 SELECT *
+            Log.d(TAG, "  2. 避免使用 SELECT *，只查询需要的列");
+
+            // 3. 使用事务批量操作
+            Log.d(TAG, "  3. 批量插入使用事务");
+
+            // 4. 分页查询
+            Log.d(TAG, "  4. 大数据集使用分页 (LIMIT + OFFSET)");
+
+            // 5. 避免 N+1 查询
+            Log.d(TAG, "  5. 使用 @Relation 或 JOIN 避免 N+1");
+
+            // 6. 使用查询缓存
+            Log.d(TAG, "  6. LiveData 自动缓存查询结果");
+        }
+
+        /**
+         * 数据库维护
+         */
+        public static void performMaintenance(Context context) {
+            Log.d(TAG, "执行数据库维护");
+
+            // 1. 分析表统计信息
+            Log.d(TAG, "  ANALYZE 表统计信息");
+
+            // 2. 重建索引
+            Log.d(TAG, "  REINDEX 重建索引");
+
+            // 3. 清理数据库
+            Log.d(TAG, "  VACUUM 清理数据库");
+
+            // 4. 检查数据库完整性
+            Log.d(TAG, "  PRAGMA integrity_check");
+
+            // 示例 SQL
+            String[] maintenanceSqls = {
+                "ANALYZE court_cases;",
+                "ANALYZE court_messages;",
+                "ANALYZE court_documents;",
+                "REINDEX;",
+                "VACUUM;"
+            };
+
+            // 注意: 这些 SQL 应在数据库连接中执行
+            // 这里只是记录建议
+            for (String sql : maintenanceSqls) {
+                Log.d(TAG, "    " + sql);
+            }
+        }
+
+        /**
+         * 数据库大小检查
+         */
+        public static void checkDatabaseSize(Context context) {
+            long dbSize = FileUtils.getDatabaseSize(context);
+
+            if (dbSize > 0) {
+                String sizeStr = FileUtils.formatFileSize(dbSize);
+                Log.d(TAG, "数据库大小: " + sizeStr);
+
+                // 警告阈值
+                long warningThreshold = 50 * 1024 * 1024; // 50MB
+                if (dbSize > warningThreshold) {
+                    Log.w(TAG, "⚠️  数据库大小超过阈值，建议清理旧数据");
+                }
+            }
+        }
+    }
+
+    /**
+     * 查询性能监控
+     */
+    public static class QueryMonitor {
+
+        private static final String TAG = "QueryMonitor";
+        private static final long SLOW_QUERY_THRESHOLD = 100; // 100ms
+
+        /**
+         * 记录慢查询
+         */
+        public static void logSlowQuery(String sql, long durationMs) {
+            if (durationMs > SLOW_QUERY_THRESHOLD) {
+                Log.w(TAG, String.format("⚠️  慢查询检测: %dms | %s",
+                    durationMs, sql));
+            }
+        }
+
+        /**
+         * 查询性能分析建议
+         */
+        public static void analyzeQueryPerformance() {
+            Log.d(TAG, "查询性能分析:");
+
+            Log.d(TAG, "  启用查询分析:");
+            Log.d(TAG, "    PRAGMA query_plan = ON;");
+
+            Log.d(TAG, "  检查索引使用:");
+            Log.d(TAG, "    EXPLAIN QUERY PLAN SELECT ...");
+        }
+    }
+
+    /**
+     * 分页查询辅助
+     */
+    public static class PaginationHelper {
+
+        /**
+         * 计算偏移量
+         * @param page 页码 (从1开始)
+         * @param pageSize 每页大小
+         * @return OFFSET 值
+         */
+        public static int calculateOffset(int page, int pageSize) {
+            if (page < 1) page = 1;
+            return (page - 1) * pageSize;
+        }
+
+        /**
+         * 计算总页数
+         * @param totalCount 总记录数
+         * @param pageSize 每页大小
+         * @return 总页数
+         */
+        public static int calculateTotalPages(int totalCount, int pageSize) {
+            if (pageSize <= 0) return 0;
+            return (int) Math.ceil((double) totalCount / pageSize);
+        }
+
+        /**
+         * 生成分页查询 SQL
+         * @param tableName 表名
+         * @param pageSize 每页大小
+         * @param offset 偏移量
+         * @return 分页 SQL
+         */
+        public static String buildPagedQuery(String tableName, int pageSize, int offset) {
+            return String.format(
+                "SELECT * FROM %s ORDER BY created_at DESC LIMIT %d OFFSET %d",
+                tableName, pageSize, offset
+            );
+        }
+
+        /**
+         * 生成分页查询 SQL (带条件)
+         * @param tableName 表名
+         * @param where WHERE 条件
+         * @param pageSize 每页大小
+         * @param offset 偏移量
+         * @return 分页 SQL
+         */
+        public static String buildPagedQueryWithCondition(
+                String tableName,
+                String where,
+                int pageSize,
+                int offset) {
+            return String.format(
+                "SELECT * FROM %s WHERE %s ORDER BY created_at DESC LIMIT %d OFFSET %d",
+                tableName, where, pageSize, offset
+            );
+        }
+    }
+
+    /**
+     * 批量操作优化
+     */
+    public static class BatchOperationHelper {
+
+        /**
+         * 批量插入大小建议
+         * 建议每批 100-500 条记录
+         */
+        public static final int RECOMMENDED_BATCH_SIZE = 200;
+
+        /**
+         * 估算批量操作时间
+         * @param recordCount 记录数
+         * @param batchSize 批量大小
+         * @return 批次数
+         */
+        public static int estimateBatches(int recordCount, int batchSize) {
+            if (batchSize <= 0) return 0;
+            return (int) Math.ceil((double) recordCount / batchSize);
+        }
+
+        /**
+         * 批量操作性能建议
+         */
+        public static void provideBatchTips() {
+            Log.d(IndexSetup.TAG, "批量操作性能建议:");
+            Log.d(IndexSetup.TAG, "  1. 使用事务包裹批量操作");
+            Log.d(IndexSetup.TAG, "  2. 推荐批量大小: " + RECOMMENDED_BATCH_SIZE);
+            Log.d(IndexSetup.TAG, "  3. 分批处理大量数据");
+            Log.d(IndexSetup.TAG, "  4. 使用 @Transaction 注解");
+            Log.d(IndexSetup.TAG, "  5. 在后台线程执行");
+        }
+    }
+
+    /**
+     * 缓存策略建议
+     */
+    public static class CacheStrategy {
+
+        /**
+         * Room 数据库缓存配置
+         */
+        public static void configureDatabaseCache(Context context) {
+            Log.d(TAG, "配置数据库缓存");
+
+            // 建议的缓存大小 (根据设备内存)
+            int cacheSize = calculateRecommendedCacheSize();
+            Log.d(TAG, "  推荐缓存大小: " + cacheSize + " KB");
+
+            // 启用 WAL 模式 (更好的并发性能)
+            Log.d(TAG, "  启用 WAL 模式: PRAGMA journal_mode=WAL");
+
+            // 设置同步模式 (NORMAL = 更安全但稍慢，FULL = 最快但可能损坏)
+            Log.d(TAG, "  设置同步模式: PRAGMA synchronous=NORMAL");
+        }
+
+        /**
+         * 计算推荐缓存大小
+         */
+        private static int calculateRecommendedCacheSize() {
+            // Android 设备通常建议 2-8 MB 数据库缓存
+            // 根据设备内存动态调整
+            return 4 * 1024; // 4MB
+        }
+
+        /**
+         * 查询缓存使用
+         */
+        public static void checkCacheUsage(Context context) {
+            Log.d(TAG, "检查数据库缓存使用");
+
+            // 查询缓存页数
+            // PRAGMA cache_stats
+
+            // 查询缓存命中率
+            // 通过查询时间对比评估
+        }
+    }
+
+    /**
+     * 数据库迁移优化
+     */
+    public static class MigrationOptimization {
+
+        /**
+         * 迁移性能建议
+         */
+        public static void provideMigrationTips() {
+            Log.d(TAG, "数据库迁移性能建议:");
+            Log.d(TAG, "  1. 预写数据库并复制");
+            Log.d(TAG, "  2. 使用批量操作而非逐条迁移");
+            Log.d(TAG, "  3. 在迁移期间禁用索引");
+            Log.d(TAG, "  4. 迁移完成后重建索引");
+            Log.d(TAG, "  5. 使用 Room 的自动迁移");
+        }
+
+        /**
+         * 迁移监控
+         */
+        public static void monitorMigration(int fromVersion, int toVersion) {
+            Log.d(TAG, String.format("数据库迁移: %d -> %d", fromVersion, toVersion));
+            long startTime = System.currentTimeMillis();
+
+            // 迁移完成后
+            long duration = System.currentTimeMillis() - startTime;
+            if (duration > 5000) { // 超过5秒
+                Log.w(TAG, String.format("⚠️  迁移耗时较长: %dms", duration));
+            }
+        }
+    }
+}

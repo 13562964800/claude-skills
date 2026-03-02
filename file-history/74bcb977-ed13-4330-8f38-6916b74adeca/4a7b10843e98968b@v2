@@ -1,0 +1,53 @@
+from unittest.mock import patch
+from fastapi.testclient import TestClient
+from app.main import app
+import app.api.workflows as wf_module
+
+
+def setup_function():
+    wf_module._runs.clear()
+
+
+@patch('app.skills.base.LLMRouter.complete')
+def test_start_async_workflow(mock_complete):
+    mock_complete.return_value = '# 格式化文本'
+
+    client = TestClient(app)
+    resp = client.post('/api/v1/workflow-runs/async', json={
+        'project_id': 1,
+        'template': 'legal-text-format',
+        'payload': {'text': '测试文本'}
+    }, headers={'x-role': 'lawyer'})
+    assert resp.status_code == 202
+    data = resp.json()
+    assert 'task_id' in data
+    assert 'run_id' in data
+    assert data['status'] == 'pending'
+
+
+@patch('app.skills.base.LLMRouter.complete')
+def test_get_async_workflow_status(mock_complete):
+    mock_complete.return_value = '# 格式化文本'
+
+    client = TestClient(app)
+    create = client.post('/api/v1/workflow-runs/async', json={
+        'project_id': 1,
+        'template': 'legal-text-format',
+        'payload': {'text': '测试'}
+    }, headers={'x-role': 'lawyer'})
+    run_id = create.json()['run_id']
+
+    resp = client.get(f'/api/v1/workflow-runs/{run_id}')
+    assert resp.status_code == 200
+    data = resp.json()
+    assert data['status'] in ('pending', 'running', 'success', 'failed')
+
+
+def test_async_workflow_invalid_template():
+    client = TestClient(app)
+    resp = client.post('/api/v1/workflow-runs/async', json={
+        'project_id': 1,
+        'template': 'invalid-template',
+        'payload': {'text': '测试'}
+    }, headers={'x-role': 'lawyer'})
+    assert resp.status_code == 400

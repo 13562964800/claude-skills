@@ -1,0 +1,129 @@
+316-                                            status = DownloadStatus.WAITING_FOR_AUTH
+317-                                        )
+318-                                    )
+319-                                }
+320-                            }
+321-                            else -> { /* 不应该到达这里 */ }
+322-                        }
+323-                        return@launch
+324-                    }
+325-
+326:                    // 更新任务信息
+327-                    val updatedTask = task.copy(
+328-                        title = videoInfo.title,
+329-                        status = DownloadStatus.DOWNLOADING
+330-                    )
+331:                    updateCurrentDownload(updatedTask)
+332-
+333-                    // 生成文件名
+334-                    val safeTitle = videoInfo.title.replace(Regex("[:*?\"<>|]"), "_").take(50)
+335-                    val outputFile = File(downloadsDir, "${safeTitle}_${System.currentTimeMillis()}.mp4")
+336-
+337-                    // 使用分段下载器下载，传递Cookie
+338-                    downloadWithSegmentedDownloader(url, videoInfo, safeTitle, outputFile, onComplete)
+339-                }.onFailure { error ->
+340-                    val failedTask = task.copy(
+341-                        status = DownloadStatus.FAILED,
+--
+445-            // 取消特定任务
+446-            activeDownloadJobs[taskId]?.cancel()
+447-            activeDownloadTasks[taskId]?.let { task ->
+448-                val cancelledTask = task.copy(
+449-                    status = DownloadStatus.CANCELLED,
+450-                    completedAt = System.currentTimeMillis()
+451-                )
+452-                activeDownloadTasks.remove(taskId)
+453-                activeDownloadJobs.remove(taskId)
+454-                updateActiveDownloads()
+455:                updateCurrentDownload(cancelledTask)
+456-                addToHistory(cancelledTask)
+457-
+458-                // 清理临时文件
+459-                if (task.totalBytes > 0) {
+460-                    val safeTitle = task.title.replace(Regex("[:*?\"<>|]"), "_").take(50)
+461-                    val outputFile = File(downloadsDir, "${safeTitle}_${task.createdAt}.mp4")
+462-                    segmentedDownloader.cancelDownload(outputFile)
+463-                }
+464-            }
+465-            // 处理队列中的下一个任务
+--
+477-                // 清理临时文件
+478-                if (task.totalBytes > 0) {
+479-                    val safeTitle = task.title.replace(Regex("[:*?\"<>|]"), "_").take(50)
+480-                    val outputFile = File(downloadsDir, "${safeTitle}_${task.createdAt}.mp4")
+481-                    segmentedDownloader.cancelDownload(outputFile)
+482-                }
+483-            }
+484-            activeDownloadJobs.clear()
+485-            activeDownloadTasks.clear()
+486-            updateActiveDownloads()
+487:            updateCurrentDownload(null)
+488-        }
+489-    }
+490-
+491-    /**
+492-     * 重试失败的下载
+493-     */
+494-    fun retryDownload(taskId: String, onComplete: (String, String?) -> Unit) {
+495-        val history = _downloadHistory.value.find { it.id == taskId }
+496-        if (history != null && history.status == DownloadStatus.FAILED) {
+497-            _uiState.update { it.copy(url = history.url) }
+--
+762-    /**
+763-     * 更新队列列表
+764-     */
+765-    private fun updateQueueList() {
+766-        _uiState.update { it.copy(downloadQueue = downloadQueue.values.toList()) }
+767-    }
+768-
+769-    /**
+770-     * 更新当前下载任务
+771-     */
+772:    private fun updateCurrentDownload(task: DownloadTask?) {
+773-        // 更新 UI 显示当前下载（用于主界面显示）
+774-        _uiState.update { it.copy(
+775-            currentDownload = task,
+776-            isProcessing = task != null && (task.status == DownloadStatus.FETCHING_INFO || task.status == DownloadStatus.DOWNLOADING)
+777-        ) }
+778-    }
+779-
+780-    /**
+781-     * 更新活跃下载列表
+782-     */
+--
+787-    /**
+788-     * 更新特定下载任务的进度
+789-     */
+790-    private fun updateActiveDownloadTask(taskId: String, task: DownloadTask) {
+791-        activeDownloadTasks[taskId] = task
+792-        updateActiveDownloads()
+793-        // 同时更新主显示（仅当主任务不存在或当前任务就是主任务时）
+794-        val currentMainTask = _uiState.value.currentDownload
+795-        if (currentMainTask == null) {
+796-            // 没有主任务，使用当前任务作为主任务
+797:            updateCurrentDownload(task)
+798-        } else if (currentMainTask.id == taskId) {
+799-            // 当前任务就是主任务，更新显示
+800:            updateCurrentDownload(task)
+801-        }
+802-        // 否则不更新主显示（让已完成的任务自然消失）
+803-    }
+804-
+805-    /**
+806-     * 下载完成回调
+807-     */
+808-    private fun onDownloadCompleted(taskId: String, task: DownloadTask, file: File, onComplete: (String, String?) -> Unit) {
+809-        viewModelScope.launch(Dispatchers.IO) {
+810-            // 立即清除下载状态（这样UI会立即更新）
+811-            withContext(Dispatchers.Main) {
+812:                updateCurrentDownload(null)
+813-            }
+814-
+815-            // 移除活跃任务
+816-            activeDownloadTasks.remove(taskId)
+817-            activeDownloadJobs.remove(taskId)
+818-            updateActiveDownloads()
+819-
+820-            // 保存到数据库
+821-            val entity = VideoEntity(
+822-                title = task.title,

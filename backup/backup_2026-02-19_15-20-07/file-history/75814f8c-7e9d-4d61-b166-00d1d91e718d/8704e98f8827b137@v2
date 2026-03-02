@@ -1,0 +1,64 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="@color/bg_rice"
+    android:gravity="center"
+    android:orientation="vertical"
+    android:padding="32dp">
+
+    <!-- 图标 -->
+    <ImageView
+        android:id="@+id/pageIcon"
+        android:layout_width="160dp"
+        android:layout_height="160dp"
+        android:layout_marginBottom="32dp"
+        android:contentDescription="功能图标"
+        android:src="@mipmap/ic_launcher"
+        android:tint="@color/dai_cyan" />
+
+    <!-- 标题 -->
+    <TextView
+        android:id="@+id/pageTitle"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginBottom="16dp"
+        android:fontFamily="serif"
+        android:gravity="center"
+        android:text="标题"
+        android:textColor="@color/ink_gray"
+        android:textSize="28sp"
+        android:textStyle="bold" />
+
+    <!-- 副标题 -->
+    <TextView
+        android:id="@+id/pageSubtitle"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginBottom="16dp"
+        android:fontFamily="serif"
+        android:gravity="center"
+        android:text="副标题"
+        android:textColor="@color/dai_cyan"
+        android:textSize="18sp" />
+
+    <!-- 描述文字 -->
+    <TextView
+        android:id="@+id/pageDescription"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginBottom="24dp"
+        android:fontFamily="serif"
+        android:gravity="center"
+        android:lineSpacingExtra="8dp"
+        android:text="功能描述文字"
+        android:textColor="@color/ink_light"
+        android:textSize="16sp" />
+
+    <!-- 底部间距 -->
+    <View
+        android:layout_width="match_parent"
+        android:layout_height="0dp"
+        android:layout_weight="1" />
+
+</LinearLayout>

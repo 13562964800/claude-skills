@@ -1,0 +1,244 @@
+"""
+放大镜模块 - 提供界面内容放大功能
+简化版，无需额外依赖
+"""
+import tkinter as tk
+from tkinter import ttk
+
+
+class SimpleMagnifier:
+    """简化版放大镜 - 显示界面控件的放大内容"""
+
+    def __init__(self, parent=None, zoom_level=1.5, lens_size=280):
+        """
+        初始化简化版放大镜
+
+        Args:
+            parent: 父窗口
+            zoom_level: 放大倍数 (1.2 - 3.0)
+            lens_size: 放大镜窗口大小
+        """
+        self.parent = parent
+        self.zoom_level = zoom_level
+        self.lens_size = lens_size
+        self.is_active = False
+
+        # 创建放大镜窗口
+        self.window = tk.Toplevel(parent) if parent else tk.Tk()
+        self.window.title('🔍 放大镜')
+        self.window.geometry(f'{lens_size}x{lens_size + 70}')
+        self.window.attributes('-topmost', True)
+        self.window.attributes('-toolwindow', True)
+
+        # 工具栏
+        toolbar = tk.Frame(self.window, bg='#FFDAB9')
+        toolbar.pack(fill='x', padx=5, pady=5)
+
+        tk.Label(toolbar, text='放大:', bg='#FFDAB9', font=('Arial', 11)).pack(side='left')
+        self.zoom_var = tk.DoubleVar(value=zoom_level)
+        zoom_scale = tk.Scale(
+            toolbar, from_=1.2, to=3.0, resolution=0.1,
+            orient='horizontal', variable=self.zoom_var,
+            command=self._on_zoom_change, bg='#FFDAB9',
+            length=120, showvalue=True, font=('Arial', 10)
+        )
+        zoom_scale.pack(side='left', padx=5)
+
+        self.toggle_btn = tk.Button(
+            toolbar, text='关闭', command=self.hide,
+            bg='#FF6B6B', fg='white', font=('Arial', 10, 'bold'),
+            relief='flat', padx=12, pady=4, cursor='hand2'
+        )
+        self.toggle_btn.pack(side='right')
+
+        # 内容显示区域
+        self.content_frame = tk.Frame(self.window, bg='white', bd=3, relief='solid')
+        self.content_frame.pack(fill='both', expand=True, padx=5, pady=5)
+
+        # 使用Text控件显示内容，支持滚动
+        self.text_widget = tk.Text(
+            self.content_frame,
+            wrap='word',
+            font=('Arial', 12),
+            bg='#FFF8F0',
+            fg='#333',
+            relief='flat',
+            padx=10,
+            pady=10
+        )
+        self.text_widget.pack(fill='both', expand=True)
+
+        # 初始提示文本
+        self.text_widget.insert('1.0', '''🔍 放大镜使用说明
+
+1. 点击"打开放大镜"按钮启用
+2. 将鼠标移到要查看的文本区域
+3. 放大镜会自动显示鼠标位置的内容
+4. 使用滑块调整放大倍数
+
+支持的区域：
+- 录音转写文本框
+- 文档原文文本框
+- 各种标签和按钮文字
+''')
+        self.text_widget.config(state='disabled')
+
+        # 当前跟踪的控件
+        self.tracked_widget = None
+        self.last_content = ''
+
+        # 初始隐藏
+        self.hide()
+
+    def _on_zoom_change(self, value):
+        """缩放值改变"""
+        self.zoom_level = float(value)
+        # 如果有内容，重新显示
+        if self.last_content:
+            self._display_content(self.last_content)
+
+    def _display_content(self, content, title=''):
+        """显示内容"""
+        self.last_content = content
+        self.text_widget.config(state='normal')
+        self.text_widget.delete('1.0', 'end')
+
+        font_size = int(14 * self.zoom_level)
+        self.text_widget.config(font=('Arial', font_size))
+
+        if title:
+            self.text_widget.insert('end', f'【{title}】\n\n', 'title')
+            self.text_widget.tag_config('title', font=('Arial', font_size, 'bold'), foreground='#FF6B6B')
+
+        self.text_widget.insert('end', content)
+        self.text_widget.config(state='disabled')
+
+    def show(self):
+        """显示放大镜"""
+        self.window.deiconify()
+        self.is_active = True
+        self.toggle_btn.config(text='关闭', bg='#FF6B6B')
+        # 将窗口定位到主窗口右侧
+        if self.parent:
+            try:
+                parent_x = self.parent.winfo_x()
+                parent_y = self.parent.winfo_y()
+                parent_w = self.parent.winfo_width()
+                self.window.geometry(f'+{parent_x + parent_w + 10}+{parent_y}')
+            except:
+                pass
+
+    def hide(self):
+        """隐藏放大镜"""
+        self.window.withdraw()
+        self.is_active = False
+        self.toggle_btn.config(text='打开', bg='#4CAF50')
+
+    def toggle(self):
+        """切换显示/隐藏"""
+        if self.is_active:
+            self.hide()
+        else:
+            self.show()
+
+    def set_zoom(self, level):
+        """设置放大倍数"""
+        self.zoom_var.set(max(1.2, min(3.0, level)))
+        self.zoom_level = self.zoom_var.get()
+
+    def magnify_widget(self, widget):
+        """放大显示指定控件的内容"""
+        if not self.is_active:
+            return
+
+        self.tracked_widget = widget
+
+        try:
+            # 获取控件类型
+            widget_class = widget.winfo_class()
+
+            if widget_class in ('Text', 'ScrolledText'):
+                # 文本控件 - 获取光标位置附近的内容
+                try:
+                    cursor_pos = widget.index('insert')
+                    full_text = widget.get('1.0', 'end')
+
+                    # 获取当前行
+                    line_num = int(cursor_pos.split('.')[0])
+                    lines = full_text.split('\n')
+
+                    # 显示前后各10行
+                    start_line = max(0, line_num - 10)
+                    end_line = min(len(lines), line_num + 15)
+
+                    nearby_lines = []
+                    for i in range(start_line, end_line):
+                        prefix = '>>> ' if i == line_num - 1 else '    '
+                        nearby_lines.append(f"{prefix}{i+1:3d}. {lines[i]}")
+
+                    content = '\n'.join(nearby_lines)
+                    if not content.strip():
+                        content = '(空内容)'
+                    self._display_content(content, f'文本内容 (第{line_num}行)')
+                except Exception as e:
+                    self._display_content(f'读取文本失败: {str(e)}', '错误')
+
+            elif widget_class == 'Label':
+                # 标签控件
+                text = widget.cget('text')
+                self._display_content(text, '标签文字')
+
+            elif widget_class == 'Button':
+                # 按钮
+                text = widget.cget('text')
+                self._display_content(text, '按钮文字')
+
+            elif widget_class == 'Entry':
+                # 输入框
+                text = widget.get()
+                self._display_content(text, '输入框内容')
+
+            elif widget_class == 'Radiobutton':
+                # 单选按钮
+                text = widget.cget('text')
+                self._display_content(text, '选项文字')
+
+            else:
+                # 其他控件
+                info = f"控件类型: {widget_class}\n\n此类型控件暂不支持预览"
+                self._display_content(info, '提示')
+
+        except Exception as e:
+            self._display_content(f'预览失败: {str(e)}', '错误')
+
+    def cleanup(self):
+        """清理资源"""
+        try:
+            self.window.destroy()
+        except:
+            pass
+
+
+def create_magnifier_button(parent, magnifier_instance):
+    """创建放大镜切换按钮"""
+    def toggle_magnifier():
+        magnifier_instance.toggle()
+        # 更新按钮状态
+        if magnifier_instance.is_active:
+            btn.config(text='🔍 关闭放大镜', bg='#FF8787')
+        else:
+            btn.config(text='🔍 打开放大镜', bg='#FF6B6B')
+
+    btn = tk.Button(
+        parent,
+        text='🔍 打开放大镜',
+        command=toggle_magnifier,
+        bg='#FF6B6B',
+        fg='white',
+        font=('Arial', 11, 'bold'),
+        relief='flat',
+        padx=15,
+        pady=8,
+        cursor='hand2'
+    )
+    return btn

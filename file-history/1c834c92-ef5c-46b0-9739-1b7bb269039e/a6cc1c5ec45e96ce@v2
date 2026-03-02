@@ -1,0 +1,258 @@
+'use client';
+import { useState, useEffect } from 'react';
+import { useAuth } from '../../lib/use-auth';
+import { useRouter } from 'next/navigation';
+
+interface ApiKeys {
+  // 国外顶尖三家
+  anthropic_api_key: string;
+  openai_api_key: string;
+  gemini_api_key: string;
+
+  // 国内顶尖三家
+  deepseek_api_key: string;
+  qwen_api_key: string;
+  zhipuai_api_key: string;
+}
+
+export default function SettingsPage() {
+  const { user, isLoading } = useAuth();
+  const router = useRouter();
+  const [apiKeys, setApiKeys] = useState<ApiKeys>({
+    anthropic_api_key: '',
+    openai_api_key: '',
+    gemini_api_key: '',
+    deepseek_api_key: '',
+    qwen_api_key: '',
+    zhipuai_api_key: '',
+  });
+  const [saveStatus, setSaveStatus] = useState<'idle' | 'saving' | 'success' | 'error'>('idle');
+
+  useEffect(() => {
+    // 从 localStorage 加载已保存的 API keys
+    const saved = localStorage.getItem('legalflow_api_keys');
+    if (saved) {
+      try {
+        setApiKeys(JSON.parse(saved));
+      } catch (e) {
+        console.error('Failed to parse saved API keys:', e);
+      }
+    }
+  }, []);
+
+  if (isLoading) {
+    return <main style={{ padding: '2rem' }}>加载中...</main>;
+  }
+
+  if (!user) {
+    router.push('/auth');
+    return null;
+  }
+
+  const handleChange = (key: keyof ApiKeys, value: string) => {
+    setApiKeys(prev => ({ ...prev, [key]: value }));
+  };
+
+  const handleSave = () => {
+    setSaveStatus('saving');
+    try {
+      localStorage.setItem('legalflow_api_keys', JSON.stringify(apiKeys));
+      setSaveStatus('success');
+      setTimeout(() => setSaveStatus('idle'), 2000);
+    } catch (e) {
+      console.error('Failed to save API keys:', e);
+      setSaveStatus('error');
+      setTimeout(() => setSaveStatus('idle'), 2000);
+    }
+  };
+
+  const handleClear = () => {
+    if (confirm('确定要清除所有 API Keys 吗?')) {
+      setApiKeys({
+        anthropic_api_key: '',
+        openai_api_key: '',
+        gemini_api_key: '',
+        deepseek_api_key: '',
+        qwen_api_key: '',
+        zhipuai_api_key: '',
+      });
+      localStorage.removeItem('legalflow_api_keys');
+    }
+  };
+
+  return (
+    <main style={{ padding: '2rem', maxWidth: '800px', margin: '0 auto' }}>
+      <h1>API 配置</h1>
+      <p style={{ color: '#666', marginTop: '0.5rem' }}>
+        配置 LLM API Keys 以使用工作流功能。所有数据仅保存在本地浏览器中。
+      </p>
+
+      <div style={{ marginTop: '2rem' }}>
+        <h2 style={{ fontSize: '1.2rem', marginBottom: '1rem' }}>国外顶尖三家</h2>
+
+        <div style={{ marginBottom: '1.5rem' }}>
+          <label style={{ display: 'block', marginBottom: '0.5rem', fontWeight: 'bold' }}>
+            Anthropic Claude (claude-opus-4-6)
+          </label>
+          <input
+            type="password"
+            value={apiKeys.anthropic_api_key}
+            onChange={(e) => handleChange('anthropic_api_key', e.target.value)}
+            placeholder="sk-ant-..."
+            style={{
+              width: '100%',
+              padding: '0.5rem',
+              border: '1px solid #ddd',
+              borderRadius: '4px',
+              fontFamily: 'monospace',
+            }}
+          />
+        </div>
+
+        <div style={{ marginBottom: '1.5rem' }}>
+          <label style={{ display: 'block', marginBottom: '0.5rem', fontWeight: 'bold' }}>
+            OpenAI GPT (gpt-4o)
+          </label>
+          <input
+            type="password"
+            value={apiKeys.openai_api_key}
+            onChange={(e) => handleChange('openai_api_key', e.target.value)}
+            placeholder="sk-..."
+            style={{
+              width: '100%',
+              padding: '0.5rem',
+              border: '1px solid #ddd',
+              borderRadius: '4px',
+              fontFamily: 'monospace',
+            }}
+          />
+        </div>
+
+        <div style={{ marginBottom: '1.5rem' }}>
+          <label style={{ display: 'block', marginBottom: '0.5rem', fontWeight: 'bold' }}>
+            Google Gemini
+          </label>
+          <input
+            type="password"
+            value={apiKeys.gemini_api_key}
+            onChange={(e) => handleChange('gemini_api_key', e.target.value)}
+            placeholder="..."
+            style={{
+              width: '100%',
+              padding: '0.5rem',
+              border: '1px solid #ddd',
+              borderRadius: '4px',
+              fontFamily: 'monospace',
+            }}
+          />
+        </div>
+      </div>
+
+      <div style={{ marginTop: '2rem' }}>
+        <h2 style={{ fontSize: '1.2rem', marginBottom: '1rem' }}>国内顶尖三家</h2>
+
+        <div style={{ marginBottom: '1.5rem' }}>
+          <label style={{ display: 'block', marginBottom: '0.5rem', fontWeight: 'bold' }}>
+            DeepSeek
+          </label>
+          <input
+            type="password"
+            value={apiKeys.deepseek_api_key}
+            onChange={(e) => handleChange('deepseek_api_key', e.target.value)}
+            placeholder="sk-..."
+            style={{
+              width: '100%',
+              padding: '0.5rem',
+              border: '1px solid #ddd',
+              borderRadius: '4px',
+              fontFamily: 'monospace',
+            }}
+          />
+        </div>
+
+        <div style={{ marginBottom: '1.5rem' }}>
+          <label style={{ display: 'block', marginBottom: '0.5rem', fontWeight: 'bold' }}>
+            阿里通义千问 (Qwen)
+          </label>
+          <input
+            type="password"
+            value={apiKeys.qwen_api_key}
+            onChange={(e) => handleChange('qwen_api_key', e.target.value)}
+            placeholder="sk-..."
+            style={{
+              width: '100%',
+              padding: '0.5rem',
+              border: '1px solid #ddd',
+              borderRadius: '4px',
+              fontFamily: 'monospace',
+            }}
+          />
+        </div>
+
+        <div style={{ marginBottom: '1.5rem' }}>
+          <label style={{ display: 'block', marginBottom: '0.5rem', fontWeight: 'bold' }}>
+            智谱 AI (GLM-4)
+          </label>
+          <input
+            type="password"
+            value={apiKeys.zhipuai_api_key}
+            onChange={(e) => handleChange('zhipuai_api_key', e.target.value)}
+            placeholder="..."
+            style={{
+              width: '100%',
+              padding: '0.5rem',
+              border: '1px solid #ddd',
+              borderRadius: '4px',
+              fontFamily: 'monospace',
+            }}
+          />
+        </div>
+      </div>
+
+      <div style={{ marginTop: '2rem', display: 'flex', gap: '1rem' }}>
+        <button
+          onClick={handleSave}
+          disabled={saveStatus === 'saving'}
+          style={{
+            padding: '0.75rem 1.5rem',
+            backgroundColor: saveStatus === 'success' ? '#10b981' : '#3b82f6',
+            color: 'white',
+            border: 'none',
+            borderRadius: '4px',
+            cursor: saveStatus === 'saving' ? 'not-allowed' : 'pointer',
+            fontWeight: 'bold',
+          }}
+        >
+          {saveStatus === 'saving' && '保存中...'}
+          {saveStatus === 'success' && '✓ 已保存'}
+          {saveStatus === 'error' && '✗ 保存失败'}
+          {saveStatus === 'idle' && '保存配置'}
+        </button>
+
+        <button
+          onClick={handleClear}
+          style={{
+            padding: '0.75rem 1.5rem',
+            backgroundColor: '#ef4444',
+            color: 'white',
+            border: 'none',
+            borderRadius: '4px',
+            cursor: 'pointer',
+          }}
+        >
+          清除所有
+        </button>
+      </div>
+
+      <div style={{ marginTop: '2rem', padding: '1rem', backgroundColor: '#f3f4f6', borderRadius: '4px' }}>
+        <h3 style={{ fontSize: '1rem', marginBottom: '0.5rem' }}>安全提示</h3>
+        <ul style={{ marginLeft: '1.5rem', color: '#666' }}>
+          <li>API Keys 仅保存在您的浏览器本地存储中</li>
+          <li>不会上传到服务器</li>
+          <li>清除浏览器数据会删除这些配置</li>
+          <li>请妥善保管您的 API Keys</li>
+        </ul>
+      </div>
+    </main>
+  );
+}

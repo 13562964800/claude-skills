@@ -1,0 +1,72 @@
+# Tailscale远程访问配置
+
+## 当前配置
+
+**Windows PC (当前机器)**
+- Tailscale IP: 100.94.231.106
+- 主机名: win-59l2lqtc9rd
+- 状态: 在线
+
+**Android手机**
+- Tailscale IP: 100.83.106.104
+- 主机名: alt-al10
+- 状态: 在线
+
+## 通过JuiceSSH连接
+
+### 方法1: SSH连接 (推荐)
+
+1. 在手机JuiceSSH中创建新连接:
+   - 地址: `100.94.231.106`
+   - 端口: `22`
+   - 用户名: `Administrator`
+   - 认证: 使用密码或SSH密钥
+
+2. 如果SSH服务未启动,在Windows上执行:
+```bash
+# 启动OpenSSH服务
+net start sshd
+
+# 设置开机自启
+sc config sshd start=auto
+```
+
+### 方法2: 文件共享访问
+
+在手机上通过文件管理器访问:
+```
+smb://100.94.231.106/
+```
+
+### 方法3: 远程桌面
+
+在手机上使用RDP客户端:
+- 地址: `100.94.231.106:3389`
+- 用户名: `Administrator`
+
+## 项目文件位置
+
+```
+C:\Users\Administrator\AI科普画册\
+├── AI科普画册-验收合格版.docx  (最终成品)
+├── 核心任务-验收标准.md
+├── 验收报告.txt
+└── images/  (211个PNG插图)
+```
+
+## 快速访问命令
+
+```bash
+# SSH连接
+ssh Administrator@100.94.231.106
+
+# 查看项目文件
+cd "C:\Users\Administrator\AI科普画册"
+ls -lh *.docx
+```
+
+## 注意事项
+
+1. 确保Windows防火墙允许SSH连接(端口22)
+2. 确保Tailscale在两台设备上都保持在线
+3. 如果无法连接,检查Windows上的OpenSSH服务是否运行

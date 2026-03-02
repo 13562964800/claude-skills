@@ -1,0 +1,89 @@
+@echo off
+chcp 65001 >nul
+setlocal enabledelayedexpansion
+
+echo ==================================================
+echo 🔧 华为手机 ADB 授权助手
+echo ==================================================
+echo.
+
+echo 🔍 检查 ADB 安装状态...
+adb version >nul 2>&1
+if errorlevel 1 (
+    echo ❌ ADB 未安装或未添加到 PATH
+    echo.
+    echo 请安装 ADB:
+    echo    下载 Android Platform Tools
+    echo    https://developer.android.com/tools/releases/platform-tools
+    pause
+    exit /b 1
+)
+
+echo ✅ ADB 已安装
+echo.
+
+echo 🔄 重启 ADB 服务...
+adb kill-server >nul 2>&1
+timeout /t 1 /nobreak >nul
+adb start-server >nul 2>&1
+timeout /t 2 /nobreak >nul
+
+echo.
+echo 🔍 检查设备连接状态...
+echo.
+
+:CHECK_LOOP
+adb devices
+echo.
+
+set DEVICES_FOUND=0
+for /f "skip=1 tokens=1,2" %%a in ('adb devices') do (
+    if "%%b"=="device" (
+        echo ✅ 设备已授权: %%a
+        set DEVICES_FOUND=1
+    )
+    if "%%b"=="unauthorized" (
+        echo ⚠️  设备未授权: %%a
+        echo.
+        echo ==================================================
+        echo 📱 请在华为手机上操作：
+        echo ==================================================
+        echo.
+        echo 1️⃣  打开【设置】
+        echo 2️⃣  进入【系统和更新】
+        echo 3️⃣  点击【开发人员选项】
+        echo 4️⃣  开启【USB调试】开关
+        echo 5️⃣  手机会弹出【允许USB调试】提示
+        echo     ✅ 勾选【始终允许使用这台计算机调试】
+        echo     ✅ 点击【允许】
+        echo.
+        echo ==================================================
+        echo.
+        echo 完成后按任意键继续检查...
+        pause >nul
+        goto CHECK_LOOP
+    )
+)
+
+if %DEVICES_FOUND%==1 (
+    echo.
+    echo 📋 获取设备信息...
+    for /f "tokens=*" %%i in ('adb shell getprop ro.product.model 2^>nul') do echo    型号: %%i
+    for /f "tokens=*" %%i in ('adb shell getprop ro.product.manufacturer 2^>nul') do echo    制造商: %%i
+    for /f "tokens=*" %%i in ('adb shell getprop ro.build.version.release 2^>nul') do echo    Android版本: %%i
+    echo.
+    echo 🎉 ADB 授权完成！现在可以使用以下功能：
+    echo    • 投屏: scrcpy
+    echo    • 截图: adb shell screencap -p /sdcard/screen.png
+    echo    • 录屏: adb shell screenrecord /sdcard/video.mp4
+) else (
+    echo ❌ 未检测到设备
+    echo.
+    echo 💡 提示：
+    echo    1. 确保 USB 线连接正常
+    echo    2. 检查手机 USB 调试是否开启
+    echo    3. 尝试重新插拔 USB 线
+)
+
+echo.
+pause

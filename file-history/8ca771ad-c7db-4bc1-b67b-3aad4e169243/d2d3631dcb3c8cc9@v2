@@ -1,0 +1,47 @@
+"""
+faster-whisper 本地引擎
+"""
+
+from faster_whisper import WhisperModel
+from typing import Optional
+
+class FasterWhisperEngine:
+    def __init__(self, model_size: str = "base"):
+        """
+        初始化 faster-whisper 引擎
+        model_size: tiny, base, small, medium, large-v3
+        """
+        self.model = WhisperModel(
+            model_size,
+            device="cpu",
+            compute_type="int8"
+        )
+
+    async def transcribe(self, audio_path: str, language: Optional[str] = None) -> dict:
+        """转录音频"""
+        segments, info = self.model.transcribe(
+            audio_path,
+            language=language,
+            word_timestamps=True,
+            vad_filter=True,  # 语音活动检测
+        )
+
+        words = []
+        text = ""
+
+        for segment in segments:
+            text += segment.text + " "
+
+            if hasattr(segment, 'words'):
+                for word in segment.words:
+                    words.append({
+                        'word': word.word,
+                        'start': word.start,
+                        'end': word.end,
+                    })
+
+        return {
+            'text': text.strip(),
+            'words': words,
+            'language': info.language,
+        }

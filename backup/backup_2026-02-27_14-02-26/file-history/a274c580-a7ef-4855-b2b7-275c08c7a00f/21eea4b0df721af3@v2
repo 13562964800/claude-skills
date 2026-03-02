@@ -1,0 +1,21 @@
+package com.multilanglearner
+
+import android.app.Application
+import com.multilanglearner.data.network.NewPipeDownloaderImpl
+import dagger.hilt.android.HiltAndroidApp
+
+@HiltAndroidApp
+class MainApplication : Application() {
+    override fun onCreate() {
+        super.onCreate()
+        android.util.Log.d("MultiLangLearner", "Application initialized")
+
+        // 初始化 NewPipeExtractor
+        try {
+            org.schabi.newpipe.extractor.NewPipe.init(NewPipeDownloaderImpl.getInstance())
+            android.util.Log.d("MultiLangLearner", "NewPipeExtractor initialized")
+        } catch (e: Exception) {
+            android.util.Log.e("MultiLangLearner", "Failed to init NewPipeExtractor", e)
+        }
+    }
+}

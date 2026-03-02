@@ -1,0 +1,278 @@
+     1→<!DOCTYPE html>
+     2→<html lang="zh-CN">
+     3→<head>
+     4→    <meta charset="UTF-8">
+     5→    <title>多语言视频学习</title>
+     6→    <link rel="stylesheet" href="styles.css">
+     7→</head>
+     8→<body>
+     9→    <div class="aurora-bg">
+    10→        <div class="aurora-blob blob-1"></div>
+    11→        <div class="aurora-blob blob-2"></div>
+    12→        <div class="aurora-blob blob-3"></div>
+    13→    </div>
+    14→
+    15→    <div class="container">
+    16→        <div class="header">
+    17→            <h1 class="title">多语言视频学习</h1>
+    18→            <p class="subtitle">视频字幕 · 点词翻译 · AI释义 · 听写训练</p>
+    19→        </div>
+    20→
+    21→        <!-- 顶部控制栏 -->
+    22→        <div class="control-bar glass-card">
+    23→            <div class="input-row">
+    24→                <div class="url-input-wrap">
+    25→                    <input type="text" id="urlInput" placeholder="粘贴 YouTube 视频链接..." class="url-input">
+    26→                    <button class="clear-btn" id="clearUrlBtn">✕</button>
+    27→                </div>
+    28→                <button class="paste-btn" id="pasteBtn">📋</button>
+    29→                <select id="langSelect" class="lang-select"></select>
+    30→                <button class="btn btn-primary" id="downloadBtn">下载</button>
+    31→                <button class="btn btn-small" id="importBtn">📁 导入</button>
+    32→                <button class="btn btn-small" id="aiSettingsBtn">⚙ AI</button>
+    33→                <button class="btn btn-small" id="vocabBtn">📖 词书</button>
+    34→                <button class="btn btn-small" id="assistantBtn">🎙 助手</button>
+    35→                <button class="btn btn-small" id="lawBtn">⚖ 法规</button>
+    36→                <select id="themeSelect" class="lang-select" title="主题">
+    37→                    <option value="aurora">极光暗色</option>
+    38→                    <option value="song">宋式美学</option>
+    39→                    <option value="system">跟随系统</option>
+    40→                </select>
+    41→                <select id="fontSizeSelect" class="lang-select" title="字号">
+    42→                    <option value="small">小字号</option>
+    43→                    <option value="medium" selected>中字号</option>
+    44→                    <option value="large">大字号</option>
+    45→                    <option value="xlarge">特大字号</option>
+    46→                </select>
+    47→            </div>
+    48→            <div class="progress-row" id="progressRow" style="display:none">
+    49→                <div class="progress-bar"><div class="progress-fill" id="progressFill"></div></div>
+    50→                <span class="status-text" id="statusText">准备中...</span>
+    51→            </div>
+    52→            <div class="video-list-row" id="videoListRow">
+    53→                <label class="label">已下载:</label>
+    54→                <select id="videoSelect" class="lang-select video-select"><option value="">-- 选择视频 --</option></select>
+    55→            </div>
+    56→        </div>
+    57→
+    58→        <!-- 视频播放区 -->
+    59→        <div class="player-area glass-card" id="playerArea" style="display:none">
+    60→            <video id="videoPlayer" controls></video>
+    61→
+    62→            <div class="mode-bar">
+    63→                <button class="mode-btn active" data-mode="learn" id="learnModeBtn">学习模式</button>
+    64→                <button class="mode-btn" data-mode="dictation" id="dictationModeBtn">听写模式</button>
+    65→                <button class="mode-btn" id="retranscribeBtn">🔄 重新转录</button>
+    66→            </div>
+    67→
+    68→            <!-- 字幕显示区 (学习模式) -->
+    69→            <div class="subtitle-area" id="subtitleArea">
+    70→                <div class="subtitle-text" id="subtitleText">等待播放...</div>
+    71→                <button class="btn btn-ai" id="aiAnalyzeBtn" style="display:none">🤖 AI分析此句</button>
+    72→                <!-- 音形义例句四位一体内联显示 -->
+    73→                <div class="word-inline-panel" id="wordInlinePanel" style="display:none">
+    74→                    <div class="word-card">
+    75→                        <div class="word-card-left">
+    76→                            <div class="word-card-word" id="inlineWord"></div>
+    77→                            <div class="word-card-phonetic" id="inlinePhonetic"></div>
+    78→                            <button class="word-card-speak" id="inlineSpeak">🔊 发音</button>
+    79→                            <button class="btn-fav" id="inlineFav" title="收藏">☆</button>
+    80→                        </div>
+    81→                        <div class="word-card-right">
+    82→                            <div class="word-card-trans" id="inlineTranslation"></div>
+    83→                        </div>
+    84→                    </div>
+    85→                    <div class="word-card-sections">
+    86→                        <div class="word-card-section" id="inlineDefsSection" style="display:none">
+    87→                            <div class="word-card-section-title">📖 释义</div>
+    88→                            <div class="word-card-section-body" id="inlineDefs"></div>
+    89→                        </div>
+    90→                        <div class="word-card-section" id="inlineExamplesSection" style="display:none">
+    91→                            <div class="word-card-section-title">💬 例句</div>
+    92→                            <div class="word-card-section-body" id="inlineExamples"></div>
+    93→                        </div>
+    94→                    </div>
+    95→                </div>
+    96→            </div>
+    97→
+    98→            <!-- 字幕滚动列表 -->
+    99→            <div class="subtitle-list" id="subtitleList"></div>
+   100→
+   101→            <!-- AI分析结果 -->
+   102→            <div class="ai-result" id="aiResult" style="display:none"></div>
+   103→
+   104→            <!-- 听写区 -->
+   105→            <div class="dictation-area" id="dictationArea" style="display:none">
+   106→                <div class="dictation-sentence" id="dictationSentence"></div>
+   107→                <div class="dictation-controls">
+   108→                    <button class="btn btn-small" id="speakBtn">🔊 朗读</button>
+   109→                    <button class="btn btn-small" id="checkBtn">✓ 检查</button>
+   110→                    <button class="btn btn-small" id="nextBtn">→ 下一句</button>
+   111→                </div>
+   112→            </div>
+   113→        </div>
+   114→    </div>
+   115→
+   116→    <!-- 单词弹窗 -->
+   117→    <div class="word-popup" id="wordPopup" style="display:none">
+   118→        <div class="popup-header">
+   119→            <span class="popup-word" id="popupWord"></span>
+   120→            <span class="popup-phonetic" id="popupPhonetic"></span>
+   121→            <button class="popup-speak" id="popupSpeak">🔊</button>
+   122→            <button class="btn-fav" id="popupFav" title="收藏">☆</button>
+   123→            <button class="popup-close" id="popupClose">✕</button>
+   124→        </div>
+   125→        <div class="popup-translation" id="popupTranslation">查询中...</div>
+   126→        <div class="popup-examples" id="popupExamples"></div>
+   127→        <button class="btn btn-ai btn-ai-small" id="popupAiBtn">🤖 AI智能释义</button>
+   128→        <div class="popup-ai-result" id="popupAiResult" style="display:none"></div>
+   129→    </div>
+   130→
+   131→    <!-- AI设置弹窗 -->
+   132→    <div class="modal" id="aiModal">
+   133→        <div class="modal-content glass-card">
+   134→            <div class="modal-header">
+   135→                <h2>⚙ AI 设置</h2>
+   136→                <button class="popup-close" id="aiModalClose">✕</button>
+   137→            </div>
+   138→            <div class="modal-body">
+   139→                <div style="font-size:12px;color:rgba(255,255,255,0.5);margin-bottom:10px">AI 用于词汇释义、句子分析等功能</div>
+   140→                <div class="form-group">
+   141→                    <label class="label">AI 服务商</label>
+   142→                    <select id="aiProvider" class="lang-select" style="width:100%"></select>
+   143→                </div>
+   144→                <div class="form-group">
+   145→                    <label class="label">API Key</label>
+   146→                    <input type="password" id="aiApiKey" class="url-input" placeholder="输入你的 API Key" style="width:100%">
+   147→                </div>
+   148→                <div class="form-group">
+   149→                    <label class="label">Base URL (可选，留空用默认)</label>
+   150→                    <input type="text" id="aiBaseUrl" class="url-input" placeholder="自定义 Base URL" style="width:100%">
+   151→                </div>
+   152→                <div class="form-group">
+   153→                    <label class="label">模型名称 (可选，留空用默认)</label>
+   154→                    <input type="text" id="aiModel" class="url-input" placeholder="自定义模型名" style="width:100%">
+   155→                </div>
+   156→                <div style="display:flex;gap:8px">
+   157→                    <div class="form-group" style="flex:1">
+   158→                        <label class="label">Max Tokens</label>
+   159→                        <input type="number" id="aiMaxTokens" class="url-input" placeholder="1024" style="width:100%" min="128" max="8192">
+   160→                    </div>
+   161→                    <div class="form-group" style="flex:1">
+   162→                        <label class="label">Temperature</label>
+   163→                        <input type="number" id="aiTemperature" class="url-input" placeholder="0.7" style="width:100%" min="0" max="2" step="0.1">
+   164→                    </div>
+   165→                </div>
+   166→                <div class="form-group" id="aiPresetInfo" style="font-size:12px;color:rgba(255,255,255,0.4)"></div>
+   167→                <hr style="border-color:rgba(255,255,255,0.1);margin:12px 0">
+   168→                <div style="font-size:12px;color:rgba(255,255,255,0.5);margin-bottom:10px">语音转录设置（Groq Whisper，用于字幕提取）</div>
+   169→                <div style="font-size:11px;color:#f59e0b;background:rgba(245,158,11,0.1);border:1px solid rgba(245,158,11,0.3);border-radius:8px;padding:8px 10px;margin-bottom:10px;line-height:1.6">
+   170→                    ⚠ 友情提示：Whisper 转录精确度极高！但需科学上网连接，国内模型精确性差。
+   171→                </div>
+   172→                <div class="form-group" style="display:flex;align-items:center;gap:10px">
+   173→                    <label class="label" style="margin:0;white-space:nowrap">启用 Groq Whisper</label>
+   174→                    <input type="checkbox" id="groqWhisperEnabled" checked style="width:18px;height:18px">
+   175→                    <span id="groqWhisperStatus" style="font-size:12px;color:#4ade80">已配置</span>
+   176→                </div>
+   177→                <div class="form-group">
+   178→                    <label class="label">Whisper 模型</label>
+   179→                    <select id="whisperModel" class="lang-select" style="width:100%">
+   180→                        <option value="whisper-large-v3">whisper-large-v3 (推荐)</option>
+   181→                        <option value="whisper-large-v3-turbo">whisper-large-v3-turbo (更快)</option>
+   182→                    </select>
+   183→                </div>
+   184→                <hr style="border-color:rgba(255,255,255,0.1);margin:12px 0">
+   185→                <div style="font-size:12px;color:rgba(255,255,255,0.5);margin-bottom:10px">字幕翻译设置</div>
+   186→                <div class="form-group">
+   187→                    <label class="label">字幕翻译方式</label>
+   188→                    <select id="subtitleTranslateMode" class="lang-select" style="width:100%">
+   189→                        <option value="none">不翻译（保持原语种）</option>
+   190→                        <option value="ai">AI 大模型翻译（双语字幕）</option>
+   191→                        <option value="baidu">百度翻译（双语字幕）</option>
+   192→                    </select>
+   193→                </div>
+   194→                <div style="display:flex;gap:8px;margin-top:10px">
+   195→                    <button class="btn btn-primary" id="aiSaveBtn" style="flex:1">保存</button>
+   196→                    <button class="btn btn-small" id="aiTestBtn" style="flex:1">🔗 测试连接</button>
+   197→                </div>
+   198→                <div id="aiTestResult" style="font-size:12px;margin-top:8px;min-height:18px"></div>
+   199→                <div style="font-size:11px;color:var(--text-dim2);margin-top:10px;text-align:center">💡 显示不全？按 Ctrl + 滚轮 缩放页面</div>
+   200→            </div>
+   201→        </div>
+   202→    </div>
+   203→
+   204→    <!-- 词书弹窗 -->
+   205→    <div class="modal" id="vocabModal">
+   206→        <div class="modal-content glass-card" style="max-width:800px;max-height:85vh;overflow-y:auto">
+   207→            <div class="modal-header">
+   208→                <h2>📖 我的词书</h2>
+   209→                <div style="display:flex;gap:6px;margin-left:auto;margin-right:10px">
+   210→                    <button class="btn btn-small" id="vocabImportBtn">📋 导入</button>
+   211→                    <button class="btn btn-small" id="vocabSelectAllBtn">☑ 全选</button>
+   212→                    <button class="btn btn-small" id="vocabSelImageBtn" disabled>🖼 选词成图</button>
+   213→                    <button class="btn btn-small" id="vocabAutoClassBtn">🤖 AI分类成图</button>
+   214→                </div>
+   215→                <button class="popup-close" id="vocabModalClose">✕</button>
+   216→            </div>
+   217→            <div class="modal-body">
+   218→                <div class="vocab-grid" id="vocabGrid"></div>
+   219→                <div style="text-align:center;color:var(--text-dim2);padding:20px" id="vocabEmpty">词书为空，点击字幕单词旁的☆收藏</div>
+   220→            </div>
+   221→        </div>
+   222→    </div>
+   223→
+   224→    <!-- 批量成图弹窗 -->
+   225→    <div class="modal" id="imgModal">
+   226→        <div class="modal-content glass-card" style="max-width:750px;max-height:85vh;overflow-y:auto">
+   227→            <div class="modal-header">
+   228→                <h2>🖼 批量成图</h2>
+   229→                <button class="btn btn-small" id="imgExportAllBtn">💾 全部导出</button>
+   230→                <button class="popup-close" id="imgModalClose">✕</button>
+   231→            </div>
+   232→            <div class="modal-body" id="imgCards" style="display:flex;flex-wrap:wrap;gap:12px;justify-content:center"></div>
+   233→        </div>
+   234→    </div>
+   235→
+   236→    <!-- 语音助手弹窗 -->
+   237→    <div class="modal" id="assistModal">
+   238→        <div class="modal-content glass-card" style="max-width:600px;max-height:80vh;overflow-y:auto">
+   239→            <div class="modal-header">
+   240→                <h2>🎙 智能语音助手</h2>
+   241→                <button class="popup-close" id="assistModalClose">✕</button>
+   242→            </div>
+   243→            <div class="modal-body">
+   244→                <div style="display:flex;gap:8px;margin-bottom:12px">
+   245→                    <button class="btn btn-small" id="assistUploadBtn">📄 上传文档</button>
+   246→                    <button class="btn btn-primary" id="assistSpeakBtn" style="flex:1" disabled>🔊 朗读讲稿</button>
+   247→                    <button class="btn btn-small" id="assistStopBtn">⏹ 停止</button>
+   248→                </div>
+   249→                <div class="ai-result" id="assistResult" style="display:none;min-height:100px;max-height:50vh;overflow-y:auto"></div>
+   250→            </div>
+   251→        </div>
+   252→    </div>
+   253→
+   254→    <!-- 法规库弹窗 -->
+   255→    <div class="modal" id="lawModal">
+   256→        <div class="modal-content glass-card" style="max-width:650px;max-height:80vh;overflow-y:auto">
+   257→            <div class="modal-header">
+   258→                <h2>⚖ 跨国法规库</h2>
+   259→                <button class="popup-close" id="lawModalClose">✕</button>
+   260→            </div>
+   261→            <div class="modal-body">
+   262→                <div style="display:flex;gap:8px;margin-bottom:12px;flex-wrap:wrap" id="lawCountryBtns"></div>
+   263→                <div id="lawItems"></div>
+   264→            </div>
+   265→        </div>
+   266→    </div>
+   267→
+   268→    <!-- 隐藏canvas用于成图 -->
+   269→    <canvas id="imgCanvas" style="display:none" width="800" height="600"></canvas>
+   270→
+   271→    <div style="text-align:center;padding:8px 0 4px;font-size:11px;color:var(--text-dim);opacity:0.6">
+   272→        Copyright &copy; 2026 单夫纯律师. All Rights Reserved.
+   273→    </div>
+   274→
+   275→    <script src="renderer.js"></script>
+   276→</body>
+   277→</html>
+   278→

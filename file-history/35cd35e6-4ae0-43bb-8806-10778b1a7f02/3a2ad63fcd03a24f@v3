@@ -1,0 +1,50 @@
+# Alternative electron-builder configuration file
+# You can use this instead of the build config in package.json
+# Just remove the "build" section from package.json if using this file
+
+appId: com.aurora.videodownloader
+productName: 极光视频下载器
+directories:
+  output: dist
+  buildResources: build
+
+files:
+  - main.js
+  - renderer.js
+  - index.html
+  - styles.css
+  - package.json
+
+win:
+  target:
+    - target: nsis
+      arch:
+        - x64
+    - target: portable
+      arch:
+        - x64
+  icon: build/icon.ico
+
+nsis:
+  oneClick: false
+  allowToChangeInstallationDirectory: true
+  perMachine: true
+  deleteAppDataOnUninstall: false
+  createDesktopShortcut: true
+  createStartMenuShortcut: true
+  shortcutName: 极光视频下载器
+  installerLanguages:
+    - zh_CN
+    - en_US
+  language: '2052'
+  installerIcon: build/icon.ico
+  uninstallerIcon: build/icon.ico
+  artifactName: ${productName}-Setup-${version}.${ext}
+
+portable:
+  artifactName: ${productName}-${version}-Portable.${ext}
+
+publish:
+  provider: github
+  owner: your-username
+  repo: aurora-video-downloader

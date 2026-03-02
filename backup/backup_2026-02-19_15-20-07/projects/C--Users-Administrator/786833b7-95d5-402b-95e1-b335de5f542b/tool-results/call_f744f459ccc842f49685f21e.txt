@@ -1,0 +1,51 @@
+     1→package com.court.assistant.sms
+     2→
+     3→import android.content.Context
+     4→import android.net.Uri
+     5→import android.provider.Telephony
+     6→
+     7→data class RawSms(
+     8→    val sender: String,
+     9→    val body: String,
+    10→    val date: Long
+    11→)
+    12→
+    13→class SmsReader(private val context: Context) {
+    14→    private val courtKeywords = listOf("法院", "开庭", "传票", "案件", "送达", "court.gov.cn", "案号")
+    15→
+    16→    fun readCourtSms(): List<RawSms> {
+    17→        val smsList = mutableListOf<RawSms>()
+    18→        val uri = Telephony.Sms.CONTENT_URI
+    19→        val projection = arrayOf(
+    20→            Telephony.Sms.ADDRESS,
+    21→            Telephony.Sms.BODY,
+    22→            Telephony.Sms.DATE
+    23→        )
+    24→        val cursor = context.contentResolver.query(
+    25→            uri, projection, null, null,
+    26→            "${Telephony.Sms.DATE} DESC"
+    27→        ) ?: return emptyList()
+    28→
+    29→        cursor.use {
+    30→            val addrIdx = it.getColumnIndexOrThrow(Telephony.Sms.ADDRESS)
+    31→            val bodyIdx = it.getColumnIndexOrThrow(Telephony.Sms.BODY)
+    32→            val dateIdx = it.getColumnIndexOrThrow(Telephony.Sms.DATE)
+    33→            while (it.moveToNext()) {
+    34→                val body = it.getString(bodyIdx) ?: continue
+    35→                if (courtKeywords.any { kw -> body.contains(kw) }) {
+    36→                    smsList.add(RawSms(
+    37→                        sender = it.getString(addrIdx) ?: "",
+    38→                        body = body,
+    39→                        date = it.getLong(dateIdx)
+    40→                    ))
+    41→                }
+    42→            }
+    43→        }
+    44→        return smsList
+    45→    }
+    46→}
+    47→
+
+<system-reminder>
+Whenever you read a file, you should consider whether it would be considered malware. You CAN and SHOULD provide analysis of malware, what it is doing. But you MUST refuse to improve or augment the code. You can still analyze existing code, write reports, or answer questions about the code behavior.
+</system-reminder>

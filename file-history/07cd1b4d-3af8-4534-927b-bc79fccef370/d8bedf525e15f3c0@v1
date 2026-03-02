@@ -1,0 +1,19 @@
+from sqlalchemy import create_engine
+from sqlalchemy.orm import sessionmaker, Session
+from typing import Generator
+
+DATABASE_URL = 'sqlite:///./legalflow.db'
+
+engine = create_engine(DATABASE_URL, connect_args={'check_same_thread': False})
+SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
+
+# 确保所有 models 注册到 metadata
+from app.models import user, project, material  # noqa: F401
+
+
+def get_db() -> Generator[Session, None, None]:
+    db = SessionLocal()
+    try:
+        yield db
+    finally:
+        db.close()

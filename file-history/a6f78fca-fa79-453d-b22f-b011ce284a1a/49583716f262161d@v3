@@ -1,0 +1,333 @@
+package com.multilanglearner.data.store
+
+import android.content.Context
+import androidx.datastore.preferences.core.*
+import androidx.datastore.preferences.preferencesDataStore
+import dagger.hilt.android.qualifiers.ApplicationContext
+import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.flow.first
+import javax.inject.Inject
+import javax.inject.Singleton
+
+/**
+ * 视频下载配置存储
+ * 用于存储B站、YouTube、抖音、TikTok等平台的认证信息
+ */
+private val Context.videoConfigDataStore by preferencesDataStore(name = "video_config")
+
+@Singleton
+class VideoConfigStore @Inject constructor(
+    @ApplicationContext private val context: Context
+) {
+    // B站相关配置
+    private val BILIBILI_SESSDATA = stringPreferencesKey("bilibili_sessdata")
+    private val BILIBILI_BILI_JCT = stringPreferencesKey("bilibili_bili_jct")
+    private val BILIBILI_Dedeuserid = stringPreferencesKey("bilibili_dedeuserid")
+    private val BILIBILI_FULL_COOKIE = stringPreferencesKey("bilibili_full_cookie")
+
+    // YouTube相关配置
+    private val YOUTUBE_SID = stringPreferencesKey("youtube_sid")
+    private val YOUTUBE_HSID = stringPreferencesKey("youtube_hsid")
+    private val YOUTUBE_SAPISID = stringPreferencesKey("youtube_sapisid")
+    private val YOUTUBE_LOGIN_INFO = stringPreferencesKey("youtube_login_info")
+    private val YOUTUBE_FULL_COOKIE = stringPreferencesKey("youtube_full_cookie")
+
+    // 抖音相关配置
+    private val DOUYIN_SESSIONID = stringPreferencesKey("douyin_sessionid")
+    private val DOUYIN_SID_GUARD = stringPreferencesKey("douyin_sid_guard")
+    private val DOUYIN_FULL_COOKIE = stringPreferencesKey("douyin_full_cookie")
+
+    // TikTok相关配置
+    private val TIKTOK_SESSIONID = stringPreferencesKey("tiktok_sessionid")
+    private val TIKTOK_SID_GUARD = stringPreferencesKey("tiktok_sid_guard")
+    private val TIKTOK_FULL_COOKIE = stringPreferencesKey("tiktok_full_cookie")
+
+    // 通用配置
+    private val ENABLE_COOKIE_AUTH = booleanPreferencesKey("enable_cookie_auth")
+
+    /**
+     * 视频配置数据类
+     */
+    data class VideoConfig(
+        val bilibiliSessdata: String? = null,
+        val bilibiliBiliJct: String? = null,
+        val bilibiliDedeuserid: String? = null,
+        val bilibiliFullCookie: String? = null,
+        val youtubeSid: String? = null,
+        val youtubeHsid: String? = null,
+        val youtubeSapisid: String? = null,
+        val youtubeLoginInfo: String? = null,
+        val youtubeFullCookie: String? = null,
+        val douyinSessionid: String? = null,
+        val douyinSidGuard: String? = null,
+        val douyinFullCookie: String? = null,
+        val tiktokSessionid: String? = null,
+        val tiktokSidGuard: String? = null,
+        val tiktokFullCookie: String? = null,
+        val enableCookieAuth: Boolean = false
+    ) {
+        /**
+         * 获取B站的Cookie字符串
+         */
+        fun getBilibiliCookie(): String? {
+            return if (!enableCookieAuth) {
+                null
+            } else {
+                bilibiliFullCookie?.takeIf { it.isNotEmpty() }
+                    ?: buildString {
+                        bilibiliSessdata?.let { append("SESSDATA=$it; ") }
+                        bilibiliBiliJct?.let { append("bili_jct=$it; ") }
+                        bilibiliDedeuserid?.let { append("DedeUserID=$it; ") }
+                    }.takeIf { it.isNotEmpty() }?.trimEnd(' ', ';')
+            }
+        }
+
+        /**
+         * 获取YouTube的Cookie字符串
+         */
+        fun getYouTubeCookie(): String? {
+            return if (!enableCookieAuth) {
+                null
+            } else {
+                youtubeFullCookie?.takeIf { it.isNotEmpty() }
+                    ?: buildString {
+                        youtubeSid?.let { append("SID=$it; ") }
+                        youtubeHsid?.let { append("HSID=$it; ") }
+                        youtubeSapisid?.let { append("SAPISID=$it; ") }
+                        youtubeLoginInfo?.let { append("LOGIN_INFO=$it; ") }
+                    }.takeIf { it.isNotEmpty() }?.trimEnd(' ', ';')
+            }
+        }
+
+        /**
+         * 获取抖音的Cookie字符串
+         */
+        fun getDouyinCookie(): String? {
+            return if (!enableCookieAuth) {
+                null
+            } else {
+                douyinFullCookie?.takeIf { it.isNotEmpty() }
+                    ?: buildString {
+                        douyinSessionid?.let { append("sessionid=$it; ") }
+                        douyinSidGuard?.let { append("sid_guard=$it; ") }
+                    }.takeIf { it.isNotEmpty() }?.trimEnd(' ', ';')
+            }
+        }
+
+        /**
+         * 获取TikTok的Cookie字符串
+         */
+        fun getTiktokCookie(): String? {
+            return if (!enableCookieAuth) {
+                null
+            } else {
+                tiktokFullCookie?.takeIf { it.isNotEmpty() }
+                    ?: buildString {
+                        tiktokSessionid?.let { append("sessionid=$it; ") }
+                        tiktokSidGuard?.let { append("sid_guard=$it; ") }
+                    }.takeIf { it.isNotEmpty() }?.trimEnd(' ', ';')
+            }
+        }
+
+        /**
+         * 检查是否配置了B站Cookie
+         */
+        fun hasBilibiliCookie(): Boolean {
+            return enableCookieAuth && (!bilibiliSessdata.isNullOrEmpty() || !bilibiliFullCookie.isNullOrEmpty())
+        }
+
+        /**
+         * 检查是否配置了YouTube Cookie
+         */
+        fun hasYouTubeCookie(): Boolean {
+            return enableCookieAuth && (!youtubeSid.isNullOrEmpty() || !youtubeFullCookie.isNullOrEmpty())
+        }
+
+        /**
+         * 检查是否配置了抖音Cookie
+         */
+        fun hasDouyinCookie(): Boolean {
+            return enableCookieAuth && (!douyinSessionid.isNullOrEmpty() || !douyinFullCookie.isNullOrEmpty())
+        }
+
+        /**
+         * 检查是否配置了TikTok Cookie
+         */
+        fun hasTiktokCookie(): Boolean {
+            return enableCookieAuth && (!tiktokSessionid.isNullOrEmpty() || !tiktokFullCookie.isNullOrEmpty())
+        }
+    }
+
+    /**
+     * 视频配置流
+     */
+    val config: Flow<VideoConfig> = context.videoConfigDataStore.data.map { prefs ->
+        VideoConfig(
+            bilibiliSessdata = prefs[BILIBILI_SESSDATA],
+            bilibiliBiliJct = prefs[BILIBILI_BILI_JCT],
+            bilibiliDedeuserid = prefs[BILIBILI_Dedeuserid],
+            bilibiliFullCookie = prefs[BILIBILI_FULL_COOKIE],
+            youtubeSid = prefs[YOUTUBE_SID],
+            youtubeHsid = prefs[YOUTUBE_HSID],
+            youtubeSapisid = prefs[YOUTUBE_SAPISID],
+            youtubeLoginInfo = prefs[YOUTUBE_LOGIN_INFO],
+            youtubeFullCookie = prefs[YOUTUBE_FULL_COOKIE],
+            douyinSessionid = prefs[DOUYIN_SESSIONID],
+            douyinSidGuard = prefs[DOUYIN_SID_GUARD],
+            douyinFullCookie = prefs[DOUYIN_FULL_COOKIE],
+            tiktokSessionid = prefs[TIKTOK_SESSIONID],
+            tiktokSidGuard = prefs[TIKTOK_SID_GUARD],
+            tiktokFullCookie = prefs[TIKTOK_FULL_COOKIE],
+            enableCookieAuth = prefs[ENABLE_COOKIE_AUTH] ?: false
+        )
+    }
+
+    /**
+     * 保存配置
+     */
+    suspend fun saveConfig(config: VideoConfig) {
+        context.videoConfigDataStore.edit { prefs ->
+            config.bilibiliSessdata?.let { prefs[BILIBILI_SESSDATA] = it } ?: prefs.remove(BILIBILI_SESSDATA)
+            config.bilibiliBiliJct?.let { prefs[BILIBILI_BILI_JCT] = it } ?: prefs.remove(BILIBILI_BILI_JCT)
+            config.bilibiliDedeuserid?.let { prefs[BILIBILI_Dedeuserid] = it } ?: prefs.remove(BILIBILI_Dedeuserid)
+            config.bilibiliFullCookie?.let { prefs[BILIBILI_FULL_COOKIE] = it } ?: prefs.remove(BILIBILI_FULL_COOKIE)
+            config.youtubeSid?.let { prefs[YOUTUBE_SID] = it } ?: prefs.remove(YOUTUBE_SID)
+            config.youtubeHsid?.let { prefs[YOUTUBE_HSID] = it } ?: prefs.remove(YOUTUBE_HSID)
+            config.youtubeSapisid?.let { prefs[YOUTUBE_SAPISID] = it } ?: prefs.remove(YOUTUBE_SAPISID)
+            config.youtubeLoginInfo?.let { prefs[YOUTUBE_LOGIN_INFO] = it } ?: prefs.remove(YOUTUBE_LOGIN_INFO)
+            config.youtubeFullCookie?.let { prefs[YOUTUBE_FULL_COOKIE] = it } ?: prefs.remove(YOUTUBE_FULL_COOKIE)
+            config.douyinSessionid?.let { prefs[DOUYIN_SESSIONID] = it } ?: prefs.remove(DOUYIN_SESSIONID)
+            config.douyinSidGuard?.let { prefs[DOUYIN_SID_GUARD] = it } ?: prefs.remove(DOUYIN_SID_GUARD)
+            config.douyinFullCookie?.let { prefs[DOUYIN_FULL_COOKIE] = it } ?: prefs.remove(DOUYIN_FULL_COOKIE)
+            config.tiktokSessionid?.let { prefs[TIKTOK_SESSIONID] = it } ?: prefs.remove(TIKTOK_SESSIONID)
+            config.tiktokSidGuard?.let { prefs[TIKTOK_SID_GUARD] = it } ?: prefs.remove(TIKTOK_SID_GUARD)
+            config.tiktokFullCookie?.let { prefs[TIKTOK_FULL_COOKIE] = it } ?: prefs.remove(TIKTOK_FULL_COOKIE)
+            prefs[ENABLE_COOKIE_AUTH] = config.enableCookieAuth
+        }
+    }
+
+    /**
+     * 获取当前的B站Cookie（同步方法，用于下载时）
+     */
+    suspend fun getBilibiliCookieSync(): String? {
+        return config.first().getBilibiliCookie()
+    }
+
+    /**
+     * 获取当前的YouTube Cookie
+     */
+    suspend fun getYouTubeCookieSync(): String? {
+        return config.first().getYouTubeCookie()
+    }
+
+    /**
+     * 获取当前的抖音 Cookie
+     */
+    suspend fun getDouyinCookieSync(): String? {
+        return config.first().getDouyinCookie()
+    }
+
+    /**
+     * 获取当前的TikTok Cookie
+     */
+    suspend fun getTiktokCookieSync(): String? {
+        return config.first().getTiktokCookie()
+    }
+
+    /**
+     * 清除所有Cookie配置
+     */
+    suspend fun clearCookies() {
+        context.videoConfigDataStore.edit { prefs ->
+            prefs.remove(BILIBILI_SESSDATA)
+            prefs.remove(BILIBILI_BILI_JCT)
+            prefs.remove(BILIBILI_Dedeuserid)
+            prefs.remove(BILIBILI_FULL_COOKIE)
+            prefs.remove(YOUTUBE_SID)
+            prefs.remove(YOUTUBE_HSID)
+            prefs.remove(YOUTUBE_SAPISID)
+            prefs.remove(YOUTUBE_LOGIN_INFO)
+            prefs.remove(YOUTUBE_FULL_COOKIE)
+            prefs.remove(DOUYIN_SESSIONID)
+            prefs.remove(DOUYIN_SID_GUARD)
+            prefs.remove(DOUYIN_FULL_COOKIE)
+            prefs.remove(TIKTOK_SESSIONID)
+            prefs.remove(TIKTOK_SID_GUARD)
+            prefs.remove(TIKTOK_FULL_COOKIE)
+            prefs[ENABLE_COOKIE_AUTH] = false
+        }
+    }
+
+    // ========== B站 ==========
+    suspend fun setBilibiliSessdata(value: String) {
+        context.videoConfigDataStore.edit { prefs ->
+            prefs[BILIBILI_SESSDATA] = value
+            prefs[ENABLE_COOKIE_AUTH] = true
+        }
+    }
+
+    suspend fun setBilibiliBiliJct(value: String) {
+        context.videoConfigDataStore.edit { prefs ->
+            prefs[BILIBILI_BILI_JCT] = value
+        }
+    }
+
+    suspend fun setBilibiliDedeuserid(value: String) {
+        context.videoConfigDataStore.edit { prefs ->
+            prefs[BILIBILI_Dedeuserid] = value
+        }
+    }
+
+    suspend fun setBilibiliFullCookie(value: String) {
+        context.videoConfigDataStore.edit { prefs ->
+            prefs[BILIBILI_FULL_COOKIE] = value
+            prefs[ENABLE_COOKIE_AUTH] = true
+        }
+    }
+
+    // ========== YouTube ==========
+    suspend fun setYouTubeSid(value: String) {
+        context.videoConfigDataStore.edit { prefs ->
+            prefs[YOUTUBE_SID] = value
+            prefs[ENABLE_COOKIE_AUTH] = true
+        }
+    }
+
+    suspend fun setYouTubeFullCookie(value: String) {
+        context.videoConfigDataStore.edit { prefs ->
+            prefs[YOUTUBE_FULL_COOKIE] = value
+            prefs[ENABLE_COOKIE_AUTH] = true
+        }
+    }
+
+    // ========== 抖音 ==========
+    suspend fun setDouyinSessionid(value: String) {
+        context.videoConfigDataStore.edit { prefs ->
+            prefs[DOUYIN_SESSIONID] = value
+            prefs[ENABLE_COOKIE_AUTH] = true
+        }
+    }
+
+    suspend fun setDouyinFullCookie(value: String) {
+        context.videoConfigDataStore.edit { prefs ->
+            prefs[DOUYIN_FULL_COOKIE] = value
+            prefs[ENABLE_COOKIE_AUTH] = true
+        }
+    }
+
+    // ========== TikTok ==========
+    suspend fun setTiktokSessionid(value: String) {
+        context.videoConfigDataStore.edit { prefs ->
+            prefs[TIKTOK_SESSIONID] = value
+            prefs[ENABLE_COOKIE_AUTH] = true
+        }
+    }
+
+    suspend fun setTiktokFullCookie(value: String) {
+        context.videoConfigDataStore.edit { prefs ->
+            prefs[TIKTOK_FULL_COOKIE] = value
+            prefs[ENABLE_COOKIE_AUTH] = true
+        }
+    }
+}

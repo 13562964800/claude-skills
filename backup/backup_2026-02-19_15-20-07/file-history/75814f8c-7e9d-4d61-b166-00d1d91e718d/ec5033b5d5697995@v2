@@ -1,0 +1,193 @@
+package com.courassistant.java.model;
+
+/**
+ * 法院文档信息模型
+ * 包含PDF文件信息、下载来源、解析状态等
+ */
+public class CourtDocument {
+    public static final int PARSE_STATUS_PENDING = 0;       // 待解析
+    public static final int PARSE_STATUS_PARSED = 1;         // 已解析
+    public static final int PARSE_STATUS_FAILED = 2;          // 解析失败
+    public static final int PARSE_STATUS_NOT_SUMMONS = 3;     // 非传票
+    public static final int PARSE_STATUS_PENDING_WEBVIEW = 4; // 待WebView处理
+    public static final int PARSE_STATUS_PROCESSING = 5;      // 处理中
+
+    private long id;
+    private long caseId;               // 关联的案件ID
+    private String fileName;            // 文件名
+    private String filePath;            // 文件路径
+    private long fileSize;             // 文件大小（字节）
+    private String fileType;            // 文件类型
+    private String downloadUrl;         // 下载来源URL
+    private boolean isSummons;         // 是否为传票
+    private long downloadTime;         // 下载时间
+    private int parseStatus;            // 解析状态
+    private boolean calendarSynced;    // 是否已同步到日历
+    private String displayName;         // 显示名称
+    private long createdAt;
+
+    public CourtDocument() {
+        this.parseStatus = PARSE_STATUS_PENDING;
+        this.isSummons = false;
+        this.calendarSynced = false;
+        this.downloadTime = System.currentTimeMillis();
+        this.createdAt = System.currentTimeMillis();
+    }
+
+    public CourtDocument(String fileName, String filePath) {
+        this();
+        this.fileName = fileName;
+        this.filePath = filePath;
+    }
+
+    // Getters and Setters
+    public long getId() {
+        return id;
+    }
+
+    public void setId(long id) {
+        this.id = id;
+    }
+
+    public long getCaseId() {
+        return caseId;
+    }
+
+    public void setCaseId(long caseId) {
+        this.caseId = caseId;
+    }
+
+    public String getFileName() {
+        return fileName;
+    }
+
+    public void setFileName(String fileName) {
+        this.fileName = fileName;
+    }
+
+    public String getFilePath() {
+        return filePath;
+    }
+
+    public void setFilePath(String filePath) {
+        this.filePath = filePath;
+    }
+
+    public long getFileSize() {
+        return fileSize;
+    }
+
+    public void setFileSize(long fileSize) {
+        this.fileSize = fileSize;
+    }
+
+    public String getFileType() {
+        return fileType;
+    }
+
+    public void setFileType(String fileType) {
+        this.fileType = fileType;
+    }
+
+    public String getDownloadUrl() {
+        return downloadUrl;
+    }
+
+    public void setDownloadUrl(String downloadUrl) {
+        this.downloadUrl = downloadUrl;
+    }
+
+    public boolean isSummons() {
+        return isSummons;
+    }
+
+    public void setSummons(boolean summons) {
+        isSummons = summons;
+    }
+
+    public long getDownloadTime() {
+        return downloadTime;
+    }
+
+    public void setDownloadTime(long downloadTime) {
+        this.downloadTime = downloadTime;
+    }
+
+    public int getParseStatus() {
+        return parseStatus;
+    }
+
+    public void setParseStatus(int parseStatus) {
+        this.parseStatus = parseStatus;
+    }
+
+    public boolean isCalendarSynced() {
+        return calendarSynced;
+    }
+
+    public void setCalendarSynced(boolean calendarSynced) {
+        this.calendarSynced = calendarSynced;
+    }
+
+    public String getDisplayName() {
+        return displayName;
+    }
+
+    public void setDisplayName(String displayName) {
+        this.displayName = displayName;
+    }
+
+    public long getCreatedAt() {
+        return createdAt;
+    }
+
+    public void setCreatedAt(long createdAt) {
+        this.createdAt = createdAt;
+    }
+
+    /**
+     * 检查文件名是否包含"传票"字样
+     */
+    public boolean isSummonsByFileName() {
+        return fileName != null && fileName.contains("传票");
+    }
+
+    /**
+     * 获取文件大小的人类可读格式
+     */
+    public String getFormattedFileSize() {
+        if (fileSize < 1024) {
+            return fileSize + " B";
+        } else if (fileSize < 1024 * 1024) {
+            return String.format("%.1f KB", fileSize / 1024.0);
+        } else if (fileSize < 1024 * 1024 * 1024) {
+            return String.format("%.1f MB", fileSize / (1024.0 * 1024));
+        } else {
+            return String.format("%.1f GB", fileSize / (1024.0 * 1024 * 1024));
+        }
+    }
+
+    /**
+     * 生成去重键
+     * 用于判断文档是否重复（基于文件名和大小）
+     */
+    public String getDedupKey() {
+        return fileName + "_" + fileSize;
+    }
+
+    @Override
+    public boolean equals(Object o) {
+        if (this == o) return true;
+        if (o == null || getClass() != o.getClass()) return false;
+        CourtDocument that = (CourtDocument) o;
+        return fileName != null && fileName.equals(that.fileName) &&
+                fileSize == that.fileSize;
+    }
+
+    @Override
+    public int hashCode() {
+        int result = fileName != null ? fileName.hashCode() : 0;
+        result = 31 * result + (int) (fileSize ^ (fileSize >>> 32));
+        return result;
+    }
+}

@@ -1,0 +1,169 @@
+package com.ai.hotspot.presentation.detail
+
+import android.content.Intent
+import android.graphics.Bitmap
+import android.net.Uri
+import android.webkit.WebChromeClient
+import android.webkit.WebResourceRequest
+import android.webkit.WebView
+import android.webkit.WebViewClient
+import androidx.compose.foundation.layout.*
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.filled.*
+import androidx.compose.material3.*
+import androidx.compose.runtime.*
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.unit.dp
+import androidx.compose.ui.viewinterop.AndroidView
+import androidx.hilt.navigation.compose.hiltViewModel
+import com.ai.hotspot.presentation.components.SourceChip
+import com.ai.hotspot.presentation.theme.CeladonPrimary
+import com.ai.hotspot.presentation.theme.GoldLeaf
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun DetailScreen(
+    hotspotId: String,
+    viewModel: DetailViewModel = hiltViewModel(),
+    onBackClick: () -> Unit
+) {
+    val state by viewModel.state.collectAsState()
+    val context = LocalContext.current
+    var webViewLoading by remember { mutableStateOf(true) }
+
+    LaunchedEffect(hotspotId) {
+        viewModel.loadHotspot(hotspotId)
+    }
+
+    val hotspot = state.hotspot
+
+    if (state.isLoading) {
+        Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+            CircularProgressIndicator(color = CeladonPrimary)
+        }
+        return
+    }
+
+    if (hotspot == null) {
+        Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+            Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                Text("内容不存在", style = MaterialTheme.typography.titleMedium)
+                Spacer(modifier = Modifier.height(16.dp))
+                Button(onClick = onBackClick) { Text("返回") }
+            }
+        }
+        return
+    }
+
+    Scaffold(
+        topBar = {
+            TopAppBar(
+                title = {
+                    Column {
+                        Text(
+                            text = hotspot.title,
+                            style = MaterialTheme.typography.titleSmall,
+                            maxLines = 1
+                        )
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(8.dp)
+                        ) {
+                            SourceChip(source = hotspot.source)
+                            if (hotspot.author != null) {
+                                Text(
+                                    text = hotspot.author,
+                                    style = MaterialTheme.typography.labelSmall,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                                )
+                            }
+                        }
+                    }
+                },
+                navigationIcon = {
+                    IconButton(onClick = onBackClick) {
+                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "返回")
+                    }
+                },
+                actions = {
+                    IconButton(onClick = {
+                        val shareIntent = Intent(Intent.ACTION_SEND).apply {
+                            type = "text/plain"
+                            putExtra(Intent.EXTRA_SUBJECT, hotspot.title)
+                            putExtra(Intent.EXTRA_TEXT, "${hotspot.title}\n${hotspot.url}")
+                        }
+                        context.startActivity(Intent.createChooser(shareIntent, "分享到"))
+                    }) {
+                        Icon(Icons.Default.Share, contentDescription = "分享")
+                    }
+                    IconButton(onClick = { viewModel.toggleBookmark() }) {
+                        Icon(
+                            imageVector = if (hotspot.isBookmarked) Icons.Default.Bookmark else Icons.Default.BookmarkBorder,
+                            contentDescription = if (hotspot.isBookmarked) "取消收藏" else "收藏",
+                            tint = if (hotspot.isBookmarked) GoldLeaf else LocalContentColor.current
+                        )
+                    }
+                    IconButton(onClick = {
+                        val intent = Intent(Intent.ACTION_VIEW, Uri.parse(hotspot.url))
+                        context.startActivity(intent)
+                    }) {
+                        Icon(Icons.Default.OpenInBrowser, contentDescription = "浏览器打开")
+                    }
+                },
+                colors = TopAppBarDefaults.topAppBarColors(
+                    containerColor = MaterialTheme.colorScheme.background
+                )
+            )
+        }
+    ) { padding ->
+        Box(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(padding)
+        ) {
+            // WebView 加载原文
+            AndroidView(
+                factory = { ctx ->
+                    WebView(ctx).apply {
+                        settings.apply {
+                            javaScriptEnabled = true
+                            domStorageEnabled = true
+                            loadWithOverviewMode = true
+                            useWideViewPort = true
+                            builtInZoomControls = true
+                            displayZoomControls = false
+                            setSupportZoom(true)
+                        }
+                        webViewClient = object : WebViewClient() {
+                            override fun onPageStarted(view: WebView?, url: String?, favicon: Bitmap?) {
+                                webViewLoading = true
+                            }
+                            override fun onPageFinished(view: WebView?, url: String?) {
+                                webViewLoading = false
+                            }
+                            override fun shouldOverrideUrlLoading(view: WebView?, request: WebResourceRequest?): Boolean {
+                                return false
+                            }
+                        }
+                        webChromeClient = WebChromeClient()
+                        loadUrl(hotspot.url)
+                    }
+                },
+                modifier = Modifier.fillMaxSize()
+            )
+
+            // 加载进度条
+            if (webViewLoading) {
+                LinearProgressIndicator(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .align(Alignment.TopCenter),
+                    color = CeladonPrimary
+                )
+            }
+        }
+    }
+}

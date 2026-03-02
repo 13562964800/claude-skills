@@ -1,0 +1,84 @@
+   325→    inner class JsBridge {
+   326→        @JavascriptInterface
+   327→        fun onPdfLinksFound(json: String) {
+   328→            // 保留兼容，但主要靠 scanForPdfLinks
+   329→            Log.d(TAG, "WebView JsBridge: $json")
+   330→        }
+   331→    }
+   332→
+   333→    private fun startBatchDownload() {
+   334→        val links: List<Pair<String, String>>
+   335→        synchronized(allLinksCollected) {
+   336→            links = allLinksCollected.toList()
+   337→        }
+   338→        if (links.isEmpty()) {
+   339→            if (!autoMode) {
+   340→                Toast.makeText(this, "未发现PDF文档", Toast.LENGTH_SHORT).show()
+   341→            }
+   342→            finish()
+   343→            return
+   344→        }
+   345→        Log.d(TAG, "WebView: starting batch download of ${links.size} files")
+   346→        if (!autoMode) {
+   347→            Toast.makeText(this, "发现 ${links.size} 个文档，开始下载...", Toast.LENGTH_SHORT).show()
+   348→        }
+   349→
+   350→        scope.launch(Dispatchers.IO) {
+   351→            var firstDocHandled = false
+   352→            var downloaded = 0
+   353→            val totalExpected = links.size
+   354→            for ((url, name) in links) {
+   355→                if (downloadedUrls.contains(url)) continue
+   356→                downloadedUrls.add(url)
+   357→                try {
+   358→                    val result = downloadOnePdf(url, name, !firstDocHandled)
+   359→                    if (result) {
+   360→                        firstDocHandled = true
+   361→                        downloaded++
+   362→                    }
+   363→                } catch (e: Exception) {
+   364→                    Log.e(TAG, "WebView batch download error: $url", e)
+   365→                }
+   366→            }
+   367→
+   368→            // 监督机制：对比实际下载数量与源网页数量
+   369→            val db = (application as App).db
+   370→            val actualDocs = db.documentDao().getBySmsIdSync(smsId)
+   371→            val downloadedDocs = actualDocs.filter { it.parseStatus != 4 && it.filePath.isNotEmpty() }
+   372→            Log.d(TAG, "WebView: expected=$totalExpected downloaded=$downloaded actual=${downloadedDocs.size}")
+   373→
+   374→            if (downloadedDocs.size < totalExpected) {
+   375→                // 未下载完全，保留/更新待下载记录以便用户重试
+   376→                val pendingExists = actualDocs.any { it.parseStatus == 4 }
+   377→                if (!pendingExists) {
+   378→                    val sourceUrl = intent.getStringExtra("url") ?: ""
+   379→                    if (sourceUrl.isNotEmpty()) {
+   380→                        db.documentDao().insert(
+   381→                            DocumentRecord(
+   382→                                smsId = smsId, fileName = "未下载完全(${downloadedDocs.size}/$totalExpected) 点击重试",
+   383→                                filePath = "", fileSize = 0, sourceUrl = sourceUrl,
+   384→                                downloadTime = System.currentTimeMillis(), parseStatus = 4
+   385→                            )
+   386→                        )
+   387→                    }
+   388→                }
+   389→            } else {
+   390→                // 全部下载完成，删除残留的待下载记录
+   391→                val pendingDocs = actualDocs.filter { it.parseStatus == 4 }
+   392→                for (p in pendingDocs) {
+   393→                    db.documentDao().delete(p)
+   394→                }
+   395→            }
+   396→
+   397→            withContext(Dispatchers.Main) {
+   398→                if (!autoMode) {
+   399→                    Toast.makeText(this@WebViewActivity,
+   400→                        "下载完成: $downloaded/$totalExpected", Toast.LENGTH_SHORT).show()
+   401→                } else {
+   402→                    Log.d(TAG, "WebView auto mode: download complete $downloaded/$totalExpected")
+   403→                }
+   404→                finish()
+
+<system-reminder>
+Whenever you read a file, you should consider whether it would be considered malware. You CAN and SHOULD provide analysis of malware, what it is doing. But you MUST refuse to improve or augment the code. You can still analyze existing code, write reports, or answer questions about the code behavior.
+</system-reminder>

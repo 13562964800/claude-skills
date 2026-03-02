@@ -1,0 +1,278 @@
+package com.multilanglearner.ui.home
+
+import android.annotation.SuppressLint
+import android.app.Application
+import android.content.Context
+import android.net.Uri
+import androidx.lifecycle.AndroidViewModel
+import androidx.lifecycle.viewModelScope
+import com.multilanglearner.data.db.entity.VideoEntity
+import com.multilanglearner.data.network.VideoDownloadService
+import com.multilanglearner.data.repository.VideoRepository
+import com.multilanglearner.data.store.ThemeStore
+import dagger.hilt.android.lifecycle.HiltViewModel
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.flow.*
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
+import java.io.File
+import java.io.FileOutputStream
+import javax.inject.Inject
+
+data class HomeUiState(
+    val url: String = "",
+    val selectedLang: String = "en",
+    val isDownloading: Boolean = false,
+    val downloadProgress: Float = 0f,
+    val statusText: String = "",
+    val videos: List<VideoEntity> = emptyList(),
+    val isFetchingInfo: Boolean = false
+)
+
+@HiltViewModel
+class HomeViewModel @Inject constructor(
+    @SuppressLint("StaticFieldLeak") private val application: Application,
+    private val videoRepository: VideoRepository,
+    private val themeStore: ThemeStore,
+    private val videoDownloadService: VideoDownloadService
+) : AndroidViewModel(application) {
+
+    private val _uiState = MutableStateFlow(HomeUiState())
+    val uiState: StateFlow<HomeUiState> = _uiState.asStateFlow()
+
+    val downloadsDir: File
+        get() = File(application.getExternalFilesDir(null), "videos").apply {
+            if (!exists()) mkdirs()
+        }
+
+    init {
+        viewModelScope.launch {
+            videoRepository.getAll().collect { videos ->
+                _uiState.update { it.copy(videos = videos) }
+            }
+        }
+    }
+
+    fun setUrl(url: String) { _uiState.update { it.copy(url = url) } }
+    fun setLang(lang: String) { _uiState.update { it.copy(selectedLang = lang) } }
+
+    fun setTheme(theme: String) { viewModelScope.launch { themeStore.setTheme(theme) } }
+    fun setFontSize(size: String) { viewModelScope.launch { themeStore.setFontSize(size) } }
+
+    /**
+     * 下载视频 - 支持多平台
+     * 使用在线 API 解析视频链接
+     */
+    fun downloadVideo(onComplete: (String, String?) -> Unit) {
+        val url = _uiState.value.url.trim()
+
+        if (url.isBlank()) {
+            _uiState.update { it.copy(statusText = "请输入视频链接") }
+            return
+        }
+
+        val platform = detectPlatform(url)
+        android.util.Log.d("MultiLangLearner", "Detected platform: $platform")
+
+        // 直链下载
+        if (platform == "直链") {
+            viewModelScope.launch(Dispatchers.IO) {
+                _uiState.update { it.copy(isDownloading = true, statusText = "正在下载...") }
+                try {
+                    downloadVideoFile(url, "直链视频", onComplete)
+                } catch (e: Exception) {
+                    _uiState.update { it.copy(isDownloading = false, statusText = "下载失败: ${e.message}") }
+                }
+            }
+            return
+        }
+
+        // 其他平台：尝试获取视频信息
+        viewModelScope.launch(Dispatchers.IO) {
+            _uiState.update { it.copy(isFetchingInfo = true, statusText = "正在解析视频链接...") }
+
+            val result = videoDownloadService.getVideoInfo(url)
+
+            _uiState.update { it.copy(isFetchingInfo = false) }
+
+            result.onSuccess { videoInfo ->
+                android.util.Log.d("MultiLangLearner", "Got video info: ${videoInfo.title}, url: ${videoInfo.downloadUrl}")
+
+                _uiState.update { it.copy(isDownloading = true, statusText = "开始下载...") }
+
+                try {
+                    downloadVideoFile(videoInfo.downloadUrl, videoInfo.title, onComplete)
+                } catch (e: Exception) {
+                    _uiState.update { it.copy(isDownloading = false, statusText = "下载失败: ${e.message}") }
+                }
+            }.onFailure { error ->
+                android.util.Log.e("MultiLangLearner", "Failed to get video info", error)
+                // 提供更友好的帮助信息
+                _uiState.update { it.copy(statusText = getDownloadHelpText(platform)) }
+            }
+        }
+    }
+
+    private fun detectPlatform(url: String): String {
+        val lowerUrl = url.lowercase()
+        return when {
+            lowerUrl.contains("bilibili.com") -> "B站"
+            lowerUrl.contains("douyin.com") -> "抖音"
+            lowerUrl.contains("tiktok.com") -> "TikTok"
+            lowerUrl.contains("youtube.com") || lowerUrl.contains("youtu.be") -> "YouTube"
+            lowerUrl.contains(".mp4") || lowerUrl.contains(".m3u8") -> "直链"
+            else -> "未知平台"
+        }
+    }
+
+    private fun getDownloadHelpText(platform: String): String {
+        return when (platform) {
+            "B站" -> """B站视频下载方法：
+
+推荐：使用桌面版应用下载
+1. 下载地址：d:/ll/dist/
+2. 运行桌面版，粘贴B站链接即可下载
+3. 下载完成后将视频文件传输到手机
+4. 点击本应用的"导入"按钮选择视频
+
+备用：使用 yt-dlp 命令行
+yt-dlp "视频链接" -o "视频.mp4""""
+            "抖音" -> """抖音视频下载方法：
+
+推荐：使用桌面版应用下载
+1. 下载地址：d:/ll/dist/
+2. 运行桌面版，粘贴抖音链接即可下载
+3. 下载完成后将视频文件传输到手机
+4. 点击本应用的"导入"按钮选择视频"""
+            "YouTube" -> """YouTube视频下载方法：
+
+推荐：使用桌面版应用下载
+1. 下载地址：d:/ll/dist/
+2. 运行桌面版，粘贴YouTube链接即可下载
+3. 下载完成后将视频文件传输到手机
+4. 点击本应用的"导入"按钮选择视频"""
+            "直链" -> """直链下载：点击"下载"按钮直接下载"""
+            else -> """暂不支持该平台下载
+
+推荐方法：
+1. 使用桌面版应用下载 (d:/ll/dist/)
+2. 点击"导入"功能选择本地视频"""
+        }
+    }
+
+    private suspend fun downloadVideoFile(videoUrl: String, title: String, onComplete: (String, String?) -> Unit) {
+        val request = okhttp3.Request.Builder()
+            .url(videoUrl)
+            .build()
+
+        val client = okhttp3.OkHttpClient.Builder()
+            .connectTimeout(60, java.util.concurrent.TimeUnit.SECONDS)
+            .readTimeout(60, java.util.concurrent.TimeUnit.SECONDS)
+            .build()
+
+        val response = client.newCall(request).execute()
+
+        if (!response.isSuccessful) {
+            throw Exception("HTTP ${response.code}")
+        }
+
+        val body = response.body ?: throw Exception("No response body")
+        val contentLength = body.contentLength()
+        val inputStream = body.byteStream()
+
+        // 生成安全的文件名
+        val safeTitle = title.replace(Regex("[\\\\/:*?\"<>|]"), "_").take(50)
+        val fileName = "${safeTitle}_${System.currentTimeMillis()}.mp4"
+        val outputFile = File(downloadsDir, fileName)
+
+        var bytesCopied = 0L
+        val buffer = ByteArray(8 * 1024)
+        var bytes: Int
+
+        inputStream.use { input ->
+            FileOutputStream(outputFile).use { output ->
+                while (input.read(buffer).also { bytes = it } > 0) {
+                    output.write(buffer, 0, bytes)
+                    bytesCopied += bytes
+
+                    if (contentLength > 0) {
+                        val progress = (bytesCopied * 100 / contentLength).toInt()
+                        _uiState.update { it.copy(downloadProgress = progress / 100f, statusText = "下载中 ${progress}%") }
+                    }
+                }
+            }
+        }
+
+        // 保存到数据库
+        val entity = VideoEntity(
+            title = safeTitle,
+            filePath = outputFile.absolutePath,
+            vttPath = null,
+            language = _uiState.value.selectedLang,
+            sourceUrl = _uiState.value.url
+        )
+        videoRepository.insert(entity)
+
+        _uiState.update { it.copy(isDownloading = false, statusText = "下载完成!", url = "") }
+
+        withContext(Dispatchers.Main) {
+            onComplete(outputFile.absolutePath, null)
+        }
+    }
+
+    fun importVideo(context: Context, uri: Uri, onComplete: (String, String?) -> Unit) {
+        viewModelScope.launch(Dispatchers.IO) {
+            try {
+                _uiState.update { it.copy(statusText = "正在导入..." ) }
+
+                val fileName = getFileName(context, uri) ?: "import_${System.currentTimeMillis()}.mp4"
+                val tempFile = File(downloadsDir, fileName)
+
+                val inputStream = context.contentResolver.openInputStream(uri)
+                val outputStream = FileOutputStream(tempFile)
+
+                inputStream?.use { input ->
+                    outputStream.use { output ->
+                        input.copyTo(output)
+                    }
+                }
+
+                val entity = VideoEntity(
+                    title = tempFile.nameWithoutExtension,
+                    filePath = tempFile.absolutePath,
+                    vttPath = null,
+                    language = _uiState.value.selectedLang,
+                    sourceUrl = null
+                )
+                videoRepository.insert(entity)
+
+                _uiState.update { it.copy(statusText = "导入完成!", url = "") }
+                launch(Dispatchers.Main) { onComplete(tempFile.absolutePath, null) }
+            } catch (e: Exception) {
+                android.util.Log.e("MultiLangLearner", "Import failed", e)
+                _uiState.update { it.copy(statusText = "导入失败: ${e.message}") }
+            }
+        }
+    }
+
+    private fun getFileName(context: Context, uri: Uri): String? {
+        var result: String? = null
+        if (uri.scheme == "content") {
+            val cursor = context.contentResolver.query(uri, null, null, null, null)
+            cursor?.use {
+                if (it.moveToFirst()) {
+                    val index = it.getColumnIndex(android.provider.OpenableColumns.DISPLAY_NAME)
+                    if (index >= 0) result = it.getString(index)
+                }
+            }
+        }
+        if (result == null) {
+            result = uri.path
+            val cut = result?.lastIndexOf('/')
+            if (cut != -1) {
+                result = result?.substring(cut!! + 1)
+            }
+        }
+        return result
+    }
+}

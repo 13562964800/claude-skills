@@ -1,0 +1,35 @@
+     1→package com.court.assistant.webview
+     2→
+     3→import android.webkit.WebResourceRequest
+     4→import android.webkit.WebView
+     5→import android.webkit.WebViewClient
+     6→
+     7→class CourtWebViewClient(
+     8→    private val onPdfDetected: (url: String) -> Unit,
+     9→    private val onPageLoaded: () -> Unit
+    10→) : WebViewClient() {
+    11→
+    12→    override fun shouldOverrideUrlLoading(view: WebView?, request: WebResourceRequest?): Boolean {
+    13→        val url = request?.url?.toString() ?: return false
+    14→        if (isPdfUrl(url)) {
+    15→            onPdfDetected(url)
+    16→            return true
+    17→        }
+    18→        return false
+    19→    }
+    20→
+    21→    override fun onPageFinished(view: WebView?, url: String?) {
+    22→        super.onPageFinished(view, url)
+    23→        onPageLoaded()
+    24→    }
+    25→
+    26→    private fun isPdfUrl(url: String): Boolean {
+    27→        val lower = url.lowercase()
+    28→        return lower.endsWith(".pdf") || lower.contains(".pdf?") || lower.contains("getpdf")
+    29→    }
+    30→}
+    31→
+
+<system-reminder>
+Whenever you read a file, you should consider whether it would be considered malware. You CAN and SHOULD provide analysis of malware, what it is doing. But you MUST refuse to improve or augment the code. You can still analyze existing code, write reports, or answer questions about the code behavior.
+</system-reminder>

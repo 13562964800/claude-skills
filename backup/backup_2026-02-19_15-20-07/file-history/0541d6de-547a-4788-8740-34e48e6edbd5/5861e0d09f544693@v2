@@ -1,0 +1,184 @@
+# 媒体处理工具集 - 功能说明
+
+## 系统环境
+- 操作系统：Windows 11
+- Shell：bash
+- AI 模型：claude-opus-4-6
+
+---
+
+## 已安装功能
+
+### 1. 通用媒体下载器（universal-media-downloader）
+
+**支持平台**：YouTube、Bilibili、抖音、小宇宙等
+
+**基本用法**：
+```bash
+python ~/.clawdbot/skills/universal-media-downloader/scripts/download_media.py "<视频链接>"
+```
+
+**仅下载音频**：
+```bash
+python ~/.clawdbot/skills/universal-media-downloader/scripts/download_media.py "<链接>" --audio-only --audio-format mp3
+```
+
+**依赖工具**：yt-dlp, ffmpeg（已安装）
+
+---
+
+### 2. 中文语音转文字（funasr-transcribe）
+
+**用途**：将中文音视频转录为带时间戳的 Markdown 文件
+
+**Python 环境**：`~/funasr-venv/Scripts/python.exe`（Python 3.12）
+
+**首次使用**（下载模型）：
+```bash
+~/funasr-venv/Scripts/python.exe ~/.clawdbot/skills/funasr-transcribe/scripts/setup.py
+```
+
+**启动服务**：
+```bash
+~/funasr-venv/Scripts/python.exe ~/.clawdbot/skills/funasr-transcribe/scripts/server.py
+```
+
+**转录文件**：
+```bash
+~/funasr-venv/Scripts/python.exe ~/.clawdbot/skills/funasr-transcribe/scripts/transcribe.py <文件路径>
+```
+
+---
+
+### 3. 多语言语音转文字（whisper-transcribe）
+
+**用途**：将外语音视频转录为带时间戳的 Markdown（支持 14+ 种语言）
+
+**基本转录**：
+```bash
+python ~/.clawdbot/skills/funasr-transcribe/scripts/whisper_transcribe.py <文件路径>
+```
+
+**指定语言**：
+```bash
+python ~/.clawdbot/skills/funasr-transcribe/scripts/whisper_transcribe.py <文件路径> --lang ru
+```
+
+**选择模型**（tiny/base/small/medium/large）：
+```bash
+python ~/.clawdbot/skills/funasr-transcribe/scripts/whisper_transcribe.py <文件路径> --model small
+```
+
+**说明**：模型越大越准确但速度越慢，默认自动检测语言
+
+**依赖工具**：openai-whisper（已安装）
+
+---
+
+### 4. 多语言翻译（translate）
+
+**用途**：将转录的 Markdown 文件翻译为中文（支持 14+ 种语言）
+
+**翻译引擎**：
+- 百度翻译 API（免费）
+- DeepL API（高质量）
+- 自动回退机制
+
+**首次配置**（设置 API 密钥）：
+```bash
+python ~/.clawdbot/skills/funasr-transcribe/scripts/translate.py --setup
+```
+
+**翻译单个文件**：
+```bash
+python ~/.clawdbot/skills/funasr-transcribe/scripts/translate.py <md文件路径>
+```
+
+**使用 DeepL 引擎**：
+```bash
+python ~/.clawdbot/skills/funasr-transcribe/scripts/translate.py <md文件路径> --engine deepl
+```
+
+**指定源语言**：
+```bash
+python ~/.clawdbot/skills/funasr-transcribe/scripts/translate.py <md文件路径> --lang en
+```
+
+**批量翻译目录**：
+```bash
+python ~/.clawdbot/skills/funasr-transcribe/scripts/translate.py <目录路径>
+```
+
+---
+
+## 典型工作流程
+
+### 流程：链接 → 下载 → 转录 → 翻译 → 字幕 → 解读
+
+**步骤 1：下载音视频**
+```bash
+# 下载完整视频
+python ~/.clawdbot/skills/universal-media-downloader/scripts/download_media.py "<链接>"
+
+# 仅下载音频（推荐用于转录）
+python ~/.clawdbot/skills/universal-media-downloader/scripts/download_media.py "<链接>" --audio-only --audio-format mp3
+```
+
+**步骤 2：转录**
+```bash
+# 中文内容
+~/funasr-venv/Scripts/python.exe ~/.clawdbot/skills/funasr-transcribe/scripts/transcribe.py <文件路径>
+
+# 外语内容
+python ~/.clawdbot/skills/funasr-transcribe/scripts/whisper_transcribe.py <文件路径>
+```
+
+**步骤 3：翻译（外语内容）**
+```bash
+# 翻译为中文
+python ~/.clawdbot/skills/funasr-transcribe/scripts/translate.py <md文件路径>
+
+# 同时生成中文字幕
+python ~/.clawdbot/skills/funasr-transcribe/scripts/translate.py <md文件路径> --srt
+```
+
+**步骤 4：阅读和解读**
+- 打开生成的 Markdown 文件
+- 提取关键信息和见解
+
+---
+
+## 用户偏好设置
+
+- 遇到选择时自动选择第一个选项
+- 不弹出确认提示，直接执行
+- 默认使用 claude-opus-4-6 模型
+
+---
+
+## 文件位置
+
+- 技能目录：`~/.clawdbot/skills/`
+- FunASR Python 环境：`~/funasr-venv/`
+- 下载器：`~/.clawdbot/skills/universal-media-downloader/`
+- 转录工具：`~/.clawdbot/skills/funasr-transcribe/`
+
+---
+
+## 常见问题
+
+**Q: 首次使用 FunASR 需要做什么？**
+A: 运行 `~/funasr-venv/Scripts/python.exe ~/.clawdbot/skills/funasr-transcribe/scripts/setup.py` 下载模型
+
+**Q: 如何选择转录工具？**
+A: 中文用 funasr-transcribe，外语用 whisper-transcribe
+
+**Q: 翻译需要 API 密钥吗？**
+A: 是的，首次使用运行 `--setup` 配置百度或 DeepL API
+
+**Q: 如何提高转录准确度？**
+A: Whisper 使用更大的模型（如 `--model medium` 或 `large`）
+
+---
+
+*文档生成日期：2026-02-16*

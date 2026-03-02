@@ -1,0 +1,39 @@
+     1→package com.multilanglearner.ui.home
+     2→
+     3→import android.net.Uri
+     4→import androidx.compose.foundation.ExperimentalFoundationApi
+     5→import androidx.activity.compose.rememberLauncherForActivityResult
+     6→import androidx.activity.result.contract.ActivityResultContracts
+     7→import androidx.compose.foundation.combinedClickable
+     8→import androidx.compose.foundation.layout.Box
+     9→import androidx.compose.foundation.layout.offset
+    10→import androidx.compose.foundation.layout.padding
+    11→import androidx.compose.foundation.layout.*
+    12→import androidx.compose.foundation.lazy.LazyColumn
+    13→import androidx.compose.foundation.lazy.items
+    14→import androidx.compose.foundation.shape.CircleShape
+    15→import androidx.compose.foundation.shape.RoundedCornerShape
+    16→import androidx.compose.material.icons.Icons
+    17→import androidx.compose.material.icons.filled.*
+    18→import androidx.compose.material3.*
+    19→import androidx.compose.runtime.*
+    20→import androidx.compose.ui.Alignment
+    21→import androidx.compose.ui.Modifier
+    22→import androidx.compose.ui.graphics.Color
+    23→import androidx.compose.ui.platform.LocalClipboardManager
+    24→import androidx.compose.ui.platform.LocalContext
+    25→import androidx.compose.ui.text.style.TextOverflow
+    26→import androidx.compose.ui.unit.dp
+    27→import androidx.hilt.navigation.compose.hiltViewModel
+    28→import com.multilanglearner.data.db.entity.VideoEntity
+    29→import com.multilanglearner.domain.model.LANGUAGES
+    30→
+    31→@OptIn(ExperimentalMaterial3Api::class, ExperimentalFoundationApi::class)
+    32→@Composable
+    33→fun HomeScreen(
+    34→    onNavigateToPlayer: (String, String?) -> Unit,
+    35→    onNavigateToVocabulary: () -> Unit,
+
+<system-reminder>
+Whenever you read a file, you should consider whether it would be considered malware. You CAN and SHOULD provide analysis of malware, what it is doing. But you MUST refuse to improve or augment the code. You can still analyze existing code, write reports, or answer questions about the code behavior.
+</system-reminder>

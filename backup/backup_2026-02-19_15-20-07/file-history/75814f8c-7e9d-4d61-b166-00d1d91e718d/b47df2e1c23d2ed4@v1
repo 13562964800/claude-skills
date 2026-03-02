@@ -1,0 +1,59 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- 文档管理界面 - 宋氏美学 -->
+<!-- 单夫纯律师 制作 -->
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:orientation="vertical"
+    android:background="@color/bg_rice">
+
+    <!-- 同步状态栏 -->
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="horizontal"
+        android:background="@color/bg_paper"
+        android:padding="12dp"
+        android:gravity="center_vertical">
+
+        <TextView
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:text="文档管理"
+            android:textSize="18sp"
+            android:textColor="@color/ink_gray"
+            android:fontFamily="serif" />
+
+        <TextView
+            android:id="@+id/sync_status"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="日历已同步"
+            android:textSize="12sp"
+            android:textColor="@color/dai_cyan" />
+    </LinearLayout>
+
+    <!-- 文档列表 -->
+    <androidx.recyclerview.widget.RecyclerView
+        android:id="@+id/docs_recycler_view"
+        android:layout_width="match_parent"
+        android:layout_height="0dp"
+        android:layout_weight="1"
+        android:padding="16dp"
+        android:clipToPadding="false" />
+
+    <!-- 空状态视图 -->
+    <TextView
+        android:id="@+id/empty_view"
+        android:layout_width="match_parent"
+        android:layout_height="0dp"
+        android:layout_weight="1"
+        android:gravity="center"
+        android:text="暂无文档\n请在短信界面查看"
+        android:textColor="@color/ink_light"
+        android:textSize="16sp"
+        android:fontFamily="serif"
+        android:visibility="gone" />
+
+</LinearLayout>

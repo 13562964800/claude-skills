@@ -1,0 +1,415 @@
+package com.court.assistant.ui
+
+import androidx.compose.animation.*
+import androidx.compose.foundation.background
+import androidx.compose.foundation.border
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.combinedClickable
+import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.DateRange
+import androidx.compose.material.icons.filled.Delete
+import androidx.compose.material.icons.filled.KeyboardArrowDown
+import androidx.compose.material.icons.filled.KeyboardArrowUp
+import androidx.compose.material.icons.filled.Refresh
+import androidx.compose.material.icons.filled.Share
+import androidx.compose.material3.*
+import androidx.compose.runtime.*
+import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.foundation.ExperimentalFoundationApi
+import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.unit.dp
+import com.court.assistant.data.db.PdfDocumentEntity
+import com.court.assistant.ui.theme.*
+import com.court.assistant.viewmodel.MainViewModel
+import com.court.assistant.viewmodel.SmsWithPdfs
+import java.text.SimpleDateFormat
+import java.util.*
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun MainScreen(
+    viewModel: MainViewModel,
+    onOpenWebView: (smsId: Long, url: String) -> Unit,
+    onOpenPdf: (pdfId: Long) -> Unit
+) {
+    val state by viewModel.uiState.collectAsState()
+    val snackbarHostState = remember { SnackbarHostState() }
+    var showClearDialog by remember { mutableStateOf(false) }
+
+    if (showClearDialog) {
+        AlertDialog(
+            onDismissRequest = { showClearDialog = false },
+            title = { Text("清除所有数据") },
+            text = { Text("将清除所有短信记录和已下载的文书，确认清除？") },
+            confirmButton = {
+                TextButton(onClick = {
+                    showClearDialog = false
+                    viewModel.clearAllData()
+                }) { Text("确认清除", color = CinnabarRed) }
+            },
+            dismissButton = {
+                TextButton(onClick = { showClearDialog = false }) { Text("取消") }
+            }
+        )
+    }
+
+    LaunchedEffect(state.message) {
+        state.message?.let {
+            snackbarHostState.showSnackbar(it)
+            viewModel.clearMessage()
+        }
+    }
+
+    Scaffold(
+        snackbarHost = { SnackbarHost(snackbarHostState) },
+        topBar = {
+            TopAppBar(
+                title = {
+                    Text("12368日程助手", style = MaterialTheme.typography.headlineMedium)
+                },
+                actions = {
+                    IconButton(onClick = { viewModel.syncAllToCalendar() }) {
+                        Icon(Icons.Default.DateRange, contentDescription = "同步日程")
+                    }
+                    IconButton(onClick = { viewModel.loadSms() }) {
+                        Icon(Icons.Default.Refresh, contentDescription = "刷新短信")
+                    }
+                    IconButton(onClick = { showClearDialog = true }) {
+                        Icon(Icons.Default.Delete, contentDescription = "清除数据")
+                    }
+                },
+                colors = TopAppBarDefaults.topAppBarColors(
+                    containerColor = Ivory,
+                    titleContentColor = InkBlack
+                )
+            )
+        },
+        bottomBar = {
+            Surface(
+                color = ParchmentBg,
+                tonalElevation = 0.dp
+            ) {
+                Text(
+                    text = "宋式美学，单夫纯律师制作保留权利",
+                    style = MaterialTheme.typography.labelSmall,
+                    color = CharcoalGray.copy(alpha = 0.6f),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(vertical = 8.dp, horizontal = 16.dp)
+                )
+            }
+        }
+    ) { padding ->
+        Box(modifier = Modifier.fillMaxSize().padding(padding)) {
+            if (state.loading) {
+                CircularProgressIndicator(
+                    modifier = Modifier.align(Alignment.Center),
+                    color = CinnabarRed
+                )
+            } else if (state.smsWithPdfs.isEmpty()) {
+                Text(
+                    "暂无法院短信\n点击右上角刷新读取",
+                    style = MaterialTheme.typography.bodyLarge,
+                    color = CharcoalGray,
+                    modifier = Modifier.align(Alignment.Center)
+                )
+            } else {
+                LazyColumn(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .background(MistGray),
+                    contentPadding = PaddingValues(12.dp),
+                    verticalArrangement = Arrangement.spacedBy(12.dp)
+                ) {
+                    items(state.smsWithPdfs, key = { it.sms.id }) { item ->
+                        SmsMenuCard(
+                            item = item,
+                            onOpenWebView = onOpenWebView,
+                            onOpenPdf = onOpenPdf,
+                            onSharePdfs = { viewModel.sharePdfs(it) },
+                            onSyncCalendar = { viewModel.syncPdfToCalendar(it) }
+                        )
+                    }
+                }
+            }
+        }
+    }
+}
+
+@Composable
+fun SmsMenuCard(
+    item: SmsWithPdfs,
+    onOpenWebView: (smsId: Long, url: String) -> Unit,
+    onOpenPdf: (pdfId: Long) -> Unit,
+    onSharePdfs: (List<Long>) -> Unit,
+    onSyncCalendar: (Long) -> Unit
+) {
+    var expanded by rememberSaveable { mutableStateOf(false) }
+    val selectedIds = remember { mutableStateListOf<Long>() }
+    val dateFormat = remember { SimpleDateFormat("yyyy-MM-dd HH:mm", Locale.CHINA) }
+
+    // 清除选中状态当收缩时
+    if (!expanded) selectedIds.clear()
+
+    Card(
+        modifier = Modifier
+            .fillMaxWidth()
+            .border(1.dp, MistGray, RoundedCornerShape(8.dp)),
+        shape = RoundedCornerShape(8.dp),
+        colors = CardDefaults.cardColors(containerColor = WarmWhite),
+        elevation = CardDefaults.cardElevation(defaultElevation = 3.dp)
+    ) {
+        Column {
+            // 头部 - 浅米色背景
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .background(Ivory)
+                    .clickable { expanded = !expanded }
+                    .padding(16.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Column(modifier = Modifier.weight(1f)) {
+                    // 当事人（醒目）
+                    item.sms.partyNames?.let {
+                        Text(
+                            it,
+                            style = MaterialTheme.typography.titleMedium,
+                            color = CinnabarRed
+                        )
+                        Spacer(modifier = Modifier.height(6.dp))
+                    }
+                    // 法院 + 案号
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        item.sms.courtName?.let {
+                            Text(
+                                it,
+                                style = MaterialTheme.typography.bodyLarge,
+                                color = InkBlack
+                            )
+                        }
+                        item.sms.caseNumber?.let {
+                            Text(
+                                it,
+                                style = MaterialTheme.typography.bodyMedium,
+                                color = CharcoalGray,
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis
+                            )
+                        }
+                    }
+                    Spacer(modifier = Modifier.height(6.dp))
+                    // 时间 + 发送者
+                    Text(
+                        "${dateFormat.format(Date(item.sms.receivedAt))}  ${item.sms.sender}",
+                        style = MaterialTheme.typography.labelSmall,
+                        color = CharcoalGray
+                    )
+                    // 文书提示
+                    if (item.sms.webUrl != null && item.pdfs.isEmpty()) {
+                        Spacer(modifier = Modifier.height(6.dp))
+                        Text(
+                            "点击展开查看文书",
+                            style = MaterialTheme.typography.labelSmall,
+                            color = AmberGold
+                        )
+                    }
+                    if (item.pdfs.isNotEmpty()) {
+                        Spacer(modifier = Modifier.height(4.dp))
+                        Text(
+                            "${item.pdfs.size} 个文书",
+                            style = MaterialTheme.typography.labelSmall,
+                            color = JadeGreen
+                        )
+                    }
+                }
+                Spacer(modifier = Modifier.width(8.dp))
+                Icon(
+                    if (expanded) Icons.Default.KeyboardArrowUp else Icons.Default.KeyboardArrowDown,
+                    contentDescription = null,
+                    tint = CharcoalGray
+                )
+            }
+
+            AnimatedVisibility(visible = expanded) {
+                Column(
+                    modifier = Modifier
+                        .background(ParchmentBg)
+                        .padding(start = 12.dp, end = 12.dp, bottom = 12.dp, top = 8.dp),
+                    verticalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    if (item.sms.webUrl != null) {
+                        if (item.pdfs.isEmpty()) {
+                            Button(
+                                onClick = { onOpenWebView(item.sms.id, item.sms.webUrl!!) },
+                                modifier = Modifier.fillMaxWidth(),
+                                colors = ButtonDefaults.buttonColors(
+                                    containerColor = CinnabarRed,
+                                    contentColor = WarmWhite
+                                ),
+                                shape = RoundedCornerShape(6.dp)
+                            ) {
+                                Text("打开送达链接下载文书")
+                            }
+                        } else {
+                            OutlinedButton(
+                                onClick = { onOpenWebView(item.sms.id, item.sms.webUrl!!) },
+                                modifier = Modifier.fillMaxWidth(),
+                                colors = ButtonDefaults.outlinedButtonColors(contentColor = CharcoalGray),
+                                shape = RoundedCornerShape(6.dp)
+                            ) {
+                                Text("继续下载文书")
+                            }
+                        }
+                    }
+                    item.pdfs.forEach { pdf ->
+                        val selected = pdf.id in selectedIds
+                        PdfCard(
+                            pdf = pdf,
+                            selected = selected,
+                            onClick = {
+                                if (selectedIds.isNotEmpty()) {
+                                    if (selected) selectedIds.remove(pdf.id) else selectedIds.add(pdf.id)
+                                } else {
+                                    onOpenPdf(pdf.id)
+                                }
+                            },
+                            onLongClick = {
+                                if (selected) selectedIds.remove(pdf.id) else selectedIds.add(pdf.id)
+                            },
+                            onSyncCalendar = { onSyncCalendar(pdf.id) }
+                        )
+                    }
+                    // 分享按钮
+                    if (item.pdfs.isNotEmpty()) {
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.End,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            if (selectedIds.isNotEmpty()) {
+                                Text(
+                                    "已选 ${selectedIds.size} 个",
+                                    style = MaterialTheme.typography.labelSmall,
+                                    color = CharcoalGray
+                                )
+                                Spacer(modifier = Modifier.width(8.dp))
+                            }
+                            FilledTonalButton(
+                                onClick = {
+                                    val ids = if (selectedIds.isNotEmpty()) selectedIds.toList()
+                                              else item.pdfs.map { it.id }
+                                    onSharePdfs(ids)
+                                },
+                                colors = ButtonDefaults.filledTonalButtonColors(
+                                    containerColor = JadeGreen.copy(alpha = 0.15f),
+                                    contentColor = JadeGreen
+                                ),
+                                shape = RoundedCornerShape(6.dp),
+                                contentPadding = PaddingValues(horizontal = 12.dp, vertical = 6.dp)
+                            ) {
+                                Icon(Icons.Default.Share, contentDescription = null, modifier = Modifier.size(16.dp))
+                                Spacer(modifier = Modifier.width(4.dp))
+                                Text(if (selectedIds.isNotEmpty()) "分享选中" else "分享全部")
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+
+@OptIn(ExperimentalFoundationApi::class)
+@Composable
+fun PdfCard(pdf: PdfDocumentEntity, selected: Boolean, onClick: () -> Unit, onLongClick: () -> Unit, onSyncCalendar: (() -> Unit)? = null) {
+    val dateFormat = remember { SimpleDateFormat("MM-dd HH:mm", Locale.CHINA) }
+    val borderColor = if (selected) CinnabarRed else MistGray
+    val bgColor = if (selected) CinnabarRed.copy(alpha = 0.06f) else WarmWhite
+    Surface(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(6.dp))
+            .border(if (selected) 1.5.dp else 0.5.dp, borderColor, RoundedCornerShape(6.dp))
+            .combinedClickable(onClick = onClick, onLongClick = onLongClick),
+        color = bgColor,
+        shape = RoundedCornerShape(6.dp)
+    ) {
+        Column {
+            Row(
+                modifier = Modifier.padding(10.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                if (selected) {
+                    Checkbox(
+                        checked = true,
+                        onCheckedChange = { onLongClick() },
+                        modifier = Modifier.size(20.dp),
+                        colors = CheckboxDefaults.colors(checkedColor = CinnabarRed)
+                    )
+                    Spacer(modifier = Modifier.width(6.dp))
+                } else {
+                    Text(
+                        if (pdf.isSubpoena) "📋" else "📄",
+                        style = MaterialTheme.typography.titleLarge
+                    )
+                    Spacer(modifier = Modifier.width(8.dp))
+                }
+                Column(modifier = Modifier.weight(1f)) {
+                    Text(
+                        pdf.fileName,
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = InkBlack,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis
+                    )
+                    Text(
+                        "${dateFormat.format(Date(pdf.downloadedAt))} · ${formatSize(pdf.fileSize)}",
+                        style = MaterialTheme.typography.labelSmall,
+                        color = CharcoalGray
+                    )
+                }
+                if (pdf.calendarEventId != null) {
+                    Text("已同步日历", style = MaterialTheme.typography.labelSmall, color = JadeGreen)
+                }
+            }
+            if (pdf.isSubpoena && pdf.calendarEventId == null && onSyncCalendar != null) {
+                Button(
+                    onClick = onSyncCalendar,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(start = 10.dp, end = 10.dp, bottom = 8.dp),
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = AmberGold,
+                        contentColor = WarmWhite
+                    ),
+                    shape = RoundedCornerShape(6.dp),
+                    contentPadding = PaddingValues(vertical = 6.dp)
+                ) {
+                    Icon(Icons.Default.DateRange, contentDescription = null, modifier = Modifier.size(16.dp))
+                    Spacer(modifier = Modifier.width(4.dp))
+                    Text("一键同步日历")
+                }
+            }
+        }
+    }
+}
+
+private fun formatSize(bytes: Long): String {
+    return when {
+        bytes < 1024 -> "${bytes}B"
+        bytes < 1024 * 1024 -> "${bytes / 1024}KB"
+        else -> String.format("%.1fMB", bytes / (1024.0 * 1024.0))
+    }
+}

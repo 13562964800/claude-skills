@@ -1,0 +1,250 @@
+# Phase 3: Workflow Orchestration Implementation Plan
+
+> **For Claude:** REQUIRED SUB-SKILL: Use superpowers:executing-plans to implement this plan task-by-task.
+
+**Goal:** 实现 Workflow 运行时调度：启动流程、节点串联执行、Celery 任务实际触发 Skill Adapter。
+
+**Architecture:** WorkflowRunner 负责按模板 DAG 顺序调度 WorkflowStep；每个 step 调用对应 SkillAdapter.run()；结果写回 workflow_step 状态；提供 HTTP API 启动/查询流程。
+
+**Tech Stack:** Python, FastAPI, Celery, Redis, SQLAlchemy（内存 dict 替代，MVP 阶段）
+
+---
+
+### Task 1: WorkflowRunner 核心调度逻辑
+
+**Files:**
+- Modify: `apps/api/app/services/workflow_engine.py`
+- Test: `apps/api/tests/test_workflow_runner.py`
+
+**Step 1: Write the failing test**
+
+```python
+# apps/api/tests/test_workflow_runner.py
+from app.services.workflow_engine import WorkflowRunner
+
+
+def test_runner_executes_steps_in_order():
+    log = []
+
+    def skill_a(payload):
+        log.append('a')
+        return {'result': 'a_done'}
+
+    def skill_b(payload):
+        log.append('b')
+        return {'result': 'b_done'}
+
+    runner = WorkflowRunner(steps=[
+        {'key': 'step1', 'skill': skill_a},
+        {'key': 'step2', 'skill': skill_b},
+    ])
+    results = runner.run({})
+    assert log == ['a', 'b']
+    assert results['step2']['result'] == 'b_done'
+
+
+def test_runner_passes_previous_output_to_next_step():
+    def skill_a(payload):
+        return {'value': 42}
+
+    def skill_b(payload):
+        return {'doubled': payload.get('value', 0) * 2}
+
+    runner = WorkflowRunner(steps=[
+        {'key': 'step1', 'skill': skill_a},
+        {'key': 'step2', 'skill': skill_b},
+    ])
+    results = runner.run({})
+    assert results['step2']['doubled'] == 84
+```
+
+**Step 2: Run test to verify it fails**
+
+Run: `cd /c/Users/Administrator/legalflow-studio/apps/api && python -m pytest tests/test_workflow_runner.py -v`
+Expected: FAIL with ImportError
+
+**Step 3: Write minimal implementation**
+
+Append to `apps/api/app/services/workflow_engine.py`:
+```python
+class WorkflowRunner:
+    def __init__(self, steps: list[dict]):
+        self.steps = steps  # [{'key': str, 'skill': callable}]
+
+    def run(self, initial_payload: dict) -> dict:
+        results = {}
+        payload = initial_payload.copy()
+        for step in self.steps:
+            output = step['skill'](payload)
+            results[step['key']] = output
+            payload = output  # 上一步输出作为下一步输入
+        return results
+```
+
+**Step 4: Run test to verify it passes**
+
+Run: `cd /c/Users/Administrator/legalflow-studio/apps/api && python -m pytest tests/test_workflow_runner.py -v`
+Expected: PASS
+
+**Step 5: Commit**
+
+```bash
+cd /c/Users/Administrator/legalflow-studio
+git add apps/api/app/services/workflow_engine.py apps/api/tests/test_workflow_runner.py
+git commit -m "feat: add workflow runner with sequential step execution"
+```
+
+---
+
+### Task 2: Workflow Run API（启动/查询）
+
+**Files:**
+- Create: `apps/api/app/api/workflows.py`
+- Modify: `apps/api/app/main.py`
+- Test: `apps/api/tests/test_workflow_api.py`
+
+**Step 1: Write the failing test**
+
+```python
+# apps/api/tests/test_workflow_api.py
+from fastapi.testclient import TestClient
+from app.main import app
+import app.api.workflows as wf_module
+
+
+def setup_function():
+    wf_module._runs.clear()
+
+
+def test_start_workflow_run():
+    client = TestClient(app)
+    resp = client.post('/api/v1/workflow-runs', json={
+        'project_id': 1,
+        'template': 'legal-text-format',
+        'payload': {'text': '测试文本'}
+    }, headers={'x-role': 'lawyer'})
+    assert resp.status_code == 201
+    data = resp.json()
+    assert data['status'] in ('success', 'failed', 'running')
+    assert 'id' in data
+
+
+def test_get_workflow_run():
+    client = TestClient(app)
+    create = client.post('/api/v1/workflow-runs', json={
+        'project_id': 1,
+        'template': 'legal-text-format',
+        'payload': {'text': '测试'}
+    }, headers={'x-role': 'lawyer'})
+    run_id = create.json()['id']
+    resp = client.get(f'/api/v1/workflow-runs/{run_id}')
+    assert resp.status_code == 200
+    assert resp.json()['id'] == run_id
+```
+
+**Step 2: Run test to verify it fails**
+
+Run: `cd /c/Users/Administrator/legalflow-studio/apps/api && python -m pytest tests/test_workflow_api.py -v`
+Expected: FAIL with 404
+
+**Step 3: Write minimal implementation**
+
+`apps/api/app/api/workflows.py`:
+```python
+from fastapi import APIRouter, status, Depends
+from app.core.permissions import require_project_write
+from app.services.workflow_engine import WorkflowRunner
+from app.skills.legal_text_format import LegalTextFormatAdapter
+from app.skills.legal_qa_extractor import LegalQAExtractorAdapter
+from app.skills.litigation_analysis import LitigationAnalysisAdapter
+from app.skills.legal_proposal_generator import LegalProposalGeneratorAdapter
+
+router = APIRouter(prefix='/api/v1/workflow-runs', tags=['workflows'])
+_runs: dict[int, dict] = {}
+
+_TEMPLATES = {
+    'legal-text-format': [{'key': 'format', 'skill': LegalTextFormatAdapter().run}],
+    'legal-qa-extractor': [{'key': 'extract', 'skill': LegalQAExtractorAdapter().run}],
+    'litigation-analysis': [{'key': 'analyze', 'skill': LitigationAnalysisAdapter().run}],
+    'legal-proposal-generator': [{'key': 'generate', 'skill': LegalProposalGeneratorAdapter().run}],
+}
+
+
+@router.post('', status_code=status.HTTP_201_CREATED,
+             dependencies=[Depends(require_project_write)])
+def start_workflow_run(body: dict):
+    template = body.get('template', '')
+    payload = body.get('payload', {})
+    steps = _TEMPLATES.get(template, [])
+    run_id = len(_runs) + 1
+    try:
+        runner = WorkflowRunner(steps=steps)
+        results = runner.run(payload)
+        run = {'id': run_id, 'project_id': body.get('project_id'), 'template': template,
+               'status': 'success', 'results': results}
+    except Exception as e:
+        run = {'id': run_id, 'project_id': body.get('project_id'), 'template': template,
+               'status': 'failed', 'error': str(e)}
+    _runs[run_id] = run
+    return run
+
+
+@router.get('/{run_id}')
+def get_workflow_run(run_id: int):
+    from fastapi import HTTPException
+    run = _runs.get(run_id)
+    if not run:
+        raise HTTPException(status_code=404, detail='not found')
+    return run
+```
+
+Modify `apps/api/app/main.py` to register workflow router:
+```python
+from fastapi import FastAPI
+from app.api.projects import router as projects_router
+from app.api.documents import router as documents_router
+from app.api.workflows import router as workflows_router
+
+app = FastAPI()
+app.include_router(projects_router)
+app.include_router(documents_router)
+app.include_router(workflows_router)
+
+@app.get('/health')
+def health():
+    return {'status': 'ok'}
+```
+
+**Step 4: Run test to verify it passes**
+
+Run: `cd /c/Users/Administrator/legalflow-studio/apps/api && python -m pytest tests/test_workflow_api.py -v`
+Expected: PASS
+
+**Step 5: Commit**
+
+```bash
+cd /c/Users/Administrator/legalflow-studio
+git add apps/api/app/api/workflows.py apps/api/app/main.py apps/api/tests/test_workflow_api.py
+git commit -m "feat: add workflow run api with template dispatch"
+```
+
+---
+
+### Task 3: 全量验证
+
+**Step 1: Run all tests**
+
+```bash
+cd /c/Users/Administrator/legalflow-studio/apps/api
+python -m pytest tests/ ../../tests/ -v
+```
+
+Expected: 全部 PASS
+
+**Step 2: Commit if needed**
+
+```bash
+cd /c/Users/Administrator/legalflow-studio
+git add .
+git commit -m "test: phase3 workflow orchestration verification"
+```

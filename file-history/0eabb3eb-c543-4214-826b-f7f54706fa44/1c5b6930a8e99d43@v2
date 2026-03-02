@@ -1,0 +1,66 @@
+package com.ai.hotspot.data.local.dao
+
+import androidx.room.*
+import com.ai.hotspot.data.local.entity.HotspotEntity
+import kotlinx.coroutines.flow.Flow
+
+@Dao
+interface HotspotDao {
+
+    @Query("SELECT * FROM hotspots ORDER BY publishedAt DESC")
+    fun getAllHotspots(): Flow<List<HotspotEntity>>
+
+    @Query("SELECT * FROM hotspots WHERE source IN (:sources) ORDER BY publishedAt DESC")
+    fun getBySources(sources: List<String>): Flow<List<HotspotEntity>>
+
+    @Query("SELECT * FROM hotspots WHERE category IN (:categories) ORDER BY publishedAt DESC")
+    fun getByCategories(categories: List<String>): Flow<List<HotspotEntity>>
+
+    @Query("SELECT * FROM hotspots WHERE isBookmarked = 1 ORDER BY publishedAt DESC")
+    fun getBookmarked(): Flow<List<HotspotEntity>>
+
+    @Query("SELECT * FROM hotspots WHERE isRead = 0 ORDER BY publishedAt DESC")
+    fun getUnread(): Flow<List<HotspotEntity>>
+
+    @Query("""
+        SELECT * FROM hotspots
+        WHERE title LIKE '%' || :query || '%'
+           OR description LIKE '%' || :query || '%'
+           OR tags LIKE '%' || :query || '%'
+        ORDER BY publishedAt DESC
+    """)
+    fun search(query: String): Flow<List<HotspotEntity>>
+
+    @Query("SELECT * FROM hotspots WHERE id = :id")
+    suspend fun getById(id: String): HotspotEntity?
+
+    @Query("SELECT * FROM hotspots WHERE url = :url LIMIT 1")
+    suspend fun getByUrl(url: String): HotspotEntity?
+
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun insert(hotspot: HotspotEntity)
+
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun insertAll(hotspots: List<HotspotEntity>)
+
+    @Update
+    suspend fun update(hotspot: HotspotEntity)
+
+    @Query("UPDATE hotspots SET isRead = 1 WHERE id = :id")
+    suspend fun markAsRead(id: String)
+
+    @Query("UPDATE hotspots SET isBookmarked = :bookmarked WHERE id = :id")
+    suspend fun setBookmarked(id: String, bookmarked: Boolean)
+
+    @Query("DELETE FROM hotspots WHERE fetchedAt < :timestamp")
+    suspend fun deleteOlderThan(timestamp: Long)
+
+    @Query("DELETE FROM hotspots")
+    suspend fun deleteAll()
+
+    @Query("SELECT COUNT(*) FROM hotspots")
+    suspend fun getCount(): Int
+
+    @Query("SELECT MAX(fetchedAt) FROM hotspots")
+    suspend fun getLastFetchTime(): Long?
+}

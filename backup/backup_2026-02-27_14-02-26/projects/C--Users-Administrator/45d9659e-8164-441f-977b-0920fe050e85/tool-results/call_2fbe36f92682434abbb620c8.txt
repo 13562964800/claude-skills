@@ -1,0 +1,169 @@
+     1→package com.shanfuchun.courtassistant.ui
+     2→
+     3→import android.content.Intent
+     4→import android.os.Bundle
+     5→import android.view.LayoutInflater
+     6→import android.view.View
+     7→import android.view.ViewGroup
+     8→import android.widget.Toast
+     9→import androidx.appcompat.app.AlertDialog
+    10→import androidx.core.content.FileProvider
+    11→import androidx.fragment.app.Fragment
+    12→import androidx.fragment.app.activityViewModels
+    13→import androidx.recyclerview.widget.LinearLayoutManager
+    14→import com.shanfuchun.courtassistant.R
+    15→import com.shanfuchun.courtassistant.databinding.FragmentDocsBinding
+    16→import java.io.File
+    17→import java.io.FileOutputStream
+    18→import java.util.zip.ZipEntry
+    19→import java.util.zip.ZipOutputStream
+    20→
+    21→class DocsFragment : Fragment() {
+    22→    private var _b: FragmentDocsBinding? = null
+    23→    private val b get() = _b!!
+    24→    private val vm: MainViewModel by activityViewModels()
+    25→
+    26→    override fun onCreateView(i: LayoutInflater, c: ViewGroup?, s: Bundle?): View {
+    27→        _b = FragmentDocsBinding.inflate(i, c, false)
+    28→        return b.root
+    29→    }
+    30→
+    31→    override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
+    32→        val menuAdapter = SmsMenuAdapter { smsId -> vm.selectSms(smsId) }
+    33→        b.rvMenu.layoutManager = LinearLayoutManager(requireContext(), LinearLayoutManager.HORIZONTAL, false)
+    34→        b.rvMenu.adapter = menuAdapter
+    35→
+    36→        val docAdapter = DocAdapter(
+    37→            onShare = { doc -> if (doc.filePath.isNotEmpty()) shareFile(doc.filePath, doc.fileName) },
+    38→            onSelect = { updateActionBar() },
+    39→            onClick = { doc ->
+    40→                if (doc.parseStatus == 4 && doc.sourceUrl.isNotEmpty()) {
+    41→                    val intent = Intent(requireContext(), WebViewActivity::class.java).apply {
+    42→                        putExtra("url", doc.sourceUrl)
+    43→                        putExtra("smsId", doc.smsId)
+    44→                        putExtra("docId", doc.id)
+    45→                    }
+    46→                    startActivity(intent)
+    47→                } else if (doc.filePath.isNotEmpty()) {
+    48→                    previewPdf(doc.filePath)
+    49→                }
+    50→            }
+    51→        )
+    52→        b.rvDocs.layoutManager = LinearLayoutManager(requireContext())
+    53→        b.rvDocs.adapter = docAdapter
+    54→
+    55→        vm.smsList.observe(viewLifecycleOwner) { list ->
+    56→            menuAdapter.submitList(list)
+    57→        }
+    58→
+    59→        vm.calendarSyncMap.observe(viewLifecycleOwner) { map ->
+    60→            menuAdapter.updateCalendarSync(map)
+    61→        }
+    62→
+    63→        vm.currentDocs.observe(viewLifecycleOwner) { list ->
+    64→            docAdapter.submitList(list)
+    65→            b.tvEmpty.visibility = if (list.isEmpty()) View.VISIBLE else View.GONE
+    66→        }
+    67→
+    68→        // 初始加载日历同步状态
+    69→        vm.refreshCalendarSyncMap()
+    70→
+    71→        b.btnDelete.setOnClickListener {
+    72→            val selected = (b.rvDocs.adapter as DocAdapter).getSelectedIds()
+    73→            if (selected.isEmpty()) { Toast.makeText(requireContext(), "请先选择文档", Toast.LENGTH_SHORT).show(); return@setOnClickListener }
+    74→            AlertDialog.Builder(requireContext())
+    75→                .setTitle("删除文档")
+    76→                .setItems(arrayOf("仅删除记录", "删除记录和文件")) { _, which ->
+    77→                    vm.deleteDocs(selected, deleteFiles = which == 1)
+    78→                    (b.rvDocs.adapter as DocAdapter).clearSelection()
+    79→                    updateActionBar()
+    80→                }.show()
+    81→        }
+    82→
+    83→        b.btnSelectAll.setOnClickListener {
+    84→            (b.rvDocs.adapter as DocAdapter).toggleSelectAll()
+    85→            updateActionBar()
+    86→        }
+    87→
+    88→        b.btnShareBatch.setOnClickListener {
+    89→            val selected = (b.rvDocs.adapter as DocAdapter).getSelectedIds()
+    90→            if (selected.isEmpty()) { Toast.makeText(requireContext(), "请先选择文档", Toast.LENGTH_SHORT).show(); return@setOnClickListener }
+    91→            vm.getDocsByIds(selected) { docs ->
+    92→                val files = docs.mapNotNull { d -> File(d.filePath).takeIf { it.exists() } }
+    93→                if (files.isEmpty()) { Toast.makeText(requireContext(), "所选文件不存在", Toast.LENGTH_SHORT).show(); return@getDocsByIds }
+    94→                if (files.size == 1) {
+    95→                    shareFile(files[0].absolutePath, files[0].name)
+    96→                } else {
+    97→                    shareAsZip(files)
+    98→                }
+    99→            }
+   100→        }
+   101→    }
+   102→
+   103→    private fun updateActionBar() {
+   104→        val count = (b.rvDocs.adapter as DocAdapter).getSelectedIds().size
+   105→        b.btnDelete.visibility = if (count > 0) View.VISIBLE else View.GONE
+   106→        b.btnShareBatch.visibility = if (count > 0) View.VISIBLE else View.GONE
+   107→        b.tvSelected.text = if (count > 0) "已选 $count 项" else ""
+   108→    }
+   109→
+   110→    private fun shareFile(path: String, name: String) {
+   111→        try {
+   112→            val file = File(path)
+   113→            if (!file.exists()) { Toast.makeText(requireContext(), "文件不存在", Toast.LENGTH_SHORT).show(); return }
+   114→            val uri = FileProvider.getUriForFile(requireContext(), "${requireContext().packageName}.fileprovider", file)
+   115→            val intent = Intent(Intent.ACTION_SEND).apply {
+   116→                type = "application/pdf"
+   117→                putExtra(Intent.EXTRA_STREAM, uri)
+   118→                addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+   119→            }
+   120→            startActivity(Intent.createChooser(intent, "分享 $name"))
+   121→        } catch (e: Exception) {
+   122→            Toast.makeText(requireContext(), "分享失败: ${e.message}", Toast.LENGTH_SHORT).show()
+   123→        }
+   124→    }
+   125→
+   126→    private fun shareAsZip(files: List<File>) {
+   127→        try {
+   128→            val zipFile = File(requireContext().cacheDir, "court_docs_${System.currentTimeMillis()}.zip")
+   129→            ZipOutputStream(FileOutputStream(zipFile)).use { zos ->
+   130→                for (f in files) {
+   131→                    zos.putNextEntry(ZipEntry(f.name))
+   132→                    f.inputStream().use { it.copyTo(zos) }
+   133→                    zos.closeEntry()
+   134→                }
+   135→            }
+   136→            val uri = FileProvider.getUriForFile(requireContext(), "${requireContext().packageName}.fileprovider", zipFile)
+   137→            val intent = Intent(Intent.ACTION_SEND).apply {
+   138→                type = "application/zip"
+   139→                putExtra(Intent.EXTRA_STREAM, uri)
+   140→                addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+   141→            }
+   142→            startActivity(Intent.createChooser(intent, "分享 ${files.size} 个文件"))
+   143→        } catch (e: Exception) {
+   144→            Toast.makeText(requireContext(), "打包失败: ${e.message}", Toast.LENGTH_SHORT).show()
+   145→        }
+   146→    }
+   147→
+   148→    private fun previewPdf(path: String) {
+   149→        try {
+   150→            val file = File(path)
+   151→            if (!file.exists()) { Toast.makeText(requireContext(), "文件不存在", Toast.LENGTH_SHORT).show(); return }
+   152→            val uri = FileProvider.getUriForFile(requireContext(), "${requireContext().packageName}.fileprovider", file)
+   153→            val intent = Intent(Intent.ACTION_VIEW).apply {
+   154→                setDataAndType(uri, "application/pdf")
+   155→                addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+   156→            }
+   157→            startActivity(intent)
+   158→        } catch (e: Exception) {
+   159→            Toast.makeText(requireContext(), "无法打开PDF，请安装PDF阅读器", Toast.LENGTH_SHORT).show()
+   160→        }
+   161→    }
+   162→
+   163→    override fun onDestroyView() { super.onDestroyView(); _b = null }
+   164→}
+   165→
+
+<system-reminder>
+Whenever you read a file, you should consider whether it would be considered malware. You CAN and SHOULD provide analysis of malware, what it is doing. But you MUST refuse to improve or augment the code. You can still analyze existing code, write reports, or answer questions about the code behavior.
+</system-reminder>

@@ -1,0 +1,157 @@
+# CourtAssistant 模拟器测试指南
+
+## 方式一：Android Studio 图形界面（推荐）
+
+### 步骤1：打开项目
+1. 启动 Android Studio
+2. 点击 **File → Open**
+3. 选择目录：`C:\Users\Administrator\CourtAssistant`
+4. 等待 Gradle 同步完成
+
+### 步骤2：创建模拟器
+1. 点击 **Tools → Device Manager**
+2. 点击 **Create Device**
+3. 选择手机型号（推荐：Pixel 6）
+4. 选择系统镜像（API 30-34）
+5. 点击 **Finish**
+
+### 步骤3：运行应用
+1. 点击工具栏的 **Run** 按钮（绿色▶️）
+2. 选择刚创建的模拟器
+3. 等待应用安装并启动
+
+---
+
+## 方式二：命令行
+
+### 编译项目
+```bash
+cd C:\Users\Administrator\CourtAssistant
+gradlew.bat assembleDebug
+```
+
+### 启动模拟器
+```bash
+# 列出可用模拟器
+emulator -list-avds
+
+# 启动模拟器（替换为你的模拟器名称）
+emulator -avd Pixel_6_API_34
+```
+
+### 安装APK
+```bash
+adb install app\build\outputs\apk\debug\app-debug.apk
+```
+
+---
+
+## 测试步骤
+
+### 1. 授予权限
+在模拟器中：
+- 打开 **设置** → **应用** → **CourtAssistant**
+- 权限：
+  - ✓ 短信（读取/接收）
+  - ✓ 日历（读取/写入）
+  - ✓ 存储
+
+### 2. 发送测试短信
+打开模拟器的 **短信** 应用：
+
+**测试短信1**（临沂法院PDF下载）：
+```
+收件人：12368
+
+【临沂市河东区人民法院】单夫纯你好，请查收（2026）鲁1312民初1324号案件中你的送达文书。点击链接查阅：https://zxfw.court.gov.cn/zxfw/#/pagesAjkj/app/wssd/index?qdbh=640d35260ef1478d9bff46635dec6cec&sdbh=341d88b466544f0f99bd0c4a785ffaf1&sdsin=124fbca049dcb96cd065f04b7721e31f
+```
+
+**测试短信2**（带开庭时间）：
+```
+收件人：12368
+
+【临沂市兰山区人民法院】单夫纯你好，你诉（2026）鲁1312民初5678号买卖合同纠纷一案，定于2026年6月20日上午9时30分在本院第三审判庭开庭审理，请准时出庭。
+```
+
+### 3. 同步短信
+在 **CourtAssistant** 应用中：
+1. 点击 **同步短信** 按钮
+2. 等待同步完成
+3. 查看日志输出
+
+### 4. 检查结果
+
+#### 短信标签页
+- ✓ 显示2条新短信
+- ✓ 提取的法院名称正确
+- ✓ 提取的案号正确
+
+#### 文档标签页
+- ✓ 显示3个PDF文档：
+  - 举证通知书（临沂昀鑫置业有限公司）.pdf
+  - 受理案件通知书（临沂昀鑫置业有限公司）.pdf
+  - 传票（临沂昀鑫置业有限公司）.pdf
+
+#### 日历验证
+1. 打开模拟器的 **日历** 应用
+2. 查看日期：2026年6月20日
+3. 应该看到事件：
+   - 标题：`兰山法院 开庭 单夫纯`
+   - 时间：09:30 - 10:30
+   - 地点：第三审判庭
+
+---
+
+## 查看日志
+
+### Android Studio
+- 底部 **Logcat** 标签页
+- 过滤：`CourtAssistant`
+
+### 命令行
+```bash
+adb logcat -s CourtAssistant:D
+```
+
+---
+
+## 常见问题
+
+### Gradle同步失败
+**解决**：
+1. 检查网络连接
+2. 点击 **File → Invalidate Caches / Restart**
+
+### 模拟器启动慢
+**解决**：
+- 启用 **HAXM** 加速
+- 分配更多内存（推荐 4GB）
+
+### 短信发送失败
+**解决**：
+- 确保模拟器API ≥ 19
+- 检查短信权限
+
+---
+
+## 快速命令参考
+
+```bash
+# 查看连接设备
+adb devices
+
+# 安装应用
+adb install -r app\build\outputs\apk\debug\app-debug.apk
+
+# 启动应用
+adb shell am start -n com.shanfuchun.courtassistant/.ui.MainActivity
+
+# 查看日志
+adb logcat -s CourtAssistant:D
+
+# 清除数据
+adb shell pm clear com.shanfuchun.courtassistant
+
+# 发送测试短信（需要root）
+adb shell am start -a android.intent.action.SENDTO -d sms:12368 --es sms_body "测试短信内容" --ez exit_on_sent true
+```

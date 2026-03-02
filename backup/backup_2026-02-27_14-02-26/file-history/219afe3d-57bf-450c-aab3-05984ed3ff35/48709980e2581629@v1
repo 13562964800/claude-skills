@@ -1,0 +1,249 @@
+package com.multilanglearner.ui.ai
+
+import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Check
+import androidx.compose.material.icons.filled.Mic
+import androidx.compose.material.icons.filled.SmartToy
+import androidx.compose.material3.*
+import androidx.compose.runtime.*
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.unit.dp
+import androidx.hilt.navigation.compose.hiltViewModel
+import com.multilanglearner.domain.model.AI_PROVIDERS
+import kotlinx.coroutines.delay
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun AISettingsSheet(
+    onDismiss: () -> Unit,
+    viewModel: AISettingsViewModel = hiltViewModel()
+) {
+    val uiState by viewModel.uiState.collectAsState()
+    val scrollState = rememberScrollState()
+
+    // 保存成功后自动关闭
+    LaunchedEffect(uiState.saveSuccess) {
+        if (uiState.saveSuccess) {
+            delay(600)
+            onDismiss()
+        }
+    }
+
+    ModalBottomSheet(onDismissRequest = onDismiss) {
+        Column(
+            modifier = Modifier
+                .padding(horizontal = 16.dp)
+                .fillMaxWidth()
+                .verticalScroll(scrollState)
+        ) {
+            // ========== 区块1: 转录引擎 ==========
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Icon(Icons.Default.Mic, null, Modifier.size(20.dp), tint = MaterialTheme.colorScheme.primary)
+                Spacer(Modifier.width(8.dp))
+                Text("转录引擎", style = MaterialTheme.typography.titleMedium)
+            }
+            Text(
+                "使用 Groq Whisper 将视频语音转为文字",
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+
+            Spacer(Modifier.height(12.dp))
+
+            // Groq API Key
+            OutlinedTextField(
+                value = uiState.groqApiKey,
+                onValueChange = viewModel::setGroqApiKey,
+                label = { Text("Groq API Key") },
+                modifier = Modifier.fillMaxWidth(),
+                singleLine = true,
+                supportingText = { Text("console.groq.com/keys 免费获取") }
+            )
+
+            Spacer(Modifier.height(8.dp))
+
+            // Whisper 模型 + 转录语言 并排
+            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                // Whisper 模型选择
+                var whisperExpanded by remember { mutableStateOf(false) }
+                ExposedDropdownMenuBox(
+                    expanded = whisperExpanded,
+                    onExpandedChange = { whisperExpanded = it },
+                    modifier = Modifier.weight(1f)
+                ) {
+                    OutlinedTextField(
+                        value = uiState.whisperModel.removePrefix("whisper-"),
+                        onValueChange = {},
+                        readOnly = true,
+                        label = { Text("模型") },
+                        modifier = Modifier.fillMaxWidth().menuAnchor(),
+                        trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(whisperExpanded) }
+                    )
+                    ExposedDropdownMenu(expanded = whisperExpanded, onDismissRequest = { whisperExpanded = false }) {
+                        listOf("whisper-large-v3-turbo", "whisper-large-v3").forEach { model ->
+                            DropdownMenuItem(
+                                text = { Text(model.removePrefix("whisper-")) },
+                                onClick = { viewModel.setWhisperModel(model); whisperExpanded = false }
+                            )
+                        }
+                    }
+                }
+
+                // 转录语言选择
+                var langExpanded by remember { mutableStateOf(false) }
+                ExposedDropdownMenuBox(
+                    expanded = langExpanded,
+                    onExpandedChange = { langExpanded = it },
+                    modifier = Modifier.weight(1f)
+                ) {
+                    OutlinedTextField(
+                        value = transcribeLangLabel(uiState.transcribeLanguage),
+                        onValueChange = {},
+                        readOnly = true,
+                        label = { Text("语言") },
+                        modifier = Modifier.fillMaxWidth().menuAnchor(),
+                        trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(langExpanded) }
+                    )
+                    ExposedDropdownMenu(expanded = langExpanded, onDismissRequest = { langExpanded = false }) {
+                        listOf(
+                            "" to "自动检测", "en" to "英语", "ja" to "日语", "ko" to "韩语",
+                            "ru" to "俄语", "fr" to "法语", "de" to "德语", "es" to "西班牙语",
+                            "pt" to "葡萄牙语", "zh" to "中文"
+                        ).forEach { (value, label) ->
+                            DropdownMenuItem(
+                                text = { Text(label) },
+                                onClick = { viewModel.setTranscribeLanguage(value); langExpanded = false }
+                            )
+                        }
+                    }
+                }
+            }
+
+            HorizontalDivider(modifier = Modifier.padding(vertical = 16.dp))
+
+            // ========== 区块2: AI 大模型 ==========
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Icon(Icons.Default.SmartToy, null, Modifier.size(20.dp), tint = MaterialTheme.colorScheme.primary)
+                Spacer(Modifier.width(8.dp))
+                Text("AI 大模型", style = MaterialTheme.typography.titleMedium)
+            }
+            Text(
+                "用于词汇释义、句子分析等辅助功能",
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+
+            Spacer(Modifier.height(12.dp))
+
+            // Provider 选择
+            var providerExpanded by remember { mutableStateOf(false) }
+            ExposedDropdownMenuBox(expanded = providerExpanded, onExpandedChange = { providerExpanded = it }) {
+                OutlinedTextField(
+                    value = AI_PROVIDERS.find { it.id == uiState.provider }?.name ?: "",
+                    onValueChange = {},
+                    readOnly = true,
+                    label = { Text("服务商") },
+                    modifier = Modifier.fillMaxWidth().menuAnchor(),
+                    trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(providerExpanded) }
+                )
+                ExposedDropdownMenu(expanded = providerExpanded, onDismissRequest = { providerExpanded = false }) {
+                    AI_PROVIDERS.forEach { provider ->
+                        DropdownMenuItem(
+                            text = { Text(provider.name) },
+                            onClick = { viewModel.setProvider(provider.id); providerExpanded = false }
+                        )
+                    }
+                }
+            }
+
+            Spacer(Modifier.height(8.dp))
+
+            // API Key
+            OutlinedTextField(
+                value = uiState.apiKey,
+                onValueChange = viewModel::setApiKey,
+                label = { Text("API Key") },
+                modifier = Modifier.fillMaxWidth(),
+                singleLine = true
+            )
+
+            Spacer(Modifier.height(8.dp))
+
+            // Base URL + Model 并排
+            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                OutlinedTextField(
+                    value = uiState.baseUrl,
+                    onValueChange = viewModel::setBaseUrl,
+                    label = { Text("Base URL") },
+                    modifier = Modifier.weight(1f),
+                    singleLine = true,
+                    placeholder = { Text("默认") }
+                )
+                OutlinedTextField(
+                    value = uiState.model,
+                    onValueChange = viewModel::setModel,
+                    label = { Text("模型") },
+                    modifier = Modifier.weight(1f),
+                    singleLine = true,
+                    placeholder = { Text("默认") }
+                )
+            }
+
+            Spacer(Modifier.height(16.dp))
+
+            // ========== 统一保存按钮 ==========
+            Button(
+                onClick = { viewModel.save() },
+                modifier = Modifier.fillMaxWidth().height(48.dp)
+            ) {
+                if (uiState.saveSuccess) {
+                    Icon(Icons.Default.Check, null, Modifier.size(18.dp))
+                    Spacer(Modifier.width(8.dp))
+                    Text("已保存")
+                } else {
+                    Text("保存设置")
+                }
+            }
+
+            // 测试连接（折叠显示）
+            Spacer(Modifier.height(8.dp))
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.Center
+            ) {
+                TextButton(onClick = { viewModel.testConnection() }) {
+                    Text("测试 AI 连接")
+                }
+            }
+
+            if (uiState.testResult.isNotBlank()) {
+                Text(
+                    uiState.testResult,
+                    style = MaterialTheme.typography.bodySmall,
+                    color = if (uiState.testSuccess) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.error,
+                    modifier = Modifier.padding(horizontal = 8.dp)
+                )
+            }
+
+            Spacer(Modifier.height(32.dp))
+        }
+    }
+}
+
+private fun transcribeLangLabel(code: String): String = when (code) {
+    "" -> "自动检测"
+    "en" -> "英语"
+    "ja" -> "日语"
+    "ko" -> "韩语"
+    "ru" -> "俄语"
+    "fr" -> "法语"
+    "de" -> "德语"
+    "es" -> "西班牙语"
+    "pt" -> "葡萄牙语"
+    "zh" -> "中文"
+    else -> code
+}

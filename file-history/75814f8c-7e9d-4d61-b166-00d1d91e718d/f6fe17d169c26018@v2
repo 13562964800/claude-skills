@@ -1,0 +1,293 @@
+package com.courassistant.java.utils;
+
+import android.content.Context;
+import android.net.Uri;
+import android.os.Environment;
+import android.text.TextUtils;
+import android.util.Log;
+
+import java.io.File;
+import java.io.FileInputStream;
+import java.io.FileOutputStream;
+import java.io.IOException;
+import java.nio.channels.FileChannel;
+import java.security.MessageDigest;
+import java.security.NoSuchAlgorithmException;
+
+/**
+ * 文件操作工具类
+ * 功能：
+ * 1. 创建应用专属目录
+ * 2. 文件复制、删除
+ * 3. 文件MD5计算（用于去重）
+ * 4. 获取文件信息
+ */
+public class FileUtils {
+
+    private static final String TAG = "FileUtils";
+
+    /**
+     * 获取应用专属的外部存储目录
+     */
+    public static File getAppExternalDir(Context context) {
+        File dir = context.getExternalFilesDir("CourtAssistant");
+        if (dir != null && !dir.exists()) {
+            dir.mkdirs();
+        }
+        return dir;
+    }
+
+    /**
+     * 获取PDF文件存储目录
+     */
+    public static File getPdfDir(Context context) {
+        File pdfDir = new File(getAppExternalDir(context), "pdfs");
+        if (!pdfDir.exists()) {
+            pdfDir.mkdirs();
+        }
+        return pdfDir;
+    }
+
+    /**
+     * 获取缓存目录
+     */
+    public static File getCacheDir(Context context) {
+        File cacheDir = new File(context.getCacheDir(), "court_cache");
+        if (!cacheDir.exists()) {
+            cacheDir.mkdirs();
+        }
+        return cacheDir;
+    }
+
+    /**
+     * 创建临时文件
+     */
+    public static File createTempFile(Context context, String prefix, String suffix) {
+        File cacheDir = getCacheDir(context);
+        try {
+            return File.createTempFile(prefix, suffix, cacheDir);
+        } catch (IOException e) {
+            Log.e(TAG, "创建临时文件失败", e);
+            return new File(cacheDir, prefix + System.currentTimeMillis() + suffix);
+        }
+    }
+
+    /**
+     * 复制文件
+     */
+    public static boolean copyFile(File source, File dest) {
+        if (source == null || dest == null || !source.exists()) {
+            return false;
+        }
+
+        FileChannel inputChannel = null;
+        FileChannel outputChannel = null;
+        try {
+            inputChannel = new FileInputStream(source).getChannel();
+            outputChannel = new FileOutputStream(dest).getChannel();
+            outputChannel.transferFrom(inputChannel, 0, inputChannel.size());
+            return true;
+        } catch (IOException e) {
+            Log.e(TAG, "复制文件失败", e);
+            return false;
+        } finally {
+            try {
+                if (inputChannel != null) inputChannel.close();
+                if (outputChannel != null) outputChannel.close();
+            } catch (IOException e) {
+                Log.e(TAG, "关闭流失败", e);
+            }
+        }
+    }
+
+    /**
+     * 删除文件或目录
+     */
+    public static boolean deleteFile(File file) {
+        if (file == null || !file.exists()) {
+            return true;
+        }
+
+        if (file.isDirectory()) {
+            return deleteDirectory(file);
+        } else {
+            return file.delete();
+        }
+    }
+
+    /**
+     * 删除目录及其内容
+     */
+    public static boolean deleteDirectory(File dir) {
+        if (dir == null || !dir.exists()) {
+            return true;
+        }
+
+        File[] children = dir.listFiles();
+        if (children != null) {
+            for (File child : children) {
+                deleteFile(child);
+            }
+        }
+        return dir.delete();
+    }
+
+    /**
+     * 获取文件扩展名
+     */
+    public static String getFileExtension(String fileName) {
+        if (TextUtils.isEmpty(fileName)) {
+            return "";
+        }
+        int dotIndex = fileName.lastIndexOf('.');
+        if (dotIndex > 0 && dotIndex < fileName.length() - 1) {
+            return fileName.substring(dotIndex + 1).toLowerCase();
+        }
+        return "";
+    }
+
+    /**
+     * 获取不带扩展名的文件名
+     */
+    public static String getFileNameWithoutExtension(String fileName) {
+        if (TextUtils.isEmpty(fileName)) {
+            return "";
+        }
+        int dotIndex = fileName.lastIndexOf('.');
+        if (dotIndex > 0) {
+            return fileName.substring(0, dotIndex);
+        }
+        return fileName;
+    }
+
+    /**
+     * 从URL提取文件名
+     */
+    public static String getFileNameFromUrl(String url) {
+        if (TextUtils.isEmpty(url)) {
+            return "document.pdf";
+        }
+
+        try {
+            Uri uri = Uri.parse(url);
+            String lastSegment = uri.getLastPathSegment();
+            if (!TextUtils.isEmpty(lastSegment)) {
+                return lastSegment;
+            }
+        } catch (Exception e) {
+            Log.e(TAG, "解析URL文件名失败", e);
+        }
+
+        return "document.pdf";
+    }
+
+    /**
+     * 计算文件的MD5哈希值
+     * 用于文件去重
+     */
+    public static String calculateMD5(File file) {
+        if (file == null || !file.exists()) {
+            return null;
+        }
+
+        MessageDigest md;
+        try {
+            md = MessageDigest.getInstance("MD5");
+        } catch (NoSuchAlgorithmException e) {
+            Log.e(TAG, "MD5算法不可用", e);
+            return null;
+        }
+
+        FileInputStream fis = null;
+        try {
+            fis = new FileInputStream(file);
+            byte[] buffer = new byte[8192];
+            int bytesRead;
+
+            while ((bytesRead = fis.read(buffer)) != -1) {
+                md.update(buffer, 0, bytesRead);
+            }
+
+            byte[] digest = md.digest();
+            StringBuilder sb = new StringBuilder();
+            for (byte b : digest) {
+                sb.append(String.format("%02x", b & 0xff));
+            }
+            return sb.toString();
+
+        } catch (IOException e) {
+            Log.e(TAG, "计算MD5失败", e);
+            return null;
+        } finally {
+            if (fis != null) {
+                try {
+                    fis.close();
+                } catch (IOException e) {
+                    Log.e(TAG, "关闭文件流失败", e);
+                }
+            }
+        }
+    }
+
+    /**
+     * 获取文件大小的可读格式
+     */
+    public static String formatFileSize(long size) {
+        if (size < 1024) {
+            return size + " B";
+        } else if (size < 1024 * 1024) {
+            return String.format("%.1f KB", size / 1024.0);
+        } else if (size < 1024 * 1024 * 1024) {
+            return String.format("%.1f MB", size / (1024.0 * 1024));
+        } else {
+            return String.format("%.1f GB", size / (1024.0 * 1024 * 1024));
+        }
+    }
+
+    /**
+     * 检查文件是否为PDF
+     */
+    public static boolean isPdfFile(File file) {
+        if (file == null || !file.exists()) {
+            return false;
+        }
+        String extension = getFileExtension(file.getName());
+        return "pdf".equalsIgnoreCase(extension);
+    }
+
+    /**
+     * 检查文件名是否包含指定文本
+     */
+    public static boolean isFileNameContains(File file, String text) {
+        if (file == null || TextUtils.isEmpty(text)) {
+            return false;
+        }
+        return file.getName().toLowerCase().contains(text.toLowerCase());
+    }
+
+    /**
+     * 清理缓存目录
+     */
+    public static void clearCache(Context context) {
+        File cacheDir = getCacheDir(context);
+        if (cacheDir.exists()) {
+            deleteDirectory(cacheDir);
+            cacheDir.mkdirs();
+        }
+    }
+
+    /**
+     * 获取可用的存储空间
+     */
+    public static long getAvailableStorage() {
+        try {
+            File external = Environment.getExternalStorageDirectory();
+            if (external != null) {
+                return external.getFreeSpace();
+            }
+        } catch (Exception e) {
+            Log.e(TAG, "获取存储空间失败", e);
+        }
+        return 0;
+    }
+}

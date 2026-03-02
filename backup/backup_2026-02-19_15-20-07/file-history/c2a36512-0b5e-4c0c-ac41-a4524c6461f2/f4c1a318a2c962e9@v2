@@ -1,0 +1,46 @@
+#!/usr/bin/env node
+import fs from "node:fs";
+import { fileURLToPath } from "node:url";
+import path from "node:path";
+
+delete process.env.ANTHROPIC_AUTH_TOKEN;
+process.env.ANTHROPIC_BASE_URL = "https://open.bigmodel.cn/api/anthropic";
+process.env.ANTHROPIC_API_KEY = "bdc78cf3476546019386525e5eb8c756.AqjRKxD0nZwVNTjM";
+
+// Patch Anthropic SDK to force authToken: null in createClient (survives npm install)
+const dir = path.dirname(fileURLToPath(import.meta.url));
+const sdkFile = path.join(dir, "node_modules/@mariozechner/pi-ai/dist/providers/anthropic.js");
+try {
+  let src = fs.readFileSync(sdkFile, "utf8");
+  let changed = false;
+  if (!src.includes("authToken: null")) {
+    src = src.replace(
+      /const client = new Anthropic\(\{\s*apiKey,\s*baseURL: model\.baseUrl,/g,
+      "const client = new Anthropic({\n        apiKey,\n        authToken: null,\n        baseURL: model.baseUrl,"
+    );
+    changed = true;
+  }
+  // Fix: add id field to tool_result blocks for zhipu API compatibility
+  if (!src.includes('id: msg.toolCallId,')) {
+    src = src.replace(
+      /type: "tool_result",\n\s*tool_use_id: msg\.toolCallId,/g,
+      'type: "tool_result",\n                id: msg.toolCallId,\n                tool_use_id: msg.toolCallId,'
+    );
+    src = src.replace(
+      /type: "tool_result",\n\s*tool_use_id: nextMsg\.toolCallId,/g,
+      'type: "tool_result",\n                    id: nextMsg.toolCallId,\n                    tool_use_id: nextMsg.toolCallId,'
+    );
+    changed = true;
+  }
+  // Fix: don't add cache_control to tool_result blocks
+  if (src.includes('"tool_result")) {')) {
+    src = src.replace(
+      '(lastBlock.type === "text" || lastBlock.type === "image" || lastBlock.type === "tool_result")',
+      '(lastBlock.type === "text" || lastBlock.type === "image")'
+    );
+    changed = true;
+  }
+  if (changed) fs.writeFileSync(sdkFile, src);
+} catch {}
+
+await import("./dist/entry.js");

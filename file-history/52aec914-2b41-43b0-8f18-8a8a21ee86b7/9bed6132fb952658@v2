@@ -1,0 +1,8 @@
+# tests/test_web_profile_logout.py
+import os
+
+def test_profile_uses_useAuth():
+    path = os.path.join(os.path.dirname(__file__), '../apps/web/app/profile/page.tsx')
+    content = open(path, encoding='utf-8').read()
+    assert 'useAuth' in content
+    assert 'logout' in content

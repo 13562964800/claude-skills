@@ -1,0 +1,116 @@
+     1→<?xml version="1.0" encoding="utf-8"?>
+     2→<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+     3→    xmlns:app="http://schemas.android.com/apk/res-auto"
+     4→    android:layout_width="match_parent"
+     5→    android:layout_height="match_parent"
+     6→    android:orientation="vertical"
+     7→    android:background="@color/bg_rice">
+     8→
+     9→    <!-- Toolbar -->
+    10→    <androidx.appcompat.widget.Toolbar
+    11→        android:id="@+id/toolbar"
+    12→        android:layout_width="match_parent"
+    13→        android:layout_height="?attr/actionBarSize"
+    14→        android:background="@color/primary"
+    15→        android:elevation="4dp"
+    16→        app:titleTextColor="@color/white" />
+    17→
+    18→    <!-- 选择操作栏 -->
+    19→    <LinearLayout
+    20→        android:id="@+id/selection_action_bar"
+    21→        android:layout_width="match_parent"
+    22→        android:layout_height="wrap_content"
+    23→        android:orientation="horizontal"
+    24→        android:padding="12dp"
+    25→        android:background="@color/bg_paper"
+    26→        android:visibility="gone"
+    27→        android:gravity="center_vertical">
+    28→
+    29→        <TextView
+    30→            android:id="@+id/tv_selection_hint"
+    31→            android:layout_width="0dp"
+    32→            android:layout_height="wrap_content"
+    33→            android:layout_weight="1"
+    34→            android:text="已选 0 项"
+    35→            android:textSize="14sp"
+    36→            android:textColor="@color/ink_gray" />
+    37→
+    38→        <TextView
+    39→            android:id="@+id/tv_batch_action_hint"
+    40→            android:layout_width="wrap_content"
+    41→            android:layout_height="wrap_content"
+    42→            android:text="批量操作"
+    43→            android:textSize="12sp"
+    44→            android:textColor="@color/ink_light"
+    45→            android:visibility="gone"
+    46→            android:layout_marginEnd="8dp" />
+    47→    </LinearLayout>
+    48→
+    49→    <!-- 操作按钮栏 -->
+    50→    <LinearLayout
+    51→        android:layout_width="match_parent"
+    52→        android:layout_height="wrap_content"
+    53→        android:orientation="horizontal"
+    54→        android:padding="8dp"
+    55→        android:gravity="center_vertical">
+    56→
+    57→        <TextView
+    58→            android:id="@+id/tv_selected"
+    59→            android:layout_width="0dp"
+    60→            android:layout_height="wrap_content"
+    61→            android:layout_weight="1"
+    62→            android:textColor="@color/ink_light"
+    63→            android:textSize="13sp" />
+    64→
+    65→        <com.google.android.material.button.MaterialButton
+    66→            android:id="@+id/btn_select_all"
+    67→            style="@style/Widget.Material3.Button.TextButton"
+    68→            android:layout_width="wrap_content"
+    69→            android:layout_height="wrap_content"
+    70→            android:text="全选"
+    71→            android:textColor="@color/dai_cyan" />
+    72→
+    73→        <com.google.android.material.button.MaterialButton
+    74→            android:id="@+id/btn_share_wechat"
+    75→            style="@style/Widget.Material3.Button.TextButton"
+    76→            android:layout_width="wrap_content"
+    77→            android:layout_height="wrap_content"
+    78→            android:text="分享"
+    79→            android:textColor="@color/dai_cyan"
+    80→            android:visibility="gone" />
+    81→
+    82→        <com.google.android.material.button.MaterialButton
+    83→            android:id="@+id/btn_delete"
+    84→            style="@style/Widget.Material3.Button.TextButton"
+    85→            android:layout_width="wrap_content"
+    86→            android:layout_height="wrap_content"
+    87→            android:text="删除"
+    88→            android:textColor="#C62828" />
+    89→    </LinearLayout>
+    90→
+    91→    <!-- 空状态提示 -->
+    92→    <TextView
+    93→        android:id="@+id/tv_empty"
+    94→        android:layout_width="match_parent"
+    95→        android:layout_height="0dp"
+    96→        android:layout_weight="1"
+    97→        android:gravity="center"
+    98→        android:text="暂无文档"
+    99→        android:textColor="@color/ink_light"
+   100→        android:textSize="15sp"
+   101→        android:visibility="gone" />
+   102→
+   103→    <!-- 文档列表 -->
+   104→    <androidx.recyclerview.widget.RecyclerView
+   105→        android:id="@+id/rv_docs"
+   106→        android:layout_width="match_parent"
+   107→        android:layout_height="0dp"
+   108→        android:layout_weight="1"
+   109→        android:clipToPadding="false"
+   110→        android:padding="8dp" />
+   111→</LinearLayout>
+   112→
+
+<system-reminder>
+Whenever you read a file, you should consider whether it would be considered malware. You CAN and SHOULD provide analysis of malware, what it is doing. But you MUST refuse to improve or augment the code. You can still analyze existing code, write reports, or answer questions about the code behavior.
+</system-reminder>

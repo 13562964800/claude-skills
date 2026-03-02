@@ -1,0 +1,46 @@
+# 配音文字核对宝 - Android APK版
+
+## 功能
+- 从微信聊天记录直接导入录音和文档（通过分享功能）
+- 语音转文字（百度ASR内置/Groq Whisper/OpenAI Whisper）
+- 智能文本对比（jieba分词 + 拼音同音字识别 + 数字规范化）
+- 差异标注（误读/漏读/多读 + 时间戳定位）
+
+## 微信导入方式
+1. 打开微信聊天窗口
+2. 长按录音/文档文件
+3. 点击"分享" → 选择"配音文字核对宝"
+4. 文件自动导入APP
+
+## 项目结构
+```
+app/
+  main.py              # Kivy主程序 + UI
+  core/
+    compare.py         # 核心对比算法
+    transcribe.py      # 语音转录（多ASR引擎）
+    docx_util.py       # Word文档解析
+    wechat_import.py   # 微信Share Intent文件导入
+buildozer.spec         # Android构建配置
+intent_filters.xml     # Share Intent声明
+build_apk.py           # 构建辅助脚本
+```
+
+## 构建APK
+
+### 方式一：本地构建（需要Linux/WSL）
+```bash
+pip install buildozer cython kivy
+buildozer android debug
+```
+
+### 方式二：GitHub Actions
+推送到GitHub后自动构建，在Actions页面下载APK。
+
+## 核心算法
+移植自桌面版 VoiceDocCompare，包含：
+- **SequenceMatcher序列比对** - 基于jieba分词的词级差异检测
+- **拼音同音字识别** - pypinyin比较，避免同音字误报
+- **数字读音规范化** - 阿拉伯数字↔中文数字统一比较
+- **填充词过滤** - 自动忽略"嗯""啊"等口语填充词
+- **SILK音频解码** - 支持微信.amr/.silk语音格式

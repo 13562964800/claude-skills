@@ -1,0 +1,41 @@
+1028-                    id = UUID.randomUUID().toString(),
+1029-                    title = tempFile.nameWithoutExtension,
+1030-                    url = "导入文件",
+1031-                    filePath = tempFile.absolutePath,
+1032-                    fileSize = tempFile.length(),
+1033-                    status = DownloadStatus.COMPLETED,
+1034-                    createdAt = System.currentTimeMillis(),
+1035-                    completedAt = System.currentTimeMillis()
+1036-                )
+1037-                addToHistory(history)
+1038-
+1039-                _uiState.update { it.copy(isProcessing = false) }
+1040-                launch(Dispatchers.Main) { onComplete(tempFile.absolutePath, null) }
+1041-            } catch (e: Exception) {
+1042-                android.util.Log.e("MultiLangLearner", "Import failed", e)
+1043-                _uiState.update { it.copy(isProcessing = false) }
+1044-            }
+1045-        }
+1046-    }
+1047-
+1048:    private fun getFileName(context: Context, uri: Uri): String? {
+1049-        var result: String? = null
+1050-        if (uri.scheme == "content") {
+1051-            val cursor = context.contentResolver.query(uri, null, null, null, null)
+1052-            cursor?.use {
+1053-                if (it.moveToFirst()) {
+1054-                    val index = it.getColumnIndex(android.provider.OpenableColumns.DISPLAY_NAME)
+1055-                    if (index >= 0) result = it.getString(index)
+1056-                }
+1057-            }
+1058-        }
+1059-        if (result == null) {
+1060-            result = uri.path
+1061-            val cut = result?.lastIndexOf('/')
+1062-            if (cut != -1) {
+1063-                result = result?.substring(cut!! + 1)
+1064-            }
+1065-        }
+1066-        return result
+1067-    }
+1068-

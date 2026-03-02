@@ -1,0 +1,308 @@
+"""Word对比报告生成模块 - 生成带差异标注的Word文档"""
+import os
+import tempfile
+from typing import List, Dict, Any
+from datetime import datetime
+
+
+def generate_report(audio_path: str, doc_path: str, audio_text: str,
+                     doc_text: str, result: Dict[str, Any],
+                     output_path: str = None) -> str:
+    """
+    生成Word格式的对比报告
+
+    Args:
+        audio_path: 录音文件路径
+        doc_path: 文档文件路径
+        audio_text: ASR转写文本
+        doc_text: 原始文档文本
+        result: compare_texts返回的对比结果
+        output_path: 输出文件路径，默认自动生成
+
+    Returns:
+        生成的Word文件路径
+    """
+    try:
+        from docx import Document
+        from docx.shared import RGBColor, Pt, Inches
+        from docx.enum.text import WD_ALIGN_PARAGRAPH
+        from docx.oxml.ns import qn
+        from docx.oxml import OxmlElement
+    except ImportError:
+        # 如果没有python-docx，生成简化版txt
+        return _generate_text_report(audio_path, doc_path, audio_text, doc_text, result, output_path)
+
+    doc = Document()
+
+    # 设置中文字体
+    def set_chinese_font(run, font_name='宋体', size=11):
+        """设置中文字体"""
+        run.font.name = font_name
+        run._element.rPr.rFonts.set(qn('w:eastAsia'), font_name)
+        run.font.size = Pt(size)
+
+    # 1. 标题
+    title = doc.add_paragraph()
+    title.alignment = WD_ALIGN_PARAGRAPH.CENTER
+    title_run = title.add_run('配音文字核对报告')
+    set_chinese_font(title_run, '黑体', 18)
+    title_run.bold = True
+
+    # 2. 基本信息
+    doc.add_paragraph('\n基本信息：')
+    info_table = doc.add_table(rows=5, cols=2)
+    info_table.style = 'Light Grid Accent 1'
+
+    def set_cell_text(table, row, col, text, font_size=10):
+        cell = table.rows[row].cells[col]
+        cell.text = text
+        for para in cell.paragraphs:
+            for run in para.runs:
+                set_chinese_font(run, size=font_size)
+
+    set_cell_text(info_table, 0, 0, '生成时间')
+    set_cell_text(info_table, 0, 1, datetime.now().strftime('%Y-%m-%d %H:%M:%S'))
+    set_cell_text(info_table, 1, 0, '录音文件')
+    set_cell_text(info_table, 1, 1, os.path.basename(audio_path))
+    set_cell_text(info_table, 2, 0, '文档文件')
+    set_cell_text(info_table, 2, 1, os.path.basename(doc_path))
+    set_cell_text(info_table, 3, 0, '准确率')
+    set_cell_text(info_table, 3, 1, f'{result.get("accuracy", 0):.1f}%')
+    set_cell_text(info_table, 4, 0, '差异统计')
+    diff_count = result.get('n_mismatch', 0) + result.get('n_missing', 0) + result.get('n_extra', 0)
+    set_cell_text(info_table, 4, 1, f'共{diff_count}处 (误读{result.get("n_mismatch",0)} 漏读{result.get("n_missing",0)} 多读{result.get("n_extra",0)})')
+
+    doc.add_paragraph()
+
+    # 3. 差异详情
+    doc.add_paragraph('差异详情：')
+    doc.add_paragraph('（红色=差异点，蓝色=录音时间戳）')
+
+    diffs = result.get('diffs', [])
+    for i, diff in enumerate(diffs, 1):
+        p = doc.add_paragraph(f'{i}. ', style='List Number')
+
+        diff_type = diff.get('type', '')
+        if diff_type == 'mismatch':
+            # 误读 - 红色
+            p.add_run(f'【误读】')
+            doc_text_run = p.add_run(f' 原文: {diff.get("docText", "")}')
+            doc_text_run.font.color.rgb = RGBColor(200, 0, 0)
+            set_chinese_font(doc_text_run)
+
+            p.add_run(' → ')
+            audio_text_run = p.add_run(f'录音: {diff.get("audioText", "")}')
+            audio_text_run.font.color.rgb = RGBColor(200, 0, 0)
+            set_chinese_font(audio_text_run)
+
+        elif diff_type == 'missing_in_audio':
+            # 漏读 - 蓝色
+            p.add_run('【漏读】')
+            miss_run = p.add_run(f' {diff.get("docText", "")}')
+            miss_run.font.color.rgb = RGBColor(200, 0, 0)
+            set_chinese_font(miss_run)
+
+        else:  # extra_in_audio
+            # 多读 - 绿色
+            p.add_run('【多读】')
+            extra_run = p.add_run(f' {diff.get("audioText", "")}')
+            extra_run.font.color.rgb = RGBColor(200, 0, 0)
+            set_chinese_font(extra_run)
+
+        # 时间戳
+        if 'time_start' in diff:
+            ts = diff['time_start']
+            m = int(ts) // 60
+            ts_run = p.add_run(f' 第{m}分钟')
+            ts_run.font.color.rgb = RGBColor(0, 0, 200)
+            ts_run.font.italic = True
+            set_chinese_font(ts_run, size=9)
+
+    # 4. 完整转写文本
+    doc.add_page_break()
+    doc.add_paragraph('完整转写文本：')
+    p = doc.add_paragraph(audio_text)
+    set_chinese_font(p.runs[0] if p.runs else p.add_run(audio_text))
+
+    # 5. 原始文档文本
+    doc.add_page_break()
+    doc.add_paragraph('原始文档文本：')
+    p = doc.add_paragraph(doc_text)
+    set_chinese_font(p.runs[0] if p.runs else p.add_run(doc_text))
+
+    # 保存文件
+    if output_path is None:
+        # 保存到应用数据目录
+        try:
+            from kivy.utils import platform as kv_platform
+            if kv_platform == 'android':
+                from android.storage import app_storage_path
+                base_dir = app_storage_path()
+            else:
+                base_dir = os.path.expanduser('~')
+        except:
+            base_dir = os.path.expanduser('~')
+
+        reports_dir = os.path.join(base_dir, 'reports')
+        os.makedirs(reports_dir, exist_ok=True)
+
+        timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
+        output_path = os.path.join(reports_dir, f'核对报告_{timestamp}.docx')
+
+    doc.save(output_path)
+    return output_path
+
+
+def _generate_text_report(audio_path: str, doc_path: str, audio_text: str,
+                          doc_text: str, result: Dict[str, Any],
+                          output_path: str = None) -> str:
+    """生成纯文本格式的报告（备用方案）"""
+    if output_path is None:
+        try:
+            from kivy.utils import platform as kv_platform
+            if kv_platform == 'android':
+                from android.storage import app_storage_path
+                base_dir = app_storage_path()
+            else:
+                base_dir = os.path.expanduser('~')
+        except:
+            base_dir = os.path.expanduser('~')
+
+        reports_dir = os.path.join(base_dir, 'reports')
+        os.makedirs(reports_dir, exist_ok=True)
+
+        from datetime import datetime
+        timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
+        output_path = os.path.join(reports_dir, f'核对报告_{timestamp}.txt')
+
+    with open(output_path, 'w', encoding='utf-8') as f:
+        f.write('=' * 50 + '\n')
+        f.write('配音文字核对报告\n')
+        f.write('=' * 50 + '\n\n')
+
+        f.write(f'生成时间: {datetime.now().strftime("%Y-%m-%d %H:%M:%S")}\n')
+        f.write(f'录音文件: {os.path.basename(audio_path)}\n')
+        f.write(f'文档文件: {os.path.basename(doc_path)}\n')
+        f.write(f'准确率: {result.get("accuracy", 0):.1f}%\n\n')
+
+        f.write('差异详情：\n')
+        f.write('-' * 40 + '\n')
+
+        diffs = result.get('diffs', [])
+        for i, diff in enumerate(diffs, 1):
+            diff_type = diff.get('type', '')
+            if diff_type == 'mismatch':
+                f.write(f'{i}. [误读] 原文: {diff.get("docText", "")} → 录音: {diff.get("audioText", "")}')
+            elif diff_type == 'missing_in_audio':
+                f.write(f'{i}. [漏读] {diff.get("docText", "")}')
+            else:
+                f.write(f'{i}. [多读] {diff.get("audioText", "")}')
+
+            if 'time_start' in diff:
+                ts = diff['time_start']
+                m, s = divmod(int(ts), 60)
+                f.write(f' (时间: {m}:{s:02d})')
+            f.write('\n')
+
+        f.write('\n' + '=' * 50 + '\n')
+        f.write('完整转写文本：\n')
+        f.write('-' * 40 + '\n')
+        f.write(audio_text)
+        f.write('\n\n' + '=' * 50 + '\n')
+        f.write('原始文档文本：\n')
+        f.write('-' * 40 + '\n')
+        f.write(doc_text)
+
+    return output_path
+
+
+def parse_report_for_edit(report_path: str) -> Dict[str, Any]:
+    """
+    解析已生成的报告，用于编辑功能
+
+    Returns:
+        {
+            'audio_path': str,
+            'doc_path': str,
+            'diffs': List[Dict],
+            'audio_text': str,
+            'doc_text': str,
+        }
+    """
+    # TODO: 实现从Word文档解析差异列表
+    # 目前先返回空结构
+    return {
+        'audio_path': '',
+        'doc_path': '',
+        'diffs': [],
+        'audio_text': '',
+        'doc_text': '',
+    }
+
+
+def update_diff_in_report(report_path: str, diff_index: int,
+                          new_diff: Dict[str, Any]) -> bool:
+    """
+    更新报告中的某个差异项（增删改）
+
+    Args:
+        report_path: 报告文件路径
+        diff_index: 差异项索引（-1表示新增）
+        new_diff: 新的差异内容
+
+    Returns:
+        是否成功
+    """
+    # TODO: 实现Word文档的增量更新
+    return False
+
+
+def search_diffs(report_path: str, keyword: str) -> List[int]:
+    """
+    在报告中搜索差异项
+
+    Returns:
+        匹配的差异项索引列表
+    """
+    # TODO: 实现搜索功能
+    return []
+
+
+def share_to_wechat(file_path: str) -> bool:
+    """
+    分享文件到微信
+
+    Args:
+        file_path: 要分享的文件路径
+
+    Returns:
+        是否成功
+    """
+    try:
+        from kivy.utils import platform as kv_platform
+        if kv_platform != 'android':
+            return False
+
+        from jnius import autoclass
+        Intent = autoclass('android.content.Intent')
+        PythonActivity = autoclass('org.kivy.android.PythonActivity')
+        Uri = autoclass('android.net.Uri')
+        File = autoclass('java.io.File')
+
+        activity = PythonActivity.mActivity
+        file_obj = File(file_path)
+        uri = Uri.fromFile(file_obj)
+
+        intent = Intent(Intent.ACTION_SEND)
+        intent.setType('*/*')
+        intent.putExtra(Intent.EXTRA_STREAM, uri)
+        intent.addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+
+        # 尝试直接分享到微信
+        intent.setPackage('com.tencent.mm')
+
+        activity.startActivity(Intent.createChooser(intent, '分享到微信'))
+        return True
+    except Exception as e:
+        print(f'分享失败: {e}')
+        return False

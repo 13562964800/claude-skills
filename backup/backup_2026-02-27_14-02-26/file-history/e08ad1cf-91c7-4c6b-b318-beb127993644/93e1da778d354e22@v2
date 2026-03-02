@@ -1,0 +1,82 @@
+import os
+
+
+class DocumentExtractor:
+    def extract(self, file_path):
+        ext = os.path.splitext(file_path)[1].lower()
+        handlers = {
+            '.pdf': self.extract_pdf,
+            '.docx': self.extract_word,
+            '.xlsx': self.extract_excel,
+            '.png': self.extract_image, '.jpg': self.extract_image,
+            '.jpeg': self.extract_image, '.bmp': self.extract_image,
+        }
+        handler = handlers.get(ext)
+        if handler:
+            return handler(file_path)
+        return ""
+
+    def _extract_table_kvs(self, cells):
+        """从表格行的单元格中提取键值对，返回 'key：value' 格式列表"""
+        kvs = []
+        cleaned = [c.strip() if c else "" for c in cells]
+        # 去重合并单元格
+        deduped = list(dict.fromkeys(cleaned))
+        deduped = [c for c in deduped if c]
+        if len(deduped) >= 2 and len(deduped) % 2 == 0:
+            for i in range(0, len(deduped), 2):
+                kvs.append(f"{deduped[i]}：{deduped[i+1]}")
+        return kvs
+
+    def extract_pdf(self, path):
+        import pdfplumber
+        texts = []
+        with pdfplumber.open(path) as pdf:
+            for page in pdf.pages:
+                t = page.extract_text()
+                if t:
+                    texts.append(t)
+                for table in page.extract_tables():
+                    for row in table:
+                        kvs = self._extract_table_kvs(row)
+                        if kvs:
+                            texts.extend(kvs)
+                        else:
+                            texts.append(" ".join(cell or "" for cell in row))
+        return "\n".join(texts)
+
+    def extract_word(self, path):
+        import docx
+        doc = docx.Document(path)
+        texts = [p.text for p in doc.paragraphs if p.text.strip()]
+        for table in doc.tables:
+            for row in table.rows:
+                cells = [cell.text.strip() for cell in row.cells]
+                kvs = self._extract_table_kvs(cells)
+                if kvs:
+                    texts.extend(kvs)
+                else:
+                    texts.append(" ".join(cells))
+        return "\n".join(texts)
+
+    def extract_excel(self, path):
+        import openpyxl
+        wb = openpyxl.load_workbook(path, read_only=True, data_only=True)
+        texts = []
+        for ws in wb.worksheets:
+            for row in ws.iter_rows(values_only=True):
+                vals = [str(c) for c in row if c is not None]
+                if vals:
+                    texts.append(" ".join(vals))
+        wb.close()
+        return "\n".join(texts)
+
+    def extract_image(self, path):
+        from app.core.ocr_client import LocalOCR
+        ocr = LocalOCR()
+        return ocr.recognize(path)
+
+    def extract_clipboard(self):
+        from PyQt5.QtWidgets import QApplication
+        clip = QApplication.clipboard()
+        return clip.text() or ""

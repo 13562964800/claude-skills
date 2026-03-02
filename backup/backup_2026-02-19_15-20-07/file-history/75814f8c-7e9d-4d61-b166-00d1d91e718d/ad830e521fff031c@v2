@@ -1,0 +1,460 @@
+# CourtAssistant 模拟器测试指南
+
+**宋氏美学 · 单夫纯律师 制作**
+
+本文档说明如何在 Android 模拟器上测试 CourtAssistant 应用。
+
+---
+
+## 📋 前置条件
+
+### 必需软件
+- ✅ Android Studio (最新版本)
+- ✅ Android SDK (API 35)
+- ✅ JDK 8 或更高版本
+- ✅ 至少 8GB RAM
+- ✅ 20GB 可用磁盘空间
+
+### 推荐配置
+```
+Android Studio:  Hedgehog | 2024.1.1+
+Android SDK:       API 35 (Android 14)
+JDK:              17.0 或更高
+RAM:              16GB 推荐
+```
+
+---
+
+## 🚀 快速开始
+
+### 方法一：使用 Android Studio（推荐）
+
+#### 1. 打开项目
+```bash
+cd /path/to/CourtAssistant
+```
+
+#### 2. 在 Android Studio 中打开项目
+```
+File → Open → 选择 CourtAssistant 目录
+```
+
+#### 3. 等待 Gradle 同步完成
+```
+底部状态栏显示: Gradle sync finished
+```
+
+#### 4. 创建虚拟设备
+
+**方法 A：使用 AVD Manager**
+```
+Tools → AVD Manager → Create Virtual Device
+```
+
+**推荐配置**:
+```
+设备名称: Pixel 5
+系统镜像:   API 35 (Android 14.0)
+RAM:        1024 MB (推荐)
+VM Heap:     256 MB
+内部存储:   2048 MB
+SD 卡:      512 MB
+```
+
+**方法 B：使用 Pixel 5 (推荐)**
+```
+设备: Pixel 5
+Android: 14.0
+包含: Google Play Store
+```
+
+#### 5. 启动模拟器
+```
+点击工具栏的 ▶ 按钮
+或按 Shift + F10
+```
+
+#### 6. 运行应用
+```
+点击 Run 按钮 (▶)
+或按 Shift + F10
+```
+
+---
+
+### 方法二：使用命令行
+
+#### 1. 启动模拟器
+```bash
+# 列出可用的模拟器
+emulator -list-avds
+
+# 启动特定模拟器
+emulator -avd Pixel_5_API_35 &
+
+# 或者使用快速模拟模式
+emulator -avd Pixel_5_API_35 -gpu host -qemu -enable-kvm
+```
+
+#### 2. 等待模拟器启动
+```bash
+# 等待 adb 连接
+adb wait-for-device
+
+# 检查设备
+adb devices
+```
+
+#### 3. 编译和安装应用
+```bash
+cd /path/to/CourtAssistant
+
+# 清理
+./gradlew clean
+
+# Debug 编译
+./gradlew assembleDebug
+
+# 安装到模拟器
+adb install -r app/build/outputs/apk/debug/app-debug.apk
+```
+
+#### 4. 启动应用
+```bash
+adb shell am start -n com.courassistant.java/.ui.MainActivity
+```
+
+---
+
+## 🧪 测试场景
+
+### 场景 1：首次启动测试
+
+**测试步骤**:
+1. 清除应用数据
+   ```bash
+   adb shell pm clear com.courassistant.java
+   ```
+
+2. 启动应用
+   ```bash
+   adb shell am start -n com.courassistant.java/.ui.MainActivity
+   ```
+
+3. **预期结果**:
+   - ✅ 显示用户引导页（4页滑动）
+   - ✅ 底部有指示点
+   - ✅ 有"跳过"按钮
+   - ✅ 有"下一步"按钮
+
+4. **验证点**:
+   - [ ] 滑动到第2页：智能短信解析
+   - [ ] 滑动到第3页：PDF文档管理
+   - [ ] 滑动到第4页：日历同步
+   - [ ] 点击"跳过"或完成
+   - [ ] 跳转到主界面
+
+---
+
+### 场景 2：权限请求测试
+
+**测试步骤**:
+1. 清除应用和 SharedPreferences
+   ```bash
+   adb shell pm clear com.courassistant.java
+   adb shell rm -rf /data/data/com.courassistant.java/shared_prefs/*
+   ```
+
+2. 启动应用
+
+3. **预期结果**:
+   - ✅ 显示权限请求引导
+   - ✅ 分步请求权限：
+     1. 短信权限
+     2. 日历权限
+     3. 存储权限
+     4. 通知权限（API 33+）
+
+4. **验证点**:
+   - [ ] 每个权限有说明文字
+   - [ ] 可点击"授权"或"跳过"
+   - [ ] 被拒后可跳转到设置
+
+---
+
+### 场景 3：主界面测试
+
+**测试步骤**:
+1. 启动应用并完成引导和权限
+
+2. **预期结果**:
+   - ✅ 显示底部导航（3个Tab）
+   - ✅ 默认选中"短信"Tab
+   - ✅ 宋氏美学配色
+   - ✅ 衬线字体显示
+
+3. **验证点**:
+   - [ ] 短信Tab：显示分类菜单（7个类别）
+   - [ ] 文档Tab：显示分组文档列表
+   - [ ] 设置Tab：显示设置选项
+
+---
+
+### 场景 4：短信功能测试
+
+**测试步骤**:
+1. 导航到"短信"Tab
+
+2. 模拟接收法院短信：
+   ```bash
+   adb shell am broadcast -a android.provider.Telephony.SMS_RECEIVED \
+     --es pdus "BATCH" \
+     --ee sender "\"10690000\"" \
+     --ee extras "string:【北京市第一中级人民法院】您有案件(2024)京01民初123号将于2024年3月15日上午9:30在第三法庭开庭，请准时出席。\""
+   ```
+
+3. **预期结果**:
+   - ✅ 应用接收到短信广播
+   - ✅ 短信被解析
+   - ✅ 案号提取：(2024)京01民初123号
+   - ✅ 开庭时间识别
+   - ✅ 保存到数据库
+
+4. **验证点**:
+   - [ ] 短信出现在列表中
+   - [ ] 分类正确识别
+   - [ ] 点击短信显示详情
+   - [ ] 去重机制工作
+
+---
+
+### 场景 5：文档下载测试
+
+**前置条件**: 发送包含链接的测试短信
+
+**测试步骤**:
+1. 发送测试短信：
+   ```bash
+   adb shell am broadcast -a android.provider.Telephony.SMS_RECEIVED \
+     --es pdus "BATCH" \
+     --ee sender "\"10690000\"" \
+     --ee extras "string:【法院】请点击链接查看传票：https://example.com/summons.pdf"
+   ```
+
+2. 点击短信中的链接
+
+3. **预期结果**:
+   - ✅ 打开 WebViewActivity
+   - ✅ 加载网页
+   - ✅ 检测到 PDF 链接
+   - ✅ 显示下载确认对话框
+
+4. **验证点**:
+   - [ ] WebView 正常加载
+   - [ ] PDF 链接被识别
+   - [ ] 下载进度显示
+   - [ ] 文件保存到存储
+
+---
+
+### 场景 6：日历同步测试
+
+**测试步骤**:
+1. 导航到"设置"Tab
+
+2. 启用自动同步
+   ```bash
+   adb shell am start -n com.courassistant.java/.ui.SettingsActivity
+   ```
+
+3. **预期结果**:
+   - ✅ 有"自动同步"开关
+   - ✅ 显示同步状态
+   - ✅ 可配置同步间隔
+
+4. **验证点**:
+   - [ ] 切换开关生效
+   - [ ] 同步服务启动
+   - [ ] 日历事件创建成功
+   - [ ] 去重检查工作
+
+---
+
+## 📊 日志和调试
+
+### 查看应用日志
+```bash
+# 实时查看
+adb logcat | grep "CourtAssistant"
+
+# 保存到文件
+adb logcat > app_log.txt
+
+# 过滤特定标签
+adb logcat -s SmsReceiver:SmsParser:PdfParser
+```
+
+### 常用 ADB 命令
+
+#### 应用管理
+```bash
+# 安装应用
+adb install app/build/outputs/apk/debug/app-debug.apk
+
+# 卸载应用
+adb uninstall com.courassistant.java
+
+# 清除数据
+adb shell pm clear com.courassistant.java
+
+# 启动应用
+adb shell am start -n com.courassistant.java/.ui.MainActivity
+
+# 停止应用
+adb shell am force-stop com.courassistant.java
+```
+
+#### 文件操作
+```bash
+# 上传文件到模拟器
+adb push local_file.txt /sdcard/
+
+# 从模拟器下载文件
+adb pull /sdcard/file.txt ./
+
+# 查看文件
+adb shell ls -l /sdcard/
+```
+
+#### 截图和录屏
+```bash
+# 截图
+adb shell screencap -p /sdcard/screen.png
+adb pull /sdcard/screen.png
+
+# 录屏（Android 4.4+）
+adb shell screenrecord /sdcard/demo.mp4
+
+# 停止录制（Ctrl+C）
+adb pull /sdcard/demo.mp4
+```
+
+---
+
+## 🐛 常见问题
+
+### 问题 1: INSTALL_FAILED_UPDATE_INCOMPATIBLE
+**原因**: 旧版本未完全卸载
+**解决**:
+```bash
+adb uninstall com.courassistant.java
+adb install app-debug.apk
+```
+
+### 问题 2: 模拟器启动慢
+**原因**: 系统资源不足
+**解决**:
+- 在 AVD Manager 中增加 RAM
+- 启用 GPU 模拟
+- 使用 x86 系统镜像（Intel CPU）
+
+### 问题 3: 应用崩溃
+**原因**: 代码错误
+**解决**:
+```bash
+# 查看崩溃日志
+adb logcat -b AndroidRuntime:E
+
+# 保存崩溃报告
+adb logcat -b AndroidRuntime:E > crash_log.txt
+```
+
+### 问题 4: 看不到模拟器
+**原因**: adb 服务未启动
+**解决**:
+```bash
+# 重启 adb
+adb kill-server
+adb start-server
+
+# 检查设备
+adb devices -l
+```
+
+---
+
+## 🔧 高级测试
+
+### 性能分析
+```bash
+# 使用 Android Profiler
+1. 在 Android Studio: View → Tool Windows → Profiler
+2. 选择进程和应用
+3. 分析 CPU、内存、网络
+
+# 使用 Systrace
+python systrace.py --time=10 -o trace.html adb
+```
+
+### 内存泄漏检测
+```bash
+# 使用 LeakCanary
+# 已在代码中集成
+
+# 使用 MAT
+1. 获取 heap dump: adb shell am dumpheap
+2. 在 Android Studio: Captures → Heap Dump
+3. 分析 dominator tree
+```
+
+### 网络测试
+```bash
+# 模拟慢速网络
+emulator -avd Pixel_5_API_35 -netspeed 512
+
+# 模拟延迟网络
+emulator -avd Pixel_5_API_35 -netdelay 200
+
+# 模拟断网
+adb shell svc wifi disable
+# 恢复
+adb shell svc wifi enable
+```
+
+---
+
+## 📝 测试检查清单
+
+### 功能测试
+- [ ] 用户引导页正常显示
+- [ ] 权限请求流程完整
+- [ ] 主界面导航正常
+- [ ] 短信监听和解析正常
+- [ ] WebView 和 PDF 下载正常
+- [ ] 文档列表显示正确
+- [ ] 日历同步功能正常
+
+### UI 测试
+- [ ] 宋氏美学配色正确
+- [ ] 衬线字体显示正确
+- [ ] 布局在不同屏幕尺寸正常
+- [ ] 图标和图片加载正确
+- [ ] 动画流畅
+
+### 性能测试
+- [ ] 应用启动时间 < 3秒
+- [ ] 界面滑动流畅（>60fps）
+- [ ] 内存使用合理
+- [ ] 无明显卡顿
+
+### 兼容性测试
+- [ ] API 26 (Android 8.0)
+- [ ] API 30 (Android 11)
+- [ ] API 33 (Android 13)
+- [ ] API 35 (Android 14)
+
+---
+
+**宋氏美学 · 单夫纯律师 制作**
+
+**测试完成后，请将结果记录到 `TEST_RESULTS.md` 文件中**

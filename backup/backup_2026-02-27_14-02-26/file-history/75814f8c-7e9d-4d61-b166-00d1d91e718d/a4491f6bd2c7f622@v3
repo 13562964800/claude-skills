@@ -1,0 +1,66 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:orientation="vertical"
+    android:padding="24dp"
+    android:background="@color/bg_rice">
+
+    <!-- 权限图标 -->
+    <ImageView
+        android:id="@+id/permission_icon"
+        android:layout_width="64dp"
+        android:layout_height="64dp"
+        android:layout_gravity="center_horizontal"
+        android:layout_marginBottom="16dp"
+        android:contentDescription="权限图标"
+        android:src="@mipmap/ic_launcher"
+        android:tint="@color/dai_cyan" />
+
+    <!-- 权限标题 -->
+    <TextView
+        android:id="@+id/permission_title"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginBottom="12dp"
+        android:gravity="center"
+        android:fontFamily="serif"
+        android:textSize="18sp"
+        android:textStyle="bold"
+        android:textColor="@color/ink_gray"
+        tools:text="短信权限" />
+
+    <!-- 权限说明 -->
+    <TextView
+        android:id="@+id/permission_message"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginBottom="16dp"
+        android:gravity="center"
+        android:lineSpacingExtra="4dp"
+        android:fontFamily="serif"
+        android:textSize="14sp"
+        android:textColor="@color/ink_light"
+        tools:text="需要读取和接收短信，以自动识别法院发送的庭审通知。" />
+
+    <!-- 分割线 -->
+    <View
+        android:layout_width="match_parent"
+        android:layout_height="1dp"
+        android:layout_marginBottom="16dp"
+        android:background="@color/divider" />
+
+    <!-- 提示信息 -->
+    <TextView
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginBottom="8dp"
+        android:gravity="center"
+        android:fontFamily="serif"
+        android:textSize="12sp"
+        android:textStyle="italic"
+        android:textColor="@color/ink_light"
+        android:text="点击「授权」允许，或「跳过」暂时拒绝（可能影响功能）" />
+
+</LinearLayout>

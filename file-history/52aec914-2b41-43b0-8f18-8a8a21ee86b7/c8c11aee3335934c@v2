@@ -1,0 +1,8 @@
+# tests/test_web_auth_provider.py
+import os
+
+def test_layout_has_auth_provider():
+    path = os.path.join(os.path.dirname(__file__), '../apps/web/app/layout.tsx')
+    content = open(path, encoding='utf-8').read()
+    assert 'AuthProvider' in content
+    assert 'auth-context' in content

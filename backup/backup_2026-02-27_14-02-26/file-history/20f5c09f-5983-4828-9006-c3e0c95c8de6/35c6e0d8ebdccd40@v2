@@ -1,0 +1,259 @@
+package com.multilanglearner.data.network
+
+import android.util.Log
+import com.multilanglearner.domain.model.AIConfig
+import com.multilanglearner.domain.model.WordTimestamp
+import kotlinx.serialization.Serializable
+import kotlinx.serialization.json.*
+import okhttp3.*
+import okhttp3.MediaType.Companion.toMediaType
+import okhttp3.RequestBody.Companion.asRequestBody
+import okhttp3.RequestBody.Companion.toRequestBody
+import java.io.File
+import java.util.concurrent.TimeUnit
+import javax.inject.Inject
+import javax.inject.Singleton
+
+@Serializable
+data class WhisperResult(
+    val success: Boolean,
+    val text: String = "",
+    val words: List<WordTimestamp> = emptyList(),
+    val detectedLang: String = "",
+    val error: String = ""
+)
+
+@Singleton
+class WhisperService @Inject constructor() {
+    private val client = OkHttpClient.Builder()
+        .connectTimeout(15, TimeUnit.SECONDS)  // 减少连接超时，加快重试
+        .readTimeout(600, TimeUnit.SECONDS)    // 增加读取超时，支持长音频
+        .writeTimeout(120, TimeUnit.SECONDS)   // 增加写入超时
+        .retryOnConnectionFailure(true)        // 启用自动重试
+        .build()
+
+    private val json = Json { ignoreUnknownKeys = true }
+
+    // Groq API 文件大小限制（官方限制 25MB，设置安全值）
+    // 参考：https://console.groq.com/docs/speech-to-text
+    private val MAX_FILE_SIZE = 25 * 1024 * 1024L
+    private val MIN_FILE_SIZE = 1024L // 最小 1KB，避免空文件或太小的文件
+
+    // 最大重试次数
+    private val MAX_RETRIES = 3
+
+    /**
+     * Transcribe audio via Groq Whisper API
+     * 优先使用 groqApiKey，其次使用 provider 为 groq 时的 apiKey
+     * 添加自动重试机制，包括 API 配额限制处理
+     */
+    suspend fun transcribeGroq(audioFile: File, config: AIConfig, lang: String? = null): WhisperResult? {
+        // 自动重试逻辑
+        var lastError: Exception? = null
+        repeat(MAX_RETRIES) { attempt ->
+            if (attempt > 0) {
+                Log.d("WhisperService", "Retry $attempt/$MAX_RETRIES")
+                kotlinx.coroutines.delay(2000L * attempt) // 递增延迟
+            }
+
+            val result = transcribeGroqInternal(audioFile, config, lang)
+            if (result?.success == true) {
+                return result
+            }
+            lastError = Exception(result?.error ?: "Unknown error")
+        }
+
+        // 所有重试都失败
+        return WhisperResult(
+            success = false,
+            error = "❌ 转录失败（已重试 $MAX_RETRIES 次）\n\n${lastError?.message ?: "未知错误"}\n\n建议：检查网络连接和 API Key 配置"
+        )
+    }
+
+    /**
+     * 检查是否是速率限制错误（429）
+     * 从错误消息中提取需要等待的时间（秒）
+     */
+    fun isRateLimitError(errorMsg: String): Pair<Boolean, Int> {
+        val rateLimitPattern = Regex("Please try again in (\\d+)s")
+        val match = rateLimitPattern.find(errorMsg)
+        return if (match != null) {
+            val seconds = match.groupValues[1].toIntOrNull() ?: 0
+            Pair(true, seconds)
+        } else {
+            Pair(false, 0)
+        }
+    }
+
+    /**
+     * 内部转录实现
+     */
+    private suspend fun transcribeGroqInternal(audioFile: File, config: AIConfig, lang: String? = null): WhisperResult? {
+        // 获取 Groq API Key：优先使用专门的 groqApiKey，其次检查 provider 是否为 groq
+        val apiKey = config.groqApiKey.takeIf { it.isNotBlank() }
+            ?: (config.apiKey.takeIf { config.provider == "groq" && it.isNotBlank() })
+            ?: return WhisperResult(success = false, error = "❌ 未配置 Groq API Key\n\n请前往「AI 设置」配置 Groq API Key。\n获取 API Key：https://console.groq.com/keys")
+
+        val whisperModel = config.whisperModel.ifBlank { "whisper-large-v3-turbo" }
+
+        // 检查文件大小
+        val fileSize = audioFile.length()
+        Log.d("WhisperService", "File size: $fileSize bytes, max: $MAX_FILE_SIZE")
+
+        // 检查最小文件大小
+        if (fileSize < MIN_FILE_SIZE) {
+            Log.e("WhisperService", "File too small: $fileSize bytes (min: $MIN_FILE_SIZE)")
+            return WhisperResult(
+                success = false,
+                error = "❌ 视频文件过小\n\n文件大小: ${fileSize / 1024} KB\n最小要求: 1 KB\n\n建议：请使用包含音频内容的有效视频文件"
+            )
+        }
+
+        if (fileSize > MAX_FILE_SIZE) {
+            val sizeMB = String.format("%.2f", fileSize / 1024.0 / 1024.0)
+            Log.e("WhisperService", "File too large: $sizeMB MB (max: 25 MB)")
+            return WhisperResult(
+                success = false,
+                error = "❌ 视频文件过大\n\n文件大小: $sizeMB MB\nGroq 限制: 25 MB\n\n建议解决方案：\n1. 应用会自动分段处理大文件\n2. 如果仍然失败，请使用较短的视频\n3. 或在设置中切换到其他 AI 提供商"
+            )
+        }
+
+        Log.d("WhisperService", "Starting transcription with Groq Whisper: model=$whisperModel, file=${audioFile.name}, size=$fileSize")
+
+        // 根据语言设置合适的 prompt，引导 Whisper 更准确地识别
+        val prompt = when (lang) {
+            "en" -> "Transcribe accurately with proper punctuation and capitalization."
+            "ja" -> "正確に句読点を付けて書き起こしてください。"
+            "ko" -> "정확하게 구두점을 포함하여 전사하세요."
+            "ru" -> "Транскрибируйте точно с правильной пунктуацией."
+            "th" -> "ถอดความอย่างถูกต้องพร้อมเครื่องหมายวรรคตอนที่เหมาะสม"
+            "vi" -> "Phiên âm chính xác với dấu câu đúng."
+            "ms" -> "Transkripsi dengan tepat dan tanda baca yang betul."
+            "id" -> "Transkripsikan dengan akurat dan tanda baca yang benar."
+            "ar" -> "انسخ بدقة مع علامات الترقيم الصحيحة."
+            "pt" -> "Transcreva com precisão e pontuação correta."
+            "es" -> "Transcribe con precisión y puntuación correcta."
+            "fr" -> "Transcrire avec précision et ponctuation correcte."
+            "de" -> "Transkribieren Sie genau mit korrekter Zeichensetzung."
+            "hi" -> "सटीक विराम चिह्नों के साथ सही ढंग से लिप्यंतरण करें।"
+            "zh" -> "准确转录，使用正确的标点符号。"
+            else -> "Transcribe accurately with proper punctuation and capitalization."
+        }
+
+        val bodyBuilder = MultipartBody.Builder().setType(MultipartBody.FORM)
+            .addFormDataPart("file", audioFile.name, audioFile.asRequestBody("application/octet-stream".toMediaType()))
+            .addFormDataPart("model", whisperModel)
+            .addFormDataPart("response_format", "verbose_json")
+            .addFormDataPart("timestamp_granularities[]", "word")
+            .addFormDataPart("timestamp_granularities[]", "segment")
+            .addFormDataPart("temperature", "0")
+            .addFormDataPart("prompt", prompt)
+
+        lang?.let { bodyBuilder.addFormDataPart("language", it) }
+
+        val request = Request.Builder()
+            .url("https://api.groq.com/openai/v1/audio/transcriptions")
+            .addHeader("Authorization", "Bearer $apiKey")
+            .post(bodyBuilder.build())
+            .build()
+
+        return try {
+            Log.d("WhisperService", "Sending request to Groq API...")
+            val response = client.newCall(request).execute()
+
+            Log.d("WhisperService", "Response code: ${response.code}")
+
+            if (response.code != 200) {
+                val errorBody = response.body?.string() ?: "Unknown error"
+                Log.e("WhisperService", "API error: $errorBody")
+
+                // 解析错误信息
+                val errorMsg = try {
+                    val errorJson = json.parseToJsonElement(errorBody).jsonObject
+                    val errObj = errorJson["error"]?.jsonObject
+                    val errMsg = errObj?.get("message")?.jsonPrimitive?.contentOrNull
+                    val errType = errObj?.get("type")?.jsonPrimitive?.contentOrNull
+                    val errCode = errObj?.get("code")?.jsonPrimitive?.contentOrNull
+
+                    when {
+                        errMsg?.contains("invalid_api_key", ignoreCase = true) == true ||
+                        errMsg?.contains("Unauthorized", ignoreCase = true) == true ||
+                        response.code == 401 ->
+                            "❌ API Key 无效\n\n请检查 Groq API Key 是否正确配置\n\n获取 API Key：https://console.groq.com/keys"
+                        errMsg?.contains("quota", ignoreCase = true) == true ||
+                        errMsg?.contains("limit", ignoreCase = true) == true ||
+                        errMsg?.contains("rate_limit", ignoreCase = true) == true ||
+                        response.code == 429 ->
+                            "❌ API 配额已用完\n\nGroq API 使用次数已达限制\n\n建议：\n1. 等待配额重置\n2. 更换 API Key\n3. 升级 Groq 账户"
+                        errMsg?.contains("forbidden", ignoreCase = true) == true ||
+                        errMsg?.contains("banned", ignoreCase = true) == true ||
+                        response.code == 403 ->
+                            "❌ 转录被禁止\n\n${errMsg ?: "访问被限制"}\n\n可能原因：\n1. API Key 被禁用\n2. 账户存在违规行为\n3. 内容不符合使用条款"
+                        else -> "❌ 转录失败 ($response.code)\n\n${errMsg ?: errorBody}"
+                    }
+                } catch (e: Exception) {
+                    "❌ 转录失败\n\n${errorBody.take(200)}"
+                }
+
+                return WhisperResult(success = false, error = errorMsg)
+            }
+
+            val body = response.body?.string() ?: return WhisperResult(success = false, error = "空响应")
+            Log.d("WhisperService", "Response length: ${body.length}")
+            Log.d("WhisperService", "Response body preview: ${body.take(500)}")
+
+            // 检查响应是否为有效的 JSON
+            if (!body.trim().startsWith("{") && !body.trim().startsWith("[")) {
+                Log.e("WhisperService", "Response is not valid JSON: ${body.take(200)}")
+                return WhisperResult(
+                    success = false,
+                    error = "❌ API 返回格式错误\n\nGroq API 返回了非 JSON 格式的响应。\n\n响应内容：\n${body.take(500)}"
+                )
+            }
+
+            try {
+                val jsonObj = json.parseToJsonElement(body).jsonObject
+                val text = jsonObj["text"]?.jsonPrimitive?.contentOrNull ?: ""
+                val detectedLang = jsonObj["language"]?.jsonPrimitive?.contentOrNull ?: ""
+
+                Log.d("WhisperService", "Transcribed text length: ${text.length}, detected language: $detectedLang")
+
+                val words = jsonObj["words"]?.jsonArray?.map { w ->
+                    val obj = w.jsonObject
+                    WordTimestamp(
+                        w = obj["word"]?.jsonPrimitive?.contentOrNull ?: "",
+                        s = (obj["start"]?.jsonPrimitive?.doubleOrNull ?: 0.0),
+                        e = (obj["end"]?.jsonPrimitive?.doubleOrNull ?: 0.0)
+                    )
+                } ?: emptyList()
+
+                Log.d("WhisperService", "Word timestamps count: ${words.size}")
+
+                WhisperResult(
+                    success = true,
+                    text = text,
+                    words = words,
+                    detectedLang = detectedLang
+                )
+            } catch (e: Exception) {
+                Log.e("WhisperService", "JSON parsing error", e)
+                Log.e("WhisperService", "Response body: $body")
+                WhisperResult(
+                    success = false,
+                    error = "❌ 响应解析失败\n\nGroq API 返回了无法解析的响应。\n\n错误: ${e.message}\n\n响应内容：\n${body.take(500)}"
+                )
+            }
+        } catch (e: Exception) {
+            Log.e("WhisperService", "Transcription error", e)
+            val errorMsg = when {
+                e.message?.contains("timeout", ignoreCase = true) == true ->
+                    "❌ 请求超时\n\n网络连接超时，请检查网络连接后重试。"
+                e.message?.contains("Unable to resolve host", ignoreCase = true) == true ||
+                e.message?.contains("UnknownHost", ignoreCase = true) == true ->
+                    "❌ 网络连接失败\n\n无法连接到 Groq API 服务器，请检查网络连接。"
+                else -> "❌ 转录失败\n\n${e.message ?: "未知错误"}\n\n请检查网络连接和 API Key 配置后重试。"
+            }
+            WhisperResult(success = false, error = errorMsg)
+        }
+    }
+}

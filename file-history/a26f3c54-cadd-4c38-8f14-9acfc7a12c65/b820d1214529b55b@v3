@@ -1,0 +1,125 @@
+package com.ai.hotspot.presentation.settings
+
+import androidx.lifecycle.ViewModel
+import androidx.lifecycle.viewModelScope
+import com.ai.hotspot.data.local.UserPrefsManager
+import com.ai.hotspot.data.local.entity.CustomRssEntity
+import com.ai.hotspot.domain.model.LLMConfig
+import com.ai.hotspot.domain.model.LLMProvider
+import com.ai.hotspot.domain.repository.IHotspotRepository
+import dagger.hilt.android.lifecycle.HiltViewModel
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.update
+import kotlinx.coroutines.launch
+import javax.inject.Inject
+
+data class SettingsState(
+    val keywords: String = "",
+    val customRssSources: List<CustomRssEntity> = emptyList(),
+    val selectedProvider: LLMProvider = LLMProvider.DEEPSEEK,
+    val apiKey: String = "",
+    val selectedModel: String = "",
+    val retentionDays: Int = 7
+)
+
+@HiltViewModel
+class SettingsViewModel @Inject constructor(
+    private val userPrefsManager: UserPrefsManager,
+    private val repository: IHotspotRepository
+) : ViewModel() {
+
+    private val _state = MutableStateFlow(SettingsState())
+    val state = _state.asStateFlow()
+
+    init {
+        loadPrefs()
+        loadCustomRss()
+    }
+
+    private fun loadPrefs() {
+        viewModelScope.launch {
+            userPrefsManager.keywords.collect { kw ->
+                _state.update { it.copy(keywords = kw) }
+            }
+        }
+        viewModelScope.launch {
+            userPrefsManager.llmProvider.collect { provider ->
+                _state.update {
+                    it.copy(
+                        selectedProvider = provider,
+                        selectedModel = it.selectedModel.ifEmpty {
+                            LLMConfig.defaultModels[provider] ?: ""
+                        }
+                    )
+                }
+            }
+        }
+        viewModelScope.launch {
+            userPrefsManager.llmApiKey.collect { key ->
+                _state.update { it.copy(apiKey = key) }
+            }
+        }
+        viewModelScope.launch {
+            userPrefsManager.llmModel.collect { model ->
+                if (model.isNotEmpty()) {
+                    _state.update { it.copy(selectedModel = model) }
+                }
+            }
+        }
+        viewModelScope.launch {
+            userPrefsManager.retentionDays.collect { days ->
+                _state.update { it.copy(retentionDays = days) }
+            }
+        }
+    }
+
+    private fun loadCustomRss() {
+        viewModelScope.launch {
+            repository.getCustomRssSources().collect { sources ->
+                _state.update { it.copy(customRssSources = sources) }
+            }
+        }
+    }
+
+    fun updateKeywords(keywords: String) {
+        _state.update { it.copy(keywords = keywords) }
+        viewModelScope.launch { userPrefsManager.setKeywords(keywords) }
+    }
+
+    fun addRssSource(url: String, name: String) {
+        viewModelScope.launch { repository.addCustomRssSource(url, name) }
+    }
+
+    fun deleteRssSource(id: Long) {
+        viewModelScope.launch { repository.deleteCustomRssSource(id) }
+    }
+
+    fun selectProvider(provider: LLMProvider) {
+        val defaultModel = LLMConfig.defaultModels[provider] ?: ""
+        _state.update { it.copy(selectedProvider = provider, selectedModel = defaultModel) }
+        viewModelScope.launch {
+            userPrefsManager.setLlmProvider(provider)
+            userPrefsManager.setLlmModel(defaultModel)
+        }
+    }
+
+    fun updateApiKey(key: String) {
+        _state.update { it.copy(apiKey = key) }
+        viewModelScope.launch { userPrefsManager.setLlmApiKey(key) }
+    }
+
+    fun selectModel(model: String) {
+        _state.update { it.copy(selectedModel = model) }
+        viewModelScope.launch { userPrefsManager.setLlmModel(model) }
+    }
+
+    fun clearCache() {
+        viewModelScope.launch { repository.clearOldData(0) }
+    }
+
+    fun setRetentionDays(days: Int) {
+        _state.update { it.copy(retentionDays = days) }
+        viewModelScope.launch { userPrefsManager.setRetentionDays(days) }
+    }
+}

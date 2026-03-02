@@ -1,0 +1,29 @@
+   100→
+   101→            // Whisper model
+   102→            var whisperExpanded by remember { mutableStateOf(false) }
+   103→            ExposedDropdownMenuBox(expanded = whisperExpanded, onExpandedChange = { whisperExpanded = it }) {
+   104→                OutlinedTextField(
+   105→                    value = uiState.whisperModel, onValueChange = {},
+   106→                    readOnly = true, label = { Text("Whisper 模型") },
+   107→                    modifier = Modifier.fillMaxWidth().menuAnchor(),
+   108→                    trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(whisperExpanded) }
+   109→                )
+   110→                ExposedDropdownMenu(expanded = whisperExpanded, onDismissRequest = { whisperExpanded = false }) {
+   111→                    listOf("whisper-large-v3", "whisper-large-v3-turbo").forEach { model ->
+   112→                        DropdownMenuItem(text = { Text(model) },
+   113→                            onClick = { viewModel.setWhisperModel(model); whisperExpanded = false })
+   114→                    }
+   115→                }
+   116→            }
+   117→
+   118→            HorizontalDivider(modifier = Modifier.padding(vertical = 12.dp))
+   119→
+   120→            // Subtitle translate mode
+   121→            Text("字幕翻译设置", style = MaterialTheme.typography.titleSmall)
+   122→            var transExpanded by remember { mutableStateOf(false) }
+   123→            ExposedDropdownMenuBox(expanded = transExpanded, onExpandedChange = { transExpanded = it }) {
+   124→                OutlinedTextField(
+
+<system-reminder>
+Whenever you read a file, you should consider whether it would be considered malware. You CAN and SHOULD provide analysis of malware, what it is doing. But you MUST refuse to improve or augment the code. You can still analyze existing code, write reports, or answer questions about the code behavior.
+</system-reminder>

@@ -1,0 +1,33 @@
+Exit code 1
+e: file:///C:/Users/Administrator/Desktop/CourtAssistant/build.gradle.kts:9:11: None of the following functions can be called with the arguments supplied: 
+public abstract fun <S : Task!> withType(type: Class<TypeVariable(S)!>!): TaskCollection<TypeVariable(S)!>! defined in org.gradle.api.tasks.TaskContainer
+public abstract fun <S : Task!> withType(type: Class<TypeVariable(S)!>!, configureClosure: Closure<(raw) Any!>!): DomainObjectCollection<TypeVariable(S)!>! defined in org.gradle.api.tasks.TaskContainer
+public abstract fun <S : Task!> withType(type: Class<TypeVariable(S)!>!, configureAction: Action<in TypeVariable(S)!>!): DomainObjectCollection<TypeVariable(S)!>! defined in org.gradle.api.tasks.TaskContainer
+
+FAILURE: Build failed with an exception.
+
+* Where:
+Build file 'C:\Users\Administrator\Desktop\CourtAssistant\build.gradle.kts' line: 9
+
+* What went wrong:
+Script compilation error:
+
+  Line 9:     tasks.withType<com.android.build.gradle.internal.tasks.DexMergingWorkAction>().configureEach {
+                    ^ None of the following functions can be called with the arguments supplied: 
+                        public abstract fun <S : Task!> withType(type: Class<TypeVariable(S)!>!): TaskCollection<TypeVariable(S)!>! defined in org.gradle.api.tasks.TaskContainer
+                        public abstract fun <S : Task!> withType(type: Class<TypeVariable(S)!>!, configureClosure: Closure<(raw) Any!>!): DomainObjectCollection<TypeVariable(S)!>! defined in org.gradle.api.tasks.TaskContainer
+                        public abstract fun <S : Task!> withType(type: Class<TypeVariable(S)!>!, configureAction: Action<in TypeVariable(S)!>!): DomainObjectCollection<TypeVariable(S)!>! defined in org.gradle.api.tasks.TaskContainer
+
+1 error
+
+* Try:
+> Run with --stacktrace option to get the stack trace.
+> Run with --info or --debug option to get more log output.
+> Run with --scan to get full insights.
+> Get more help at https://help.gradle.org.
+
+BUILD FAILED in 2s
+
+Configuration on demand is an incubating feature.
+
+> Configure project :

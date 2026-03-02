@@ -1,0 +1,147 @@
+@echo off
+chcp 65001 >nul
+setlocal enabledelayedexpansion
+
+title 华为手机 ADB 连接助手
+color 0A
+
+echo ========================================================
+echo           华为 Mate X5 ADB 连接助手
+echo ========================================================
+echo.
+
+:: 检查 ADB
+where adb >nul 2>&1
+if errorlevel 1 (
+    echo [错误] 未找到 ADB
+    echo.
+    echo 请安装 Android Platform Tools
+    echo 下载: https://developer.android.com/tools/releases/platform-tools
+    echo.
+    pause
+    exit /b 1
+)
+
+echo [1/5] 重启 ADB 服务...
+adb kill-server >nul 2>&1
+timeout /t 1 /nobreak >nul
+adb start-server >nul 2>&1
+timeout /t 1 /nobreak >nul
+echo ✓ 完成
+echo.
+
+echo [2/5] 检查 USB 连接...
+adb devices
+echo.
+
+echo [3/5] 等待设备授权（最多等待 120 秒）...
+echo --------------------------------------------------------
+echo.
+echo 📱 请在华为 Mate X5 上操作：
+echo.
+echo ┌─────────────────────────────────────────────┐
+echo │ 1. 设置 → 系统和更新 → 开发人员选项        │
+echo │ 2. 开启「USB 调试」                         │
+echo │ 3. 弹窗时勾选「始终允许」                  │
+echo │ 4. 点击「允许」                             │
+echo └─────────────────────────────────────────────┘
+echo.
+echo --------------------------------------------------------
+echo.
+
+set /a count=0
+set /a max_wait=120
+
+:WAIT_LOOP
+set /a count+=1
+
+:: 检查已授权设备
+set found=0
+for /f "skip=1 tokens=2" %%a in ('adb devices') do (
+    if "%%a"=="device" set found=1
+)
+
+if !found!==1 (
+    goto SUCCESS
+)
+
+echo   等待中... [!count!/!max_wait!秒]
+
+if !count! geq %max_wait% (
+    goto TIMEOUT
+)
+
+timeout /t 1 /nobreak >nul
+goto WAIT_LOOP
+
+:SUCCESS
+echo.
+echo ========================================================
+echo                   ✅ 连接成功！
+echo ========================================================
+echo.
+
+:: 获取设备信息
+for /f "delims=" %%i in ('adb shell getprop ro.product.model 2^>nul') do set MODEL=%%i
+for /f "delims=" %%i in ('adb shell getprop ro.product.manufacturer 2^>nul') set MAKER=%%i
+for /f "delims=" %%i in ('adb shell "getprop ro.build.version.release" 2^>nul') set VER=%%i
+
+echo    设备: %MAKER% %MODEL%
+echo    系统: Android %VER%
+echo.
+
+echo ========================================================
+echo              🎉 现在可以使用以下功能
+echo ========================================================
+echo.
+echo  📺 投屏（推荐安装 scrcpy）:
+echo     scrcpy
+echo.
+echo  📸 截图:
+echo     adb shell screencap -p /sdcard/screen.png
+echo     adb pull /sdcard/screen.png ./
+echo.
+echo  🎥 录屏:
+echo     adb shell screenrecord /sdcard/video.mp4
+echo     adb pull /sdcard/video.mp4 ./
+echo.
+echo  📁 传输文件:
+echo     adb push ./file.txt /sdcard/
+echo     adb pull /sdcard/file.txt ./
+echo.
+echo  📱 安装应用:
+echo     adb install app.apk
+echo.
+echo ========================================================
+echo.
+goto END
+
+:TIMEOUT
+echo.
+echo ========================================================
+echo                   ⏱️  等待超时
+echo ========================================================
+echo.
+echo 💡 故障排查：
+echo.
+echo 1. 检查 USB 线是否为数据线（非充电线）
+echo.
+echo 2. 在手机上下滑通知栏，点击 USB 充电通知
+echo    选择「文件传输」或「MTP」模式
+echo.
+echo 3. 确保「开发人员选项」中已开启：
+echo    • USB 调试
+echo    • USB 模拟点击（可选）
+echo.
+echo 4. 尝试更换 USB 端口
+echo.
+echo 5. 重新插拔 USB 线
+echo.
+echo 运行以下命令查看详细状态：
+echo    adb devices -l
+echo.
+goto END
+
+:END
+echo.
+pause

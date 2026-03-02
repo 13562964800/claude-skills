@@ -1,0 +1,388 @@
+# CourtAssistant 真机测试指南
+
+**宋氏美学 · 单夫纯律师 制作**
+
+---
+
+## 📱 真机测试准备
+
+### 第一步：启用开发者选项
+
+**Android 设备上操作**：
+1. 打开"设置"
+2. 滑动到底部
+3. 点击"关于手机"
+4. 连续点击"版本号" 7次
+5. 返回设置
+6. 在"系统"中找到"开发者选项"
+7. 开启"USB 调试"
+
+---
+
+### 第二步：连接手机到电脑
+
+**方法 A：使用 USB 数据线**
+1. 使用 USB 线连接手机和电脑
+2. 手机上选择"文件传输"模式
+3. 允许 USB 调试授权（弹窗）
+
+**验证连接**：
+```bash
+adb devices
+# 应该显示你的设备序列号
+```
+
+---
+
+### 第三步：编译安装 Debug 版本
+
+**在项目目录执行**：
+```bash
+cd /path/to/CourtAssistant
+
+# 清理旧构建
+./gradlew clean
+
+# 编译 Debug APK
+./gradlew assembleDebug
+
+# 安装到手机
+adb install -r app/build/outputs/apk/debug/app-debug.apk
+```
+
+**或者使用 Android Studio**：
+1. 打开项目
+2. 点击 Run 按钮（▶）
+3. 选择你的手机设备
+
+---
+
+## 🧪 测试场景清单
+
+### ✅ 首次启动测试
+
+**预期结果**：
+- [ ] 显示用户引导页（4页滑动）
+- [ ] 底部指示点显示当前页
+- [ ] "跳过"按钮在左上角
+- [ ] "下一步"按钮在右下角
+
+**测试步骤**：
+1. 向左滑动查看第2页（智能短信解析）
+2. 向左滑动查看第3页（PDF文档管理）
+3. 向左滑动查看第4页（日历同步）
+4. 点击"跳过"或"开始使用"
+
+**验证点**：
+- 页面切换流畅无卡顿
+- 宋氏美学配色正确显示
+- 图标清晰显示
+- 衬线字体正确显示
+
+---
+
+### ✅ 主界面测试
+
+**短信 Tab 测试**：
+1. 检查默认选中"短信"Tab
+2. 查看横向分类菜单（7个类别）
+3. 验证宋氏美学配色
+4. 检查短信列表是否为空（初次）
+
+**文档 Tab 测试**：
+1. 点击切换到"文档"Tab
+2. 检查文档分组显示
+3. 验证可展开/折叠
+
+**设置 Tab 测试**：
+1. 点击切换到"设置"Tab
+2. 检查设置项显示
+
+---
+
+### ✅ 短信功能测试
+
+**测试方法 A：模拟接收短信**
+
+**在电脑上执行**：
+```bash
+# 方法1: 简单测试短信
+adb shell am broadcast -a android.provider.Telephony.SMS_RECEIVED \
+  --es pdus "[BATCH]" \
+  --ee sender "10690000" \
+  --ee extras "string:测试短信"
+
+# 方法2: 法院短信（带案号）
+adb shell am broadcast -a android.provider.Telephony.SMS_RECEIVED \
+  --es pdus "[BATCH]" \
+  --ee sender "10690000" \
+  --ee extras "string:【北京市第一中级人民法院】您有案件(2024)京01民初123号将于2024年3月15日上午9:30在第三法庭开庭，请准时出席。"
+
+# 方法3: 带链接的短信
+adb shell am broadcast -a android.provider.Telephony.SMS_RECEIVED \
+  --es pdus "[BATCH]" \
+  --ee sender "10690000" \
+  --ee extras "string:【法院】请点击链接下载传票：https://example.com/document.pdf"
+```
+
+**测试方法 B：真实短信**
+1. 请朋友发送包含法院关键词的短信
+2. 或使用在线短信模拟工具
+3. 或使用另一个手机发送
+
+**预期结果**：
+- [ ] 应用接收到短信广播
+- [ ] 短信被正确解析
+- [ ] 案号提取正确：(2024)京01民初123号
+- [ ] 开庭时间识别正确
+- [ ] 法院名称识别正确
+- [ ] 保存到数据库
+- [ ] 短信列表显示新消息
+- [ ] 显示分类图标
+
+---
+
+### ✅ PDF 下载测试
+
+**测试步骤**：
+1. 先发送包含链接的测试短信
+2. 在短信列表中找到该短信
+3. 点击短信中的链接
+
+**预期结果**：
+- [ ] 打开 WebView 界面
+- [ ] 网页正确加载
+- [ ] PDF 链接被识别
+- [ ] 显示下载确认对话框
+- [ ] 下载进度显示
+- [ ] 文件保存成功
+
+**检查文件**：
+```bash
+# 查看 PDF 文件是否保存
+adb shell ls -lh /sdcard/Android/data/com.courassistant.java/files/Documents/
+
+# 拉取文件到电脑验证
+adb pull /sdcard/Android/data/com.courassistant.java/files/Documents/test.pdf .
+```
+
+---
+
+### ✅ 日历同步测试
+
+**测试步骤**：
+1. 切换到"设置"Tab
+2. 找到"自动同步"开关
+3. 打开开关
+
+**预期结果**：
+- [ ] 开关状态改变
+- [ ] 设置被保存
+- [ ] 日历事件被创建
+- [ ] 案号+开庭时间在日历中可见
+
+**验证日历**：
+```bash
+# 查看日历事件
+adb shell content query --uri content://com.android.calendar/events
+
+# 或在手机日历应用中查看
+```
+
+---
+
+### ✅ 性能监控
+
+**查看应用内存**：
+```bash
+# 查看内存使用
+adb shell dumpsys meminfo com.courassistant.java | grep TOTAL
+```
+
+**查看 CPU 使用**：
+```bash
+# 查看应用 CPU 使用
+adb shell top -n 1 | grep com.courassistant.java
+```
+
+**预期结果**：
+- [ ] 内存使用 < 200MB
+- [ ] CPU 空闲时 < 5%
+- [ ] 界面滑动流畅（60fps）
+
+---
+
+### ✅ 错误处理测试
+
+**测试场景**：
+1. 断开网络连接后打开文档
+2. 存储空间已满时下载 PDF
+3. 权限被拒绝时操作功能
+
+**预期结果**：
+- [ ] 显示友好的错误提示
+- [ ] Toast 提示清晰
+- [ ] 应用不会崩溃
+- [ ] 日志中记录错误
+
+---
+
+## 📸 截图和录屏
+
+### 截图关键界面
+
+```bash
+# 安装应用后截图
+adb shell screencap -p /sdcard/screenshot_01_install.png
+adb pull /sdcard/screenshot_01_install.png
+
+# 引导页截图
+adb shell screencap -p /sdcard/screenshot_02_onboarding.png
+adb pull /sdcard/screenshot_02_onboarding.png
+
+# 主界面截图
+adb shell screencap -p /sdcard/screenshot_03_main.png
+adb pull /sdcard/screenshot_03_main.png
+
+# 短信界面截图
+adb shell screencap -p /sdcard/screenshot_04_sms.png
+adb pull /sdcard/screenshot_04_sms.png
+
+# 文档界面截图
+adb shell screencap -p /sdcard/screenshot_05_docs.png
+adb pull /sdcard/screenshot_05_docs.png
+
+# 设置界面截图
+adb shell screencap -p /sdcard/screenshot_06_settings.png
+adb pull /sdcard/screenshot_06_settings.png
+```
+
+### 录制关键流程
+
+```bash
+# 首次启动流程录屏（推荐）
+adb shell screenrecord /sdcard/first_launch_demo.mp4
+
+# 执行以下操作：
+# 1. 启动应用（清除数据）
+# 2. 查看引导页
+# 3. 点击跳过
+# 4. 查看主界面
+# 5. 接收测试短信
+# 6. 点击短信查看详情
+# 7. 返回主界面
+# 8. 切换到文档 Tab
+# 9. 切换到设置 Tab
+# 10. 开启自动同步
+
+# 按 Ctrl+C 停止录制（约2-3分钟）
+adb pull /sdcard/first_launch_demo.mp4 .
+```
+
+---
+
+## 🐛 常见问题
+
+### 问题 1：INSTALL_FAILED_UPDATE_INCOMPATIBLE
+**原因**：手机上已安装更高版本
+**解决**：
+```bash
+adb uninstall com.courassistant.java
+adb install app-debug.apk
+```
+
+### 问题 2：设备未授权
+**原因**：手机未启用 USB 调试
+**解决**：
+1. 撤销 USB 调试授权
+2. 重新连接 USB
+3. 再次勾选"USB 调试"
+
+### 问题 3：adb 找不到设备
+**原因**：驱动问题或 USB 连接问题
+**解决**：
+1. 更换 USB 线
+2. 更换 USB 接口
+3. 重启 adb 服务：
+```bash
+adb kill-server
+adb start-server
+```
+
+### 问题 4：应用安装后无法打开
+**原因**：兼容性问题
+**解决**：
+1. 检查 Android 版本（需 8.0+）
+2. 查看 logcat 日志：
+```bash
+adb logcat -s AndroidRuntime:E CourtAssistant | grep -i "error"
+```
+
+---
+
+## 📊 测试报告模板
+
+### 测试环境
+```
+设备型号: _____________
+Android 版本: _____________
+API Level: _____________
+RAM: _____________
+测试日期: _____________
+```
+
+### 测试结果
+
+| 功能 | 通过 | 失败 | 备注 |
+|------|------|------|------|
+| 首次启动 | ⬜ | ⬜ | |
+| 主界面 | ⬜ | ⬜ | |
+| 短信功能 | ⬜ | ⬜ | |
+| PDF 下载 | ⬜ | ⬜ | |
+| 日历同步 | ⬜ | ⬜ | |
+| 设置功能 | ⬜ | ⬜ | |
+| 性能测试 | ⬜ | ⬜ | |
+
+### 发现的问题
+
+1. ______________________
+2. ______________________
+3. ______________________
+
+### 建议和改进
+
+1. ______________________
+2. ______________________
+
+---
+
+## 🎯 快速测试命令
+
+```bash
+# 一键安装测试
+./gradlew assembleDebug && adb install -r app/build/outputs/apk/debug/app-debug.apk
+
+# 一键清除重装
+adb uninstall com.courassistant.java && adb install app-debug.apk
+
+# 查看实时日志
+adb logcat -s CourtAssistant:SmsReceiver:SmsParser:PdfParser | grep -i "error\|exception"
+
+# 启动应用
+adb shell am start -n com.courassistant.java/.ui.MainActivity
+
+# 清除数据重新开始
+adb shell pm clear com.courassistant.java
+
+# 查看应用信息
+adb shell dumpsys package com.courassistant.java | head -50
+
+# 检查权限
+adb shell dumpsys package com.courassistant.java | grep -A 20 "granted=true"
+```
+
+---
+
+**宋氏美学 · 单夫纯律师 制作**
+
+真机测试准备就绪 | 请开始测试您的应用！🚀

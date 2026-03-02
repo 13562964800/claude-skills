@@ -1,0 +1,227 @@
+#!/bin/bash
+
+# CourtAssistant 模拟器测试指南
+# 宋氏美学 · 单夫纯律师 制作
+
+set -e
+
+echo "================================"
+echo "CourtAssistant 模拟器测试指南"
+echo "宋氏美学 · 单夫纯律师"
+echo "================================"
+echo ""
+
+# 颜色定义
+RED='\033[0;31m'
+GREEN='\033[0;32m'
+YELLOW='\033[1;33m'
+BLUE='\033[0;34m'
+NC='\033[0m' # No Color
+
+echo -e "${BLUE}📱 第一步：准备Android开发环境${NC}"
+echo ""
+echo "请确保已安装："
+echo "  1. Android Studio"
+echo "  2. Android SDK (API 35)"
+echo "  3. JDK 8 或更高版本"
+echo ""
+echo "检查环境："
+if command -v adb &> /dev/null; then
+    echo -e "  ${GREEN}✅${NC} adb 已安装"
+    ANDROID_SDK_ROOT=$(dirname $(dirname $(which adb)))
+    echo "  Android SDK 路径: $ANDROID_SDK_ROOT"
+else
+    echo -e "  ${RED}❌${NC} adb 未找到，请配置 Android SDK"
+    echo ""
+    echo "配置方法："
+    echo "  1. 打开 Android Studio"
+    echo "  2. Settings → Appearance & Behavior → System Settings → Android SDK"
+    echo "  3. 复制 Android SDK Location 路径"
+    echo "  4. 将路径添加到系统 PATH:"
+    echo "     export PATH=\$PATH:<SDK路径>/platform-tools:\$PATH:<SDK路径>/tools"
+    echo ""
+fi
+
+echo ""
+echo -e "${BLUE}📲 第二步：创建或选择虚拟设备${NC}"
+echo ""
+
+if command -v emulator &> /dev/null; then
+    echo "可用的模拟器："
+    emulator -list-avds 2>/dev/null || echo "  (无可用设备，需要创建)"
+    echo ""
+
+    if ! emulator -list-avds 2>/dev/null | grep -q .; then
+        echo -e "${YELLOW}⚠️  未找到可用的模拟器${NC}"
+        echo ""
+        echo "创建模拟器的方法："
+        echo "  方法1: 使用 Android Studio"
+        echo "    Tools → AVD Manager → Create Virtual Device"
+        echo "    选择设备: Pixel 5 (推荐)"
+        echo "    选择系统镜像: API 35 (Android 14)"
+        echo ""
+        echo "  方法2: 使用命令行"
+        echo "    avdmanager create avd -n \"CourtAssistant_Test\" -k \"system-images;android-35;default\""
+    fi
+else
+    echo -e "${RED}❌${NC} emulator 命令未找到"
+    echo "请使用 Android Studio 的 AVD Manager"
+fi
+
+echo ""
+echo -e "${BLUE}🚀 第三步：启动模拟器${NC}"
+echo ""
+
+echo "启动模拟器的命令："
+echo ""
+echo "  # 启动特定模拟器"
+echo "  emulator -avd <AVD名称> &"
+echo ""
+echo "  # 启动默认模拟器"
+echo "  emulator @CourtAssistant_Test &"
+echo ""
+echo "  # 使用 Android Studio"
+echo "  点击工具栏的 ▶ 按钮"
+echo ""
+
+echo -e "${BLUE}📦 第四步：编译和安装应用${NC}"
+echo ""
+
+echo "进入项目目录："
+PROJECT_DIR="/path/to/CourtAssistant"
+echo "  cd $PROJECT_DIR"
+echo ""
+
+echo "清理并编译："
+echo "  ./gradlew clean"
+echo "  ./gradlew assembleDebug"
+echo ""
+
+echo "安装到模拟器："
+echo "  adb install -r app/build/outputs/apk/debug/app-debug.apk"
+echo ""
+
+echo -e "${BLUE}🧪 第五步：运行测试${NC}"
+echo ""
+
+echo "1. 运行单元测试："
+echo "  ./gradlew test"
+echo ""
+
+echo "2. 运行集成测试："
+echo "  ./gradlew connectedAndroidTest"
+echo ""
+
+echo "3. 运行所有测试："
+echo "  ./test.sh"
+echo ""
+
+echo -e "${BLUE}📊 第六步：查看应用日志${NC}"
+echo ""
+
+echo "查看应用日志："
+echo "  adb logcat | grep -E \"CourtAssistant|AndroidRuntime\""
+echo ""
+
+echo "保存日志到文件："
+echo "  adb logcat -d > app_log.txt"
+echo ""
+
+echo -e "${BLUE}🎨 第七步：测试UI和功能${NC}"
+echo ""
+
+echo "功能测试清单："
+echo ""
+echo "  ✅ 用户引导页"
+echo "     首次启动应显示4页滑动引导"
+echo "     点击跳过后，下次启动不再显示"
+echo ""
+echo "  ✅ 主界面"
+echo "     底部导航3个Tab (短信/文档/设置)"
+echo "     检查宋氏美学配色和衬线字体"
+echo ""
+echo "  ✅ 短信功能"
+echo "     模拟发送测试短信:"
+echo "     adb shell am broadcast -a android.provider.Telephony.SMS_RECEIVED \\"
+echo "       --es pdus \"[BATCH]\" \\"
+echo "       --ei slot 0"
+echo ""
+echo "  ✅ 文档功能"
+echo "     点击短信中的PDF链接"
+echo "     验证WebView打开"
+echo "     测试PDF下载"
+echo ""
+echo "  ✅ 日历同步"
+echo "     检查日历事件是否创建"
+echo "     adb shell content query --uri content://com.android.calendar/events"
+echo ""
+
+echo -e "${BLUE}🐛 第八步：调试工具${NC}"
+echo ""
+
+echo "使用 Android Studio 调试器："
+echo "  1. 点击 Run → Debug 'app'"
+echo "  2. 设置断点"
+echo "  3. 使用 Layout Inspector 检查UI"
+echo ""
+
+echo "性能分析："
+echo "  1. CPU Profiler: View → Tool Windows → Profiler"
+echo "  2. Memory Profiler: 检查内存泄漏"
+echo "  3. Network Profiler: 检查网络请求"
+echo ""
+
+echo -e "${BLUE}📸 第九步：截图和录屏${NC}"
+echo ""
+
+echo "截图："
+echo "  adb shell screencap -p /sdcard/screenshot.png"
+echo "  adb pull /sdcard/screenshot.png"
+echo ""
+
+echo "录屏："
+echo "  adb shell screenrecord /sdcard/demo.mp4"
+echo "  # 按 Ctrl+C 停止录制"
+echo "  adb pull /sdcard/demo.mp4"
+echo ""
+
+echo -e "${GREEN}✅ 测试检查清单${NC}"
+echo ""
+
+echo "完成测试前请确认："
+echo "  ☐ 应用编译成功"
+echo "  ☐ 模拟器正常运行"
+echo "  ☐ 应用安装成功"
+echo "  ☐ 无明显崩溃"
+echo "  ☐ UI显示正常"
+echo "  ☐ 核心功能可用"
+echo ""
+
+echo -e "${YELLOW}⚠️ 常见问题${NC}"
+echo ""
+
+echo "问题1: INSTALL_FAILED_UPDATE_INCOMPATIBLE"
+echo "  解决: 卸载旧版本 adb uninstall com.courassistant.java"
+echo ""
+
+echo "问题2: adb设备未授权"
+echo "  解决: adb kill-server && adb start-server"
+echo ""
+
+echo "问题3: 模拟器启动慢"
+echo "  解决: 启用快速模拟模式"
+echo "  emulator -avd <name> -gpu host -qemu -enable-kvm"
+echo ""
+
+echo ""
+echo "================================"
+echo -e "${GREEN}🎉 测试准备完成！${NC}"
+echo "================================"
+echo ""
+echo "下一步："
+echo "  1. 打开 Android Studio"
+echo "  2. 启动模拟器"
+echo "  3. 运行测试"
+echo ""
+echo "详细测试脚本: ./test.sh"
+echo ""

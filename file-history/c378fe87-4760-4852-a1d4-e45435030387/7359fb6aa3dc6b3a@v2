@@ -1,0 +1,35 @@
+#!/usr/bin/env python3
+# -*- coding: utf-8 -*-
+"""
+主控脚本：自动生成所有剩余插图
+这个脚本会持续运行，每次生成5-10个插图，直到完成所有124个
+"""
+
+import re
+import json
+import time
+
+def get_progress():
+    """检查当前进度"""
+    with open(r'C:\Users\Administrator\AI科普画册\AI科普画册-插图进行中.md', 'r', encoding='utf-8') as f:
+        content = f.read()
+
+    # 统计已插入的SVG
+    svg_count = len(re.findall(r'<svg[^>]*>', content))
+
+    # 统计总插图数
+    total = len(re.findall(r'【插图\d+-\d+：', content))
+
+    return svg_count, total
+
+# 检查进度
+completed, total = get_progress()
+print(f"当前进度: {completed}/{total} ({completed/total*100:.1f}%)")
+print(f"剩余: {total - completed} 个插图")
+
+if completed >= total:
+    print("\n🎉 所有插图已完成！")
+else:
+    print(f"\n继续生成剩余 {total - completed} 个插图...")
+    print("提示：由于数量较多，建议分批生成")
+    print("每批生成10-15个插图，确保质量")

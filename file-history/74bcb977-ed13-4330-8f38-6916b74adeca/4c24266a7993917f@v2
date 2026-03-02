@@ -1,0 +1,36 @@
+from unittest.mock import patch
+from app.worker.celery_app import celery_app
+from app.worker.tasks import run_workflow_async
+
+
+def test_run_workflow_task_exists():
+    assert run_workflow_async is not None
+    assert run_workflow_async.name == 'app.worker.tasks.run_workflow_async'
+
+
+@patch('app.skills.base.LLMRouter.complete')
+def test_run_workflow_task_eager_execution(mock_complete):
+    """task_always_eager=True 下同步执行"""
+    mock_complete.return_value = '# 格式化后的文本\n\n测试内容'
+
+    result = run_workflow_async.delay(
+        template='legal-text-format',
+        payload={'text': '测试文本'},
+        run_id=1
+    )
+    assert result.ready()
+    data = result.result
+    assert data['status'] == 'success'
+    assert data['run_id'] == 1
+    assert 'results' in data
+
+
+def test_run_workflow_task_unknown_template():
+    result = run_workflow_async.delay(
+        template='unknown-template',
+        payload={'text': 'test'},
+        run_id=2
+    )
+    data = result.result
+    assert data['status'] == 'failed'
+    assert 'Unknown template' in data['error']

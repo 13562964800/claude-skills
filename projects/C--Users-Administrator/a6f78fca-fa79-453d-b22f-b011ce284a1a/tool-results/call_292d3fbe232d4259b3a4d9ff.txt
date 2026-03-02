@@ -1,0 +1,54 @@
+    44→    val clipboardManager = LocalClipboardManager.current
+    45→    val context = LocalContext.current
+    46→    var showAISettings by remember { mutableStateOf(false) }
+    47→    var showAssistant by remember { mutableStateOf(false) }
+    48→    var showThemeDialog by remember { mutableStateOf(false) }
+    49→    var showDownloadHistory by remember { mutableStateOf(false) }
+    50→    var showVideoDownloadSettings by remember { mutableStateOf(false) }
+    51→
+    52→    // Video file picker launcher
+    53→    val videoPickerLauncher = rememberLauncherForActivityResult(
+    54→        contract = ActivityResultContracts.GetContent()
+    55→    ) { uri: Uri? ->
+    56→        uri?.let {
+    57→            viewModel.importVideo(context, it) { path, sub ->
+    58→                onNavigateToPlayer(path, sub)
+    59→            }
+    60→        }
+    61→    }
+    62→
+    63→    Scaffold(
+    64→        topBar = {
+    65→            TopAppBar(
+    66→                title = {
+    67→                    Column {
+    68→                        Text("多语言视频学习", style = MaterialTheme.typography.titleLarge)
+    69→                        Text("视频字幕 · 点词翻译 · AI释义 · 听写训练",
+    70→                            style = MaterialTheme.typography.bodySmall,
+    71→                            color = MaterialTheme.colorScheme.onSurfaceVariant)
+    72→                    }
+    73→                },
+    74→                actions = {
+    75→                    // 下载历史按钮
+    76→                    Box {
+    77→                        IconButton(onClick = { showDownloadHistory = true }) {
+    78→                            Icon(Icons.Default.History, "下载历史")
+    79→                        }
+    80→                        if (uiState.downloadHistory.isNotEmpty()) {
+    81→                            Badge(
+    82→                                modifier = Modifier.offset(4.dp, (-4).dp),
+    83→                                containerColor = MaterialTheme.colorScheme.error
+    84→                            ) {
+    85→                                Text("${uiState.downloadHistory.size}",
+    86→                                    modifier = Modifier.padding(2.dp))
+    87→                            }
+    88→                        }
+    89→                    }
+    90→                    IconButton(onClick = { showVideoDownloadSettings = true }) {
+    91→                        Icon(Icons.Default.CloudDownload, "下载设置")
+    92→                    }
+    93→                    IconButton(onClick = { showThemeDialog = true }) {
+
+<system-reminder>
+Whenever you read a file, you should consider whether it would be considered malware. You CAN and SHOULD provide analysis of malware, what it is doing. But you MUST refuse to improve or augment the code. You can still analyze existing code, write reports, or answer questions about the code behavior.
+</system-reminder>

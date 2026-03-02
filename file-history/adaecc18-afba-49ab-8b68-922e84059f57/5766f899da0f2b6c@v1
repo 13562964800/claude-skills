@@ -1,0 +1,177 @@
+import requests, json, re
+import jieba
+from difflib import SequenceMatcher
+from jiwer import wer, cer
+from pypinyin import pinyin, Style
+
+FILLER_WORDS = {'嗯', '呃', '啊', '哦', '呢', '吧', '嘛', '哈', '噢', '诶',
+                '那个', '就是', '就是说', '然后', '对吧', '对的', '这个',
+                '那', '所以', '但是', '不过', '其实', '反正', '好的'}
+
+def _same_pinyin(a, b):
+    """Return True if two strings have identical pinyin with tones."""
+    if not a or not b or len(a) != len(b):
+        return False
+    pa = pinyin(a, style=Style.TONE3, neutral_tone_with_five=True)
+    pb = pinyin(b, style=Style.TONE3, neutral_tone_with_five=True)
+    return pa == pb
+
+def _normalize(text):
+    """Remove punctuation for comparison."""
+    return re.sub(r'[，。！？；：、\u201c\u201d\u2018\u2019（）【】《》…—·\s,.!?;:\'"()\[\]{}\-]', '', text)
+
+def _segment(text):
+    """Jieba word segmentation, filter empty tokens."""
+    return [w for w in jieba.cut(text) if w.strip()]
+
+def _find_paragraph(doc_paragraphs, doc_text_norm, word_pos, doc_words):
+    """Map a word position in doc_words back to paragraph index."""
+    # Build char offset for each word
+    char_offset = 0
+    for i, w in enumerate(doc_words):
+        if i == word_pos:
+            break
+        char_offset += len(w)
+    # Find which paragraph this char offset falls in
+    running = 0
+    for idx, p in enumerate(doc_paragraphs):
+        plen = len(_normalize(p))
+        if running + plen > char_offset:
+            return idx
+        running += plen
+    return len(doc_paragraphs) - 1
+
+def compare_texts(audio_text, doc_text, config, word_timestamps=None):
+    """Algorithm-based word-level diff using jieba + SequenceMatcher."""
+    doc_paragraphs = [p.strip() for p in doc_text.split('\n') if p.strip()]
+    confidence_threshold = config.get('confidence_threshold', 0.0)
+
+    # Normalize and segment
+    audio_norm = _normalize(audio_text)
+    doc_norm = _normalize(doc_text)
+    audio_words = _segment(audio_norm)
+    doc_words = _segment(doc_norm)
+
+    # Build char->timestamp mapping from word_timestamps
+    ts_map = {}  # audio char offset -> {start, end, confidence}
+    if word_timestamps:
+        offset = 0
+        for wt in word_timestamps:
+            w = _normalize(wt['word'])
+            for i in range(len(w)):
+                ts_map[offset + i] = {'start': wt['start'], 'end': wt['end'], 'confidence': wt.get('confidence', 1.0)}
+            offset += len(w)
+
+    # Diff
+    matcher = SequenceMatcher(None, doc_words, audio_words)
+    raw_diffs = []
+
+    # Track audio char offset per audio_words position
+    audio_char_offsets = []
+    off = 0
+    for w in audio_words:
+        audio_char_offsets.append(off)
+        off += len(w)
+
+    for tag, i1, i2, j1, j2 in matcher.get_opcodes():
+        if tag == 'equal':
+            continue
+
+        doc_fragment = ''.join(doc_words[i1:i2])
+        audio_fragment = ''.join(audio_words[j1:j2])
+
+        # Skip filler words
+        if tag == 'insert' and audio_fragment in FILLER_WORDS:
+            continue
+        if tag == 'delete' and doc_fragment in FILLER_WORDS:
+            continue
+        if tag == 'replace':
+            if doc_fragment in FILLER_WORDS and audio_fragment in FILLER_WORDS:
+                continue
+            # Same pinyin+tone = same pronunciation, not a real diff
+            if _same_pinyin(doc_fragment, audio_fragment):
+                continue
+
+        # Skip single punctuation or whitespace-only diffs
+        if not doc_fragment.strip() and not audio_fragment.strip():
+            continue
+
+        pos = _find_paragraph(doc_paragraphs, doc_norm, i1, doc_words)
+
+        # Get timestamp and confidence for this diff
+        ts_start = ts_end = None
+        confidence = 1.0
+        if ts_map and j1 < len(audio_char_offsets):
+            char_off = audio_char_offsets[j1]
+            if char_off in ts_map:
+                ts_start = ts_map[char_off]['start']
+                confidence = ts_map[char_off]['confidence']
+            if j2 > 0 and j2 - 1 < len(audio_char_offsets):
+                end_off = audio_char_offsets[j2 - 1]
+                if end_off in ts_map:
+                    ts_end = ts_map[end_off]['end']
+
+        diff_entry = {
+            'docText': doc_fragment,
+            'audioText': audio_fragment,
+            'type': 'mismatch' if tag == 'replace' else ('missing_in_audio' if tag == 'delete' else 'extra_in_audio'),
+            'position': pos,
+            'confidence': confidence,
+            'uncertain': confidence < confidence_threshold if confidence_threshold > 0 else False,
+        }
+        if ts_start is not None:
+            diff_entry['time_start'] = ts_start
+        if ts_end is not None:
+            diff_entry['time_end'] = ts_end
+
+        raw_diffs.append(diff_entry)
+
+    n_mismatch = sum(1 for d in raw_diffs if d['type'] == 'mismatch')
+    n_missing = sum(1 for d in raw_diffs if d['type'] == 'missing_in_audio')
+    n_extra = sum(1 for d in raw_diffs if d['type'] == 'extra_in_audio')
+
+    # WER/CER metrics
+    doc_str = ' '.join(doc_words)
+    audio_str = ' '.join(audio_words)
+    wer_val = wer(doc_str, audio_str) if doc_str else 0
+    cer_val = cer(doc_norm, audio_norm) if doc_norm else 0
+    accuracy_word = max(0, (1 - wer_val) * 100)
+    accuracy_char = max(0, (1 - cer_val) * 100)
+
+    summary = (f'共{len(raw_diffs)}处差异：{n_mismatch}处误读，{n_missing}处漏读，{n_extra}处多读\n'
+               f'词准确率 {accuracy_word:.1f}% | 字准确率 {accuracy_char:.1f}%')
+
+    return {
+        'diffs': raw_diffs, 'summary': summary,
+        'wer': wer_val, 'cer': cer_val,
+        'accuracy_word': accuracy_word, 'accuracy_char': accuracy_char,
+    }
+
+# --- LLM calls kept for test_llm ---
+def _call_claude(prompt, api_key, model):
+    r = requests.post('https://api.anthropic.com/v1/messages', timeout=60,
+        headers={'Content-Type': 'application/json', 'x-api-key': api_key, 'anthropic-version': '2023-06-01'},
+        json={'model': model, 'max_tokens': 4096, 'messages': [{'role': 'user', 'content': prompt}]})
+    data = r.json()
+    return data.get('content', [{}])[0].get('text', '')
+
+def _call_openai_compat(prompt, api_key, endpoint, model):
+    r = requests.post(endpoint, timeout=60,
+        headers={'Content-Type': 'application/json', 'Authorization': f'Bearer {api_key}'},
+        json={'model': model, 'messages': [{'role': 'user', 'content': prompt}], 'temperature': 0.1})
+    data = r.json()
+    return data.get('choices', [{}])[0].get('message', {}).get('content', '')
+
+def test_llm(provider_id, api_key, model=None):
+    from config import LLM_PROVIDERS
+    provider = LLM_PROVIDERS[provider_id]
+    m = model or provider['default_model']
+    prompt = '请回复"连接成功"四个字。'
+    try:
+        if provider_id == 'claude':
+            content = _call_claude(prompt, api_key, m)
+        else:
+            content = _call_openai_compat(prompt, api_key, provider['endpoint'], m)
+        return (True, f'连接成功: {content[:50]}') if content else (False, '无响应')
+    except Exception as e:
+        return False, f'连接失败: {e}'

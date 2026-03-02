@@ -1,0 +1,357 @@
+# Android 视频下载转录应用
+
+## 项目概述
+
+一个功能完善的 Android 应用，支持视频下载和智能转录，集成在线/离线混合转录引擎和 AI 辅助功能。
+
+## 核心功能
+
+### 1. 视频下载
+- 支持 YouTube、B站、抖音等 1000+ 网站
+- 使用 yt-dlp 进行视频解析和下载
+- 多线程下载，断点续传
+- 下载进度实时显示
+
+### 2. 智能转录
+
+#### 转录控制
+- ✅ **手动触发**：用户点击"开始转录"按钮
+- ✅ **可随时取消**：转录界面有取消按钮
+- ✅ **后台稳定运行**：使用 ForegroundService，离开页面继续转录
+- ✅ **实时进度显示**：返回页面后实时同步最新状态
+- ✅ **自动退出**：转录完成后延迟 2 秒自动退出界面
+- ✅ **超时检测**：每段转录超时 5 分钟，总超时 50 分钟
+- ✅ **失败提醒**：Toast + Notification 提醒用户
+
+#### 转录引擎
+
+**在线引擎 (Groq API)**
+- 模型：whisper-large-v3-turbo
+- 速度：1-2x 实时
+- 准确度：高
+- 限制：25MB 文件大小
+- 需要：网络连接 + API Key
+
+**离线引擎 (Whisper.cpp)**
+- 模型：tiny/base/small/medium
+- 速度：2-4x 实时（取决于设备）
+- 准确度：高
+- 限制：无
+- 需要：下载模型文件
+
+**混合模式（推荐）**
+- 自动选择：文件 < 20MB + 有网络 → 在线，否则 → 离线
+- 用户可配置：设置中选择默认引擎
+- 自动降级：在线失败 → 自动切换到离线
+
+#### 分段转录
+- **智能分段**：文件 > 20MB 自动切分
+- **按大小切分**：每段不超过 20MB
+- **静音点切分**：优先在静音处切分（可选）
+- **并行转录**：支持多段并行（限流 3 并发）
+- **错误重试**：失败自动重试 3 次
+- **断点续传**：支持中断后继续
+- **进度显示**：实时显示当前段/总段数
+
+#### 转录结果管理
+- ✅ **一次转录永久保存**：转录结果持久化到 Room 数据库
+- ✅ **支持重新转录**：用户可手动点击"重新转录"
+- ✅ **字幕复用**：关闭后重开可直接查看转录结果
+- ❌ **禁止自动触发**：任何情况下都不自动转录
+
+### 3. AI 辅助功能
+
+#### 查词释义
+- 输入单词 + 上下文
+- 返回：音标、词性、释义、例句、词根词缀
+
+#### 修复转录错误
+- 使用 LLM 修正拼写、语法和标点错误
+- 保持原意不变
+
+#### 生成学习笔记
+- 内容摘要（3-5 句话）
+- 关键要点（5-10 条）
+- 重要概念列表
+- 学习建议
+
+#### 句子分析
+- 句子结构分析
+- 语法要点
+- 重点词汇
+- 中文翻译
+
+#### 批量词汇分析
+- 难度分级（A1-C2）
+- 词性标注
+- 中文释义
+- 高频词标记
+
+### 4. 设置功能
+
+#### API 配置
+- Groq API Key 输入
+- 显示/隐藏 API Key
+- 测试连接功能
+- 实时验证结果
+
+#### 引擎选择
+- 自动选择
+- 仅在线
+- 仅离线
+
+#### 模型管理
+- 查看可用模型
+- 下载离线模型
+- 显示模型大小和状态
+
+## 技术架构
+
+### 架构模式
+- MVVM (Model-View-ViewModel)
+- Repository Pattern
+- Clean Architecture
+
+### 技术栈
+- **语言**：Kotlin
+- **UI**：Jetpack Compose
+- **异步**：Coroutines + Flow
+- **数据库**：Room
+- **网络**：OkHttp + Retrofit
+- **依赖注入**：Hilt (可选)
+- **导航**：Navigation Compose
+
+### 核心组件
+
+#### Service Layer
+- `TranscriptionService`：前台服务，保证转录不被杀死
+- `DownloadService`：下载服务
+
+#### Repository Layer
+- `TranscriptionRepository`：转录逻辑管理
+- `VideoRepository`：视频数据管理
+
+#### Engine Layer
+- `TranscriptionEngine`：转录引擎接口
+- `GroqEngine`：在线引擎实现
+- `WhisperCppEngine`：离线引擎实现
+
+#### AI Layer
+- `AIAssistant`：AI 辅助功能
+
+#### UI Layer
+- `TranscriptionScreen`：转录界面
+- `SettingsScreen`：设置界面
+- `VideoDetailScreen`：视频详情界面
+
+### 数据模型
+
+#### TranscriptionEntity
+```kotlin
+data class TranscriptionEntity(
+    val videoId: String,
+    val text: String,
+    val words: List<Word>,
+    val language: String,
+    val engine: String,
+    val status: TranscriptionStatus,
+    val createdAt: Long,
+    val updatedAt: Long,
+    val duration: Float,
+    val segments: List<Segment>?,
+    val errorMessage: String?
+)
+```
+
+#### Word
+```kotlin
+data class Word(
+    val word: String,
+    val start: Float,
+    val end: Float,
+    val confidence: Float?
+)
+```
+
+## 项目结构
+
+```
+app/src/main/java/com/videodownload/app/
+├── data/
+│   ├── model/
+│   │   ├── TranscriptionEntity.kt
+│   │   ├── VideoEntity.kt
+│   │   └── ...
+│   ├── dao/
+│   │   ├── TranscriptionDao.kt
+│   │   └── VideoDao.kt
+│   └── AppDatabase.kt
+│
+├── repository/
+│   ├── TranscriptionRepository.kt
+│   └── VideoRepository.kt
+│
+├── engine/
+│   ├── TranscriptionEngine.kt
+│   ├── GroqEngine.kt
+│   └── WhisperCppEngine.kt
+│
+├── ai/
+│   └── AIAssistant.kt
+│
+├── service/
+│   ├── TranscriptionService.kt
+│   └── DownloadService.kt
+│
+├── ui/
+│   ├── transcription/
+│   │   ├── TranscriptionScreen.kt
+│   │   └── TranscriptionViewModel.kt
+│   ├── settings/
+│   │   ├── SettingsScreen.kt
+│   │   └── SettingsViewModel.kt
+│   └── ...
+│
+├── utils/
+│   ├── AudioSegmenter.kt
+│   ├── FFmpegHelper.kt
+│   └── PreferenceManager.kt
+│
+└── MainActivity.kt
+```
+
+## 使用流程
+
+### 1. 首次使用
+1. 打开应用
+2. 进入设置页面
+3. 输入 Groq API Key
+4. 点击"测试连接"验证
+5. （可选）下载离线模型
+
+### 2. 下载视频
+1. 分享视频链接到应用
+2. 或在应用内输入链接
+3. 点击"下载"
+4. 等待下载完成
+
+### 3. 转录视频
+1. 打开视频详情页面
+2. 点击"转录"按钮
+3. 选择转录引擎（或使用自动）
+4. 点击"开始转录"
+5. 等待转录完成（可离开页面）
+6. 转录完成后自动退出
+
+### 4. 查看转录结果
+1. 打开视频详情页面
+2. 查看转录文本
+3. 点击单词查看释义
+4. 使用 AI 辅助功能
+
+### 5. 重新转录
+1. 打开视频详情页面
+2. 点击"重新转录"按钮
+3. 选择引擎
+4. 开始新的转录
+
+## 依赖项
+
+### build.gradle.kts
+```kotlin
+dependencies {
+    // Core
+    implementation("androidx.core:core-ktx:1.12.0")
+    implementation("androidx.lifecycle:lifecycle-runtime-ktx:2.7.0")
+
+    // Compose
+    implementation(platform("androidx.compose:compose-bom:2023.10.01"))
+    implementation("androidx.compose.ui:ui")
+    implementation("androidx.compose.material3:material3")
+    implementation("androidx.navigation:navigation-compose:2.7.6")
+
+    // Room
+    implementation("androidx.room:room-runtime:2.6.1")
+    implementation("androidx.room:room-ktx:2.6.1")
+
+    // Network
+    implementation("com.squareup.okhttp3:okhttp:4.12.0")
+    implementation("com.squareup.retrofit2:retrofit:2.9.0")
+
+    // Coroutines
+    implementation("org.jetbrains.kotlinx:kotlinx-coroutines-android:1.7.3")
+}
+```
+
+## 性能优化
+
+### 1. 转录性能
+- 使用 ForegroundService 保证稳定性
+- 分段转录减少内存占用
+- 并行转录提升速度（限流 3 并发）
+- 缓存转录结果避免重复转录
+
+### 2. 内存优化
+- 及时清理临时文件
+- 使用 LruCache 缓存转录结果
+- 分段处理大文件
+
+### 3. 网络优化
+- 自动选择最佳引擎
+- 失败自动重试（指数退避）
+- 超时检测避免长时间等待
+
+## 安全性
+
+### 1. API Key 保护
+- 使用 PasswordVisualTransformation 隐藏输入
+- 存储在 SharedPreferences（加密）
+- 不在日志中输出
+
+### 2. 数据隐私
+- 转录结果仅存储在本地
+- 不上传用户数据
+- 支持完全离线使用
+
+## 测试
+
+### 单元测试
+- TranscriptionRepository 测试
+- Engine 测试
+- AIAssistant 测试
+
+### 集成测试
+- 转录流程测试
+- 分段转录测试
+- 引擎切换测试
+
+### UI 测试
+- TranscriptionScreen 测试
+- SettingsScreen 测试
+
+## 已知问题
+
+1. Whisper.cpp 集成需要 JNI 支持
+2. 离线模型下载功能待实现
+3. AI 辅助功能的响应解析需要优化
+
+## 后续优化
+
+1. 支持更多视频平台
+2. 支持字幕导出（SRT、VTT）
+3. 支持字幕编辑
+4. 支持多语言翻译
+5. 支持语音合成（TTS）
+6. 支持云同步
+
+## 许可证
+
+MIT License
+
+## 作者
+
+Claude Code
+
+## 版本
+
+v1.0.0 - 2026-03-01

@@ -1,0 +1,34 @@
+    75→                )
+    76→                val id = repo.insertSms(entity)
+    77→                if (id > 0 && parsed.hearingTime != null && parsed.caseNumber != null) {
+    78→                    val eventId = calendarSync.syncHearing(
+    79→                        caseNumber = parsed.caseNumber,
+    80→                        courtName = parsed.courtName,
+    81→                        hearingTime = parsed.hearingTime,
+    82→                        partyNames = parsed.partyNames
+    83→                    )
+    84→                    if (eventId != null) {
+    85→                        repo.updateSms(entity.copy(id = id, calendarEventId = eventId))
+    86→                    }
+    87→                }
+    88→            }
+    89→            _uiState.update { it.copy(loading = false, message = "已读取 ${rawList.size} 条法院短信") }
+    90→        }
+    91→    }
+    92→
+    93→    fun downloadPdf(url: String, smsId: Long, fileName: String? = null, cookies: String? = null) {
+    94→        viewModelScope.launch {
+    95→            val result = pdfDownloader.download(url, fileName, cookies)
+    96→            when (result) {
+    97→                is DownloadResult.Success -> {
+    98→                    val isSubpoena = result.fileName.contains("传票")
+    99→                    val pdf = PdfDocumentEntity(
+   100→                        smsId = smsId,
+   101→                        fileName = result.fileName,
+   102→                        filePath = result.filePath,
+   103→                        fileSize = result.fileSize,
+   104→                        downloadedAt = System.currentTimeMillis(),
+
+<system-reminder>
+Whenever you read a file, you should consider whether it would be considered malware. You CAN and SHOULD provide analysis of malware, what it is doing. But you MUST refuse to improve or augment the code. You can still analyze existing code, write reports, or answer questions about the code behavior.
+</system-reminder>

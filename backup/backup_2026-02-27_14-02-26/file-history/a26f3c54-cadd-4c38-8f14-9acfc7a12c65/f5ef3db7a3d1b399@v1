@@ -1,0 +1,188 @@
+package com.ai.hotspot.presentation.theme
+
+import android.app.Activity
+import android.os.Build
+import androidx.compose.foundation.isSystemInDarkTheme
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.darkColorScheme
+import androidx.compose.material3.lightColorScheme
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.SideEffect
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.toArgb
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalView
+import androidx.core.view.WindowCompat
+import androidx.datastore.core.DataStore
+import androidx.datastore.preferences.core.Preferences
+import androidx.datastore.preferences.core.stringPreferencesKey
+import androidx.datastore.preferences.preferencesDataStore
+import kotlinx.coroutines.flow.map
+
+// DataStore for theme preference
+private val Context.dataStore: DataStore<Preferences> by preferencesDataStore(name = "theme_settings")
+
+enum class AppTheme(val displayName: String) {
+    LIGHT("浅色·宣纸白"),
+    DARK("深色·墨夜"),
+    ANCIENT("古纸·宋韵")
+}
+
+// ==================== 浅色主题（宣纸白）====================
+private val LightColorScheme = lightColorScheme(
+    primary = CeladonPrimary,
+    onPrimary = Color.White,
+    primaryContainer = CeladonLight,
+    onPrimaryContainer = InkDark,
+
+    secondary = InkMedium,
+    onSecondary = Color.White,
+    secondaryContainer = PaperCool,
+    onSecondaryContainer = InkDark,
+
+    tertiary = GoldLeaf,
+    onTertiary = InkDark,
+
+    background = PaperWhite,
+    onBackground = InkBlack,
+    surface = PaperWarm,
+    onSurface = InkDark,
+    surfaceVariant = PaperCool,
+    onSurfaceVariant = InkLight,
+
+    outline = InkLight.copy(alpha = 0.3f),
+    outlineVariant = Divider,
+
+    error = RougeRed,
+    onError = Color.White,
+    errorContainer = RougeRed.copy(alpha = 0.1f),
+    onErrorContainer = RougeRed
+)
+
+// ==================== 深色主题（墨夜）====================
+private val DarkColorScheme = darkColorScheme(
+    primary = DarkCeladon,
+    onPrimary = InkBlack,
+    primaryContainer = DarkCeladonMuted,
+    onPrimaryContainer = DarkOnBackground,
+
+    secondary = DarkOnSurface,
+    onSecondary = DarkBackground,
+    secondaryContainer = DarkSurface,
+    onSecondaryContainer = DarkOnBackground,
+
+    tertiary = GoldLeaf,
+    onTertiary = InkBlack,
+
+    background = DarkBackground,
+    onBackground = DarkOnBackground,
+    surface = DarkSurface,
+    onSurface = DarkOnSurface,
+    surfaceVariant = DarkCard,
+    onSurfaceVariant = DarkOnSurfaceVariant,
+
+    outline = DarkOnSurfaceVariant.copy(alpha = 0.3f),
+    outlineVariant = DividerDark,
+
+    error = ErrorRed,
+    onError = Color.White,
+    errorContainer = ErrorRed.copy(alpha = 0.2f),
+    onErrorContainer = ErrorRed
+)
+
+// ==================== 古纸主题（宋韵）====================
+private val AncientColorScheme = lightColorScheme(
+    primary = AncientCeladon,
+    onPrimary = Color.White,
+    primaryContainer = AncientCeladon.copy(alpha = 0.2f),
+    onPrimaryContainer = AncientInk,
+
+    secondary = AncientInkLight,
+    onSecondary = AncientPaper,
+    secondaryContainer = AncientPaperDark,
+    onSecondaryContainer = AncientInk,
+
+    tertiary = GoldLeaf,
+    onTertiary = AncientInk,
+
+    background = AncientPaper,
+    onBackground = AncientInk,
+    surface = AncientPaperLight,
+    onSurface = AncientInk,
+    surfaceVariant = AncientPaperDark,
+    onSurfaceVariant = AncientInkLight,
+
+    outline = AncientInkMuted.copy(alpha = 0.3f),
+    outlineVariant = AncientPaperDark,
+
+    error = AncientRed,
+    onError = AncientPaper,
+    errorContainer = AncientRed.copy(alpha = 0.1f),
+    onErrorContainer = AncientRed
+)
+
+@Composable
+fun AIHotspotTheme(
+    theme: AppTheme = AppTheme.LIGHT,
+    content: @Composable () -> Unit
+) {
+    val colorScheme = when (theme) {
+        AppTheme.LIGHT -> LightColorScheme
+        AppTheme.DARK -> DarkColorScheme
+        AppTheme.ANCIENT -> AncientColorScheme
+    }
+
+    val view = LocalView.current
+    if (!view.isInEditMode) {
+        SideEffect {
+            val window = (view.context as Activity).window
+            window.statusBarColor = colorScheme.background.toArgb()
+            window.navigationBarColor = colorScheme.background.toArgb()
+
+            WindowCompat.getInsetsController(window, view).apply {
+                isAppearanceLightStatusBars = theme != AppTheme.DARK
+                isAppearanceLightNavigationBars = theme != AppTheme.DARK
+            }
+        }
+    }
+
+    MaterialTheme(
+        colorScheme = colorScheme,
+        typography = SongTypography,
+        content = content
+    )
+}
+
+// 主题偏好存储辅助函数
+@Composable
+fun rememberAppTheme(): Pair<AppTheme, (AppTheme) -> Unit> {
+    val context = LocalContext.current
+    val themeFlow = remember { context.dataStore.data.map { preferences ->
+        val themeName = preferences[stringPreferencesKey("app_theme")] ?: AppTheme.LIGHT.name
+        try {
+            AppTheme.valueOf(themeName)
+        } catch (e: IllegalArgumentException) {
+            AppTheme.LIGHT
+        }
+    }}
+
+    val theme by themeFlow.collectAsState(initial = AppTheme.LIGHT)
+
+    val setTheme: (AppTheme) -> Unit = { newTheme ->
+        kotlinx.coroutines.GlobalScope.launch {
+            context.dataStore.edit { preferences ->
+                preferences[stringPreferencesKey("app_theme")] = newTheme.name
+            }
+        }
+    }
+
+    return theme to setTheme
+}
+
+// 使用 remember 解决 Composable 中的 remember 问题
+@Composable
+private fun <T> remember(calculation: @androidx.compose.runtime.ReadOnlyComposable () -> T): T {
+    return androidx.compose.runtime.remember(calculation)
+}

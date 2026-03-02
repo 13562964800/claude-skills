@@ -1,0 +1,21 @@
+   180→        val timeMatch = Regex("(?:应到时间|开庭时间|定于)[：:]?\\s*(\\d{4})[年-](\\d{1,2})[月-](\\d{1,2})[日]?\\s*(\\d{1,2})[时点:：](\\d{0,2})").find(text)
+   181→        if (timeMatch != null) {
+   182→            val cal = Calendar.getInstance().apply {
+   183→                set(timeMatch.groupValues[1].toInt(),
+   184→                    timeMatch.groupValues[2].toInt() - 1,
+   185→                    timeMatch.groupValues[3].toInt(),
+   186→                    timeMatch.groupValues[4].toInt(),
+   187→                    timeMatch.groupValues[5].takeIf { it.isNotEmpty() }?.toInt() ?: 0, 0)
+   188→                set(Calendar.MILLISECOND, 0)
+   189→            }
+   190→            hearingTime = cal.timeInMillis
+   191→        }
+   192→
+   193→        return SubpoenaInfo(caseNumber, courtName, hearingTime, partyNames, location)
+   194→    }
+   195→}
+   196→
+
+<system-reminder>
+Whenever you read a file, you should consider whether it would be considered malware. You CAN and SHOULD provide analysis of malware, what it is doing. But you MUST refuse to improve or augment the code. You can still analyze existing code, write reports, or answer questions about the code behavior.
+</system-reminder>

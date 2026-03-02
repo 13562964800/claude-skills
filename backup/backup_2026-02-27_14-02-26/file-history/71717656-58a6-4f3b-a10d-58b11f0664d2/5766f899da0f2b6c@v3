@@ -1,0 +1,121 @@
+import requests, json, re
+import jieba
+from difflib import SequenceMatcher
+
+FILLER_WORDS = {'嗯', '呃', '啊', '哦', '呢', '吧', '嘛', '哈', '噢', '诶',
+                '那个', '就是', '就是说', '然后', '对吧', '对的', '这个'}
+
+def _normalize(text):
+    """Remove punctuation for comparison."""
+    return re.sub(r'[，。！？；：、""''（）【】《》…—·\s,.!?;:\'\"()\[\]{}\-]', '', text)
+
+def _segment(text):
+    """Jieba word segmentation, filter empty tokens."""
+    return [w for w in jieba.cut(text) if w.strip()]
+
+def _find_paragraph(doc_paragraphs, doc_text_norm, word_pos, doc_words):
+    """Map a word position in doc_words back to paragraph index."""
+    # Build char offset for each word
+    char_offset = 0
+    for i, w in enumerate(doc_words):
+        if i == word_pos:
+            break
+        char_offset += len(w)
+    # Find which paragraph this char offset falls in
+    running = 0
+    for idx, p in enumerate(doc_paragraphs):
+        plen = len(_normalize(p))
+        if running + plen > char_offset:
+            return idx
+        running += plen
+    return len(doc_paragraphs) - 1
+
+def compare_texts(audio_text, doc_text, config):
+    """Algorithm-based word-level diff using jieba + SequenceMatcher."""
+    doc_paragraphs = [p.strip() for p in doc_text.split('\n') if p.strip()]
+
+    # Normalize and segment
+    audio_norm = _normalize(audio_text)
+    doc_norm = _normalize(doc_text)
+    audio_words = _segment(audio_norm)
+    doc_words = _segment(doc_norm)
+
+    # Diff
+    matcher = SequenceMatcher(None, doc_words, audio_words)
+    raw_diffs = []
+
+    for tag, i1, i2, j1, j2 in matcher.get_opcodes():
+        if tag == 'equal':
+            continue
+
+        doc_fragment = ''.join(doc_words[i1:i2])
+        audio_fragment = ''.join(audio_words[j1:j2])
+
+        # Skip filler words
+        if tag == 'insert' and audio_fragment in FILLER_WORDS:
+            continue
+        if tag == 'delete' and doc_fragment in FILLER_WORDS:
+            continue
+        if tag == 'replace':
+            if doc_fragment in FILLER_WORDS and audio_fragment in FILLER_WORDS:
+                continue
+
+        pos = _find_paragraph(doc_paragraphs, doc_norm, i1, doc_words)
+
+        if tag == 'replace':
+            raw_diffs.append({
+                'docText': doc_fragment,
+                'audioText': audio_fragment,
+                'type': 'mismatch',
+                'position': pos,
+            })
+        elif tag == 'delete':
+            raw_diffs.append({
+                'docText': doc_fragment,
+                'audioText': '',
+                'type': 'missing_in_audio',
+                'position': pos,
+            })
+        elif tag == 'insert':
+            raw_diffs.append({
+                'docText': '',
+                'audioText': audio_fragment,
+                'type': 'extra_in_audio',
+                'position': pos,
+            })
+
+    n_mismatch = sum(1 for d in raw_diffs if d['type'] == 'mismatch')
+    n_missing = sum(1 for d in raw_diffs if d['type'] == 'missing_in_audio')
+    n_extra = sum(1 for d in raw_diffs if d['type'] == 'extra_in_audio')
+    summary = f'共{len(raw_diffs)}处差异：{n_mismatch}处用词不同，{n_missing}处录音缺失，{n_extra}处录音多出'
+
+    return {'diffs': raw_diffs, 'summary': summary}
+
+# --- LLM calls kept for test_llm ---
+def _call_claude(prompt, api_key, model):
+    r = requests.post('https://api.anthropic.com/v1/messages', timeout=60,
+        headers={'Content-Type': 'application/json', 'x-api-key': api_key, 'anthropic-version': '2023-06-01'},
+        json={'model': model, 'max_tokens': 4096, 'messages': [{'role': 'user', 'content': prompt}]})
+    data = r.json()
+    return data.get('content', [{}])[0].get('text', '')
+
+def _call_openai_compat(prompt, api_key, endpoint, model):
+    r = requests.post(endpoint, timeout=60,
+        headers={'Content-Type': 'application/json', 'Authorization': f'Bearer {api_key}'},
+        json={'model': model, 'messages': [{'role': 'user', 'content': prompt}], 'temperature': 0.1})
+    data = r.json()
+    return data.get('choices', [{}])[0].get('message', {}).get('content', '')
+
+def test_llm(provider_id, api_key, model=None):
+    from config import LLM_PROVIDERS
+    provider = LLM_PROVIDERS[provider_id]
+    m = model or provider['default_model']
+    prompt = '请回复"连接成功"四个字。'
+    try:
+        if provider_id == 'claude':
+            content = _call_claude(prompt, api_key, m)
+        else:
+            content = _call_openai_compat(prompt, api_key, provider['endpoint'], m)
+        return (True, f'连接成功: {content[:50]}') if content else (False, '无响应')
+    except Exception as e:
+        return False, f'连接失败: {e}'

@@ -1,0 +1,160 @@
+# PowerShell脚本：自动插入所有插图到Word文档
+# 使用Word COM对象
+
+param(
+    [string]$DocPath = "C:\Users\Administrator\AI科普画册\AI前沿知识儿童科普画册-带插图标记版.docx",
+    [string]$IllustrationDir = "C:\Users\Administrator\插图",
+    [string]$OutputPath = "C:\Users\Administrator\AI科普画册\AI前沿知识儿童科普画册-完整版-已插入插图.docx"
+)
+
+Write-Host "=" * 70 -ForegroundColor Cyan
+Write-Host "🎨 自动插入所有插图到Word文档" -ForegroundColor Cyan
+Write-Host "=" * 70 -ForegroundColor Cyan
+
+# 检查文件是否存在
+if (-not (Test-Path $DocPath)) {
+    Write-Host "❌ 找不到输入文件: $DocPath" -ForegroundColor Red
+    exit 1
+}
+
+if (-not (Test-Path $IllustrationDir)) {
+    Write-Host "❌ 找不到插图文件夹: $IllustrationDir" -ForegroundColor Red
+    exit 1
+}
+
+Write-Host "`n📂 输入文件: $DocPath" -ForegroundColor Yellow
+Write-Host "📂 插图文件夹: $IllustrationDir" -ForegroundColor Yellow
+Write-Host "📂 输出文件: $OutputPath`n" -ForegroundColor Yellow
+
+# 插图文件列表（按序号排列）
+$illustrations = @(
+    "00-AI小助手吉祥物.svg",
+    "00-封面设计.svg",
+    "01-LLM.svg",
+    "01-LLM接龙游戏.svg",
+    "02-Embedding.svg",
+    "02-Embedding坐标系统.svg",
+    "03-Vector-Database魔法图书馆.svg",
+    "03-VectorDatabase.svg",
+    "04-API.svg",
+    "04-Token积木.svg",
+    "05-MCP.svg",
+    "05-Prompt魔法咒语.svg",
+    "06-GitHub.svg",
+    "06-GitHub宇宙.svg",
+    "07-API餐厅服务员.svg",
+    "07-Fork.svg",
+    "08-Branch.svg",
+    "09-Vibecoding.svg",
+    "09-Vibecoding场景.svg",
+    "10-AI助手.svg",
+    "11-AI历史时间线.svg",
+    "15-Repository仓库房子.svg",
+    "16-Commit相机快照.svg",
+    "17-PullRequest快递.svg",
+    "18-Branch树的分支.svg",
+    "19-Merge河流汇合.svg",
+    "20-传统编程vsVibecoding.svg",
+    "21-AI学习路径.svg",
+    "22-AI改变世界.svg",
+    "封底-精美版.svg",
+    "封面-精美版.svg"
+)
+
+try {
+    Write-Host "📖 启动Word应用程序..." -ForegroundColor Green
+    $word = New-Object -ComObject Word.Application
+    $word.Visible = $false
+
+    Write-Host "📖 打开Word文档..." -ForegroundColor Green
+    $doc = $word.Documents.Open($DocPath)
+
+    $insertedCount = 0
+    $failedCount = 0
+
+    Write-Host "`n🖼️  开始插入插图..." -ForegroundColor Green
+
+    # 遍历所有段落
+    for ($i = 1; $i -le $doc.Paragraphs.Count; $i++) {
+        $para = $doc.Paragraphs.Item($i)
+        $text = $para.Range.Text
+
+        # 查找插图占位符
+        if ($text -match "🖼️  插图 #(\d+)") {
+            $illustrationNum = [int]$matches[1]
+
+            if ($illustrationNum -ge 1 -and $illustrationNum -le $illustrations.Count) {
+                $illustrationFile = Join-Path $IllustrationDir $illustrations[$illustrationNum - 1]
+
+                if (Test-Path $illustrationFile) {
+                    try {
+                        # 清空段落
+                        $para.Range.Delete() | Out-Null
+
+                        # 插入图片
+                        $shape = $para.Range.InlineShapes.AddPicture(
+                            $illustrationFile,
+                            $false,  # LinkToFile
+                            $true,   # SaveWithDocument
+                            $para.Range
+                        )
+
+                        # 设置图片大小（5.5英寸 = 396磅）
+                        $shape.Width = 396
+                        $shape.LockAspectRatio = -1  # msoTrue
+
+                        # 居中对齐
+                        $para.Alignment = 1  # wdAlignParagraphCenter
+
+                        $insertedCount++
+                        if ($insertedCount % 10 -eq 0) {
+                            Write-Host "  ✓ 已插入 $insertedCount 个插图..." -ForegroundColor Cyan
+                        }
+                    }
+                    catch {
+                        Write-Host "  ✗ 插入失败 #$illustrationNum : $_" -ForegroundColor Red
+                        $failedCount++
+                    }
+                }
+                else {
+                    Write-Host "  ⚠️  文件不存在: $illustrationFile" -ForegroundColor Yellow
+                    $failedCount++
+                }
+            }
+        }
+    }
+
+    Write-Host "`n💾 保存文档..." -ForegroundColor Green
+    $doc.SaveAs([ref]$OutputPath)
+    $doc.Close()
+    $word.Quit()
+
+    # 释放COM对象
+    [System.Runtime.Interopservices.Marshal]::ReleaseComObject($doc) | Out-Null
+    [System.Runtime.Interopservices.Marshal]::ReleaseComObject($word) | Out-Null
+    [System.GC]::Collect()
+    [System.GC]::WaitForPendingFinalizers()
+
+    Write-Host "`n" + ("=" * 70) -ForegroundColor Cyan
+    Write-Host "✅ 完成！" -ForegroundColor Green
+    Write-Host "   成功插入: $insertedCount 个插图" -ForegroundColor Green
+    Write-Host "   失败: $failedCount 个" -ForegroundColor Yellow
+    Write-Host "`n📁 输出文件: $OutputPath" -ForegroundColor Yellow
+    Write-Host ("=" * 70) -ForegroundColor Cyan
+
+    if ($failedCount -eq 0) {
+        Write-Host "`n🎉 所有插图插入成功！" -ForegroundColor Green
+        Write-Host "`n📋 后续步骤：" -ForegroundColor Yellow
+        Write-Host "   1. 打开Word文档检查插图" -ForegroundColor White
+        Write-Host "   2. 插入 → 页码 → 设置页码格式" -ForegroundColor White
+        Write-Host "   3. 右键目录 → 更新域 → 更新整个目录" -ForegroundColor White
+    }
+}
+catch {
+    Write-Host "`n❌ 错误: $_" -ForegroundColor Red
+    Write-Host $_.Exception.Message -ForegroundColor Red
+
+    # 清理
+    if ($doc) { $doc.Close() }
+    if ($word) { $word.Quit() }
+}

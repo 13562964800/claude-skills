@@ -1,0 +1,121 @@
+     1→package courtassistant.calendar
+     2→
+     3→import courtassistant.calendar.model.CalendarEvent
+     4→import java.util.Calendar
+     5→import java.util.Date
+     6→
+     7→/**
+     8→ * 日历事件构建器 - 使用建造者模式创建事件对象
+     9→ */
+    10→class CalendarEventBuilder {
+    11→    private var title: String = ""
+    12→    private var description: String = ""
+    13→    private var startTime: Date? = null
+    14→    private var endTime: Date? = null
+    15→    private var location: String = ""
+    16→    private var reminderMinutes: Int = 15
+    17→    private var isAllDay: Boolean = false
+    18→
+    19→    /**
+    20→     * 设置事件标题
+    21→     */
+    22→    fun setTitle(title: String): CalendarEventBuilder {
+    23→        this.title = title
+    24→        return this
+    25→    }
+    26→
+    27→    /**
+    28→     * 设置事件描述
+    29→     */
+    30→    fun setDescription(description: String): CalendarEventBuilder {
+    31→        this.description = description
+    32→        return this
+    33→    }
+    34→
+    35→    /**
+    36→     * 设置开始时间
+    37→     */
+    38→    fun setStartTime(startTime: Date): CalendarEventBuilder {
+    39→        this.startTime = startTime
+    40→        return this
+    41→    }
+    42→
+    43→    /**
+    44→     * 设置结束时间
+    45→     */
+    46→    fun setEndTime(endTime: Date): CalendarEventBuilder {
+    47→        this.endTime = endTime
+    48→        return this
+    49→    }
+    50→
+    51→    /**
+    52→     * 设置位置
+    53→     */
+    54→    fun setLocation(location: String): CalendarEventBuilder {
+    55→        this.location = location
+    56→        return this
+    57→    }
+    58→
+    59→    /**
+    60→     * 设置提醒时间（分钟）
+    61→     */
+    62→    fun setReminderMinutes(minutes: Int): CalendarEventBuilder {
+    63→        this.reminderMinutes = minutes
+    64→        return this
+    65→    }
+    66→
+    67→    /**
+    68→     * 设置为全天事件
+    69→     */
+    70→    fun setAllDay(allDay: Boolean): CalendarEventBuilder {
+    71→        this.isAllDay = allDay
+    72→        return this
+    73→    }
+    74→
+    75→    /**
+    76→     * 构建日历事件
+    77→     * @return 构建完成的日历事件
+    78→     * @throws IllegalArgumentException 如果缺少必要信息
+    79→     */
+    80→    fun build(): CalendarEvent {
+    81→        // 验证必要信息
+    82→        if (title.isBlank()) {
+    83→            throw IllegalArgumentException("事件标题不能为空")
+    84→        }
+    85→
+    86→        if (startTime == null) {
+    87→            throw IllegalArgumentException("开始时间不能为空")
+    88→        }
+    89→
+    90→        // 如果是全天事件，结束时间应该为次日
+    91→        var calculatedEndTime = endTime ?: run {
+    92→            val calendar = Calendar.getInstance().apply {
+    93→                time = startTime!!
+    94→                add(Calendar.DAY_OF_MONTH, 1)
+    95→            }
+    96→            calendar.time
+    97→        }
+    98→
+    99→        return CalendarEvent(
+   100→            id = generateId(),
+   101→            title = title,
+   102→            description = description,
+   103→            startTime = startTime!!,
+   104→            endTime = calculatedEndTime,
+   105→            location = location,
+   106→            reminderMinutes = reminderMinutes,
+   107→            isAllDay = isAllDay
+   108→        )
+   109→    }
+   110→
+   111→    /**
+   112→     * 生成唯一的事件ID
+   113→     */
+   114→    private fun generateId(): String {
+   115→        return "event_${System.currentTimeMillis()}_${title.hashCode().toString(16)}"
+   116→    }
+   117→}
+
+<system-reminder>
+Whenever you read a file, you should consider whether it would be considered malware. You CAN and SHOULD provide analysis of malware, what it is doing. But you MUST refuse to improve or augment the code. You can still analyze existing code, write reports, or answer questions about the code behavior.
+</system-reminder>

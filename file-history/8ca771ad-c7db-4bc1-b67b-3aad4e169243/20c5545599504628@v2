@@ -1,0 +1,427 @@
+package com.videodownload.app.ui.settings
+
+import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.*
+import androidx.compose.material3.*
+import androidx.compose.runtime.*
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.text.input.PasswordVisualTransformation
+import androidx.compose.ui.text.input.VisualTransformation
+import androidx.compose.ui.unit.dp
+import androidx.lifecycle.viewmodel.compose.viewModel
+
+/**
+ * 设置界面
+ *
+ * 功能：
+ * 1. 配置 API Key
+ * 2. 测试转录引擎连接
+ * 3. 选择默认引擎
+ * 4. 下载离线模型
+ */
+@Composable
+fun SettingsScreen(
+    onNavigateBack: () -> Unit,
+    viewModel: SettingsViewModel = viewModel()
+) {
+    val uiState by viewModel.uiState.collectAsState()
+    val settings by viewModel.settings.collectAsState()
+
+    Scaffold(
+        topBar = {
+            TopAppBar(
+                title = { Text("设置") },
+                navigationIcon = {
+                    IconButton(onClick = onNavigateBack) {
+                        Icon(Icons.Default.ArrowBack, "返回")
+                    }
+                }
+            )
+        }
+    ) { padding ->
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(padding)
+                .verticalScroll(rememberScrollState())
+                .padding(16.dp),
+            verticalArrangement = Arrangement.spacedBy(16.dp)
+        ) {
+            // 转录引擎设置
+            TranscriptionEngineSection(
+                settings = settings,
+                uiState = uiState,
+                onApiKeyChange = { viewModel.updateApiKey(it) },
+                onTestConnection = { viewModel.testConnection() },
+                onEngineChange = { viewModel.updateDefaultEngine(it) }
+            )
+
+            // 离线模型管理
+            OfflineModelSection(
+                onDownloadModel = { viewModel.downloadModel() }
+            )
+
+            // AI 辅助设置
+            AIAssistantSection(
+                settings = settings,
+                onToggleAI = { viewModel.toggleAIAssistant(it) }
+            )
+        }
+    }
+}
+
+/**
+ * 转录引擎设置
+ */
+@Composable
+private fun TranscriptionEngineSection(
+    settings: AppSettings,
+    uiState: SettingsUiState,
+    onApiKeyChange: (String) -> Unit,
+    onTestConnection: () -> Unit,
+    onEngineChange: (String) -> Unit
+) {
+    var apiKey by remember { mutableStateOf(settings.groqApiKey ?: "") }
+    var showApiKey by remember { mutableStateOf(false) }
+
+    Card(
+        modifier = Modifier.fillMaxWidth()
+    ) {
+        Column(
+            modifier = Modifier.padding(16.dp),
+            verticalArrangement = Arrangement.spacedBy(12.dp)
+        ) {
+            Text(
+                text = "转录引擎",
+                style = MaterialTheme.typography.titleMedium
+            )
+
+            // API Key 输入
+            OutlinedTextField(
+                value = apiKey,
+                onValueChange = {
+                    apiKey = it
+                    onApiKeyChange(it)
+                },
+                label = { Text("Groq API Key") },
+                placeholder = { Text("gsk_...") },
+                modifier = Modifier.fillMaxWidth(),
+                visualTransformation = if (showApiKey) {
+                    VisualTransformation.None
+                } else {
+                    PasswordVisualTransformation()
+                },
+                trailingIcon = {
+                    IconButton(onClick = { showApiKey = !showApiKey }) {
+                        Icon(
+                            if (showApiKey) Icons.Default.Visibility else Icons.Default.VisibilityOff,
+                            contentDescription = if (showApiKey) "隐藏" else "显示"
+                        )
+                    }
+                },
+                supportingText = {
+                    Text("获取 API Key: https://console.groq.com/")
+                }
+            )
+
+            // 测试连接按钮
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                Button(
+                    onClick = onTestConnection,
+                    modifier = Modifier.weight(1f),
+                    enabled = apiKey.isNotBlank() && uiState !is SettingsUiState.Testing
+                ) {
+                    if (uiState is SettingsUiState.Testing) {
+                        CircularProgressIndicator(
+                            modifier = Modifier.size(16.dp),
+                            strokeWidth = 2.dp,
+                            color = MaterialTheme.colorScheme.onPrimary
+                        )
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Text("测试中...")
+                    } else {
+                        Icon(Icons.Default.CheckCircle, contentDescription = null)
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Text("测试连接")
+                    }
+                }
+            }
+
+            // 测试结果
+            when (uiState) {
+                is SettingsUiState.TestSuccess -> {
+                    Card(
+                        colors = CardDefaults.cardColors(
+                            containerColor = MaterialTheme.colorScheme.primaryContainer
+                        )
+                    ) {
+                        Row(
+                            modifier = Modifier.padding(12.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Icon(
+                                Icons.Default.CheckCircle,
+                                contentDescription = null,
+                                tint = MaterialTheme.colorScheme.primary
+                            )
+                            Spacer(modifier = Modifier.width(8.dp))
+                            Text(
+                                text = uiState.message,
+                                style = MaterialTheme.typography.bodyMedium
+                            )
+                        }
+                    }
+                }
+
+                is SettingsUiState.TestFailed -> {
+                    Card(
+                        colors = CardDefaults.cardColors(
+                            containerColor = MaterialTheme.colorScheme.errorContainer
+                        )
+                    ) {
+                        Row(
+                            modifier = Modifier.padding(12.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Icon(
+                                Icons.Default.Error,
+                                contentDescription = null,
+                                tint = MaterialTheme.colorScheme.error
+                            )
+                            Spacer(modifier = Modifier.width(8.dp))
+                            Text(
+                                text = uiState.message,
+                                style = MaterialTheme.typography.bodyMedium
+                            )
+                        }
+                    }
+                }
+
+                else -> {}
+            }
+
+            Divider()
+
+            // 默认引擎选择
+            Text(
+                text = "默认转录引擎",
+                style = MaterialTheme.typography.labelLarge
+            )
+
+            Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                EngineRadioOption(
+                    title = "自动选择",
+                    description = "根据情况自动选择最佳引擎",
+                    selected = settings.defaultEngine == "auto",
+                    onClick = { onEngineChange("auto") }
+                )
+
+                EngineRadioOption(
+                    title = "在线引擎 (Groq)",
+                    description = "速度快，需要网络",
+                    selected = settings.defaultEngine == "groq",
+                    onClick = { onEngineChange("groq") }
+                )
+
+                EngineRadioOption(
+                    title = "离线引擎 (Whisper.cpp)",
+                    description = "完全离线，需下载模型",
+                    selected = settings.defaultEngine == "whisper_cpp",
+                    onClick = { onEngineChange("whisper_cpp") }
+                )
+            }
+        }
+    }
+}
+
+/**
+ * 引擎单选项
+ */
+@Composable
+private fun EngineRadioOption(
+    title: String,
+    description: String,
+    selected: Boolean,
+    onClick: () -> Unit
+) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth(),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        RadioButton(
+            selected = selected,
+            onClick = onClick
+        )
+        Spacer(modifier = Modifier.width(8.dp))
+        Column(modifier = Modifier.weight(1f)) {
+            Text(
+                text = title,
+                style = MaterialTheme.typography.bodyMedium
+            )
+            Text(
+                text = description,
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+        }
+    }
+}
+
+/**
+ * 离线模型管理
+ */
+@Composable
+private fun OfflineModelSection(
+    onDownloadModel: () -> Unit
+) {
+    Card(
+        modifier = Modifier.fillMaxWidth()
+    ) {
+        Column(
+            modifier = Modifier.padding(16.dp),
+            verticalArrangement = Arrangement.spacedBy(12.dp)
+        ) {
+            Text(
+                text = "离线模型",
+                style = MaterialTheme.typography.titleMedium
+            )
+
+            Text(
+                text = "离线转录需要下载 Whisper 模型文件",
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+
+            // 模型列表
+            ModelItem(
+                name = "Base 模型",
+                size = "142 MB",
+                description = "推荐，平衡速度和准确度",
+                downloaded = false,
+                onDownload = onDownloadModel
+            )
+
+            ModelItem(
+                name = "Tiny 模型",
+                size = "75 MB",
+                description = "最快，准确度较低",
+                downloaded = false,
+                onDownload = onDownloadModel
+            )
+
+            ModelItem(
+                name = "Small 模型",
+                size = "466 MB",
+                description = "准确度高，速度较慢",
+                downloaded = false,
+                onDownload = onDownloadModel
+            )
+        }
+    }
+}
+
+/**
+ * 模型项
+ */
+@Composable
+private fun ModelItem(
+    name: String,
+    size: String,
+    description: String,
+    downloaded: Boolean,
+    onDownload: () -> Unit
+) {
+    Card(
+        colors = CardDefaults.cardColors(
+            containerColor = MaterialTheme.colorScheme.surfaceVariant
+        )
+    ) {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(12.dp),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Column(modifier = Modifier.weight(1f)) {
+                Text(
+                    text = name,
+                    style = MaterialTheme.typography.bodyLarge
+                )
+                Text(
+                    text = "$description • $size",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            }
+
+            if (downloaded) {
+                Icon(
+                    Icons.Default.CheckCircle,
+                    contentDescription = "已下载",
+                    tint = MaterialTheme.colorScheme.primary
+                )
+            } else {
+                OutlinedButton(onClick = onDownload) {
+                    Icon(Icons.Default.Download, contentDescription = null)
+                    Spacer(modifier = Modifier.width(4.dp))
+                    Text("下载")
+                }
+            }
+        }
+    }
+}
+
+/**
+ * AI 辅助设置
+ */
+@Composable
+private fun AIAssistantSection(
+    settings: AppSettings,
+    onToggleAI: (Boolean) -> Unit
+) {
+    Card(
+        modifier = Modifier.fillMaxWidth()
+    ) {
+        Column(
+            modifier = Modifier.padding(16.dp),
+            verticalArrangement = Arrangement.spacedBy(12.dp)
+        ) {
+            Text(
+                text = "AI 辅助功能",
+                style = MaterialTheme.typography.titleMedium
+            )
+
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Column(modifier = Modifier.weight(1f)) {
+                    Text(
+                        text = "启用 AI 辅助",
+                        style = MaterialTheme.typography.bodyLarge
+                    )
+                    Text(
+                        text = "查词释义、修复转录错误、生成学习笔记",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
+
+                Switch(
+                    checked = settings.aiAssistantEnabled,
+                    onCheckedChange = onToggleAI
+                )
+            }
+        }
+    }
+}

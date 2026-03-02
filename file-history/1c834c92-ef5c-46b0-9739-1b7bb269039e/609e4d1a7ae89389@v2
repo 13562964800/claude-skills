@@ -1,0 +1,148 @@
+'use client';
+import { useState, useEffect } from 'react';
+import { startWorkflow, startWorkflowAsync, getWorkflowRun } from '../../lib/api';
+import Link from 'next/link';
+
+const TEMPLATES = [
+  { value: 'legal-text-format', label: '法律文本格式化' },
+  { value: 'legal-qa-extractor', label: '问答提取' },
+  { value: 'litigation-analysis', label: '诉讼分析' },
+  { value: 'legal-proposal-generator', label: '方案书生成' },
+];
+
+export default function WorkflowsPage() {
+  const [template, setTemplate] = useState('legal-text-format');
+  const [text, setText] = useState('');
+  const [result, setResult] = useState<Record<string, unknown> | null>(null);
+  const [loading, setLoading] = useState(false);
+  const [mode, setMode] = useState<'sync' | 'async'>('sync');
+  const [apiKeys, setApiKeys] = useState<Record<string, string>>({});
+  const [hasApiKeys, setHasApiKeys] = useState(false);
+
+  useEffect(() => {
+    // 从 localStorage 加载 API keys
+    const saved = localStorage.getItem('legalflow_api_keys');
+    if (saved) {
+      try {
+        const keys = JSON.parse(saved);
+        setApiKeys(keys);
+        // 检查是否至少有一个 API key
+        const hasKey = Object.values(keys).some(v => v && String(v).trim() !== '');
+        setHasApiKeys(hasKey);
+      } catch (e) {
+        console.error('Failed to parse saved API keys:', e);
+      }
+    }
+  }, []);
+
+  async function handleRun(e: React.FormEvent) {
+    e.preventDefault();
+
+    if (!hasApiKeys) {
+      alert('请先在 API 配置页面设置至少一个 API Key');
+      return;
+    }
+
+    setLoading(true);
+    setResult(null);
+    try {
+      if (mode === 'sync') {
+        const run = await startWorkflow(1, template, { text }, apiKeys);
+        setResult(run);
+      } else {
+        const run = await startWorkflowAsync(1, template, { text }, apiKeys);
+        setResult(run);
+        // 轮询状态
+        pollStatus(run.run_id);
+      }
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  async function pollStatus(runId: number) {
+    const maxAttempts = 30;
+    let attempts = 0;
+
+    const interval = setInterval(async () => {
+      attempts++;
+      try {
+        const status = await getWorkflowRun(runId);
+        setResult(status);
+
+        if (status.status === 'success' || status.status === 'failed' || attempts >= maxAttempts) {
+          clearInterval(interval);
+        }
+      } catch (err) {
+        console.error('Poll error:', err);
+        clearInterval(interval);
+      }
+    }, 1000);
+  }
+
+  return (
+    <main style={{ padding: '2rem', fontFamily: 'sans-serif' }}>
+      <h1>工作流触发</h1>
+
+      {!hasApiKeys && (
+        <div style={{
+          marginBottom: '1rem',
+          padding: '1rem',
+          backgroundColor: '#fef3c7',
+          border: '1px solid #f59e0b',
+          borderRadius: '4px'
+        }}>
+          ⚠️ 未检测到 API Keys，请先前往 <Link href="/settings" style={{ color: '#0066cc', textDecoration: 'underline' }}>API 配置</Link> 页面设置
+        </div>
+      )}
+
+      <div style={{ marginBottom: '1rem' }}>
+        <label style={{ marginRight: '1rem' }}>
+          <input
+            type="radio"
+            value="sync"
+            checked={mode === 'sync'}
+            onChange={() => setMode('sync')}
+          />
+          同步执行
+        </label>
+        <label>
+          <input
+            type="radio"
+            value="async"
+            checked={mode === 'async'}
+            onChange={() => setMode('async')}
+          />
+          异步执行
+        </label>
+      </div>
+
+      <form onSubmit={handleRun} style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem', maxWidth: '600px' }}>
+        <select value={template} onChange={e => setTemplate(e.target.value)}>
+          {TEMPLATES.map(t => <option key={t.value} value={t.value}>{t.label}</option>)}
+        </select>
+        <textarea
+          value={text}
+          onChange={e => setText(e.target.value)}
+          placeholder="输入待处理文本..."
+          rows={6}
+          required
+        />
+        <button type="submit" disabled={loading || !hasApiKeys}>
+          {loading ? '执行中...' : '触发执行'}
+        </button>
+      </form>
+      {result && (
+        <div style={{ marginTop: '1.5rem' }}>
+          <h2>执行结果</h2>
+          <p>状态：{String(result.status)}</p>
+          {result.task_id ? <p>任务ID：{String(result.task_id)}</p> : null}
+          {result.run_id ? <p>运行ID：{String(result.run_id)}</p> : null}
+          <pre style={{ background: '#f5f5f5', padding: '1rem', overflow: 'auto' }}>
+            {JSON.stringify(result.results ?? result.error ?? result, null, 2)}
+          </pre>
+        </div>
+      )}
+    </main>
+  );
+}

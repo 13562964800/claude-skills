@@ -1,0 +1,289 @@
+package com.videodownload.app.ai
+
+import android.content.Context
+import com.videodownload.app.utils.PreferenceManager
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
+import okhttp3.*
+import okhttp3.MediaType.Companion.toMediaType
+import okhttp3.RequestBody.Companion.toRequestBody
+import org.json.JSONArray
+import org.json.JSONObject
+
+/**
+ * AI 辅助服务
+ *
+ * 功能：
+ * 1. 查词释义
+ * 2. 修复转录错误
+ * 3. 生成学习笔记
+ * 4. 词汇分析
+ */
+class AIAssistant(private val context: Context) {
+
+    private val client = OkHttpClient.Builder()
+        .connectTimeout(30, java.util.concurrent.TimeUnit.SECONDS)
+        .readTimeout(60, java.util.concurrent.TimeUnit.SECONDS)
+        .build()
+
+    private val preferenceManager = PreferenceManager(context)
+
+    companion object {
+        private const val GROQ_API_URL = "https://api.groq.com/openai/v1/chat/completions"
+        private const val MODEL = "llama-3.3-70b-versatile"
+    }
+
+    /**
+     * 查词释义
+     *
+     * @param word 单词
+     * @param context 上下文句子
+     * @return 释义结果
+     */
+    suspend fun lookupWord(word: String, context: String? = null): WordDefinition =
+        withContext(Dispatchers.IO) {
+            val prompt = buildString {
+                append("请解释单词 \"$word\" 的含义。")
+                if (context != null) {
+                    append("\n\n上下文：$context")
+                }
+                append("\n\n请提供：")
+                append("\n1. 音标")
+                append("\n2. 词性")
+                append("\n3. 中文释义")
+                append("\n4. 例句")
+                append("\n5. 词根词缀（如有）")
+            }
+
+            val response = callLLM(prompt)
+            parseWordDefinition(response)
+        }
+
+    /**
+     * 修复转录错误
+     *
+     * @param text 转录文本
+     * @param language 语言
+     * @return 修复后的文本
+     */
+    suspend fun fixTranscription(text: String, language: String): String =
+        withContext(Dispatchers.IO) {
+            val prompt = buildString {
+                append("以下是一段语音转录文本，可能存在错误。")
+                append("请修正其中的拼写、语法和标点错误，保持原意不变。")
+                append("\n\n语言：$language")
+                append("\n\n原文：\n$text")
+                append("\n\n修正后的文本：")
+            }
+
+            callLLM(prompt)
+        }
+
+    /**
+     * 生成学习笔记
+     *
+     * @param transcription 转录文本
+     * @param title 视频标题
+     * @return 学习笔记
+     */
+    suspend fun generateStudyNotes(transcription: String, title: String): StudyNotes =
+        withContext(Dispatchers.IO) {
+            val prompt = buildString {
+                append("请根据以下视频转录内容生成学习笔记。")
+                append("\n\n视频标题：$title")
+                append("\n\n转录内容：\n$transcription")
+                append("\n\n请提供：")
+                append("\n1. 内容摘要（3-5 句话）")
+                append("\n2. 关键要点（5-10 条）")
+                append("\n3. 重要概念（列表）")
+                append("\n4. 学习建议")
+            }
+
+            val response = callLLM(prompt)
+            parseStudyNotes(response)
+        }
+
+    /**
+     * 分析句子
+     *
+     * @param sentence 句子
+     * @return 分析结果
+     */
+    suspend fun analyzeSentence(sentence: String): SentenceAnalysis =
+        withContext(Dispatchers.IO) {
+            val prompt = buildString {
+                append("请分析以下句子：\n\n$sentence")
+                append("\n\n请提供：")
+                append("\n1. 句子结构分析")
+                append("\n2. 语法要点")
+                append("\n3. 重点词汇")
+                append("\n4. 中文翻译")
+            }
+
+            val response = callLLM(prompt)
+            parseSentenceAnalysis(response)
+        }
+
+    /**
+     * 批量词汇分析
+     *
+     * @param words 单词列表
+     * @return 词汇分析结果
+     */
+    suspend fun analyzeVocabulary(words: List<String>): List<VocabularyItem> =
+        withContext(Dispatchers.IO) {
+            val prompt = buildString {
+                append("请分析以下词汇列表，按难度分级（A1-C2）：")
+                append("\n\n")
+                append(words.joinToString("\n"))
+                append("\n\n对每个单词提供：")
+                append("\n1. 难度等级")
+                append("\n2. 词性")
+                append("\n3. 中文释义")
+                append("\n4. 是否为高频词")
+            }
+
+            val response = callLLM(prompt)
+            parseVocabularyAnalysis(response, words)
+        }
+
+    /**
+     * 调用 LLM
+     */
+    private suspend fun callLLM(prompt: String): String {
+        val apiKey = preferenceManager.getGroqApiKey()
+            ?: throw IllegalStateException("API Key not configured")
+
+        val requestBody = JSONObject().apply {
+            put("model", MODEL)
+            put("messages", JSONArray().apply {
+                put(JSONObject().apply {
+                    put("role", "user")
+                    put("content", prompt)
+                })
+            })
+            put("temperature", 0.7)
+            put("max_tokens", 2000)
+        }
+
+        val request = Request.Builder()
+            .url(GROQ_API_URL)
+            .addHeader("Authorization", "Bearer $apiKey")
+            .addHeader("Content-Type", "application/json")
+            .post(requestBody.toString().toRequestBody("application/json".toMediaType()))
+            .build()
+
+        val response = client.newCall(request).execute()
+
+        if (!response.isSuccessful) {
+            throw Exception("LLM API error: ${response.code}")
+        }
+
+        val responseBody = response.body?.string()
+            ?: throw Exception("Empty response")
+
+        val jsonResponse = JSONObject(responseBody)
+        return jsonResponse
+            .getJSONArray("choices")
+            .getJSONObject(0)
+            .getJSONObject("message")
+            .getString("content")
+    }
+
+    /**
+     * 解析单词释义
+     */
+    private fun parseWordDefinition(response: String): WordDefinition {
+        // 简单解析，实际应该更复杂
+        return WordDefinition(
+            word = "",
+            phonetic = "",
+            partOfSpeech = "",
+            definition = response,
+            examples = emptyList(),
+            etymology = null
+        )
+    }
+
+    /**
+     * 解析学习笔记
+     */
+    private fun parseStudyNotes(response: String): StudyNotes {
+        return StudyNotes(
+            summary = response,
+            keyPoints = emptyList(),
+            concepts = emptyList(),
+            suggestions = ""
+        )
+    }
+
+    /**
+     * 解析句子分析
+     */
+    private fun parseSentenceAnalysis(response: String): SentenceAnalysis {
+        return SentenceAnalysis(
+            structure = response,
+            grammar = "",
+            keywords = emptyList(),
+            translation = ""
+        )
+    }
+
+    /**
+     * 解析词汇分析
+     */
+    private fun parseVocabularyAnalysis(response: String, words: List<String>): List<VocabularyItem> {
+        return words.map { word ->
+            VocabularyItem(
+                word = word,
+                level = "B1",
+                partOfSpeech = "n.",
+                definition = "",
+                isHighFrequency = false
+            )
+        }
+    }
+}
+
+/**
+ * 单词释义
+ */
+data class WordDefinition(
+    val word: String,
+    val phonetic: String,
+    val partOfSpeech: String,
+    val definition: String,
+    val examples: List<String>,
+    val etymology: String?
+)
+
+/**
+ * 学习笔记
+ */
+data class StudyNotes(
+    val summary: String,
+    val keyPoints: List<String>,
+    val concepts: List<String>,
+    val suggestions: String
+)
+
+/**
+ * 句子分析
+ */
+data class SentenceAnalysis(
+    val structure: String,
+    val grammar: String,
+    val keywords: List<String>,
+    val translation: String
+)
+
+/**
+ * 词汇项
+ */
+data class VocabularyItem(
+    val word: String,
+    val level: String, // A1, A2, B1, B2, C1, C2
+    val partOfSpeech: String,
+    val definition: String,
+    val isHighFrequency: Boolean
+)

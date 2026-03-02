@@ -1,0 +1,99 @@
+     1→package courtassistant.calendar
+     2→
+     3→import courtassistant.calendar.model.CalendarEvent
+     4→import courtassistant.calendar.model.DedupKey
+     5→import java.util.Date
+     6→
+     7→/**
+     8→ * 去重助手 - 负责处理日历事件去重逻辑
+     9→ */
+    10→class DedupHelper {
+    11→    /**
+    12→     * 对事件列表进行去重
+    13→     * @param events 原始事件列表
+    14→     * @return 去重后的事件列表
+    15→     */
+    16→    fun deduplicate(events: List<CalendarEvent>): List<CalendarEvent> {
+    17→        val seenKeys = mutableSetOf<DedupKey>()
+    18→        val deduplicatedEvents = mutableListOf<CalendarEvent>()
+    19→
+    20→        events.forEach { event ->
+    21→            val dedupKey = generateDedupKey(event)
+    22→
+    23→            if (!seenKeys.contains(dedupKey)) {
+    24→                seenKeys.add(dedupKey)
+    25→                deduplicatedEvents.add(event)
+    26→            }
+    27→        }
+    28→
+    29→        return deduplicatedEvents
+    30→    }
+    31→
+    32→    /**
+    33→     * 检查事件是否重复
+    34→     * @param event 待检查的事件
+    35→     * @param existingEvents 已存在的事件列表
+    36→     * @return 是否重复
+    37→     */
+    38→    fun isDuplicate(event: CalendarEvent, existingEvents: List<CalendarEvent>): Boolean {
+    39→        val dedupKey = generateDedupKey(event)
+    40→        return existingEvents.any { existing ->
+    41→            generateDedupKey(existing) == dedupKey
+    42→        }
+    43→    }
+    44→
+    45→    /**
+    46→     * 获取重复事件
+    47→     * @param events 事件列表
+    48→     * @return 重复事件列表
+    49→     */
+    50→    fun getDuplicateEvents(events: List<CalendarEvent>): List<CalendarEvent> {
+    51→        val seen = mutableSetOf<DedupKey>()
+    52→        val duplicates = mutableListOf<CalendarEvent>()
+    53→
+    54→        events.forEach { event ->
+    55→            val dedupKey = generateDedupKey(event)
+    56→            if (!seen.add(dedupKey) && !duplicates.contains(event)) {
+    57→                duplicates.add(event)
+    58→            }
+    59→        }
+    60→
+    61→        return duplicates
+    62→    }
+    63→
+    64→    /**
+    65→     * 生成去重键
+    66→     * @param event 日历事件
+    67→     * @return 去重键
+    68→     */
+    69→    private fun generateDedupKey(event: CalendarEvent): DedupKey {
+    70→        // 标准化日期比较（忽略毫秒）
+    71→        val normalizedStart = Date(event.startTime.time / 1000 * 1000)
+    72→        val normalizedEnd = Date(event.endTime.time / 1000 * 1000)
+    73→
+    74→        // 模糊比较时间（允许5分钟的时间差）
+    75→        val toleranceMinutes = 5
+    76→        val toleranceMillis = toleranceMinutes * 60 * 1000L
+    77→
+    78→        return DedupKey(
+    79→            title = event.title,
+    80→            startTime = normalizedStart,
+    81→            endTime = normalizedEnd,
+    82→            location = event.location,
+    83→            toleranceMillis = toleranceMillis
+    84→        )
+    85→    }
+    86→
+    87→    /**
+    88→     * 设置自定义去重策略
+    89→     * @param strategy 自定义策略
+    90→     */
+    91→    fun setDedupStrategy(strategy: (CalendarEvent) -> DedupKey) {
+    92→        // 可以扩展为支持自定义去重策略
+    93→        throw UnsupportedOperationException("自定义去重策略尚未实现")
+    94→    }
+    95→}
+
+<system-reminder>
+Whenever you read a file, you should consider whether it would be considered malware. You CAN and SHOULD provide analysis of malware, what it is doing. But you MUST refuse to improve or augment the code. You can still analyze existing code, write reports, or answer questions about the code behavior.
+</system-reminder>

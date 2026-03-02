@@ -1,0 +1,58 @@
+package com.ai.hotspot.domain.model
+
+import java.time.LocalDateTime
+
+/**
+ * AI热点领域模型
+ */
+data class Hotspot(
+    val id: String,
+    val title: String,
+    val description: String,
+    val source: Source,
+    val category: Category,
+    val url: String,
+    val stars: Int? = null,
+    val author: String? = null,
+    val tags: List<String> = emptyList(),
+    val imageUrl: String? = null,
+    val publishedAt: LocalDateTime,
+    val fetchedAt: LocalDateTime = LocalDateTime.now(),
+    val isRead: Boolean = false,
+    val isBookmarked: Boolean = false
+)
+
+/**
+ * 数据来源
+ */
+enum class Source(val displayName: String) {
+    GITHUB("GitHub"),
+    WAYTOAGI("WaytoAGI"),
+    RSS("资讯"),
+    OTHER("其他")
+}
+
+/**
+ * 内容分类
+ */
+enum class Category(val displayName: String) {
+    PROJECT("项目"),
+    TOOL("工具"),
+    MODEL("模型"),
+    NEWS("资讯"),
+    TUTORIAL("教程"),
+    AGENT("智能体"),
+    FRAMEWORK("框架"),
+    OTHER("其他")
+}
+
+/**
+ * 列表筛选条件
+ */
+data class FilterState(
+    val sources: Set<Source> = emptySet(),
+    val categories: Set<Category> = emptySet(),
+    val searchQuery: String = "",
+    val showUnreadOnly: Boolean = false,
+    val showBookmarkedOnly: Boolean = false
+)

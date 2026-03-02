@@ -1,0 +1,58 @@
+'use client';
+import { useState } from 'react';
+import { startWorkflow } from '@/lib/api';
+
+const TEMPLATES = [
+  { value: 'legal-text-format', label: '法律文本格式化' },
+  { value: 'legal-qa-extractor', label: '问答提取' },
+  { value: 'litigation-analysis', label: '诉讼分析' },
+  { value: 'legal-proposal-generator', label: '方案书生成' },
+];
+
+export default function WorkflowsPage() {
+  const [template, setTemplate] = useState('legal-text-format');
+  const [text, setText] = useState('');
+  const [result, setResult] = useState<Record<string, unknown> | null>(null);
+  const [loading, setLoading] = useState(false);
+
+  async function handleRun(e: React.FormEvent) {
+    e.preventDefault();
+    setLoading(true);
+    try {
+      const run = await startWorkflow(1, template, { text });
+      setResult(run);
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  return (
+    <main style={{ padding: '2rem', fontFamily: 'sans-serif' }}>
+      <h1>工作流触发</h1>
+      <form onSubmit={handleRun} style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem', maxWidth: '600px' }}>
+        <select value={template} onChange={e => setTemplate(e.target.value)}>
+          {TEMPLATES.map(t => <option key={t.value} value={t.value}>{t.label}</option>)}
+        </select>
+        <textarea
+          value={text}
+          onChange={e => setText(e.target.value)}
+          placeholder="输入待处理文本..."
+          rows={6}
+          required
+        />
+        <button type="submit" disabled={loading}>
+          {loading ? '执行中...' : '触发执行'}
+        </button>
+      </form>
+      {result && (
+        <div style={{ marginTop: '1.5rem' }}>
+          <h2>执行结果</h2>
+          <p>状态：{String(result.status)}</p>
+          <pre style={{ background: '#f5f5f5', padding: '1rem', overflow: 'auto' }}>
+            {JSON.stringify(result.results ?? result.error, null, 2)}
+          </pre>
+        </div>
+      )}
+    </main>
+  );
+}

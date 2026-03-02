@@ -1,0 +1,84 @@
+plugins {
+    id 'com.android.application'
+    id 'com.chaquo.python'
+}
+
+android {
+    namespace 'com.voicedoc.app'
+    compileSdk 34
+
+    defaultConfig {
+        applicationId "com.voicedoc.app"
+        minSdk 24
+        targetSdk 34
+        versionCode 7
+        versionName "3.0.0"
+
+        python {
+            version "3.11"
+            buildPython "C:/Users/Administrator/funasr-venv/Scripts/python.exe"
+            pip {
+                install "requests"
+                install "python-docx"
+                install "pypinyin"
+                install "jieba"
+            }
+        }
+
+        ndk {
+            abiFilters "arm64-v8a"
+        }
+    }
+
+    signingConfigs {
+        release {
+            storeFile file("${rootDir}/release-key.jks")
+            storePassword "VoiceDoc2024"
+            keyAlias "voicedoc"
+            keyPassword "VoiceDoc2024"
+        }
+    }
+
+    buildTypes {
+        release {
+            // 最高级代码混淆
+            minifyEnabled true
+            shrinkResources true
+            proguardFiles getDefaultProguardFile('proguard-android-optimize.txt'), 'proguard-rules.pro'
+            signingConfig signingConfigs.release
+
+            // 调试信息全部移除
+            debuggable false
+            jniDebuggable false
+            renderscriptDebuggable false
+
+            // 压缩优化
+            crunchPngs true
+        }
+
+        debug {
+            minifyEnabled false
+            debuggable true
+        }
+    }
+
+    // R8 全模式（最激进的优化和混淆）
+    compileOptions {
+        sourceCompatibility JavaVersion.VERSION_1_8
+        targetCompatibility JavaVersion.VERSION_1_8
+    }
+
+    sourceSets {
+        main {
+            python.srcDirs = ["src/main/python"]
+        }
+    }
+}
+
+dependencies {
+    implementation 'androidx.appcompat:appcompat:1.6.1'
+    implementation 'com.google.android.material:material:1.11.0'
+    implementation 'androidx.constraintlayout:constraintlayout:2.1.4'
+    implementation files('libs/sherpa-onnx-1.12.25.aar')
+    implementation 'org.jetbrains.kotlin:kotlin-stdlib:1.9.22'
+}

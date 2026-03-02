@@ -1,0 +1,260 @@
+/**
+ * 本地反爬虫策略系统
+ * 无需外部AI，使用内置策略库自动切换
+ */
+
+const https = require('https');
+const http = require('http');
+const { URL } = require('url');
+
+class LocalAntiScraper {
+    constructor() {
+        this.strategies = new Map();
+        this.attemptCounts = new Map();
+        this.successRates = new Map();
+
+        // 初始化内置策略库
+        this.initBuiltInStrategies();
+    }
+
+    /**
+     * 初始化内置策略库
+     */
+    initBuiltInStrategies() {
+        // 抖音策略
+        this.strategies.set('douyin', [
+            {
+                name: 'Facebook爬虫UA',
+                userAgent: 'facebookexternalhit/1.1 (+http://www.facebook.com/externalhit_uatext.php)',
+                headers: {
+                    'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
+                    'Accept-Language': 'zh-CN,zh;q=0.9',
+                    'Referer': 'https://www.douyin.com/'
+                },
+                priority: 1
+            },
+            {
+                name: 'Google爬虫UA',
+                userAgent: 'Mozilla/5.0 (compatible; Googlebot/2.1; +http://www.google.com/bot.html)',
+                headers: {
+                    'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
+                    'Referer': 'https://www.douyin.com/'
+                },
+                priority: 2
+            },
+            {
+                name: '真实浏览器Chrome',
+                userAgent: 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+                headers: {
+                    'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8',
+                    'Accept-Language': 'zh-CN,zh;q=0.9,en;q=0.8',
+                    'Accept-Encoding': 'gzip, deflate, br',
+                    'Referer': 'https://www.douyin.com/',
+                    'Connection': 'keep-alive',
+                    'Upgrade-Insecure-Requests': '1',
+                    'Sec-Fetch-Dest': 'document',
+                    'Sec-Fetch-Mode': 'navigate',
+                    'Sec-Fetch-Site': 'same-origin'
+                },
+                priority: 3
+            },
+            {
+                name: 'iPhone Safari',
+                userAgent: 'Mozilla/5.0 (iPhone; CPU iPhone OS 16_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/16.0 Mobile/15E148 Safari/604.1',
+                headers: {
+                    'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
+                    'Accept-Language': 'zh-CN,zh;q=0.9',
+                    'Referer': 'https://www.douyin.com/'
+                },
+                priority: 4
+            }
+        ]);
+
+        // YouTube策略
+        this.strategies.set('youtube', [
+            {
+                name: '标准浏览器',
+                userAgent: 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
+                headers: {
+                    'Accept': '*/*',
+                    'Accept-Language': 'en-US,en;q=0.9',
+                    'Referer': 'https://www.youtube.com/'
+                },
+                priority: 1
+            }
+        ]);
+    }
+
+    /**
+     * 获取域名对应的策略列表
+     */
+    getStrategiesForDomain(domain) {
+        domain = domain.toLowerCase();
+
+        if (domain.includes('douyin.com')) {
+            return this.strategies.get('douyin') || [];
+        }
+        if (domain.includes('youtube.com') || domain.includes('youtu.be')) {
+            return this.strategies.get('youtube') || [];
+        }
+
+        // 默认策略
+        return [{
+            name: '默认',
+            userAgent: 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
+            headers: {
+                'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
+                'Accept-Language': 'zh-CN,zh;q=0.9'
+            },
+            priority: 1
+        }];
+    }
+
+    /**
+     * 智能获取内容 - 自动尝试多个策略
+     */
+    async fetch(url, options = {}) {
+        const urlObj = new URL(url);
+        const domain = urlObj.hostname;
+        const strategies = this.getStrategiesForDomain(domain);
+
+        // 按优先级排序
+        const sortedStrategies = strategies.sort((a, b) => a.priority - b.priority);
+
+        // 记录尝试次数
+        const key = `${domain}_${Date.now()}`;
+        this.attemptCounts.set(key, 0);
+
+        // 逐个尝试策略
+        for (const strategy of sortedStrategies) {
+            console.log(`尝试策略: ${strategy.name}`);
+
+            try {
+                const result = await this.fetchWithStrategy(url, strategy);
+
+                // 成功！记录并返回
+                this.recordSuccess(domain, strategy.name);
+                return result;
+            } catch (error) {
+                console.log(`策略 "${strategy.name}" 失败: ${error.message}`);
+                this.recordFailure(domain, strategy.name);
+
+                // 继续尝试下一个策略
+                continue;
+            }
+        }
+
+        // 所有策略都失败
+        throw new Error('所有反爬虫策略均已失败');
+    }
+
+    /**
+     * 使用指定策略获取内容
+     */
+    fetchWithStrategy(url, strategy) {
+        return new Promise((resolve, reject) => {
+            const urlObj = new URL(url);
+            const client = urlObj.protocol === 'https:' ? https : http;
+
+            const options = {
+                hostname: urlObj.hostname,
+                port: urlObj.port || (urlObj.protocol === 'https:' ? 443 : 80),
+                path: urlObj.pathname + urlObj.search,
+                method: 'GET',
+                headers: {
+                    'User-Agent': strategy.userAgent,
+                    ...strategy.headers
+                }
+            };
+
+            const req = client.request(options, (res) => {
+                let data = '';
+
+                res.on('data', chunk => data += chunk);
+                res.on('end', () => {
+                    if (res.statusCode >= 200 && res.statusCode < 300) {
+                        resolve({
+                            statusCode: res.statusCode,
+                            headers: res.headers,
+                            data: data
+                        });
+                    } else {
+                        reject(new Error(`HTTP ${res.statusCode}`));
+                    }
+                });
+            });
+
+            req.on('error', reject);
+            req.setTimeout(15000, () => {
+                req.destroy();
+                reject(new Error('请求超时'));
+            });
+            req.end();
+        });
+    }
+
+    /**
+     * 记录成功
+     */
+    recordSuccess(domain, strategyName) {
+        const key = `${domain}_${strategyName}`;
+        if (!this.successRates.has(key)) {
+            this.successRates.set(key, { success: 0, failure: 0 });
+        }
+        this.successRates.get(key).success++;
+    }
+
+    /**
+     * 记录失败
+     */
+    recordFailure(domain, strategyName) {
+        const key = `${domain}_${strategyName}`;
+        if (!this.successRates.has(key)) {
+            this.successRates.set(key, { success: 0, failure: 0 });
+        }
+        this.successRates.get(key).failure++;
+    }
+
+    /**
+     * 获取最佳策略
+     */
+    getBestStrategy(domain) {
+        const strategies = this.getStrategiesForDomain(domain);
+        const stats = this.successRates;
+
+        // 计算每个策略的成功率
+        const withRates = strategies.map(s => {
+            const key = `${domain}_${s.name}`;
+            const rate = stats.get(key);
+            if (!rate || rate.success + rate.failure === 0) {
+                return { ...s, successRate: 0.5, totalAttempts: 0 };
+            }
+            return {
+                ...s,
+                successRate: rate.success / (rate.success + rate.failure),
+                totalAttempts: rate.success + rate.failure
+            };
+        });
+
+        // 返回成功率最高的策略
+        withRates.sort((a, b) => b.successRate - a.successRate);
+        return withRates[0];
+    }
+
+    /**
+     * 获取统计信息
+     */
+    getStats() {
+        const result = {};
+        for (const [key, value] of this.successRates.entries()) {
+            result[key] = {
+                success: value.success,
+                failure: value.failure,
+                rate: value.success / (value.success + value.failure)
+            };
+        }
+        return result;
+    }
+}
+
+module.exports = LocalAntiScraper;

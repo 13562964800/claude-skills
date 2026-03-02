@@ -1,0 +1,26 @@
+     1→package com.court.assistant.data.db
+     2→
+     3→import androidx.room.*
+     4→
+     5→@Entity(
+     6→    tableName = "court_sms",
+     7→    indices = [Index(value = ["bodyHash"], unique = true)]
+     8→)
+     9→data class CourtSmsEntity(
+    10→    @PrimaryKey(autoGenerate = true) val id: Long = 0,
+    11→    val sender: String,
+    12→    val body: String,
+    13→    val bodyHash: Int,
+    14→    val receivedAt: Long,
+    15→    val caseNumber: String?,
+    16→    val courtName: String?,
+    17→    val hearingTime: Long?,
+    18→    val partyNames: String?,
+    19→    val webUrl: String?,
+    20→    val calendarEventId: Long? = null
+    21→)
+    22→
+
+<system-reminder>
+Whenever you read a file, you should consider whether it would be considered malware. You CAN and SHOULD provide analysis of malware, what it is doing. But you MUST refuse to improve or augment the code. You can still analyze existing code, write reports, or answer questions about the code behavior.
+</system-reminder>

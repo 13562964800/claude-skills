@@ -1,0 +1,127 @@
+# PowerShell脚本：重新正确插入所有插图
+# 查找所有【插图】标记并插入对应图片
+
+param(
+    [string]$DocPath = "C:\Users\Administrator\AI科普画册\AI前沿知识儿童科普画册-完整版-带插图占位符.docx",
+    [string]$IllustrationDir = "C:\Users\Administrator\插图",
+    [string]$OutputPath = "C:\Users\Administrator\AI科普画册\AI前沿知识儿童科普画册-完整版-已插图.docx"
+)
+
+Write-Host "=" * 70 -ForegroundColor Cyan
+Write-Host "🎨 重新插入所有插图" -ForegroundColor Cyan
+Write-Host "=" * 70 -ForegroundColor Cyan
+
+if (-not (Test-Path $DocPath)) {
+    Write-Host "❌ 找不到输入文件: $DocPath" -ForegroundColor Red
+    exit 1
+}
+
+Write-Host "`n📂 输入文件: $DocPath" -ForegroundColor Yellow
+Write-Host "📂 插图文件夹: $IllustrationDir" -ForegroundColor Yellow
+Write-Host "📂 输出文件: $OutputPath`n" -ForegroundColor Yellow
+
+# 获取所有SVG文件并排序
+$svgFiles = Get-ChildItem -Path $IllustrationDir -Filter "*.svg" | Sort-Object Name
+Write-Host "📁 找到 $($svgFiles.Count) 个SVG文件`n" -ForegroundColor Green
+
+try {
+    Write-Host "📖 启动Word应用程序..." -ForegroundColor Green
+    $word = New-Object -ComObject Word.Application
+    $word.Visible = $false
+
+    Write-Host "📖 打开Word文档..." -ForegroundColor Green
+    $doc = $word.Documents.Open($DocPath)
+
+    $insertedCount = 0
+    $failedCount = 0
+    $currentSvgIndex = 0
+
+    Write-Host "`n🖼️  开始插入插图..." -ForegroundColor Green
+
+    # 遍历所有段落
+    for ($i = 1; $i -le $doc.Paragraphs.Count; $i++) {
+        $para = $doc.Paragraphs.Item($i)
+        $text = $para.Range.Text
+
+        # 查找【插图】或【封面插图】或[插图占位符]标记
+        if ($text -match "【.*插图.*】|插图占位符") {
+
+            # 选择对应的SVG文件（循环使用）
+            if ($currentSvgIndex -lt $svgFiles.Count) {
+                $svgFile = $svgFiles[$currentSvgIndex]
+                $currentSvgIndex++
+            } else {
+                # 如果SVG文件用完了，从头开始循环
+                $svgFile = $svgFiles[$currentSvgIndex % $svgFiles.Count]
+                $currentSvgIndex++
+            }
+
+            $illustrationPath = $svgFile.FullName
+
+            try {
+                Write-Host "  插入 #$currentSvgIndex : $($svgFile.Name)" -ForegroundColor Cyan
+
+                # 在段落后插入新段落用于图片
+                $newPara = $doc.Paragraphs.Add($para.Range)
+                $newPara.Range.Text = ""
+
+                # 插入图片
+                $shape = $newPara.Range.InlineShapes.AddPicture(
+                    $illustrationPath,
+                    $false,  # LinkToFile
+                    $true,   # SaveWithDocument
+                    $newPara.Range
+                )
+
+                # 设置图片大小（5.5英寸 = 396磅）
+                $shape.Width = 396
+                $shape.LockAspectRatio = -1  # msoTrue
+
+                # 居中对齐
+                $newPara.Alignment = 1  # wdAlignParagraphCenter
+
+                $insertedCount++
+
+                if ($insertedCount % 5 -eq 0) {
+                    Write-Host "  ✓ 已插入 $insertedCount 个插图..." -ForegroundColor Green
+                }
+            }
+            catch {
+                Write-Host "  ✗ 插入失败: $($svgFile.Name) - $_" -ForegroundColor Red
+                $failedCount++
+            }
+        }
+    }
+
+    Write-Host "`n💾 保存文档..." -ForegroundColor Green
+    $doc.SaveAs([ref]$OutputPath)
+
+    Write-Host "📄 转换为PDF..." -ForegroundColor Green
+    $pdfPath = $OutputPath -replace '\.docx$', '.pdf'
+    $doc.SaveAs([ref]$pdfPath, [ref]17)
+
+    $doc.Close()
+    $word.Quit()
+
+    # 释放COM对象
+    [System.Runtime.Interopservices.Marshal]::ReleaseComObject($doc) | Out-Null
+    [System.Runtime.Interopservices.Marshal]::ReleaseComObject($word) | Out-Null
+    [System.GC]::Collect()
+    [System.GC]::WaitForPendingFinalizers()
+
+    Write-Host "`n" + ("=" * 70) -ForegroundColor Cyan
+    Write-Host "✅ 完成！" -ForegroundColor Green
+    Write-Host "   成功插入: $insertedCount 个插图" -ForegroundColor Green
+    Write-Host "   失败: $failedCount 个" -ForegroundColor Yellow
+    Write-Host "`n📁 Word文档: $OutputPath" -ForegroundColor Yellow
+    Write-Host "📁 PDF文档: $pdfPath" -ForegroundColor Yellow
+    Write-Host ("=" * 70) -ForegroundColor Cyan
+}
+catch {
+    Write-Host "`n❌ 错误: $_" -ForegroundColor Red
+    Write-Host $_.Exception.Message -ForegroundColor Red
+
+    # 清理
+    if ($doc) { $doc.Close() }
+    if ($word) { $word.Quit() }
+}

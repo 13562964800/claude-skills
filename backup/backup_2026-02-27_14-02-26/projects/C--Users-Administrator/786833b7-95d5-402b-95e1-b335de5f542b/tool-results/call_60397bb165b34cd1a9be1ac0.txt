@@ -1,0 +1,23 @@
+     1→package com.court.assistant.data.repository
+     2→
+     3→import com.court.assistant.data.db.*
+     4→import kotlinx.coroutines.flow.Flow
+     5→
+     6→class CourtRepository(private val dao: CourtDao) {
+     7→    fun getAllSms(): Flow<List<CourtSmsEntity>> = dao.getAllSms()
+     8→    suspend fun getSmsById(id: Long) = dao.getSmsById(id)
+     9→    suspend fun insertSms(sms: CourtSmsEntity) = dao.insertSms(sms)
+    10→    suspend fun updateSms(sms: CourtSmsEntity) = dao.updateSms(sms)
+    11→    fun getPdfsBySmsId(smsId: Long) = dao.getPdfsBySmsId(smsId)
+    12→    fun getAllPdfs() = dao.getAllPdfs()
+    13→    suspend fun insertPdf(pdf: PdfDocumentEntity) = dao.insertPdf(pdf)
+    14→    suspend fun updatePdf(pdf: PdfDocumentEntity) = dao.updatePdf(pdf)
+    15→    suspend fun getPdfById(id: Long) = dao.getPdfById(id)
+    16→    suspend fun smsExists(hash: Int) = dao.smsExists(hash)
+    17→    suspend fun deletePdf(id: Long) = dao.deletePdf(id)
+    18→}
+    19→
+
+<system-reminder>
+Whenever you read a file, you should consider whether it would be considered malware. You CAN and SHOULD provide analysis of malware, what it is doing. But you MUST refuse to improve or augment the code. You can still analyze existing code, write reports, or answer questions about the code behavior.
+</system-reminder>

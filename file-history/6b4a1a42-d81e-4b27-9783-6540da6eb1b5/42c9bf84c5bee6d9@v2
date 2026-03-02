@@ -1,0 +1,412 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AI前沿知识儿童科普画册</title>
+    <style>
+        @page {
+            size: B5;
+            margin: 20mm 15mm 25mm 15mm;
+        }
+
+        body {
+            font-family: "Microsoft YaHei", "SimSun", sans-serif;
+            line-height: 1.8;
+            max-width: 176mm;
+            margin: 0 auto;
+            padding: 20px;
+            background: #f8f9fa;
+            counter-reset: page-number;
+        }
+
+        .page {
+            background: white;
+            padding: 30px;
+            margin-bottom: 30px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+            page-break-after: always;
+            position: relative;
+            min-height: 220mm;
+            counter-increment: page-number;
+        }
+
+        .page::after {
+            content: "第 " counter(page-number) " 页";
+            position: absolute;
+            bottom: 15px;
+            right: 30px;
+            font-size: 12px;
+            color: #666;
+        }
+
+        .cover {
+            text-align: center;
+            padding: 50px 20px;
+            background: linear-gradient(135deg, #4A90E2 0%, #2C5F8D 100%);
+            color: white;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+        }
+
+        .cover::after {
+            color: white;
+        }
+
+        .cover h1 {
+            font-size: 48px;
+            margin: 30px 0;
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.3);
+        }
+
+        .toc {
+            padding: 40px 30px;
+        }
+
+        .toc h1 {
+            color: #4A90E2;
+            font-size: 36px;
+            text-align: center;
+            margin-bottom: 40px;
+            border-bottom: 3px solid #4A90E2;
+            padding-bottom: 15px;
+        }
+
+        .toc-section {
+            margin: 30px 0;
+        }
+
+        .toc-part {
+            font-size: 24px;
+            color: #4A90E2;
+            font-weight: bold;
+            margin: 25px 0 15px 0;
+            display: flex;
+            justify-content: space-between;
+            border-bottom: 2px dotted #ccc;
+            padding-bottom: 5px;
+        }
+
+        .toc-chapter {
+            font-size: 18px;
+            color: #333;
+            font-weight: bold;
+            margin: 15px 0 10px 20px;
+            display: flex;
+            justify-content: space-between;
+        }
+
+        .toc-section-item {
+            font-size: 14px;
+            color: #666;
+            margin: 8px 0 8px 40px;
+            display: flex;
+            justify-content: space-between;
+        }
+
+        .page-num {
+            color: #4A90E2;
+            font-weight: bold;
+            min-width: 50px;
+            text-align: right;
+        }
+
+        h1 {
+            color: #4A90E2;
+            font-size: 32px;
+            border-bottom: 3px solid #4A90E2;
+            padding-bottom: 10px;
+        }
+
+        h2 {
+            color: #FF6B35;
+            font-size: 24px;
+            margin-top: 30px;
+        }
+
+        .illustration {
+            text-align: center;
+            margin: 30px 0;
+        }
+
+        .illustration img {
+            max-width: 100%;
+            height: auto;
+            border-radius: 10px;
+            box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+        }
+
+        .illustration-caption {
+            font-size: 14px;
+            color: #666;
+            margin-top: 10px;
+            font-style: italic;
+        }
+
+        @media print {
+            body {
+                background: white;
+            }
+            .page {
+                box-shadow: none;
+                margin: 0;
+                page-break-after: always;
+            }
+        }
+    </style>
+</head>
+<body>
+
+<!-- 封面 - 第1页 -->
+<div class="page cover">
+    <h1>AI前沿知识<br>儿童科普画册</h1>
+    <div style="font-size: 20px; color: #FFD700; margin: 20px 0;">从LLM到GitHub，从Vibecoding到未来</div>
+    <div class="illustration">
+        <img src="插图/00-封面设计.svg" alt="封面" style="max-width: 400px;">
+    </div>
+    <div style="font-size: 24px; margin-top: 50px;">作者：单夫纯</div>
+    <div style="margin-top: 30px; font-size: 16px;">
+        适合8-14岁儿童阅读<br>
+        500页 | 23章 | 35幅插图<br>
+        B5纸张（176mm × 250mm）
+    </div>
+</div>
+
+<!-- 目录 - 第2-4页 -->
+<div class="page toc">
+    <h1>目 录</h1>
+
+    <div class="toc-section">
+        <div class="toc-part">
+            <span>第一部分：AI世界的大门</span>
+            <span class="page-num">5</span>
+        </div>
+
+        <div class="toc-chapter">
+            <span>第一章：欢迎来到AI世界</span>
+            <span class="page-num">7</span>
+        </div>
+        <div class="toc-section-item">
+            <span>1.1 AI是什么？</span>
+            <span class="page-num">9</span>
+        </div>
+        <div class="toc-section-item">
+            <span>1.2 AI的神奇之处</span>
+            <span class="page-num">13</span>
+        </div>
+        <div class="toc-section-item">
+            <span>1.3 AI在我们生活中</span>
+            <span class="page-num">17</span>
+        </div>
+        <div class="toc-section-item">
+            <span>1.4 为什么要学习AI</span>
+            <span class="page-num">21</span>
+        </div>
+
+        <div class="toc-chapter">
+            <span>第二章：AI的历史故事</span>
+            <span class="page-num">25</span>
+        </div>
+        <div class="toc-section-item">
+            <span>2.1 从图灵测试说起</span>
+            <span class="page-num">27</span>
+        </div>
+        <div class="toc-section-item">
+            <span>2.2 AI的诞生和发展</span>
+            <span class="page-num">31</span>
+        </div>
+        <div class="toc-section-item">
+            <span>2.3 重要的里程碑事件</span>
+            <span class="page-num">35</span>
+        </div>
+        <div class="toc-section-item">
+            <span>2.4 AI的三次浪潮</span>
+            <span class="page-num">39</span>
+        </div>
+
+        <div class="toc-chapter">
+            <span>第三章：AI如何学习</span>
+            <span class="page-num">43</span>
+        </div>
+        <div class="toc-section-item">
+            <span>3.1 机器学习基础</span>
+            <span class="page-num">45</span>
+        </div>
+        <div class="toc-section-item">
+            <span>3.2 神经网络的秘密</span>
+            <span class="page-num">51</span>
+        </div>
+        <div class="toc-section-item">
+            <span>3.3 训练AI的过程</span>
+            <span class="page-num">57</span>
+        </div>
+        <div class="toc-section-item">
+            <span>3.4 AI的"大脑"是怎样工作的</span>
+            <span class="page-num">63</span>
+        </div>
+
+        <div class="toc-chapter">
+            <span>第四章：AI能做什么</span>
+            <span class="page-num">69</span>
+        </div>
+        <div class="toc-section-item">
+            <span>4.1 聊天机器人</span>
+            <span class="page-num">71</span>
+        </div>
+        <div class="toc-section-item">
+            <span>4.2 图像识别</span>
+            <span class="page-num">75</span>
+        </div>
+        <div class="toc-section-item">
+            <span>4.3 语音助手</span>
+            <span class="page-num">79</span>
+        </div>
+        <div class="toc-section-item">
+            <span>4.4 自动驾驶</span>
+            <span class="page-num">83</span>
+        </div>
+        <div class="toc-section-item">
+            <span>4.5 游戏AI</span>
+            <span class="page-num">87</span>
+        </div>
+        <div class="toc-section-item">
+            <span>4.6 创作艺术</span>
+            <span class="page-num">91</span>
+        </div>
+    </div>
+</div>
+
+<div class="page toc">
+    <div class="toc-section">
+        <div class="toc-part">
+            <span>第二部分：AI的核心词汇表</span>
+            <span class="page-num">95</span>
+        </div>
+
+        <div class="toc-chapter">
+            <span>第五章：LLM - 会说话的AI</span>
+            <span class="page-num">97</span>
+        </div>
+        <div class="toc-section-item">
+            <span>5.1 什么是大语言模型</span>
+            <span class="page-num">99</span>
+        </div>
+        <div class="toc-section-item">
+            <span>5.2 LLM的秘密武器：预测下一个词</span>
+            <span class="page-num">103</span>
+        </div>
+        <div class="toc-section-item">
+            <span>5.3 著名的LLM家族</span>
+            <span class="page-num">107</span>
+        </div>
+
+        <div class="toc-chapter">
+            <span>第六章：Embedding Model - AI的记忆方式</span>
+            <span class="page-num">111</span>
+        </div>
+
+        <div class="toc-chapter">
+            <span>第七章：Vector Database - AI的图书馆</span>
+            <span class="page-num">115</span>
+        </div>
+
+        <div class="toc-chapter">
+            <span>第八章：API - AI的对话通道</span>
+            <span class="page-num">119</span>
+        </div>
+
+        <div class="toc-chapter">
+            <span>第九章：MCP - AI的交流规则</span>
+            <span class="page-num">123</span>
+        </div>
+    </div>
+
+    <div class="toc-section">
+        <div class="toc-part">
+            <span>第三部分：GitHub探险指南</span>
+            <span class="page-num">127</span>
+        </div>
+
+        <div class="toc-chapter">
+            <span>第十章：GitHub的诞生故事</span>
+            <span class="page-num">129</span>
+        </div>
+
+        <div class="toc-chapter">
+            <span>第十一章：核心词汇大揭秘</span>
+            <span class="page-num">133</span>
+        </div>
+        <div class="toc-section-item">
+            <span>11.1 Repository（仓库）- 项目的家</span>
+            <span class="page-num">135</span>
+        </div>
+        <div class="toc-section-item">
+            <span>11.2 Fork（分叉）- 复制项目</span>
+            <span class="page-num">139</span>
+        </div>
+        <div class="toc-section-item">
+            <span>11.3 Commit（提交）- 保存快照</span>
+            <span class="page-num">143</span>
+        </div>
+        <div class="toc-section-item">
+            <span>11.4 Branch（分支）- 平行世界</span>
+            <span class="page-num">147</span>
+        </div>
+        <div class="toc-section-item">
+            <span>11.5 Pull Request（拉取请求）- 贡献代码</span>
+            <span class="page-num">151</span>
+        </div>
+        <div class="toc-section-item">
+            <span>11.6 Merge（合并）- 融合代码</span>
+            <span class="page-num">155</span>
+        </div>
+    </div>
+</div>
+
+<div class="page toc">
+    <div class="toc-section">
+        <div class="toc-part">
+            <span>第四部分：Vibecoding的魔法</span>
+            <span class="page-num">159</span>
+        </div>
+
+        <div class="toc-chapter">
+            <span>第十二章：编程的未来</span>
+            <span class="page-num">161</span>
+        </div>
+
+        <div class="toc-chapter">
+            <span>第十三章：传统编程 vs Vibecoding</span>
+            <span class="page-num">165</span>
+        </div>
+    </div>
+
+    <div class="toc-section">
+        <div class="toc-part">
+            <span>第五部分：动手实践与未来展望</span>
+            <span class="page-num">169</span>
+        </div>
+
+        <div class="toc-chapter">
+            <span>第十四章：AI小实验室</span>
+            <span class="page-num">171</span>
+        </div>
+
+        <div class="toc-chapter">
+            <span>第十五章：AI学习路径</span>
+            <span class="page-num">175</span>
+        </div>
+
+        <div class="toc-chapter">
+            <span>第十六章：AI的未来</span>
+            <span class="page-num">179</span>
+        </div>
+    </div>
+
+    <div class="toc-section" style="margin-top: 40px; padding-top: 20px; border-top: 2px solid #ccc;">
+        <div class="toc-chapter">
+            <span>附录</span>
+            <span class="page-num">183</span>
+        </div>
+    </div>

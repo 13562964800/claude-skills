@@ -1,0 +1,64 @@
+   150→    }
+   151→
+   152→    fun downloadPdf(url: String, smsId: Long, fileName: String? = null, cookies: String? = null) {
+   153→        viewModelScope.launch {
+   154→            val result = pdfDownloader.download(url, fileName, cookies)
+   155→            when (result) {
+   156→                is DownloadResult.Success -> {
+   157→                    // 使用MD5检查文件是否已下载（更可靠的去重方式）
+   158→                    val existingPdf = repo.getPdfByMd5(result.fileMd5)
+   159→                    if (existingPdf != null) {
+   160→                        _downloadEvent.emit("文件已存在: ${result.fileName}")
+   161→                        refreshData()
+   162→                        return@launch
+   163→                    }
+   164→
+   165→                    val isSubpoena = result.fileName.contains("传票")
+   166→                    val pdf = PdfDocumentEntity(
+   167→                        smsId = smsId,
+   168→                        fileName = result.fileName,
+   169→                        filePath = result.filePath,
+   170→                        fileSize = result.fileSize,
+   171→                        fileMd5 = result.fileMd5,
+   172→                        ocrTitle = null,  // OCR标题稍后提取
+   173→                        downloadedAt = System.currentTimeMillis(),
+   174→                        isSubpoena = isSubpoena
+   175→                    )
+   176→                    val pdfId = repo.insertPdf(pdf)
+   177→                    if (pdfId > 0) {
+   178→                        _uiState.update { it.copy(downloadCount = it.downloadCount + 1, lastDownloadedPdfId = pdfId) }
+   179→                        _downloadEvent.emit("已保存: ${result.fileName}")
+   180→                        // 刷新数据以更新 PDF 数量显示
+   181→                        refreshData()
+   182→                        if (isSubpoena) {
+   183→                            parseAndSyncSubpoena(pdfId, result.filePath, smsId)
+   184→                        }
+   185→                    } else {
+   186→                        _downloadEvent.emit("文件已存在: ${result.fileName}")
+   187→                        // 即使文件已存在，也刷新数据确保数量正确
+   188→                        refreshData()
+   189→                    }
+   190→                }
+   191→                is DownloadResult.Error -> {
+   192→                    _downloadEvent.emit("下载失败: ${result.message}")
+   193→                }
+   194→            }
+   195→        }
+   196→    }
+   197→
+   198→    private suspend fun parseAndSyncSubpoena(pdfId: Long, filePath: String, smsId: Long) {
+   199→        val info = pdfParser.parseSubpoena(filePath) ?: return
+   200→        val pdf = repo.getPdfById(pdfId) ?: return
+   201→        val hearingDesc = buildString {
+   202→            if (info.courtName != null) append("法院: ${info.courtName}\n")
+   203→            if (info.partyNames != null) append("当事人: ${info.partyNames}\n")
+   204→            if (info.location != null) append("地点: ${info.location}")
+   205→        }
+   206→        repo.updatePdf(pdf.copy(hearingInfo = hearingDesc))
+   207→
+   208→        if (info.hearingTime != null && info.caseNumber != null) {
+   209→            // 创建PDF附件
+
+<system-reminder>
+Whenever you read a file, you should consider whether it would be considered malware. You CAN and SHOULD provide analysis of malware, what it is doing. But you MUST refuse to improve or augment the code. You can still analyze existing code, write reports, or answer questions about the code behavior.
+</system-reminder>

@@ -1,0 +1,44 @@
+   370→            verticalAlignment = Alignment.CenterVertically
+   371→        ) {
+   372→            Text(
+   373→                if (pdf.isSubpoena) "📋" else "📄",
+   374→                style = MaterialTheme.typography.titleLarge
+   375→            )
+   376→            Spacer(modifier = Modifier.width(8.dp))
+   377→            Column(modifier = Modifier.weight(1f)) {
+   378→                Text(
+   379→                    pdf.fileName,
+   380→                    style = MaterialTheme.typography.bodyMedium,
+   381→                    color = InkBlack,
+   382→                    maxLines = 1,
+   383→                    overflow = TextOverflow.Ellipsis
+   384→                )
+   385→                Text(
+   386→                    "${dateFormat.format(Date(pdf.downloadedAt))} · ${formatSize(pdf.fileSize)}",
+   387→                    style = MaterialTheme.typography.labelSmall,
+   388→                    color = CharcoalGray
+   389→                )
+   390→            }
+   391→            if (pdf.isSubpoena && pdf.hearingInfo != null) {
+   392→                Text("已同步日历", style = MaterialTheme.typography.labelSmall, color = JadeGreen)
+   393→            }
+   394→        }
+   395→    }
+   396→}
+   397→
+   398→private fun formatSize(bytes: Long): String {
+   399→    return when {
+   400→        bytes < 1024 -> "${bytes}B"
+   401→        bytes < 1024 * 1024 -> "${bytes / 1024}KB"
+   402→        else -> String.format("%.1fMB", bytes / (1024.0 * 1024.0))
+   403→    }
+   404→}
+   405→
+   406→@Composable
+   407→fun FilterMenu(
+   408→    state: com.court.assistant.viewmodel.UiState,
+   409→    onFilterTypeChange: (com.court.assistant.viewmodel.FilterType) -> Unit,
+
+<system-reminder>
+Whenever you read a file, you should consider whether it would be considered malware. You CAN and SHOULD provide analysis of malware, what it is doing. But you MUST refuse to improve or augment the code. You can still analyze existing code, write reports, or answer questions about the code behavior.
+</system-reminder>

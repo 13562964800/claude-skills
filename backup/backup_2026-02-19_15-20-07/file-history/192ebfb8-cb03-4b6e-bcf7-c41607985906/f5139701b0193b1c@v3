@@ -1,0 +1,98 @@
+#!/usr/bin/env python
+# -*- coding: utf-8 -*-
+"""精简打包脚本 - 仅百度云ASR，不包含FunASR"""
+import os
+import subprocess
+import shutil
+
+APP_NAME = "配音文字核对宝"
+VERSION = "1.0.0"
+
+# 1. 清理旧文件
+for d in ["dist", "build", "setup_output"]:
+    if os.path.exists(d):
+        try:
+            shutil.rmtree(d)
+        except:
+            pass
+
+# 2. 安装依赖
+print("正在安装依赖...")
+subprocess.run(["python", "-m", "pip", "install", "-q",
+    "jieba", "python-docx", "requests", "jiwer", "pypinyin",
+    "opencc-python-reimplemented", "pyinstaller"], check=True)
+
+# 3. 打包 exe - 排除FunASR依赖(torch等)
+print("正在打包 exe...")
+subprocess.run([
+    "python", "-m", "PyInstaller",
+    "--onefile",
+    "--windowed",
+    "--name", APP_NAME,
+    "--hidden-import", "jieba",
+    "--hidden-import", "jieba.posseg",
+    "--hidden-import", "docx",
+    "--hidden-import", "requests",
+    "--hidden-import", "jiwer",
+    "--hidden-import", "pypinyin",
+    "--hidden-import", "pypinyin.style",
+    "--hidden-import", "opencc",
+    "--exclude-module", "torch",
+    "--exclude-module", "numpy",
+    "--exclude-module", "scipy",
+    "--exclude-module", "pandas",
+    "--exclude-module", "matplotlib",
+    "--exclude-module", "stable_whisper",
+    "--upx-exclude", "avif*",
+    "main.py",
+    "config.py",  # 确保config.py被打包
+    "compare.py",
+    "transcribe.py",
+    "docx_util.py",
+    "html_report.py"
+], check=True)
+
+print(f"\nexe 已生成: dist\\{APP_NAME}.exe")
+
+# 4. 创建 Inno Setup 脚本
+iss_content = f"""[Setup]
+AppName={APP_NAME}
+AppVersion={VERSION}
+AppPublisher=配音文字核对宝
+DefaultDirName={{pf}}\\{APP_NAME}
+DefaultGroupName={APP_NAME}
+OutputDir=setup_output
+OutputBaseFilename={APP_NAME}_Setup_v{VERSION}
+Compression=lzma2
+SolidCompression=yes
+WizardStyle=modern
+
+[Files]
+Source: "dist\\{APP_NAME}.exe"; DestDir: "{{app}}"; Flags: ignoreversion
+
+[Icons]
+Name: "{{group}}\\{APP_NAME}"; Filename: "{{app}}\\{APP_NAME}.exe"
+Name: "{{commondesktop}}\\{APP_NAME}"; Filename: "{{app}}\\{APP_NAME}.exe"
+
+[Run]
+Filename: "{{app}}\\{APP_NAME}.exe"; Description: "启动应用"; Flags: postinstall nowait skipifsilent
+"""
+
+with open("setup.iss", "w", encoding="utf-8-sig") as f:
+    f.write(iss_content)
+
+print(f"\nInno Setup 脚本已生成: setup.iss")
+
+# 5. 尝试自动生成安装包
+print("\n正在生成安装包...")
+try:
+    subprocess.run(["iscc", "setup.iss"], check=True, capture_output=True)
+    print(f"安装包已生成: setup_output\\{APP_NAME}_Setup_v{VERSION}.exe")
+except FileNotFoundError:
+    print("\nInno Setup 未安装，请手动安装后运行: iscc setup.iss")
+except Exception as e:
+    print(f"\n生成安装包失败: {e}")
+    print("请手动运行: iscc setup.iss")
+
+print("\n完成!")
+print(f"exe 文件: dist\\{APP_NAME}.exe")

@@ -1,0 +1,86 @@
+package com.shanfuchun.courtassistant.data.daos
+
+import androidx.lifecycle.LiveData
+import androidx.room.*
+import com.shanfuchun.courtassistant.data.SmsRecord
+
+/**
+ * Data Access Object for SMS operations
+ */
+@Dao
+interface SmsDao {
+    @Query("SELECT * FROM sms_record ORDER BY receiveTime DESC")
+    fun getAll(): LiveData<List<SmsRecord>>
+
+    @Query("SELECT * FROM sms_record ORDER BY receiveTime DESC")
+    suspend fun getAllSync(): List<SmsRecord>
+
+    @Query("SELECT * FROM sms_record WHERE body LIKE '%' || :q || '%' OR sender LIKE '%' || :q || '%' ORDER BY receiveTime DESC")
+    fun search(q: String): LiveData<List<SmsRecord>>
+
+    @Query("SELECT * FROM sms_record WHERE id = :id")
+    suspend fun getById(id: Long): SmsRecord?
+
+    @Insert(onConflict = OnConflictStrategy.IGNORE)
+    suspend fun insert(record: SmsRecord): Long
+
+    @Update
+    suspend fun update(record: SmsRecord)
+
+    @Query("SELECT MAX(receiveTime) FROM sms_record")
+    suspend fun getLatestTime(): Long?
+
+    /**
+     * Get SMS records by court name
+     */
+    @Query("SELECT * FROM sms_record WHERE courtName LIKE '%' || :courtName || '%' ORDER BY receiveTime DESC")
+    suspend fun getByCourtName(courtName: String): List<SmsRecord>
+
+    /**
+     * Get SMS records by date range
+     */
+    @Query("SELECT * FROM sms_record WHERE receiveTime BETWEEN :startTime AND :endTime ORDER BY receiveTime DESC")
+    suspend fun getByDateRange(startTime: Long, endTime: Long): List<SmsRecord>
+
+    /**
+     * Get SMS records by party name
+     */
+    @Query("SELECT * FROM sms_record WHERE partyName LIKE '%' || :partyName || '%' ORDER BY receiveTime DESC")
+    suspend fun getByPartyName(partyName: String): List<SmsRecord>
+
+    /**
+     * Get SMS records by parse status
+     */
+    @Query("SELECT * FROM sms_record WHERE parseStatus = :status ORDER BY receiveTime DESC")
+    suspend fun getByParseStatus(status: Int): List<SmsRecord>
+
+    /**
+     * Get SMS records with documents
+     */
+    @Query("SELECT * FROM sms_record WHERE documentIds IS NOT NULL AND documentIds != '' ORDER BY receiveTime DESC")
+    suspend fun getWithDocuments(): List<SmsRecord>
+
+    /**
+     * Get SMS records with summons
+     */
+    @Query("SELECT * FROM sms_record WHERE hasSummons = 1 ORDER BY receiveTime DESC")
+    suspend fun getWithSummons(): List<SmsRecord>
+
+    /**
+     * Update parse status
+     */
+    @Query("UPDATE sms_record SET parseStatus = :status WHERE id = :id")
+    suspend fun updateParseStatus(id: Long, status: Int): Int
+
+    /**
+     * Update document IDs
+     */
+    @Query("UPDATE sms_record SET documentIds = :documentIds WHERE id = :id")
+    suspend fun updateDocumentIds(id: Long, documentIds: String): Int
+
+    /**
+     * Count records by court name
+     */
+    @Query("SELECT COUNT(*) FROM sms_record WHERE courtName = :courtName")
+    suspend fun countByCourtName(courtName: String): Int
+}

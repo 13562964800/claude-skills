@@ -1,0 +1,85 @@
+; Inno Setup 安装脚本
+; 视频下载转录系统 v1.0.0
+
+#define MyAppName "视频下载转录系统"
+#define MyAppVersion "1.0.0"
+#define MyAppPublisher "Claude AI"
+#define MyAppURL "https://github.com"
+#define MyAppExeName "start.bat"
+
+[Setup]
+AppId={{8F9A2B3C-4D5E-6F7A-8B9C-0D1E2F3A4B5C}
+AppName={#MyAppName}
+AppVersion={#MyAppVersion}
+AppPublisher={#MyAppPublisher}
+AppPublisherURL={#MyAppURL}
+AppSupportURL={#MyAppURL}
+AppUpdatesURL={#MyAppURL}
+DefaultDirName={autopf}\VideoDownloadTranscribe
+DefaultGroupName={#MyAppName}
+AllowNoIcons=yes
+LicenseFile=LICENSE.txt
+OutputDir=.
+OutputBaseFilename=VideoDownloadTranscribe-Setup-v1.0.0
+SetupIconFile=icon.ico
+Compression=lzma
+SolidCompression=yes
+WizardStyle=modern
+PrivilegesRequired=admin
+DisableProgramGroupPage=yes
+UninstallDisplayIcon={app}\icon.ico
+
+[Languages]
+Name: "chinesesimplified"; MessagesFile: "compiler:Languages\ChineseSimplified.isl"
+
+[Tasks]
+Name: "desktopicon"; Description: "创建桌面快捷方式"; GroupDescription: "附加图标:"; Flags: unchecked
+
+[Files]
+Source: "video-download-service\*"; DestDir: "{app}\video-download-service"; Flags: ignoreversion recursesubdirs createallsubdirs
+Source: "video-downloader-extension\*"; DestDir: "{app}\video-downloader-extension"; Flags: ignoreversion recursesubdirs createallsubdirs
+Source: "README.md"; DestDir: "{app}"; Flags: ignoreversion
+Source: "QUICKSTART.md"; DestDir: "{app}"; Flags: ignoreversion
+Source: "INSTALLATION_GUIDE.md"; DestDir: "{app}"; Flags: ignoreversion
+
+[Icons]
+Name: "{group}\{#MyAppName}"; Filename: "{app}\video-download-service\start.bat"; WorkingDir: "{app}\video-download-service"
+Name: "{group}\卸载 {#MyAppName}"; Filename: "{uninstallexe}"
+Name: "{autodesktop}\{#MyAppName}"; Filename: "{app}\video-download-service\start.bat"; WorkingDir: "{app}\video-download-service"; Tasks: desktopicon
+
+[Run]
+Filename: "{app}\video-download-service\setup.bat"; Description: "运行安装程序"; Flags: postinstall shellexec skipifsilent
+Filename: "{app}\README.md"; Description: "查看使用说明"; Flags: postinstall shellexec skipifsilent unchecked
+
+[Code]
+function InitializeSetup(): Boolean;
+var
+  ResultCode: Integer;
+begin
+  Result := True;
+
+  // 检查 Python
+  if not Exec('cmd.exe', '/c python --version', '', SW_HIDE, ewWaitUntilTerminated, ResultCode) or (ResultCode <> 0) then
+  begin
+    if MsgBox('未检测到 Python。是否继续安装？' + #13#10 + '注意：需要 Python 3.10+ 才能运行本程序。', mbConfirmation, MB_YESNO) = IDNO then
+      Result := False;
+  end;
+
+  // 检查 FFmpeg
+  if Result then
+  begin
+    if not Exec('cmd.exe', '/c ffmpeg -version', '', SW_HIDE, ewWaitUntilTerminated, ResultCode) or (ResultCode <> 0) then
+    begin
+      if MsgBox('未检测到 FFmpeg。是否继续安装？' + #13#10 + '注意：需要 FFmpeg 才能进行音视频处理。', mbConfirmation, MB_YESNO) = IDNO then
+        Result := False;
+    end;
+  end;
+end;
+
+procedure CurStepChanged(CurStep: TSetupStep);
+begin
+  if CurStep = ssPostInstall then
+  begin
+    // 安装完成后的操作
+  end;
+end;

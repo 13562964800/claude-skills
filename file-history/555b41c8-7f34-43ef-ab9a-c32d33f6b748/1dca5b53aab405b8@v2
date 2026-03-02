@@ -1,0 +1,381 @@
+package com.shanfuchun.courtassistant.service
+
+import java.util.regex.Pattern
+import java.util.Calendar
+import java.util.TimeZone
+
+data class HearingInfo(
+    val hearingTime: Long = 0,
+    val courtName: String = "",
+    val caseNo: String = "",
+    val location: String = "",
+    val partyName: String = "",
+    val judge: String = ""
+)
+
+object TextParser {
+
+    // Case number: (2024)鲁1312民初4967号 — tolerant of spaces between chars
+    private val CASE_NO_PATTERN = Pattern.compile(
+        "[（(]\\s*\\d{4}\\s*[）)]\\s*[京津沪渝冀豫云辽黑湘皖鲁新苏浙赣鄂桂甘晋蒙陕吉闽贵粤川青藏琼宁]" +
+        "\\s*\\d{2,4}\\s*[\\u4e00-\\u9fa5]{1,4}\\s*[\\u4e00-\\u9fa5]{0,2}\\d+\\s*号"
+    )
+
+    private val COURT_PATTERN = Pattern.compile(
+        "[\\u4e00-\\u9fa5]+(?:人民法院|人民法庭|人\\s*法院|仲裁委员会|仲裁院)"
+    )
+
+    // "应到处所" field in summons (may have newline before value)
+    private val SUMMONS_LOCATION = Pattern.compile(
+        "应到处所[\\s：:]*([\\u4e00-\\u9fa5\\d\\-—号楼层室A-Za-z第]+(?:审判庭|法庭|法院|室|庭))"
+    )
+    // "在...开庭" pattern from SMS notifications — tolerate spaces in 法 庭
+    private val SMS_LOCATION = Pattern.compile(
+        "在([\\u4e00-\\u9fa5\\d第]+(?:审\\s*判\\s*庭|法\\s*庭|法\\s*院|处\\s*所|室|庭))"
+    )
+    // Generic location
+    private val GENERIC_LOCATION = Pattern.compile(
+        "(?:地[点址]|法庭|审判庭|处所)[：:为在]\\s*([\\u4e00-\\u9fa5\\d\\-—号楼层室第A-Za-z]+)"
+    )
+
+    // Party name: supports company names up to 30 chars
+    private val PARTY_PATTERNS = listOf(
+        Pattern.compile("被传唤人[\\s：:]*([\\u4e00-\\u9fa5()（）\\d]{2,30})"),
+        Pattern.compile("(?:被告|原告|当事人|被申请人|申请人)[\\s：:]*([\\u4e00-\\u9fa5()（）\\d]{2,30})")
+    )
+
+    // Judge/handler — supports parenthesized names: 联系人 (刘国良)
+    private val JUDGE_PATTERN = Pattern.compile(
+        "(?:承办人|联系人|审判员)[\\s：:]*[（(]?([\\u4e00-\\u9fa5]{2,6})[）)]?"
+    )
+
+    // Time patterns ordered by specificity
+    private val TIME_PATTERNS = listOf(
+        // P0: 应到时间 2024年07月12日 10:00 (summons format with colon time)
+        Pattern.compile("(\\d{4})\\s*年\\s*(\\d{1,2})\\s*月\\s*(\\d{1,2})\\s*日\\s*(\\d{1,2})\\s*[：:]\\s*(\\d{2})"),
+        // P1: 2026年3月12日15时30分
+        Pattern.compile("(\\d{4})\\s*年\\s*(\\d{1,2})\\s*月\\s*(\\d{1,2})\\s*日\\s*(\\d{1,2})\\s*时\\s*(?:(\\d{1,2})\\s*分)?"),
+        // P2: 2026年3月12日 上午/下午 3点30分
+        Pattern.compile("(\\d{4})\\s*年\\s*(\\d{1,2})\\s*月\\s*(\\d{1,2})\\s*日\\s*(?:(上午|下午|晚上))?\\s*(\\d{1,2})\\s*[点时]\\s*(?:(\\d{1,2})\\s*分)?"),
+        // P3: 2026-03-12 15:00 or 2026/03/12 15:00
+        Pattern.compile("(\\d{4})[-/](\\d{1,2})[-/](\\d{1,2})\\s+(\\d{1,2}):(\\d{2})"),
+        // P4: 3月12日15时30分 (no year)
+        Pattern.compile("(?<!\\d)(\\d{1,2})\\s*月\\s*(\\d{1,2})\\s*日\\s*(\\d{1,2})\\s*时\\s*(?:(\\d{1,2})\\s*分)?"),
+        // P5: 3月12日 下午3点
+        Pattern.compile("(?<!\\d)(\\d{1,2})\\s*月\\s*(\\d{1,2})\\s*日\\s*(?:(上午|下午|晚上))?\\s*(\\d{1,2})\\s*[点时]\\s*(?:(\\d{1,2})\\s*分)?"),
+        // P6: SMS "定于...年...月...日...时...分" with scattered text
+        Pattern.compile("定于[\\s\\S]{0,10}?(\\d{4})\\s*年\\s*(\\d{1,2})\\s*月\\s*(\\d{1,2})\\s*日\\s*(\\d{1,2})\\s*时\\s*(?:(\\d{1,2})\\s*分)?")
+    )
+
+    private val URL_PATTERN = Pattern.compile(
+        "https?://[\\w\\-._~:/?#\\[\\]@!$&'()*+,;=%]+"
+    )
+
+    fun parse(text: String): HearingInfo {
+        val normalized = cleanOcrNoise(text)
+        return HearingInfo(
+            hearingTime = extractTime(normalized),
+            courtName = extractFirst(COURT_PATTERN, normalized),
+            caseNo = extractCaseNo(normalized),
+            location = extractLocation(normalized),
+            partyName = extractParty(normalized),
+            judge = extractGroup(JUDGE_PATTERN, normalized, 1)
+        )
+    }
+
+    /**
+     * 专门解析传票文件，提供更精确的提取
+     * 用于处理文件名包含"传票"的PDF文件
+     *
+     * 提取信息（具体到分钟）：
+     * - 开庭时间（精确到分钟）
+     * - 应到处所
+     * - 法院简化名称
+     * - 被传唤人
+     */
+    fun parseSummons(text: String): HearingInfo {
+        val normalized = cleanOcrNoise(text)
+        return HearingInfo(
+            hearingTime = extractTime(normalized),
+            courtName = extractCourtName(normalized),
+            caseNo = extractCaseNo(normalized),
+            location = extractLocationEnhanced(normalized),
+            partyName = extractPartyEnhanced(normalized),
+            judge = extractGroup(JUDGE_PATTERN, normalized, 1)
+        )
+    }
+
+    /**
+     * 提取法院简化名称
+     * 规则：最高法院→XX高院→XX中院→XX法院→XX法庭→XX仲裁委
+     */
+    private fun extractCourtName(text: String): String {
+        val fullCourtName = extractFirst(COURT_PATTERN, text)
+        if (fullCourtName.isEmpty()) return ""
+
+        // 按优先级提取简化名称
+        return when {
+            fullCourtName.contains("最高人民法院") -> "最高人民法院"
+            fullCourtName.contains("高级人民法院") -> {
+                val province = fullCourtName.take(2)
+                "${province}高院"
+            }
+            fullCourtName.contains("中级人民法院") -> {
+                val city = extractCityName(fullCourtName)
+                "${city}中院"
+            }
+            fullCourtName.contains("基层人民法院") || fullCourtName.contains("区人民法院") || fullCourtName.contains("县人民法院") -> {
+                val district = extractDistrictName(fullCourtName)
+                "${district}法院"
+            }
+            fullCourtName.contains("人民法庭") -> {
+                val court = extractCourtBaseName(fullCourtName)
+                "${court}法庭"
+            }
+            fullCourtName.contains("仲裁委员会") -> {
+                val city = extractCityName(fullCourtName)
+                "${city}仲裁委"
+            }
+            else -> fullCourtName
+        }
+    }
+
+    /**
+     * 从法院全名中提取城市名
+     */
+    private fun extractCityName(courtName: String): String {
+        // 匹配 "XX市中级人民法院" 或 "XX中级人民法院"
+        val cityPattern = Pattern.compile("([^省市区县]+)(?:市|自治区)(?:中级人民法院)?")
+        val m = cityPattern.matcher(courtName)
+        return if (m.find()) m.group(1) ?: courtName.take(2) else courtName.take(2)
+    }
+
+    /**
+     * 从法院全名中提取区县名
+     */
+    private fun extractDistrictName(courtName: String): String {
+        // 匹配 "XX区人民法院" 或 "XX县人民法院"
+        val districtPattern = Pattern.compile("([^省市]+)(?:区|县)(?:人民法院)?")
+        val m = districtPattern.matcher(courtName)
+        return if (m.find()) m.group(1) ?: courtName.take(3) else courtName.take(3)
+    }
+
+    /**
+     * 从法院全名中提取基础名称（不含"人民法庭"）
+     */
+    private fun extractCourtBaseName(courtName: String): String {
+        return courtName.replace("人民法庭", "").replace("人民法院", "")
+    }
+
+    /**
+     * 增强版位置提取，优先使用"应到处所"字段
+     */
+    private fun extractLocationEnhanced(text: String): String {
+        // 优先使用传票专用字段
+        val summonsLocation = extractGroup(SUMMONS_LOCATION, text, 1)
+        if (summonsLocation.isNotEmpty()) return summonsLocation
+
+        // 其次使用"开庭地点"
+        val hearingLocation = Pattern.compile("开庭地点[：:]\\s*([\\u4e00-\\u9fa5\\d\\-—号楼层室第A-Za-z]+(?:审判庭|法庭|室|庭))")
+        val m1 = hearingLocation.matcher(text)
+        if (m1.find()) return m1.group(1).replace(" ", "").trim()
+
+        // 再次使用"应到时间"后面可能跟随的地点信息
+        val arrivalLocation = Pattern.compile("应到时间[\\s\\S]{0,30}?[在於]([\\u4e00-\\u9fa5\\d]+(?:审判庭|法庭|室))")
+        val m2 = arrivalLocation.matcher(text)
+        if (m2.find()) return m2.group(1).replace(" ", "").trim()
+
+        // 最后使用通用位置提取
+        return extractLocation(text)
+    }
+
+    /**
+     * 增强版被传唤人提取
+     */
+    private fun extractPartyEnhanced(text: String): String {
+        // 优先使用"被传唤人"
+        val summonedPattern = Pattern.compile("被传唤人[\\s：:]*([\\u4e00-\\u9fa5()（）\\d]{2,30})")
+        val m1 = summonedPattern.matcher(text)
+        if (m1.find()) {
+            val name = (m1.group(1) ?: "").trim()
+            if (name.isNotEmpty() && !listOf("传票", "经传", "传唤").any { name.contains(it) }) {
+                return name
+            }
+        }
+
+        // 使用"被传唤人"的其他格式
+        val summonedPattern2 = Pattern.compile("被传唤人[\\s\\S]{0,10}?([\\u4e00-\\u9fa5]{2,5})")
+        val m2 = summonedPattern2.matcher(text)
+        if (m2.find()) {
+            val name = (m2.group(1) ?: "").trim()
+            if (name.isNotEmpty()) return name
+        }
+
+        // 降级到通用提取
+        return extractParty(text)
+    }
+
+    /**
+     * Clean OCR noise: stray brackets around digits, line breaks mid-field,
+     * extra trailing digits on year/case number, etc.
+     * Preserves case number parentheses like (2024).
+     */
+    fun cleanOcrNoise(text: String): String {
+        var c = text.replace("\r\n", "\n").replace("\r", "\n")
+        // Join lines
+        c = c.replace("\n", " ")
+        // Protect case number parens: (2024) or （2024） — mark them
+        c = c.replace(Regex("[（(](\\d{4})[）)]"), "【CASE\\1】")
+        // Remove brackets/parens wrapping digits: (14) [7]
+        c = c.replace(Regex("[\\[（(]\\s*(\\d+)\\s*[\\]）)]"), "$1")
+        // Remove orphan opening bracket before digit
+        c = c.replace(Regex("[\\[（(]\\s*(\\d+)"), "$1")
+        // Remove orphan closing bracket after digit
+        c = c.replace(Regex("(\\d+)\\s*[\\]）)]"), "$1")
+        // Restore case number parens
+        c = c.replace(Regex("【CASE(\\d{4})】"), "($1)")
+        // Fix year with extra trailing digit before 年: 20261年 -> 2026年
+        c = c.replace(Regex("(\\d{4})\\d(年)"), "$1$2")
+        // Fix case number trailing digit after 号: 38161号1 -> 38161号
+        c = c.replace(Regex("(号)\\d(\\s)"), "$1$2")
+        // Collapse multiple spaces
+        c = c.replace(Regex("\\s+"), " ").trim()
+        return c
+    }
+
+    fun extractUrls(text: String): List<String> {
+        val m = URL_PATTERN.matcher(text)
+        val urls = mutableListOf<String>()
+        while (m.find()) urls.add(m.group())
+        return urls
+    }
+
+    private fun extractCaseNo(text: String): String {
+        // Try standard pattern: (2024)鲁1312民初4967号
+        val m = CASE_NO_PATTERN.matcher(text)
+        if (m.find()) return m.group().replace("\\s+".toRegex(), "")
+        // Fallback with parens
+        val loose = Pattern.compile("[（(]\\s*\\d{4}\\s*[）)]\\s*[\\u4e00-\\u9fa5\\d]+号")
+        val m2 = loose.matcher(text)
+        if (m2.find()) return m2.group().replace("\\s+".toRegex(), "")
+        // Fallback without parens (OCR stripped them): 2024鲁1312民初4967号
+        val noParen = Pattern.compile(
+            "\\b(\\d{4})[\\s]*[京津沪渝冀豫云辽黑湘皖鲁新苏浙赣鄂桂甘晋蒙陕吉闽贵粤川青藏琼宁]" +
+            "[\\s]*\\d{2,4}[\\s]*[\\u4e00-\\u9fa5]{1,4}\\d+[\\s]*号"
+        )
+        val m3 = noParen.matcher(text)
+        if (m3.find()) return "(" + m3.group().replace("\\s+".toRegex(), "").replaceFirst(Regex("^(\\d{4})"), "$1)")
+        return ""
+    }
+
+    private fun extractLocation(text: String): String {
+        for (p in listOf(SUMMONS_LOCATION, SMS_LOCATION, GENERIC_LOCATION)) {
+            val m = p.matcher(text)
+            if (m.find()) return (m.group(1) ?: "").replace(" ", "").trim()
+        }
+        return ""
+    }
+
+    private fun extractParty(text: String): String {
+        val blacklist = listOf("传票", "经传", "传唤")
+        for (p in PARTY_PATTERNS) {
+            val m = p.matcher(text)
+            if (m.find()) {
+                val v = (m.group(1) ?: "").trim()
+                if (blacklist.none { v.contains(it) }) return v
+            }
+        }
+        return ""
+    }
+
+    fun extractTime(text: String): Long {
+        for (i in TIME_PATTERNS.indices) {
+            val m = TIME_PATTERNS[i].matcher(text)
+            while (m.find()) {
+                val t = parseMatchToTime(m, i)
+                if (t > 0) return t
+            }
+        }
+        return 0
+    }
+
+    private fun validDate(month: Int, day: Int, hour: Int, minute: Int): Boolean {
+        return month in 1..12 && day in 1..31 && hour in 0..23 && minute in 0..59
+    }
+
+    private fun parseMatchToTime(m: java.util.regex.Matcher, patternIdx: Int): Long {
+        val cal = Calendar.getInstance(TimeZone.getTimeZone("Asia/Shanghai"))
+        try {
+            when (patternIdx) {
+                0 -> { // 2024年07月12日 10:00
+                    val y = m.group(1).toInt(); val mo = m.group(2).toInt()
+                    val d = m.group(3).toInt(); val h = m.group(4).toInt(); val mi = m.group(5).toInt()
+                    if (!validDate(mo, d, h, mi)) return 0
+                    cal.set(y, mo - 1, d, h, mi, 0)
+                }
+                1, 6 -> { // 2026年3月12日15时30分 / 定于...
+                    val y = m.group(1).toInt(); val mo = m.group(2).toInt()
+                    val d = m.group(3).toInt(); val h = m.group(4).toInt()
+                    val mi = m.group(5)?.toIntOrNull() ?: 0
+                    if (!validDate(mo, d, h, mi)) return 0
+                    cal.set(y, mo - 1, d, h, mi, 0)
+                }
+                2 -> { // 2026年3月12日 上午/下午 3点30分
+                    val y = m.group(1).toInt(); val mo = m.group(2).toInt()
+                    val d = m.group(3).toInt()
+                    var hour = m.group(5).toInt()
+                    val period = m.group(4)
+                    if (period == "下午" || period == "晚上") { if (hour < 12) hour += 12 }
+                    else if (period == "上午" && hour == 12) hour = 0
+                    val mi = m.group(6)?.toIntOrNull() ?: 0
+                    if (!validDate(mo, d, hour, mi)) return 0
+                    cal.set(y, mo - 1, d, hour, mi, 0)
+                }
+                3 -> { // 2026-03-12 15:00
+                    val y = m.group(1).toInt(); val mo = m.group(2).toInt()
+                    val d = m.group(3).toInt(); val h = m.group(4).toInt(); val mi = m.group(5).toInt()
+                    if (!validDate(mo, d, h, mi)) return 0
+                    cal.set(y, mo - 1, d, h, mi, 0)
+                }
+                4 -> { // 3月12日15时30分
+                    val mo = m.group(1).toInt(); val d = m.group(2).toInt()
+                    val h = m.group(3).toInt(); val mi = m.group(4)?.toIntOrNull() ?: 0
+                    if (!validDate(mo, d, h, mi)) return 0
+                    cal.set(Calendar.MONTH, mo - 1)
+                    cal.set(Calendar.DAY_OF_MONTH, d)
+                    cal.set(Calendar.HOUR_OF_DAY, h)
+                    cal.set(Calendar.MINUTE, mi)
+                    cal.set(Calendar.SECOND, 0)
+                }
+                5 -> { // 3月12日 下午3点
+                    val mo = m.group(1).toInt(); val d = m.group(2).toInt()
+                    var hour = m.group(4).toInt()
+                    val period = m.group(3)
+                    if (period == "下午" || period == "晚上") { if (hour < 12) hour += 12 }
+                    else if (period == "上午" && hour == 12) hour = 0
+                    val mi = m.group(5)?.toIntOrNull() ?: 0
+                    if (!validDate(mo, d, hour, mi)) return 0
+                    cal.set(Calendar.MONTH, mo - 1)
+                    cal.set(Calendar.DAY_OF_MONTH, d)
+                    cal.set(Calendar.HOUR_OF_DAY, hour)
+                    cal.set(Calendar.MINUTE, mi)
+                    cal.set(Calendar.SECOND, 0)
+                }
+            }
+            cal.set(Calendar.MILLISECOND, 0)
+            return cal.timeInMillis
+        } catch (e: Exception) {
+            return 0
+        }
+    }
+
+    private fun extractFirst(p: Pattern, text: String): String {
+        val m = p.matcher(text)
+        return if (m.find()) m.group().trim() else ""
+    }
+
+    private fun extractGroup(p: Pattern, text: String, group: Int): String {
+        val m = p.matcher(text)
+        return if (m.find()) (m.group(group) ?: "").trim() else ""
+    }
+}

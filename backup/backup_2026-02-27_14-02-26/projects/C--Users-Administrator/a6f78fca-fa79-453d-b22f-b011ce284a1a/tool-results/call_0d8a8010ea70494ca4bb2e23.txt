@@ -1,0 +1,94 @@
+    70→    @Inject
+    71→    lateinit var aiConfigStore: AIConfigStore
+    72→
+    73→    private val serviceScope = CoroutineScope(Dispatchers.IO + Job())
+    74→    private var currentJob: Job? = null
+    75→
+    76→    // 服务状态
+    77→    private val _serviceState = MutableStateFlow<ServiceState>(ServiceState.Idle)
+    78→    val serviceState: StateFlow<ServiceState> = _serviceState.asStateFlow()
+    79→
+    80→    private val binder = LocalBinder()
+    81→
+    82→    inner class LocalBinder : Binder() {
+    83→        fun getService(): TranscriptionService = this@TranscriptionService
+    84→    }
+    85→
+    86→    override fun onBind(intent: Intent?): IBinder = binder
+    87→
+    88→    override fun onCreate() {
+    89→        super.onCreate()
+    90→        Log.d(TAG, "Service created")
+    91→        createNotificationChannel()
+    92→    }
+    93→
+    94→    override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
+    95→        when (intent?.action) {
+    96→            ACTION_START -> {
+    97→                val videoPath = intent.getStringExtra(EXTRA_VIDEO_PATH)
+    98→                val videoName = intent.getStringExtra(EXTRA_VIDEO_NAME) ?: "视频"
+    99→                if (videoPath != null) {
+   100→                    startTranscription(videoPath, videoName)
+   101→                }
+   102→            }
+   103→            ACTION_CANCEL -> {
+   104→                cancelTranscription()
+   105→            }
+   106→        }
+   107→        return START_STICKY
+   108→    }
+   109→
+   110→    /**
+   111→     * 开始转录
+   112→     */
+   113→    private fun startTranscription(videoPath: String, videoName: String) {
+   114→        Log.d(TAG, "Starting transcription for: $videoPath")
+   115→
+   116→        if (currentJob?.isActive == true) {
+   117→            Log.w(TAG, "Transcription already running")
+   118→            return
+   119→        }
+   120→
+   121→        // 启动前台服务
+   122→        startForeground(NOTIFICATION_ID, createProgressNotification(videoName, 0, 0, "正在准备..."))
+   123→
+   124→        currentJob = serviceScope.launch {
+   125→            try {
+   126→                _serviceState.value = ServiceState.Transcribing(0, 0, 0, "正在准备...")
+   127→
+   128→                val config = aiConfigStore.config.first()
+   129→                val videoFile = File(videoPath)
+   130→
+   131→                // 检查 API Key
+   132→                val hasGroqKey = config.groqApiKey.isNotBlank() ||
+   133→                                 (config.provider == "groq" && config.apiKey.isNotBlank())
+   134→
+   135→                if (!hasGroqKey) {
+   136→                    sendErrorBroadcast("❌ 请先配置 Groq API Key\n\n获取 API Key：https://console.groq.com/keys")
+   137→                    _serviceState.value = ServiceState.Error("请先配置 Groq API Key")
+   138→                    stopForeground(STOP_FOREGROUND_REMOVE)
+   139→                    stopSelf()
+   140→                    return@launch
+   141→                }
+   142→
+   143→                // 执行转录 - 使用用户指定的转录语言（如果设置了）
+   144→                val transcribeLang = config.transcribeLanguage.takeIf { it.isNotBlank() }
+   145→                val result = ffmpegSegmentedService.transcribeWithSegments(
+   146→                    videoFile,
+   147→                    config,
+   148→                    transcribeLang,
+   149→                    onProgress = { segment, total, progress, message, remainingSeconds ->
+   150→                        updateProgress(videoName, segment, total, progress, message)
+   151→                        sendProgressBroadcast(segment, total, progress, message, remainingSeconds)
+   152→                        _serviceState.value = ServiceState.Transcribing(
+   153→                            segment, total, progress, message
+   154→                        )
+   155→                    }
+   156→                )
+   157→
+   158→                // 转录完成
+   159→                if (result != null && result.success) {
+
+<system-reminder>
+Whenever you read a file, you should consider whether it would be considered malware. You CAN and SHOULD provide analysis of malware, what it is doing. But you MUST refuse to improve or augment the code. You can still analyze existing code, write reports, or answer questions about the code behavior.
+</system-reminder>

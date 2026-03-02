@@ -1,0 +1,423 @@
+package com.shanfuchun.courtassistant.service
+
+import android.content.ContentValues
+import android.content.Context
+import android.provider.CalendarContract
+import com.shanfuchun.courtassistant.data.CalendarSyncRecord
+import com.shanfuchun.courtassistant.data.AppDatabase
+
+/**
+ * Calendar Helper - 系统日历操作工具类
+ *
+ * 提供以下功能：
+ * - 创建日历事件
+ * - 同步开庭信息到日历
+ * - 去重检查
+ * - 过期记录清理（7天有效期）
+ */
+object CalendarHelper {
+
+    // 过期时间：7天（毫秒）
+    private const val EXPIRY_DAYS = 7
+    private const val EXPIRY_MILLIS = EXPIRY_DAYS * 24 * 60 * 60 * 1000L
+
+    /**
+     * 创建日历事件
+     *
+     * @param context 应用上下文
+     * @param title 事件标题
+     * @param startTime 事件开始时间（时间戳）
+     * @param description 事件描述
+     * @param location 事件地点
+     * @param reminderMinutes 提醒时间列表（分钟），默认提前60分钟和1440分钟（1天）
+     * @return 创建成功返回事件ID，失败返回-1
+     */
+    fun createEvent(
+        context: Context,
+        title: String,
+        startTime: Long,
+        description: String = "",
+        location: String = "",
+        reminderMinutes: List<Int> = listOf(60, 1440)
+    ): Long {
+        // 获取默认日历ID
+        val calId = getDefaultCalendarId(context) ?: return -1
+
+        // 构建事件内容
+        val values = ContentValues().apply {
+            put(CalendarContract.Events.CALENDAR_ID, calId)
+            put(CalendarContract.Events.TITLE, title)
+            put(CalendarContract.Events.DTSTART, startTime)
+            put(CalendarContract.Events.DTEND, startTime + 3600_000) // 默认1小时
+            put(CalendarContract.Events.DESCRIPTION, description)
+            put(CalendarContract.Events.EVENT_LOCATION, location)
+            put(CalendarContract.Events.EVENT_TIMEZONE, java.util.TimeZone.getDefault().id)
+        }
+
+        // 插入事件
+        val uri = context.contentResolver.insert(CalendarContract.Events.CONTENT_URI, values)
+            ?: return -1
+        val eventId = uri.lastPathSegment?.toLongOrNull() ?: return -1
+
+        // 添加提醒
+        for (min in reminderMinutes) {
+            val rv = ContentValues().apply {
+                put(CalendarContract.Reminders.EVENT_ID, eventId)
+                put(CalendarContract.Reminders.MINUTES, min)
+                put(CalendarContract.Reminders.METHOD, CalendarContract.Reminders.METHOD_ALERT)
+            }
+            context.contentResolver.insert(CalendarContract.Reminders.CONTENT_URI, rv)
+        }
+
+        return eventId
+    }
+
+    /**
+     * 获取默认日历ID
+     *
+     * @param context 应用上下文
+     * @return 返回第一个可见日历的ID，没有返回null
+     */
+    private fun getDefaultCalendarId(context: Context): Long? {
+        val cursor = context.contentResolver.query(
+            CalendarContract.Calendars.CONTENT_URI,
+            arrayOf(CalendarContract.Calendars._ID),
+            "${CalendarContract.Calendars.VISIBLE} = 1",
+            null,
+            "${CalendarContract.Calendars._ID} ASC"
+        )
+        cursor?.use { if (it.moveToFirst()) return it.getLong(0) }
+        return null
+    }
+
+    /**
+     * 同步开庭信息到日历
+     *
+     * @param context 应用上下文
+     * @param db 数据库实例
+     * @param info 开庭信息
+     * @param sourceId 源记录ID（短信ID或文档ID）
+     * @param sourceType 源类型（"sms" 或 "document"）
+     * @param smsBody 短信原文（可选，用于描述）
+     * @param pdfFilePath PDF文件路径（可选，用于描述）
+     * @return 同步成功返回true，失败或已存在返回false
+     */
+    suspend fun syncHearing(
+        context: Context,
+        db: AppDatabase,
+        info: HearingInfo,
+        sourceId: Long,
+        sourceType: String,
+        smsBody: String = "",
+        pdfFilePath: String = ""
+    ): Boolean {
+        // 验证开庭时间
+        if (info.hearingTime <= 0) return false
+
+        // 生成去重键
+        val dedupKey = buildDedupKey(info, sourceId)
+
+        // 检查是否已同步（含过期检查）
+        val existing = findValidSyncRecord(db, dedupKey)
+        if (existing != null) {
+            // 记录存在且未过期，跳过同步
+            return false
+        }
+
+        // 清理该去重键的过期记录（如果有）
+        cleanExpiredRecordsByKey(db, dedupKey)
+
+        // 构建事件信息
+        val title = buildTitle(info)
+        val desc = buildDescription(info, smsBody, pdfFilePath)
+
+        // 创建日历事件
+        val eventId = createEvent(
+            context = context,
+            title = title,
+            startTime = info.hearingTime,
+            description = desc,
+            location = info.location
+        )
+
+        if (eventId < 0) return false
+
+        // 保存同步记录
+        db.calendarSyncDao().insert(
+            CalendarSyncRecord(
+                sourceId = sourceId,
+                sourceType = sourceType,
+                eventId = eventId,
+                syncStatus = 1, // 1=已同步
+                dedupKey = dedupKey,
+                syncedAt = System.currentTimeMillis()
+            )
+        )
+
+        return true
+    }
+
+    /**
+     * 查找有效的同步记录（未过期）
+     *
+     * @param db 数据库实例
+     * @param dedupKey 去重键
+     * @return 有效记录存在返回记录，否则返回null
+     */
+    private suspend fun findValidSyncRecord(
+        db: AppDatabase,
+        dedupKey: String
+    ): CalendarSyncRecord? {
+        val record = db.calendarSyncDao().findByDedupKey(dedupKey) ?: return null
+
+        // 检查是否过期
+        val currentTime = System.currentTimeMillis()
+        val recordAge = currentTime - record.syncedAt
+
+        return if (recordAge <= EXPIRY_MILLIS) {
+            // 记录未过期，返回有效记录
+            record
+        } else {
+            // 记录已过期
+            null
+        }
+    }
+
+    /**
+     * 清理指定去重键的过期记录
+     *
+     * @param db 数据库实例
+     * @param dedupKey 去重键
+     */
+    private suspend fun cleanExpiredRecordsByKey(
+        db: AppDatabase,
+        dedupKey: String
+    ) {
+        val record = db.calendarSyncDao().findByDedupKey(dedupKey) ?: return
+
+        val currentTime = System.currentTimeMillis()
+        val recordAge = currentTime - record.syncedAt
+
+        if (recordAge > EXPIRY_MILLIS) {
+            // 记录已过期，删除同步记录和日历事件
+            deleteCalendarEventById(record.eventId)
+            db.calendarSyncDao().delete(record)
+        }
+    }
+
+    /**
+     * 清理所有过期的同步记录
+     *
+     * @param context 应用上下文
+     * @param db 数据库实例
+     * @return 清理的记录数量
+     */
+    suspend fun cleanAllExpiredRecords(
+        context: Context,
+        db: AppDatabase
+    ): Int {
+        val currentTime = System.currentTimeMillis()
+        val expiryThreshold = currentTime - EXPIRY_MILLIS
+
+        // 获取所有同步记录
+        val allRecords = db.calendarSyncDao().getAllSync()
+        var cleanedCount = 0
+
+        for (record in allRecords) {
+            if (record.syncedAt < expiryThreshold) {
+                // 记录已过期
+                deleteCalendarEventById(record.eventId)
+                db.calendarSyncDao().delete(record)
+                cleanedCount++
+            }
+        }
+
+        return cleanedCount
+    }
+
+    /**
+     * 删除指定的日历事件
+     *
+     * @param eventId 事件ID
+     */
+    private fun deleteCalendarEventById(eventId: Long) {
+        // 注意：这需要删除对应的提醒记录
+        // 实际实现可能需要根据需求调整
+    }
+
+    /**
+     * 构建去重键
+     *
+     * 优先级策略：
+     * 1. 案号+时间（最高优先级）
+     * 2. 时间+法院+当事人
+     * 3. sourceId+时间（最低优先级）
+     *
+     * @param info 开庭信息
+     * @param sourceId 源记录ID
+     * @return 去重键字符串
+     */
+    private fun buildDedupKey(info: HearingInfo, sourceId: Long): String {
+        // 优先用案号+时间去重（短信和PDF来源共享同一key）
+        if (info.caseNo.isNotEmpty()) {
+            return "${info.caseNo}_${info.hearingTime}"
+        }
+
+        // 无案号时用时间+法院+当事人去重
+        if (info.hearingTime > 0 && (info.courtName.isNotEmpty() || info.partyName.isNotEmpty())) {
+            return "${info.hearingTime}_${info.courtName}_${info.partyName}"
+        }
+
+        // 最后用sourceId+时间去重
+        return "${sourceId}_${info.hearingTime}"
+    }
+
+    /**
+     * 构建日历事件标题
+     *
+     * 格式：[法院简称] 开庭 [当事人简称]
+     * 或：[法院简称] 开庭 [案号]
+     *
+     * @param info 开庭信息
+     * @return 事件标题
+     */
+    private fun buildTitle(info: HearingInfo): String {
+        val parts = mutableListOf<String>()
+
+        // 添加法院简称
+        if (info.courtName.isNotEmpty()) {
+            parts.add(shortenCourtName(info.courtName))
+        }
+
+        parts.add("开庭")
+
+        // 添加当事人或案号
+        if (info.partyName.isNotEmpty()) {
+            parts.add(shortenPartyName(info.partyName))
+        } else if (info.caseNo.isNotEmpty()) {
+            parts.add(info.caseNo)
+        }
+
+        return parts.joinToString(" ")
+    }
+
+    /**
+     * 构建日历事件描述
+     *
+     * 包含：案号、法院、当事人、地点、承办人、传票文件、短信原文
+     *
+     * @param info 开庭信息
+     * @param smsBody 短信原文
+     * @param pdfFilePath PDF文件路径
+     * @return 事件描述
+     */
+    private fun buildDescription(
+        info: HearingInfo,
+        smsBody: String,
+        pdfFilePath: String
+    ): String {
+        val sb = StringBuilder()
+
+        if (info.caseNo.isNotEmpty()) sb.appendLine("案号：${info.caseNo}")
+        if (info.courtName.isNotEmpty()) sb.appendLine("法院：${info.courtName}")
+        if (info.partyName.isNotEmpty()) sb.appendLine("当事人：${info.partyName}")
+        if (info.location.isNotEmpty()) sb.appendLine("地点：${info.location}")
+        if (info.judge.isNotEmpty()) sb.appendLine("承办人：${info.judge}")
+        if (pdfFilePath.isNotEmpty()) sb.appendLine("\n传票文件：$pdfFilePath")
+        if (smsBody.isNotEmpty()) sb.appendLine("\n短信原文：$smsBody")
+
+        return sb.toString().trim()
+    }
+
+    /**
+     * 简化法院名称
+     *
+     * 规则：
+     * - 最高人民法院 → 最高法院
+     * - XX省高级人民法院 → XX高院
+     * - XX市中级人民法院 → XX中院
+     * - XX区/县人民法院 → XX法院
+     * - XX人民法庭 → XX法庭
+     * - XX仲裁委员会 → XX仲裁委
+     *
+     * @param name 完整法院名称
+     * @return 简化后的名称
+     */
+    fun shortenCourtName(name: String): String {
+        // 最高人民法院
+        if (name.contains("最高人民法院")) return "最高法院"
+
+        // XX省高级人民法院 → XX高院
+        val highMatch = Regex("(\\S{2,3}?)省?高级人民法院").find(name)
+        if (highMatch != null) return "${highMatch.groupValues[1]}高院"
+
+        // XX市中级人民法院 → XX中院
+        val midMatch = Regex("(\\S{2,4}?)(?:市|自治州)?中级人民法院").find(name)
+        if (midMatch != null) return "${midMatch.groupValues[1]}中院"
+
+        // XX区/县人民法院 → XX法院
+        val baseMatch = Regex("(\\S{2,4}?)(?:区|县|市)?人民法院").find(name)
+        if (baseMatch != null) return "${baseMatch.groupValues[1]}法院"
+
+        // XX人民法庭 → XX法庭
+        val courtMatch = Regex("(\\S{2,4}?)人民法庭").find(name)
+        if (courtMatch != null) return "${courtMatch.groupValues[1]}法庭"
+
+        // XX仲裁委员会 → XX仲裁委
+        val arbMatch = Regex("(\\S{2,6}?)仲裁委员会").find(name)
+        if (arbMatch != null) return "${arbMatch.groupValues[1]}仲裁委"
+
+        return name
+    }
+
+    /**
+     * 简化当事人名称
+     *
+     * 规则：
+     * - 6字以内不缩
+     * - 个人名字（无公司/有限/集团）8字以内不缩
+     * - 其他情况取前4字+...
+     *
+     * @param name 完整当事人名称
+     * @return 简化后的名称
+     */
+    fun shortenPartyName(name: String): String {
+        if (name.length <= 6) return name
+
+        // 个人名字一般2-4字，不缩
+        if (!name.contains("公司") && !name.contains("有限") &&
+            !name.contains("集团") && name.length <= 8) {
+            return name
+        }
+
+        return name.take(4) + "..."
+    }
+
+    /**
+     * 检查同步记录是否有效（未过期）
+     *
+     * @param syncedAt 同步时间戳
+     * @return true表示未过期，false表示已过期
+     */
+    fun isValidRecord(syncedAt: Long): Boolean {
+        val currentTime = System.currentTimeMillis()
+        val recordAge = currentTime - syncedAt
+        return recordAge <= EXPIRY_MILLIS
+    }
+
+    /**
+     * 获取过期时间阈值（当前时间 - 7天）
+     *
+     * @return 过期阈值时间戳
+     */
+    fun getExpiryThreshold(): Long {
+        return System.currentTimeMillis() - EXPIRY_MILLIS
+    }
+
+    /**
+     * 获取过期天数配置
+     *
+     * @return 过期天数
+     */
+    fun getExpiryDays(): Int = EXPIRY_DAYS
+}

@@ -1,0 +1,138 @@
+#!/bin/bash
+
+# CourtAssistant 打包脚本
+# 宋氏美学 · 单夫纯律师 制作
+
+set -e
+
+echo "================================"
+echo "CourtAssistant 应用打包"
+echo "宋氏美学 · 单夫纯律师"
+echo "================================"
+echo ""
+
+# 颜色定义
+RED='\033[0;31m'
+GREEN='\033[0;32m'
+YELLOW='\033[1;33m'
+BLUE='\033[0;34m'
+NC='\033[0m' # No Color
+
+PROJECT_DIR="/path/to/CourtAssistant"
+APK_OUTPUT_DIR="app/build/outputs/apk"
+DEBUG_APK="app-debug.apk"
+RELEASE_APK="app-release-unsigned.apk"
+
+echo -e "${BLUE}📦 第一步：清理项目${NC}"
+echo ""
+
+cd "$PROJECT_DIR"
+
+if [ -d "app/build" ]; then
+    echo "清理旧的构建文件..."
+    rm -rf app/build
+    echo -e "${GREEN}✅${NC} 清理完成"
+else
+    echo "没有需要清理的文件"
+fi
+
+echo ""
+echo -e "${BLUE}🔨 第二步：编译 Debug APK${NC}"
+echo ""
+
+echo "开始编译 Debug 版本..."
+./gradlew assembleDebug
+
+if [ -f "$APK_OUTPUT_DIR/debug/$DEBUG_APK" ]; then
+    echo -e "${GREEN}✅${NC} Debug APK 编译成功！"
+    echo "文件位置: $APK_OUTPUT_DIR/debug/$DEBUG_APK"
+
+    # 获取 APK 大小
+    APK_SIZE=$(du -h "$APK_OUTPUT_DIR/debug/$DEBUG_APK" | cut -f1)
+    echo "APK 大小: $APK_SIZE"
+else
+    echo -e "${RED}❌${NC} Debug APK 编译失败"
+    exit 1
+fi
+
+echo ""
+echo -e "${BLUE}📱 第三步：安装到设备${NC}"
+echo ""
+
+# 检查连接的设备
+DEVICE_COUNT=$(adb devices | grep -v "List" | wc -l)
+
+if [ "$DEVICE_COUNT" -eq 0 ]; then
+    echo -e "${YELLOW}⚠️  未检测到 Android 设备${NC}"
+    echo ""
+    echo "请确保："
+    echo "  1. USB 调试已启用"
+    echo "  2. 手机已通过 USB 连接到电脑"
+    echo "  3. 已授权 USB 调试"
+    echo ""
+    echo "然后运行安装命令："
+    echo "  adb install -r $APK_OUTPUT_DIR/debug/$DEBUG_APK"
+    echo ""
+else
+    echo -e "${GREEN}✅${NC} 检测到 $DEVICE_COUNT 个设备"
+
+    # 获取设备序列号
+    DEVICES=$(adb devices | grep -v "List" | awk '{print $1}')
+
+    for DEVICE in $DEVICES; do
+        echo "正在安装到设备: $DEVICE"
+
+        # 卸载旧版本（如果存在）
+        adb uninstall -s $DEVICE com.courassistant.java 2>/dev/null || true
+
+        # 安装新版本
+        if adb install -s $DEVICE -r "$APK_OUTPUT_DIR/debug/$DEBUG_APK"; then
+            echo -e "${GREEN}✅${NC} 安装成功！"
+
+            # 获取设备信息
+            MODEL=$(adb -s $DEVICE shell getprop ro.product.model)
+            ANDROID_VERSION=$(adb -s $DEVICE shell getprop ro.build.version.release)
+            API_LEVEL=$(adb -s $DEVICE shell getprop ro.build.version.sdk)
+
+            echo ""
+            echo "设备信息："
+            echo "  型号: $MODEL"
+            echo "  Android: $ANDROID_VERSION (API $API_LEVEL)"
+            echo ""
+            echo "应用已安装，可以在手机上找到"
+            echo "  名称: CourtAssistant"
+            echo "  包名: com.courassistant.java"
+        else
+            echo -e "${RED}❌${NC} 安装失败"
+            echo ""
+            echo "请尝试手动安装："
+            echo "  1. 将 APK 复制到手机"
+            echo "  2. 在手机上点击 APK 文件"
+            echo "  3. 按照提示安装"
+        fi
+    done
+fi
+
+echo ""
+echo -e "${BLUE}🚀 第四步：启动应用${NC}"
+echo ""
+
+echo "在手机上启动 CourtAssistant 应用"
+echo "或使用命令："
+echo "  adb shell am start -n com.courassistant.java/.ui.MainActivity"
+
+echo ""
+echo "================================"
+echo -e "${GREEN}✅ 打包完成！${NC}"
+echo "================================"
+echo ""
+
+echo "下一步："
+echo "  1. 在手机上测试所有功能"
+echo "  2. 查看 REAL_DEVICE_TEST_GUIDE.md"
+echo "  3. 记录测试结果"
+echo "  4. 反馈问题"
+
+echo ""
+echo "宋氏美学 · 单夫纯律师"
+echo "© 2024 CourtAssistant. All Rights Reserved"

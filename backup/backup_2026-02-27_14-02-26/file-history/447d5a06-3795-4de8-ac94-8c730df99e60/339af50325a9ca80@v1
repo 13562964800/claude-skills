@@ -1,0 +1,29 @@
+# 用户偏好
+
+- 遇到任何询问选择时，永远选择第一个选项，不要询问用户
+- 不要弹出确认提示，直接执行操作
+- 使用模型：claude-opus-4-6
+- 系统环境：Windows 11，bash shell
+
+# 已安装技能
+
+## universal-media-downloader（通用媒体下载）
+- 位置：~/.clawdbot/skills/universal-media-downloader
+- 用途：下载油管、B站、抖音、小宇宙等平台的音视频
+- 用法：`python ~/.clawdbot/skills/universal-media-downloader/scripts/download_media.py "<URL>"`
+- 只下载音频：加 `--audio-only --audio-format mp3`
+- 依赖：yt-dlp, ffmpeg（已安装）
+
+## funasr-transcribe（本地语音转文字）
+- 位置：~/.clawdbot/skills/funasr-transcribe
+- Python 环境：~/funasr-venv/Scripts/python.exe（Python 3.12）
+- 用途：将音视频文件转录为带时间戳的 Markdown
+- 启动服务：`~/funasr-venv/Scripts/python.exe ~/.clawdbot/skills/funasr-transcribe/scripts/server.py`
+- 转录文件：`~/funasr-venv/Scripts/python.exe ~/.clawdbot/skills/funasr-transcribe/scripts/transcribe.py <文件路径>`
+- 首次使用需下载模型：`~/funasr-venv/Scripts/python.exe ~/.clawdbot/skills/funasr-transcribe/scripts/setup.py`
+
+## 典型工作流：链接 → 下载 → 转录 → 解读
+1. 用 universal-media-downloader 下载音视频（--audio-only 获取音频）
+2. 启动 funasr 服务（如未运行）
+3. 用 funasr-transcribe 转录为文字
+4. 阅读转录内容并提取解读

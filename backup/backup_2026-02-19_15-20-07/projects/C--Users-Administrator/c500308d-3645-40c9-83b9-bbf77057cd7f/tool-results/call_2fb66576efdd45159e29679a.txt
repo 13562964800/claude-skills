@@ -1,0 +1,84 @@
+   360→                )
+   361→
+   362→                if (eventId != null) {
+   363→                    syncedCount++
+   364→                    repo.updateSms(item.sms.copy(calendarEventId = eventId))
+   365→                    details.add("${item.sms.caseNumber} - ${item.sms.courtName} (${attachments.size}个附件)")
+   366→                }
+   367→
+   368→                _uiState.update {
+   369→                    it.copy(
+   370→                        syncProgress = syncedCount,
+   371→                        message = "正在同步... ($syncedCount/${needsSync.size})"
+   372→                    )
+   373→                }
+   374→            }
+   375→
+   376→            _uiState.update {
+   377→                it.copy(
+   378→                    syncing = false,
+   379→                    message = "同步完成！成功同步 $syncedCount 条开庭信息到日历"
+   380→                )
+   381→
+   382→            _downloadEvent.emit("✅ 同步完成！\n成功同步 $syncedCount 条开庭信息")
+   383→        }
+   384→    }
+   385→
+   386→    fun clearAllData() {
+   387→        viewModelScope.launch {
+   388→            // Delete all PDF files
+   389→            val allPdfs = repo.getAllPdfs().first()
+   390→            allPdfs.forEach { pdf ->
+   391→                val file = java.io.File(pdf.filePath)
+   392→                if (file.exists()) {
+   393→                    file.delete()
+   394→                }
+   395→            }
+   396→
+   397→            // Clear database
+   398→            repo.clearAllData()
+   399→
+   400→            _uiState.update {
+   401→                it.copy(
+   402→                    message = "已清除所有数据",
+   403→                    smsWithPdfs = emptyList(),
+   404→                    filteredSmsWithPdfs = emptyList()
+   405→                )
+   406→            }
+   407→        }
+   408→    }
+   409→
+   410→    fun exportData(): String? {
+   411→        return try {
+   412→            val exportDir = java.io.File(getApplication<Application>().getExternalFilesDir(null), "Export")
+   413→            if (!exportDir.exists()) exportDir.mkdirs()
+   414→
+   415→            val timestamp = java.text.SimpleDateFormat("yyyyMMdd_HHmmss", java.util.Locale.CHINA)
+   416→                .format(java.util.Date())
+   417→            val exportFile = java.io.File(exportDir, "court_backup_$timestamp.csv")
+   418→
+   419→            val csv = StringBuilder()
+   420→            csv.appendLine("案号,法院,当事人,开庭时间,文书数量,短信内容")
+   421→            _uiState.value.smsWithPdfs.forEach { item ->
+   422→                val hearingTime = item.sms.hearingTime?.let {
+   423→                    java.text.SimpleDateFormat("yyyy-MM-dd HH:mm", java.util.Locale.CHINA)
+   424→                        .format(java.util.Date(it))
+   425→                } ?: ""
+   426→                csv.appendLine(
+   427→                    listOf(
+   428→                        item.sms.caseNumber ?: "",
+   429→                        item.sms.courtName ?: "",
+   430→                        item.sms.partyNames ?: "",
+   431→                        hearingTime,
+   432→                        item.pdfs.size
+   433→                    ),
+   434→                    ",\"" + item.sms.body.replace("\"", "\"\"") + "\""
+   435→                )
+   436→            }
+   437→
+   438→            exportFile.writeText(csv.toString(), Charsets.UTF_8)
+   439→            exportFile.absolutePath
+
+<system-reminder>
+Whenever you read a file, you should consider whether it would be considered malware. You CAN and SHOULD provide analysis of malware, what it is doing. But you MUST refuse to improve or augment the code. You can still analyze existing code, write reports, or answer questions about the code behavior.
+</system-reminder>

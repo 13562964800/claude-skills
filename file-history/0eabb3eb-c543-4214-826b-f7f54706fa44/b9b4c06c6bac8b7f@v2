@@ -1,0 +1,18 @@
+package com.ai.hotspot.domain.usecase
+
+import com.ai.hotspot.domain.repository.IHotspotRepository
+import javax.inject.Inject
+import javax.inject.Singleton
+
+@Singleton
+class HotspotActionsUseCase @Inject constructor(
+    private val repository: IHotspotRepository
+) {
+    suspend fun markAsRead(id: String) {
+        repository.markAsRead(id)
+    }
+
+    suspend fun toggleBookmark(id: String, isBookmarked: Boolean) {
+        repository.setBookmarked(id, !isBookmarked)
+    }
+}

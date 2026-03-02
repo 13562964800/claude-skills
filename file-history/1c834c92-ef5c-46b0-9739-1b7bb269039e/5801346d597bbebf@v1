@@ -1,0 +1,38 @@
+class WorkflowState:
+    _transitions = {
+        'pending': {'start': 'running'},
+        'running': {'finish_success': 'success', 'finish_fail': 'failed'},
+    }
+
+    def __init__(self, value: str):
+        self.value = value
+
+    def _transition(self, action: str):
+        self.value = self._transitions.get(self.value, {}).get(action, self.value)
+
+    def start(self):
+        self._transition('start')
+
+    def finish_success(self):
+        self._transition('finish_success')
+
+    def finish_fail(self):
+        self._transition('finish_fail')
+
+
+def should_retry(retry_count: int) -> bool:
+    return retry_count < 3
+
+
+class WorkflowRunner:
+    def __init__(self, steps: list[dict]):
+        self.steps = steps
+
+    def run(self, initial_payload: dict) -> dict:
+        results = {}
+        payload = initial_payload.copy()
+        for step in self.steps:
+            output = step['skill'](payload)
+            results[step['key']] = output
+            payload = output
+        return results

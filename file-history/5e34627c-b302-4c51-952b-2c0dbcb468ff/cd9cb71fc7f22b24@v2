@@ -1,0 +1,19 @@
+# 提取所有插图描述
+
+import re
+
+# 读取Markdown文件
+with open('C:/Users/Administrator/AI科普画册/AI前沿知识儿童科普画册-完整版.md', 'r', encoding='utf-8') as f:
+    content = f.read()
+
+# 提取所有插图标记
+pattern = r'【插图([^】]+)】'
+matches = re.findall(pattern, content)
+
+# 保存到文件
+with open('C:/Users/Administrator/AI科普画册/插图清单.txt', 'w', encoding='utf-8') as f:
+    for i, match in enumerate(matches, 1):
+        f.write(f'{i}. 【插图{match}】\n')
+
+print(f'共找到 {len(matches)} 个插图描述')
+print(f'已保存到: C:/Users/Administrator/AI科普画册/插图清单.txt')

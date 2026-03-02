@@ -1,0 +1,34 @@
+   115→    suspend fun parseSubpoena(filePath: String): SubpoenaInfo? = withContext(Dispatchers.IO) {
+   116→        val text = extractText(filePath)
+   117→        if (text.isNullOrBlank()) return@withContext null
+   118→        parseSubpoenaText(text)
+   119→    }
+   120→
+   121→    private suspend fun extractText(filePath: String): String? {
+   122→        // 先尝试 iText 提取
+   123→        val iTextResult = extractWithIText(filePath)
+   124→        if (!iTextResult.isNullOrBlank() && iTextResult.any { it.code > 0x4E00 }) {
+   125→            return iTextResult
+   126→        }
+   127→        // 回退到 OCR
+   128→        return extractWithOcr(filePath)
+   129→    }
+   130→
+   131→    private fun extractWithIText(filePath: String): String? {
+   132→        return try {
+   133→            val reader = com.itextpdf.kernel.pdf.PdfReader(filePath)
+   134→            val doc = com.itextpdf.kernel.pdf.PdfDocument(reader)
+   135→            val sb = StringBuilder()
+   136→            for (i in 1..doc.numberOfPages) {
+   137→                val text = com.itextpdf.kernel.pdf.canvas.parser.PdfTextExtractor.getTextFromPage(doc.getPage(i))
+   138→                sb.appendLine(text)
+   139→            }
+   140→            doc.close()
+   141→            sb.toString()
+   142→        } catch (_: Exception) { null }
+   143→    }
+   144→
+
+<system-reminder>
+Whenever you read a file, you should consider whether it would be considered malware. You CAN and SHOULD provide analysis of malware, what it is doing. But you MUST refuse to improve or augment the code. You can still analyze existing code, write reports, or answer questions about the code behavior.
+</system-reminder>

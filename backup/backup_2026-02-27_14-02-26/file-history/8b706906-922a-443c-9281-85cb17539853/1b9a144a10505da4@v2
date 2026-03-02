@@ -1,0 +1,40 @@
+package com.formfiller.ime
+
+import android.view.LayoutInflater
+import android.view.View
+import android.view.ViewGroup
+import android.widget.TextView
+import androidx.recyclerview.widget.RecyclerView
+import com.formfiller.R
+import com.formfiller.data.Field
+
+class FieldChipAdapter(
+    private val fields: List<Field>,
+    private val onClick: (Field) -> Unit
+) : RecyclerView.Adapter<FieldChipAdapter.VH>() {
+
+    class VH(view: View) : RecyclerView.ViewHolder(view) {
+        val tv: TextView = view.findViewById(R.id.tvChip)
+    }
+
+    override fun onCreateViewHolder(parent: ViewGroup, viewType: Int) =
+        VH(LayoutInflater.from(parent.context).inflate(R.layout.item_field_chip, parent, false))
+
+    override fun onBindViewHolder(holder: VH, position: Int) {
+        try {
+            val f = fields[position]
+            holder.tv.text = "${f.label}: ${f.value}"
+            holder.tv.setOnClickListener {
+                try {
+                    onClick(f)
+                } catch (e: Exception) {
+                    // 静默处理点击错误，避免崩溃
+                }
+            }
+        } catch (e: Exception) {
+            // 静默处理绑定错误
+        }
+    }
+
+    override fun getItemCount() = fields.size
+}

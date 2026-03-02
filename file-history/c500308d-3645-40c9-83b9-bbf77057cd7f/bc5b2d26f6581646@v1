@@ -1,0 +1,495 @@
+package com.court.assistant.viewmodel
+
+import android.app.Application
+import android.util.Base64
+import androidx.compose.runtime.saveable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.setValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.lifecycle.ViewModel
+import androidx.lifecycle.viewModel.compose
+import com.court.assistant.CalendarSync
+import com.court.assistant.utils.Md5Util
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
+import java.io.File
+import java.text.SimpleDateFormat
+import java.util.Locale
+
+data class SmsWithPdfs(
+    val sms: CourtSmsEntity,
+    val pdfs: List<PdfDocumentEntity>
+)
+
+enum class FilterType { ALL, SUBPOENA_ONLY, WITH_PDFS }
+enum class SortType { DATE_DESC, DATE_ASC, COURT_NAME }
+
+data class UiState(
+    val smsWithPdfs: List<SmsWithPdfs> = emptyList(),
+    val filteredSmsWithPdfs: List<SmsWithPdfs> = emptyList(),
+    val loading: Boolean = false,
+    val message: String? = null,
+    val downloadCount: Int = 0,
+    val lastDownloadedPdfId: Long? = null,
+    val selectionMode: Boolean = false,
+    val selectedPdfIds: Set<Long> = emptySet(),
+    val searchQuery: String = "",
+    val isSearchExpanded: Boolean = false,
+    val filterType: FilterType = FilterType.ALL,
+    val sortType: SortType = SortType.DATE_DESC,
+    val showFilterMenu: Boolean = false,
+    val syncing: Boolean = false,
+    val syncProgress: Int = 0,
+    val syncTotal: Int = 0
+)
+
+class MainViewModel(application: Application) : AndroidViewModel(application) {
+    private val app = application as CourtApp
+    private val repo = app.repository
+    private val smsReader = SmsReader(application)
+    private val smsParser = SmsParser()
+    private val calendarSync = CalendarSync(application)
+    val pdfDownloader = PdfDownloadManager(application)
+    private val pdfParser = PdfParser(application)
+
+    private val _uiState = MutableStateFlow(UiState())
+    val _downloadEvent = MutableSharedFlow<String>()
+
+    init {
+        viewModelScope.launch {
+            // 同时监听 SMS 和 PDF 的变化
+            repo.getAllSms().collect { smsList ->
+                refreshData()
+            }
+        }
+    }
+
+    private suspend fun refreshData() {
+        val smsList = repo.getAllSms().first()
+        val withPdfs = smsList.map { sms ->
+            val pdfs = repo.getPdfsBySmsId(sms.id).first()
+            SmsWithPdfs(sms, pdfs)
+        }
+        _uiState.update { state ->
+            val filtered = filterSms(withPdfs, state.searchQuery, state.filterType, state.sortType)
+            state.copy(
+                smsWithPdfs = withPdfs,
+                filteredSmsWithPdfs = filtered
+                loading = false
+            )
+        }
+    }
+
+    fun loadSms() {
+        viewModelScope.launch {
+            _uiState.update { it.copy(loading = true) }
+            val rawList = smsReader.readCourtSms()
+            var addedCount = 0
+            for (raw in rawList) {
+                val hash = raw.body.hashCode()
+                if (repo.smsExists(hash)) continue
+                val parsed = smsParser.parse(raw.body)
+                val entity = CourtSmsEntity(
+                    sender = raw.sender,
+                    body = raw.body,
+                    bodyHash = hash,
+                    receivedAt = raw.date,
+                    caseNumber = parsed.caseNumber,
+                    courtName = parsed.courtName,
+                    hearingTime = parsed.hearingTime,
+                    partyNames = parsed.partyNames,
+                    webUrl = parsed.webUrl
+                )
+                val id = repo.insertSms(entity)
+                if (id > 0 && parsed.hearingTime != null && parsed.caseNumber != null) {
+                    val eventId = calendarSync.syncHearing(
+                        caseNumber = parsed.caseNumber,
+                        courtName = parsed.courtName,
+                        hearingTime = parsed.hearingTime,
+                        partyNames = parsed.partyNames,
+                        attachments = emptyList()
+                    )
+                    if (eventId != null) {
+                        repo.updateSms(entity.copy(calendarEventId = eventId))
+                    }
+                    addedCount++
+                }
+            }
+            _uiState.update { it.copy(loading = false, downloadCount = addedCount, message = "已读取 ${rawList.size} 条法院短信") }
+        }
+    }
+
+    fun downloadPdf(url: String, smsId: Long, fileName: String? = null, cookies: String? = null) {
+        viewModelScope.launch {
+            val result = pdfDownloader.download(url, fileName, cookies)
+            when (result) {
+                is DownloadResult.Success -> {
+                    // 使用MD5检查文件是否已下载（更可靠的去重方式）
+                    val existingPdf = repo.getPdfByMd5(result.fileMd5)
+                    if (existingPdf != null) {
+                        _downloadEvent.emit("文件已存在: ${result.fileName}")
+                        refreshData()
+                        return@launch
+                    }
+
+                    val isSubpoena = result.fileName.contains("传票")
+                    val pdf = PdfDocumentEntity(
+                        smsId = smsId,
+                        fileName = result.fileName,
+                        filePath = result.filePath,
+                        fileSize = result.fileSize,
+                        fileMd5 = result.fileMd5,
+                        ocrTitle = null,
+                        downloadedAt = System.currentTimeMillis(),
+                        isSubpoena = isSubpoena
+                    )
+                    val pdfId = repo.insertPdf(pdf)
+                    if (pdfId > 0) {
+                        _uiState.update { it.copy(downloadCount = it.downloadCount + 1, lastDownloadedPdfId = pdfId) }
+                        _downloadEvent.emit("已保存: ${result.fileName}")
+                        refreshData()
+                        if (isSubpoena) {
+                            parseAndSyncSubpoena(pdfId, result.filePath, smsId)
+                        }
+                    } else {
+                        _downloadEvent.emit("文件已存在: ${result.fileName}")
+                        refreshData()
+                    }
+                }
+                is DownloadResult.Error -> {
+                    _downloadEvent.emit("下载失败: ${result.message}")
+                }
+            }
+        }
+    }
+
+    private suspend fun parseAndSyncSubpoena(pdfId: Long, filePath: String, smsId: Long) {
+        val info = pdfParser.parseSubpoena(filePath) ?: return
+        val pdf = repo.getPdfById(pdfId) ?: return
+        val hearingDesc = buildString {
+            if (info.courtName != null) append("法院: ${info.courtName}\n")
+            if (info.partyNames != null) append("当事人: ${info.partyNames}\n")
+            if (info.location != null) append("地点: ${info.location}")
+        }
+        repo.updatePdf(pdf.copy(hearingInfo = hearingDesc))
+
+        if (info.hearingTime != null && info.caseNumber != null) {
+            // 创建PDF附件
+            val attachment = calendarSync.createAttachmentUri(filePath)
+
+            val eventId = calendarSync.syncHearing(
+                caseNumber = info.caseNumber,
+                courtName = info.courtName,
+                hearingTime = info.hearingTime,
+                partyNames = info.partyNames,
+                description = "地点: ${info.location ?: "见传票"}",
+                attachments = if (attachment != null) listOf(attachment) else emptyList()
+            )
+            if (eventId != null) {
+                repo.updatePdf(pdf.copy(hearingInfo = hearingDesc, calendarEventId = eventId))
+            }
+        }
+    }
+
+    fun resetDownloadCount() {
+        _uiState.update { it.copy(downloadCount = 0) }
+    }
+
+    fun clearMessage() {
+        _uiState.update { it.copy(message = null) }
+    }
+
+    fun toggleSelectionMode() {
+        _uiState.update {
+            it.copy(
+                selectionMode = !it.selectionMode,
+                selectedPdfIds = if (it.selectionMode) emptySet() else it.selectedPdfIds
+            )
+        }
+    }
+
+    fun togglePdfSelection(pdfId: Long) {
+        _uiState.update { state ->
+            val newSelection = if (pdfId in state.selectedPdfIds) {
+                state.selectedPdfIds - pdfId
+            } else {
+                state.selectedPdfIds + pdfId
+            }
+            state.copy(selectedPdfIds = newSelection)
+        }
+    }
+
+    fun selectAllPdfs() {
+        val allPdfIds = _uiState.value.smsWithPdfs.flatMap { it.pdfs }.map { it.id }.toSet()
+        _uiState.update { it.copy(selectedPdfIds = allPdfIds) }
+    }
+
+    fun clearSelection() {
+        _uiState.update { it.copy(selectedPdfIds = emptySet()) }
+    }
+
+    fun deleteSelectedPdfs() {
+        viewModelScope.launch {
+            val selectedIds = _uiState.value.selectedPdfIds
+            if (selectedIds.isEmpty()) return@launch
+            var deletedCount = 0
+            selectedIds.forEach { pdfId ->
+                val pdf = repo.getPdfById(pdfId)
+                if (pdf != null) {
+                    val file = java.io.File(pdf.filePath)
+                    if (file.exists()) {
+                        file.delete()
+                    }
+                    repo.deletePdf(pdfId)
+                    deletedCount++
+                }
+            }
+
+            _uiState.update {
+                it.copy(
+                    selectedPdfIds = emptySet(),
+                    selectionMode = false,
+                    message = "已删除 $deletedCount 个文件"
+                )
+            }
+        }
+    }
+
+    fun onSearchQueryChange(query: String) {
+        _uiState.update { state ->
+            state.copy(
+                searchQuery = query,
+                filteredSmsWithPdfs = filterSms(state.smsWithPdfs, query, state.filterType, state.sortType)
+            )
+        }
+    }
+
+    fun toggleSearchExpanded() {
+        _uiState.update { it.copy(isSearchExpanded = !it.isSearchExpanded) }
+        if (_uiState.value.isSearchExpanded) {
+            onSearchQueryChange("")
+        }
+    }
+
+    fun setFilterType(filterType: FilterType) {
+        _uiState.update { state ->
+            state.copy(
+                filterType = filterType,
+                filteredSmsWithPdfs = filterSms(state.smsWithPdfs, state.searchQuery, filterType, state.sortType)
+            )
+        }
+    }
+
+    fun setSortType(sortType: SortType) {
+        _uiState.update { state ->
+            state.copy(
+                sortType = sortType,
+                filteredSmsWithPdfs = filterSms(state.smsWithPdfs, state.searchQuery, state.filterType, state.sortType)
+            )
+        }
+    }
+
+    fun toggleFilterMenu() {
+        _uiState.update { it.copy(showFilterMenu = !it.showFilterMenu) }
+    }
+
+    fun syncCalendar() {
+        viewModelScope.launch {
+            val allSms = _uiState.value.smsWithPdfs
+            val needsSync = allSms.filter {
+                it.sms.hearingTime != null &&
+                it.sms.caseNumber != null &&
+                it.sms.calendarEventId == null
+            }
+
+            if (needsSync.isEmpty()) {
+                _uiState.update { it.copy(message = "没有需要同步的开庭信息") }
+                return@launch
+            }
+
+            _uiState.update {
+                it.copy(
+                    syncing = true,
+                    syncProgress = 0,
+                    syncTotal = needsSync.size,
+                    message = "开始同步 ${needsSync.size} 条开庭信息..."
+                )
+            }
+
+            var syncedCount = 0
+            val details = mutableListOf<String>()
+
+            needsSync.forEach { item ->
+                // 创建附件列表
+                val attachments = mutableListOf<com.court.assistant.calendar.CalendarAttachment>()
+
+                // 添加PDF附件
+                item.pdfs.forEach { pdf ->
+                    calendarSync.createAttachmentUri(pdf.filePath)?.let { attachments.add(it) }
+                }
+
+                // 如果没有PDF，创建短信文本附件
+                if (attachments.isEmpty()) {
+                    calendarSync.createSmsAttachment(
+                        caseNumber = item.sms.caseNumber!!,
+                        courtName = item.sms.courtName,
+                        body = item.sms.body,
+                        receivedAt = item.sms.receivedAt
+                    )?.let { attachments.add(it) }
+                }
+
+                val eventId = calendarSync.syncHearing(
+                    caseNumber = item.sms.caseNumber!!,
+                    courtName = item.sms.courtName,
+                    hearingTime = item.sms.hearingTime!!,
+                    partyNames = item.sms.partyNames,
+                    description = "地点: ${item.sms.location ?: "见传票"}",
+                    attachments = attachments
+                )
+
+                if (eventId != null) {
+                    syncedCount++
+                    repo.updateSms(item.sms.copy(calendarEventId = eventId))
+                    details.add("${item.sms.caseNumber} - ${item.sms.courtName} (${attachments.size}个附件)")
+                }
+
+                _uiState.update {
+                    it.copy(
+                        syncProgress = syncedCount,
+                        message = "正在同步... ($syncedCount/${needsSync.size})"
+                    )
+                }
+            }
+
+            _uiState.update {
+                it.copy(
+                    syncing = false,
+                    message = "同步完成！成功同步 $syncedCount 条开庭信息到日历"
+                )
+
+            _downloadEvent.emit("✅ 同步完成！\n成功同步 $syncedCount 条开庭信息")
+        }
+    }
+
+    fun clearAllData() {
+        viewModelScope.launch {
+            // Delete all PDF files
+            val allPdfs = repo.getAllPdfs().first()
+            allPdfs.forEach { pdf ->
+                val file = java.io.File(pdf.filePath)
+                if (file.exists()) {
+                    file.delete()
+                }
+            }
+
+            // Clear database
+            repo.clearAllData()
+
+            _uiState.update {
+                it.copy(
+                    message = "已清除所有数据",
+                    smsWithPdfs = emptyList(),
+                    filteredSmsWithPdfs = emptyList()
+                )
+            }
+        }
+    }
+
+    fun exportData(): String? {
+        return try {
+            val exportDir = java.io.File(getApplication<Application>().getExternalFilesDir(null), "Export")
+            if (!exportDir.exists()) exportDir.mkdirs()
+
+            val timestamp = java.text.SimpleDateFormat("yyyyMMdd_HHmmss", java.util.Locale.CHINA)
+                .format(java.util.Date())
+            val exportFile = java.io.File(exportDir, "court_backup_$timestamp.csv")
+
+            val csv = StringBuilder()
+            csv.appendLine("案号,法院,当事人,开庭时间,文书数量,短信内容")
+            _uiState.value.smsWithPdfs.forEach { item ->
+                val hearingTime = item.sms.hearingTime?.let {
+                    java.text.SimpleDateFormat("yyyy-MM-dd HH:mm", java.util.Locale.CHINA)
+                        .format(java.util.Date(it))
+                } ?: ""
+                csv.appendLine(
+                    listOf(
+                        item.sms.caseNumber ?: "",
+                        item.sms.courtName ?: "",
+                        item.sms.partyNames ?: "",
+                        hearingTime,
+                        item.pdfs.size
+                    ),
+                    ",\"" + item.sms.body.replace("\"", "\"\"") + "\""
+                )
+            }
+
+            exportFile.writeText(csv.toString(), Charsets.UTF_8)
+            exportFile.absolutePath
+        } catch (e: Exception) {
+            e.printStackTrace()
+            null
+        }
+    }
+
+    /**
+     * 创建多个PDF的ZIP压缩包用于分享
+     * @param pdfIds 要打包的PDF文件ID列表
+     * @return ZIP文件路径，失败返回null
+     */
+    suspend fun createZipForPdf(pdfIds: List<Long>): String? {
+        return try {
+            val zipDir = java.io.File(getApplication<Application>().getExternalFilesDir(null), "Zips")
+            if (!zipDir.exists()) zipDir.mkdirs()
+
+            val timestamp = java.text.SimpleDateFormat("yyyyMMdd_HHmmss", java.util.Locale.CHINA)
+                .format(java.util.Date())
+            val zipFile = java.io.File(zipDir, "法院文书_$timestamp.zip")
+
+            java.util.zip.ZipOutputStream(java.io.FileOutputStream(zipFile)).use { zos ->
+                pdfIds.forEach { pdfId ->
+                    val pdf = repo.getPdfById(pdfId) ?: return@forEach
+                    val pdfFile = java.io.File(pdf.filePath)
+                    if (!pdfFile.exists()) return@forEach
+                    val entry = java.util.zip.ZipEntry(pdf.fileName)
+                    zos.putNextEntry(entry)
+                    pdfFile.inputStream().use { input ->
+                        input.copyTo(zos)
+                    }
+                    zos.closeEntry()
+                }
+            }
+            }
+            zipFile.absolutePath
+        } catch (e: Exception) {
+            e.printStackTrace()
+            null
+        }
+    }
+
+    /**
+     * 获取某个短信关联的所有PDF的ZIP压缩包
+     * @param smsId 短信ID
+     * @return ZIP文件路径，失败返回null
+     */
+    suspend fun createZipForSms(smsId: Long): String? {
+        val smsWithPdfs = _uiState.value.smsWithPdfs.find { it.sms.id == smsId }
+            ?: return null
+        val pdfIds = smsWithPdfs.pdfs.map { it.id }
+        return if (pdfIds.isNotEmpty()) {
+            val caseNumber = smsWithPdfs.sms.caseNumber ?: "案件"
+            val zipPath = createZipForPdf(pdfIds)
+            // 重命名ZIP文件为OCR标题（优先）或案号
+            zipPath?.let {
+                val oldFile = java.io.File(it)
+                val sms = _uiState.value.smsWithPdfs.find { it.sms.id == smsId }
+                val displayName = sms?.pdfs.firstNotNull()?.ocrTitle
+                    ?: sms?.pdfs.firstNotNull()?.fileName ?: "未知文件"
+                        .substringBeforeLast(".", "")
+                val newFile = java.io.File(oldFile.parentFile, displayName + ".zip")
+                oldFile.renameTo(newFile)
+                newFile.absolutePath
+            }
+        } else null
+    }
+}

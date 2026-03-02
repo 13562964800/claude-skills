@@ -1,0 +1,1387 @@
+package com.multilanglearner.ui.home
+
+import android.annotation.SuppressLint
+import android.app.Application
+import android.content.Intent
+import android.util.Log
+import android.content.Context
+import android.net.Uri
+import androidx.lifecycle.AndroidViewModel
+import androidx.lifecycle.viewModelScope
+import com.multilanglearner.data.db.entity.VideoEntity
+import com.multilanglearner.data.network.SegmentedDownloader
+import com.multilanglearner.data.network.VideoDownloadService
+import com.multilanglearner.data.repository.VideoRepository
+import com.multilanglearner.data.store.ThemeStore
+import dagger.hilt.android.lifecycle.HiltViewModel
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.flow.*
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
+import kotlinx.coroutines.Job
+import kotlinx.serialization.Serializable
+import kotlinx.serialization.encodeToString
+import kotlinx.serialization.json.Json
+import kotlin.coroutines.CoroutineContext
+import java.io.File
+import java.io.FileOutputStream
+import java.text.SimpleDateFormat
+import java.util.*
+import javax.inject.Inject
+
+/**
+ * 下载任务状态
+ */
+data class DownloadTask(
+    val id: String = UUID.randomUUID().toString(),
+    val url: String,
+    val title: String,
+    val status: DownloadStatus = DownloadStatus.PENDING,
+    val progress: Int = 0,
+    val bytesDownloaded: Long = 0,
+    val totalBytes: Long = 0,
+    val speed: Long = 0,
+    val remainingTime: Long = 0,
+    val errorCode: String? = null,
+    val errorMessage: String? = null,
+    val createdAt: Long = System.currentTimeMillis(),
+    val completedAt: Long? = null
+)
+
+/**
+ * 下载状态枚举
+ */
+@Serializable
+enum class DownloadStatus {
+    PENDING,         // 等待中
+    FETCHING_INFO,   // 获取信息中
+    DOWNLOADING,     // 下载中
+    PAUSED,          // 暂停
+    COMPLETED,       // 完成
+    FAILED,          // 失败
+    CANCELLED,       // 已取消
+    WAITING_FOR_AUTH // 等待认证（需要登录）
+}
+
+/**
+ * 下载历史记录
+ */
+@Serializable
+data class DownloadHistory(
+    val id: String,
+    val title: String,
+    val url: String,
+    val filePath: String,
+    val fileSize: Long,
+    val status: DownloadStatus,
+    val createdAt: Long,
+    val completedAt: Long?
+)
+
+data class HomeUiState(
+    val url: String = "",
+    val selectedLang: String = "en",
+    val activeDownloads: Map<String, DownloadTask> = emptyMap(),  // 所有正在下载的任务
+    val downloadQueue: List<DownloadTask> = emptyList(),
+    val downloadHistory: List<DownloadHistory> = emptyList(),
+    val videos: List<VideoEntity> = emptyList(),
+    val isProcessing: Boolean = false,
+    val showBilibiliLogin: Boolean = false,    // 显示B站登录对话框
+    val showYouTubeLogin: Boolean = false,    // 显示YouTube登录对话框
+    val showDouyinLogin: Boolean = false,     // 显示抖音登录对话框
+    val showTiktokLogin: Boolean = false,     // 显示TikTok登录对话框
+    val pendingDownloadUrl: String = "",      // 待下载的URL（登录后继续）
+    val showDuplicateDownloadConfirm: Boolean = false,  // 显示重复下载确认对话框
+    val duplicateVideoTitle: String = "",      // 重复视频的标题
+    // 转录队列状态
+    val transcribingVideo: String? = null,    // 当前正在转录的视频名称
+    val transcriptionQueue: List<String> = emptyList(),  // 等待转录的视频列表
+    val transcriptionProgress: Int = 0,       // 转录进度百分比
+    val transcriptionMessage: String = "",    // 转录状态消息
+    // 交互提示事件
+    val snackbarMessage: String? = null,      // Snackbar 提示消息
+    val switchToTab: Int? = null              // 自动切换到指定 tab
+)
+
+@HiltViewModel
+class HomeViewModel @Inject constructor(
+    @SuppressLint("StaticFieldLeak") private val application: Application,
+    private val videoRepository: VideoRepository,
+    private val themeStore: ThemeStore,
+    private val videoConfigStore: com.multilanglearner.data.store.VideoConfigStore,
+    private val segmentedDownloader: SegmentedDownloader
+) : AndroidViewModel(application) {
+
+    val currentTheme = themeStore.theme
+    val currentFontSize = themeStore.fontSize
+
+    private var currentBilibiliCookie: String? = null
+    private var currentYouTubeCookie: String? = null
+    private var currentDouyinCookie: String? = null
+    private var currentTiktokCookie: String? = null
+
+    init {
+        // 收集Cookie配置
+        viewModelScope.launch {
+            videoConfigStore.config.collect { config ->
+                currentBilibiliCookie = config.getBilibiliCookie()
+                currentYouTubeCookie = config.getYouTubeCookie()
+                currentDouyinCookie = config.getDouyinCookie()
+                currentTiktokCookie = config.getTiktokCookie()
+            }
+        }
+    }
+
+    private val videoDownloadService by lazy {
+        VideoDownloadService(
+            bilibiliCookieProvider = { currentBilibiliCookie },
+            youtubeCookieProvider = { currentYouTubeCookie },
+            douyinCookieProvider = { currentDouyinCookie },
+            tiktokCookieProvider = { currentTiktokCookie }
+        )
+    }
+
+    private val _uiState = MutableStateFlow(HomeUiState())
+    val uiState: StateFlow<HomeUiState> = _uiState.asStateFlow()
+
+    private val _downloadHistory = MutableStateFlow<List<DownloadHistory>>(emptyList())
+    val downloadHistory: StateFlow<List<DownloadHistory>> = _downloadHistory.asStateFlow()
+
+    // 当前下载任务（支持并发）
+    private val activeDownloadJobs = mutableMapOf<String, Job>()  // taskId -> Job
+    private val activeDownloadTasks = mutableMapOf<String, DownloadTask>()  // taskId -> Task
+
+    // 最大并发下载数
+    private val MAX_CONCURRENT_DOWNLOADS = 3
+
+    // 下载队列
+    private val downloadQueue = mutableMapOf<String, DownloadTask>()
+
+    val downloadsDir: File
+        get() = File(application.getExternalFilesDir(null), "videos").apply {
+            if (!exists()) mkdirs()
+        }
+
+    init {
+        viewModelScope.launch {
+            videoRepository.getAll().collect { videos ->
+                _uiState.update { it.copy(videos = videos) }
+            }
+        }
+
+        // 加载下载历史
+        loadDownloadHistory()
+    }
+
+    fun setUrl(url: String) { _uiState.update { it.copy(url = url) } }
+    fun setLang(lang: String) { _uiState.update { it.copy(selectedLang = lang) } }
+    fun clearSnackbar() { _uiState.update { it.copy(snackbarMessage = null) } }
+    fun clearSwitchTab() { _uiState.update { it.copy(switchToTab = null) } }
+
+    fun setTheme(theme: String) { viewModelScope.launch { themeStore.setTheme(theme) } }
+    fun setFontSize(size: String) { viewModelScope.launch { themeStore.setFontSize(size) } }
+
+    /**
+     * 下载视频 - 支持 B站、YouTube 等平台
+     * 支持最多3个并发下载
+     */
+    fun downloadVideo(onComplete: (String, String?) -> Unit) {
+        val url = _uiState.value.url.trim()
+
+        if (url.isBlank()) {
+            // 不再使用 currentDownload，直接在 activeDownloads 中添加错误任务
+            return
+        }
+
+        // 检查是否已存在相同视频（通过 URL 匹配）
+        val existingVideo = _uiState.value.videos.find { it.sourceUrl == url }
+        if (existingVideo != null) {
+            // 显示重复下载确认对话框
+            _uiState.update { it.copy(
+                showDuplicateDownloadConfirm = true,
+                duplicateVideoTitle = existingVideo.title
+            )}
+            return
+        }
+
+        // 如果已达最大并发数，加入队列
+        if (activeDownloadTasks.size >= MAX_CONCURRENT_DOWNLOADS) {
+            addToQueue(url)
+            return
+        }
+
+        startDownload(url, onComplete)
+    }
+
+    /**
+     * 确认重复下载
+     */
+    fun confirmDuplicateDownload(onComplete: (String, String?) -> Unit) {
+        _uiState.update { it.copy(showDuplicateDownloadConfirm = false) }
+        val url = _uiState.value.url.trim()
+
+        // 如果已达最大并发数，加入队列
+        if (activeDownloadTasks.size >= MAX_CONCURRENT_DOWNLOADS) {
+            addToQueue(url)
+            return
+        }
+
+        startDownload(url, onComplete)
+    }
+
+    /**
+     * 取消重复下载
+     */
+    fun cancelDuplicateDownload() {
+        _uiState.update { it.copy(
+            showDuplicateDownloadConfirm = false,
+            duplicateVideoTitle = ""
+        )}
+    }
+
+    /**
+     * 开始下载
+     */
+    private fun startDownload(url: String, onComplete: (String, String?) -> Unit) {
+        lateinit var job: Job
+        job = viewModelScope.launch(Dispatchers.IO) {
+            // 创建下载任务
+            val task = DownloadTask(
+                url = url,
+                title = "正在解析...",
+                status = DownloadStatus.FETCHING_INFO
+            )
+
+            try {
+                // 添加到活跃下载
+                activeDownloadTasks[task.id] = task
+                // 保存当前 job 到 Map（需要在协程启动后）
+                activeDownloadJobs[task.id] = job
+                updateActiveDownloads()
+
+                // 获取视频信息
+                val result = videoDownloadService.getVideoInfo(url)
+
+                result.onSuccess { videoInfo ->
+                    // 检查是否需要Cookie但未配置
+                    val needsCookie = when (videoInfo.platform) {
+                        VideoDownloadService.VideoPlatform.BILIBILI -> true
+                        VideoDownloadService.VideoPlatform.YOUTUBE -> false  // YouTube通常不需要Cookie
+                        VideoDownloadService.VideoPlatform.DOUYIN -> false  // 抖音使用API解析
+                        VideoDownloadService.VideoPlatform.TIKTOK -> false  // TikTok使用API解析
+                        else -> false
+                    }
+
+                    val hasCookie = when (videoInfo.platform) {
+                        VideoDownloadService.VideoPlatform.BILIBILI -> videoDownloadService.hasBilibiliCookie()
+                        VideoDownloadService.VideoPlatform.YOUTUBE -> videoDownloadService.hasYouTubeCookie()
+                        VideoDownloadService.VideoPlatform.DOUYIN -> videoDownloadService.hasDouyinCookie()
+                        VideoDownloadService.VideoPlatform.TIKTOK -> videoDownloadService.hasTiktokCookie()
+                        else -> true
+                    }
+
+                    if (needsCookie && !hasCookie) {
+                        // 需要登录获取Cookie，根据平台显示不同的登录对话框
+                        // 先添加一个等待认证的任务到 activeDownloads
+                        val waitingTask = task.copy(
+                            title = "需要登录",
+                            status = DownloadStatus.WAITING_FOR_AUTH
+                        )
+                        activeDownloadTasks[task.id] = waitingTask
+                        updateActiveDownloads()
+
+                        when (videoInfo.platform) {
+                            VideoDownloadService.VideoPlatform.BILIBILI -> {
+                                _uiState.update {
+                                    it.copy(
+                                        showBilibiliLogin = true,
+                                        pendingDownloadUrl = url
+                                    )
+                                }
+                            }
+                            VideoDownloadService.VideoPlatform.YOUTUBE -> {
+                                _uiState.update {
+                                    it.copy(
+                                        showYouTubeLogin = true,
+                                        pendingDownloadUrl = url
+                                    )
+                                }
+                            }
+                            VideoDownloadService.VideoPlatform.DOUYIN -> {
+                                _uiState.update {
+                                    it.copy(
+                                        showDouyinLogin = true,
+                                        pendingDownloadUrl = url
+                                    )
+                                }
+                            }
+                            VideoDownloadService.VideoPlatform.TIKTOK -> {
+                                _uiState.update {
+                                    it.copy(
+                                        showTiktokLogin = true,
+                                        pendingDownloadUrl = url
+                                    )
+                                }
+                            }
+                            else -> { /* 不应该到达这里 */ }
+                        }
+                        return@launch
+                    }
+
+                    // 更新任务信息并显示在 activeDownloads 中
+                    val updatedTask = task.copy(
+                        title = videoInfo.title,
+                        status = DownloadStatus.DOWNLOADING
+                    )
+                    activeDownloadTasks[task.id] = updatedTask
+                    updateActiveDownloads()
+
+                    // 生成文件名
+                    val safeTitle = videoInfo.title.replace(Regex("[\\\\/:*?\"<>|]"), "_").take(50)
+                    val outputFile = File(downloadsDir, "${safeTitle}_${System.currentTimeMillis()}.mp4")
+
+                    // 使用分段下载器下载，传递Cookie和taskId
+                    downloadWithSegmentedDownloader(task.id, url, videoInfo, safeTitle, outputFile, onComplete)
+                }.onFailure { error ->
+                    val failedTask = task.copy(
+                        status = DownloadStatus.FAILED,
+                        errorMessage = "解析失败: ${error.message}\n\n建议：使用导入功能添加本地视频",
+                        errorCode = error.javaClass.simpleName
+                    )
+                    onDownloadFailed(task.id, failedTask, failedTask.errorMessage ?: "解析失败")
+                }
+
+            } catch (e: Exception) {
+                android.util.Log.e("HomeViewModel", "Download failed", e)
+                val failedTask = task.copy(
+                    status = DownloadStatus.FAILED,
+                    errorMessage = "下载失败: ${e.message}",
+                    errorCode = e.javaClass.simpleName
+                )
+                onDownloadFailed(task.id, failedTask, failedTask.errorMessage ?: "下载失败")
+            }
+        }
+    }
+
+    /**
+     * 使用分段下载器下载视频
+     */
+    private suspend fun downloadWithSegmentedDownloader(
+        taskId: String,
+        url: String,
+        videoInfo: com.multilanglearner.data.network.VideoDownloadService.VideoDownloadInfo,
+        title: String,
+        outputFile: File,
+        onComplete: (String, String?) -> Unit
+    ) {
+        val startTime = System.currentTimeMillis()
+        var lastUpdate = startTime
+
+        try {
+            val config = SegmentedDownloader.DownloadConfig(
+                url = videoInfo.downloadUrl,
+                outputFile = outputFile,
+                enableResume = true,
+                // 使用当前配置的Cookie（如果可用）
+                cookies = currentBilibiliCookie ?: videoInfo.cookies,
+                // 音频流URL（用于DASH格式）
+                audioUrl = videoInfo.audioUrl,
+                onProgress = { progress ->
+                    val now = System.currentTimeMillis()
+                    // 限制更新频率（每200ms更新一次）
+                    if (now - lastUpdate > 200) {
+                        val elapsedSeconds = (now - startTime) / 1000.0
+                        val speed = progress.speed
+                        val remainingBytes = progress.totalBytes - progress.bytesDownloaded
+                        val remainingTime = if (speed > 0) remainingBytes / speed else 0L
+
+                        // 直接使用 taskId 更新对应的任务进度
+                        val currentTask = activeDownloadTasks[taskId]
+                        if (currentTask != null) {
+                            val updatedTask = currentTask.copy(
+                                status = DownloadStatus.DOWNLOADING,
+                                progress = progress.percent,
+                                bytesDownloaded = progress.bytesDownloaded,
+                                totalBytes = progress.totalBytes,
+                                speed = speed,
+                                remainingTime = remainingTime,
+                                title = currentTask.title ?: title
+                            )
+                            updateActiveDownloadTask(taskId, updatedTask)
+                        }
+                        lastUpdate = now
+                    }
+                }
+            )
+
+            val result = segmentedDownloader.download(config)
+
+            result.onSuccess { file ->
+                // 直接使用传入的 taskId
+                val currentTask = activeDownloadTasks[taskId]
+                if (currentTask != null) {
+                    val completedTask = currentTask.copy(
+                        status = DownloadStatus.COMPLETED,
+                        progress = 100,
+                        completedAt = System.currentTimeMillis()
+                    )
+                    onDownloadCompleted(taskId, completedTask, file, onComplete)
+                }
+            }.onFailure { error ->
+                // 直接使用传入的 taskId
+                val currentTask = activeDownloadTasks[taskId]
+                if (currentTask != null) {
+                    onDownloadFailed(taskId, currentTask, "下载失败: ${error.message}")
+                }
+            }
+
+        } catch (e: Exception) {
+            android.util.Log.e("HomeViewModel", "Segmented download failed", e)
+            // 这里不需要额外处理，因为 onFailure 已经处理了
+        }
+    }
+
+    /**
+     * 取消当前下载
+     */
+    fun cancelDownload(taskId: String? = null) {
+        if (taskId != null) {
+            // 取消特定任务 - 直接删除，不保留记录
+            activeDownloadJobs[taskId]?.cancel()
+            activeDownloadTasks[taskId]?.let { task ->
+                activeDownloadTasks.remove(taskId)
+                activeDownloadJobs.remove(taskId)
+                updateActiveDownloads()
+
+                // 清理临时文件
+                if (task.totalBytes > 0) {
+                    val safeTitle = task.title.replace(Regex("[\\\\/:*?\"<>|]"), "_").take(50)
+                    val outputFile = File(downloadsDir, "${safeTitle}_${task.createdAt}.mp4")
+                    segmentedDownloader.cancelDownload(outputFile)
+                }
+            }
+            // 处理队列中的下一个任务
+            processQueue()
+        } else {
+            // 取消所有任务 - 直接删除，不保留记录
+            activeDownloadJobs.values.forEach { it.cancel() }
+            activeDownloadTasks.values.forEach { task ->
+                // 清理临时文件
+                if (task.totalBytes > 0) {
+                    val safeTitle = task.title.replace(Regex("[\\\\/:*?\"<>|]"), "_").take(50)
+                    val outputFile = File(downloadsDir, "${safeTitle}_${task.createdAt}.mp4")
+                    segmentedDownloader.cancelDownload(outputFile)
+                }
+            }
+            activeDownloadJobs.clear()
+            activeDownloadTasks.clear()
+            updateActiveDownloads()
+        }
+    }
+
+    /**
+     * 重试失败的下载
+     */
+    fun retryDownload(taskId: String, onComplete: (String, String?) -> Unit) {
+        val history = _downloadHistory.value.find { it.id == taskId }
+        if (history != null && history.status == DownloadStatus.FAILED) {
+            _uiState.update { it.copy(url = history.url) }
+            downloadVideo(onComplete)
+        }
+    }
+
+    /**
+     * 清除下载历史
+     */
+    fun clearDownloadHistory() {
+        viewModelScope.launch(Dispatchers.IO) {
+            _downloadHistory.update { emptyList() }
+            saveDownloadHistory()
+        }
+    }
+
+    /**
+     * 从历史记录中删除条目并删除视频文件（通过 filePath）
+     */
+    fun deleteFromHistoryByPath(filePath: String) {
+        viewModelScope.launch(Dispatchers.IO) {
+            // 查找历史记录
+            val history = _downloadHistory.value.find { it.filePath == filePath }
+            if (history != null) {
+                // 删除视频文件
+                try {
+                    val videoFile = File(history.filePath)
+                    if (videoFile.exists()) {
+                        videoFile.delete()
+                        android.util.Log.d("HomeViewModel", "Deleted video file: ${history.filePath}")
+                    }
+
+                    // 删除相关字幕文件
+                    val base = history.filePath.substringBeforeLast(".")
+                    listOf(".vtt", ".wordts.json").forEach { ext ->
+                        val file = File("$base$ext")
+                        if (file.exists()) {
+                            file.delete()
+                        }
+                    }
+                } catch (e: Exception) {
+                    android.util.Log.e("HomeViewModel", "Error deleting video file", e)
+                }
+
+                // 从历史记录中移除
+                _downloadHistory.update { it.filter { h -> h.id != history.id } }
+                saveDownloadHistory()
+            }
+        }
+    }
+
+    /**
+     * 从历史记录中删除条目并删除视频文件
+     */
+    fun deleteFromHistory(taskId: String) {
+        viewModelScope.launch(Dispatchers.IO) {
+            // 查找历史记录
+            val history = _downloadHistory.value.find { it.id == taskId }
+            if (history != null) {
+                // 删除视频文件
+                try {
+                    val videoFile = File(history.filePath)
+                    if (videoFile.exists()) {
+                        videoFile.delete()
+                        android.util.Log.d("HomeViewModel", "Deleted video file: ${history.filePath}")
+                    }
+
+                    // 删除相关字幕文件
+                    val base = history.filePath.substringBeforeLast(".")
+                    listOf(".vtt", ".wordts.json").forEach { ext ->
+                        val file = File("$base$ext")
+                        if (file.exists()) {
+                            file.delete()
+                        }
+                    }
+                } catch (e: Exception) {
+                    android.util.Log.e("HomeViewModel", "Error deleting video file", e)
+                }
+
+                // 从历史记录中移除
+                _downloadHistory.update { it.filter { h -> h.id != taskId } }
+                saveDownloadHistory()
+            }
+        }
+    }
+
+    /**
+     * 删除视频（从主视频列表）
+     */
+    fun deleteVideo(videoId: Long, filePath: String) {
+        viewModelScope.launch(Dispatchers.IO) {
+            try {
+                // 删除视频文件
+                val videoFile = File(filePath)
+                if (videoFile.exists()) {
+                    videoFile.delete()
+                    android.util.Log.d("HomeViewModel", "Deleted video file: $filePath")
+                }
+
+                // 删除相关字幕文件
+                val base = filePath.substringBeforeLast(".")
+                listOf(".vtt", ".wordts.json").forEach { ext ->
+                    val file = File("$base$ext")
+                    if (file.exists()) {
+                        file.delete()
+                    }
+                }
+
+                // 从数据库中删除
+                videoRepository.delete(videoId)
+
+                // 从下载历史中也删除（如果存在）
+                val historyItem = _downloadHistory.value.find { it.filePath == filePath }
+                if (historyItem != null) {
+                    _downloadHistory.update { it.filter { h -> h.id != historyItem.id } }
+                    saveDownloadHistory()
+                }
+            } catch (e: Exception) {
+                android.util.Log.e("HomeViewModel", "Error deleting video", e)
+            }
+        }
+    }
+
+    /**
+     * 打开应用文件夹（视频下载目录）
+     */
+    fun openFileLocation(filePath: String, context: Context) {
+        viewModelScope.launch(Dispatchers.IO) {
+            try {
+                val videoFile = File(filePath)
+                if (!videoFile.exists()) {
+                    withContext(Dispatchers.Main) {
+                        android.widget.Toast.makeText(context, "文件不存在", android.widget.Toast.LENGTH_SHORT).show()
+                    }
+                    return@launch
+                }
+
+                val parentDir = videoFile.parentFile ?: return@launch
+
+                withContext(Dispatchers.Main) {
+                    var opened = false
+
+                    // 方式1：尝试用系统文件管理器打开目录
+                    try {
+                        val dirUri = androidx.core.content.FileProvider.getUriForFile(
+                            context, "${context.packageName}.fileprovider", parentDir
+                        )
+                        val intent = Intent(Intent.ACTION_VIEW).apply {
+                            setDataAndType(dirUri, "resource/folder")
+                            addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+                            addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                        }
+                        if (intent.resolveActivity(context.packageManager) != null) {
+                            context.startActivity(intent)
+                            opened = true
+                        }
+                    } catch (_: Exception) {}
+
+                    // 方式2：尝试用 DocumentsUI 打开
+                    if (!opened) {
+                        try {
+                            val intent = Intent(Intent.ACTION_VIEW).apply {
+                                setDataAndType(android.net.Uri.parse("content://com.android.externalstorage.documents/document/primary:${parentDir.absolutePath.removePrefix("/storage/emulated/0/")}"), "vnd.android.document/directory")
+                                addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                            }
+                            context.startActivity(intent)
+                            opened = true
+                        } catch (_: Exception) {}
+                    }
+
+                    // 方式3：尝试用 ACTION_GET_CONTENT 打开文件管理器
+                    if (!opened) {
+                        try {
+                            val uri = androidx.core.content.FileProvider.getUriForFile(
+                                context, "${context.packageName}.fileprovider", videoFile
+                            )
+                            val intent = Intent(Intent.ACTION_VIEW).apply {
+                                setDataAndType(uri, "video/*")
+                                addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+                                addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                            }
+                            context.startActivity(Intent.createChooser(intent, "打开视频文件"))
+                            opened = true
+                        } catch (_: Exception) {}
+                    }
+
+                    // 兜底：复制路径到剪贴板
+                    if (!opened) {
+                        val clipboard = context.getSystemService(Context.CLIPBOARD_SERVICE) as android.content.ClipboardManager
+                        clipboard.setPrimaryClip(android.content.ClipData.newPlainText("文件路径", parentDir.absolutePath))
+                        android.widget.Toast.makeText(
+                            context,
+                            "已复制文件夹路径: ${parentDir.absolutePath}",
+                            android.widget.Toast.LENGTH_LONG
+                        ).show()
+                    }
+                }
+            } catch (e: Exception) {
+                android.util.Log.e("HomeViewModel", "Error opening file", e)
+                withContext(Dispatchers.Main) {
+                    android.widget.Toast.makeText(context, "打开失败: ${e.message}", android.widget.Toast.LENGTH_LONG).show()
+                }
+            }
+        }
+    }
+
+    /**
+     * 分享视频文件（从主视频列表）
+     */
+    fun shareVideoFile(filePath: String, context: Context) {
+        viewModelScope.launch(Dispatchers.IO) {
+            try {
+                val videoFile = File(filePath)
+                if (videoFile.exists()) {
+                    // 使用 FileProvider 获取 URI
+                    val uri = androidx.core.content.FileProvider.getUriForFile(
+                        context,
+                        "${context.packageName}.fileprovider",
+                        videoFile
+                    )
+
+                    val shareIntent = Intent(Intent.ACTION_SEND).apply {
+                        type = "video/*"
+                        putExtra(Intent.EXTRA_STREAM, uri)
+                        addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+                    }
+
+                    // 创建分享选择器
+                    val chooser = Intent.createChooser(shareIntent, "分享视频")
+                    chooser.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                    context.startActivity(chooser)
+                }
+            } catch (e: Exception) {
+                android.util.Log.e("HomeViewModel", "Error sharing video", e)
+            }
+        }
+    }
+
+    /**
+     * 分享视频文件（从下载历史）
+     */
+    fun shareVideo(taskId: String, context: Context) {
+        viewModelScope.launch(Dispatchers.IO) {
+            val history = _downloadHistory.value.find { it.id == taskId }
+            if (history != null && history.status == DownloadStatus.COMPLETED) {
+                val videoFile = File(history.filePath)
+                if (videoFile.exists()) {
+                    // 使用 FileProvider 获取 URI
+                    val uri = androidx.core.content.FileProvider.getUriForFile(
+                        context,
+                        "${context.packageName}.fileprovider",
+                        videoFile
+                    )
+
+                    val shareIntent = Intent(Intent.ACTION_SEND).apply {
+                        type = "video/*"
+                        putExtra(Intent.EXTRA_STREAM, uri)
+                        addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+                    }
+
+                    // 创建分享选择器
+                    val chooser = Intent.createChooser(shareIntent, "分享视频")
+                    chooser.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                    context.startActivity(chooser)
+                }
+            }
+        }
+    }
+
+    /**
+     * 添加到下载队列
+     */
+    private fun addToQueue(url: String) {
+        val task = DownloadTask(
+            url = url,
+            title = "等待中...",
+            status = DownloadStatus.PENDING
+        )
+        downloadQueue[task.id] = task
+        updateQueueList()
+    }
+
+    /**
+     * 从队列中移除
+     */
+    private fun removeFromQueue(taskId: String) {
+        downloadQueue.remove(taskId)
+        updateQueueList()
+    }
+
+    /**
+     * 更新队列列表
+     */
+    private fun updateQueueList() {
+        _uiState.update { it.copy(downloadQueue = downloadQueue.values.toList()) }
+    }
+
+    /**
+     * 更新活跃下载列表
+     */
+    private fun updateActiveDownloads() {
+        _uiState.update {
+            val activeTasks = activeDownloadTasks.toMap()
+            it.copy(
+                activeDownloads = activeTasks,
+                isProcessing = activeTasks.values.any { task ->
+                    task.status == DownloadStatus.FETCHING_INFO || task.status == DownloadStatus.DOWNLOADING
+                }
+            )
+        }
+    }
+
+    /**
+     * 更新特定下载任务的进度
+     */
+    private fun updateActiveDownloadTask(taskId: String, task: DownloadTask) {
+        activeDownloadTasks[taskId] = task
+        updateActiveDownloads()
+    }
+
+    /**
+     * 下载完成回调
+     */
+    private fun onDownloadCompleted(taskId: String, task: DownloadTask, file: File, onComplete: (String, String?) -> Unit) {
+        viewModelScope.launch(Dispatchers.IO) {
+            // 移除活跃任务
+            activeDownloadTasks.remove(taskId)
+            activeDownloadJobs.remove(taskId)
+            updateActiveDownloads()
+
+            // 保存到数据库（移到已下载列表）
+            val entity = VideoEntity(
+                title = task.title,
+                filePath = file.absolutePath,
+                vttPath = null,
+                language = _uiState.value.selectedLang,
+                sourceUrl = task.url
+            )
+            videoRepository.insert(entity)
+
+            // 添加到历史记录（用于查看下载历史）
+            val history = DownloadHistory(
+                id = task.id,
+                title = task.title,
+                url = task.url,
+                filePath = file.absolutePath,
+                fileSize = file.length(),
+                status = DownloadStatus.COMPLETED,
+                createdAt = task.createdAt,
+                completedAt = task.completedAt
+            )
+            addToHistory(history)
+
+            withContext(Dispatchers.Main) {
+                // 提示用户下载完成，自动切换到已下载 tab
+                _uiState.update { it.copy(
+                    snackbarMessage = "「${task.title}」下载完成",
+                    switchToTab = 1,
+                    url = ""
+                )}
+                // 处理队列中的下一个任务
+                processQueue()
+            }
+        }
+    }
+
+    /**
+     * 下载失败回调
+     */
+    private fun onDownloadFailed(taskId: String, task: DownloadTask, error: String) {
+        // 移除活跃任务
+        activeDownloadTasks.remove(taskId)
+        activeDownloadJobs.remove(taskId)
+        updateActiveDownloads()
+
+        val failedTask = task.copy(
+            status = DownloadStatus.FAILED,
+            errorMessage = error
+        )
+        addToHistory(failedTask)
+
+        // 提示用户下载失败
+        _uiState.update { it.copy(snackbarMessage = "下载失败: ${error.take(50)}") }
+
+        // 处理队列中的下一个任务
+        processQueue()
+    }
+
+    /**
+     * 处理下载队列
+     */
+    private fun processQueue() {
+        if (downloadQueue.isEmpty()) return
+        if (activeDownloadTasks.size >= MAX_CONCURRENT_DOWNLOADS) return
+
+        // 从队列中取出任务
+        val (taskId, task) = downloadQueue.entries.first()
+        downloadQueue.remove(taskId)
+        updateQueueList()
+
+        // 开始下载
+        startDownload(task.url) { _, _ -> }
+    }
+
+    /**
+     * 添加到历史记录
+     */
+    private fun addToHistory(task: DownloadTask) {
+        val history = DownloadHistory(
+            id = task.id,
+            title = task.title,
+            url = task.url,
+            filePath = "", // 下载失败时没有文件路径
+            fileSize = task.totalBytes,
+            status = task.status,
+            createdAt = task.createdAt,
+            completedAt = task.completedAt
+        )
+        val updated = listOf(history) + _downloadHistory.value
+        _downloadHistory.update { updated }
+        saveDownloadHistory()
+    }
+
+    /**
+     * 添加成功的历史记录
+     */
+    private fun addToHistory(history: DownloadHistory) {
+        val updated = listOf(history) + _downloadHistory.value
+        _downloadHistory.update { updated }
+        saveDownloadHistory()
+    }
+
+    /**
+     * 加载下载历史
+     */
+    private fun loadDownloadHistory() {
+        viewModelScope.launch(Dispatchers.IO) {
+            try {
+                val historyFile = File(application.filesDir, "download_history.json")
+                if (historyFile.exists()) {
+                    val json = historyFile.readText()
+                    val historyList = Json.decodeFromString<List<DownloadHistory>>(json)
+                    _downloadHistory.update { historyList }
+                    android.util.Log.d("HomeViewModel", "Loaded download history: ${historyList.size} items")
+                }
+            } catch (e: Exception) {
+                android.util.Log.e("HomeViewModel", "Failed to load download history", e)
+            }
+        }
+    }
+
+    /**
+     * 保存下载历史
+     */
+    private fun saveDownloadHistory() {
+        viewModelScope.launch(Dispatchers.IO) {
+            try {
+                val historyFile = File(application.filesDir, "download_history.json")
+                val json = Json.encodeToString(_downloadHistory.value)
+                historyFile.writeText(json)
+                android.util.Log.d("HomeViewModel", "Saved download history: ${_downloadHistory.value.size} items")
+            } catch (e: Exception) {
+                android.util.Log.e("HomeViewModel", "Failed to save download history", e)
+            }
+        }
+    }
+
+    /**
+     * 格式化文件大小
+     */
+    fun formatFileSize(bytes: Long): String {
+        return when {
+            bytes < 1024 -> "$bytes B"
+            bytes < 1024 * 1024 -> "${bytes / 1024} KB"
+            bytes < 1024 * 1024 * 1024 -> "${bytes / (1024 * 1024)} MB"
+            else -> String.format("%.1f GB", bytes / (1024.0 * 1024 * 1024))
+        }
+    }
+
+    /**
+     * 格式化下载速度
+     */
+    fun formatSpeed(bytesPerSecond: Long): String {
+        return when {
+            bytesPerSecond < 1024 -> "${bytesPerSecond} B/s"
+            bytesPerSecond < 1024 * 1024 -> "${bytesPerSecond / 1024} KB/s"
+            else -> String.format("%.1f MB/s", bytesPerSecond / (1024.0 * 1024))
+        }
+    }
+
+    /**
+     * 格式化剩余时间
+     */
+    fun formatRemainingTime(seconds: Long): String {
+        return when {
+            seconds < 60 -> "${seconds}秒"
+            seconds < 3600 -> "${seconds / 60}分${seconds % 60}秒"
+            else -> "${seconds / 3600}小时${(seconds % 3600) / 60}分"
+        }
+    }
+
+    /**
+     * 获取状态文本
+     */
+    fun getStatusText(status: DownloadStatus): String {
+        return when (status) {
+            DownloadStatus.PENDING -> "等待中"
+            DownloadStatus.FETCHING_INFO -> "解析中..."
+            DownloadStatus.DOWNLOADING -> "下载中"
+            DownloadStatus.PAUSED -> "已暂停"
+            DownloadStatus.COMPLETED -> "已完成"
+            DownloadStatus.FAILED -> "失败"
+            DownloadStatus.CANCELLED -> "已取消"
+            DownloadStatus.WAITING_FOR_AUTH -> "需要登录"
+        }
+    }
+
+    fun importVideo(context: Context, uri: Uri, onComplete: (String, String?) -> Unit) {
+        viewModelScope.launch(Dispatchers.IO) {
+            try {
+                _uiState.update { it.copy(isProcessing = true) }
+
+                val fileName = getFileName(context, uri) ?: "import_${System.currentTimeMillis()}.mp4"
+                android.util.Log.d("HomeViewModel", "Import video fileName: $fileName")
+
+                val tempFile = File(downloadsDir, fileName)
+
+                // 使用原始文件名（不含扩展名）作为标题，而不是时间戳格式
+                val displayName = if (fileName.startsWith("import_")) {
+                    // 如果是默认文件名，尝试从 Uri 获取更友好的名称
+                    val lastPath = uri.lastPathSegment ?: "导入视频"
+                    lastPath.substringBeforeLast(".")
+                } else {
+                    // 使用原始文件名（去掉扩展名）
+                    fileName.substringBeforeLast(".")
+                }
+
+                android.util.Log.d("HomeViewModel", "Import video displayName: $displayName")
+
+                val inputStream = context.contentResolver.openInputStream(uri)
+                val outputStream = FileOutputStream(tempFile)
+
+                inputStream?.use { input ->
+                    outputStream.use { output ->
+                        input.copyTo(output)
+                    }
+                }
+
+                val entity = VideoEntity(
+                    title = displayName,
+                    filePath = tempFile.absolutePath,
+                    vttPath = null,
+                    language = _uiState.value.selectedLang,
+                    sourceUrl = null
+                )
+                videoRepository.insert(entity)
+
+                // 添加到历史记录
+                val history = DownloadHistory(
+                    id = UUID.randomUUID().toString(),
+                    title = displayName,
+                    url = "导入文件",
+                    filePath = tempFile.absolutePath,
+                    fileSize = tempFile.length(),
+                    status = DownloadStatus.COMPLETED,
+                    createdAt = System.currentTimeMillis(),
+                    completedAt = System.currentTimeMillis()
+                )
+                addToHistory(history)
+
+                _uiState.update { it.copy(isProcessing = false) }
+                launch(Dispatchers.Main) { onComplete(tempFile.absolutePath, null) }
+            } catch (e: Exception) {
+                android.util.Log.e("MultiLangLearner", "Import failed", e)
+                _uiState.update { it.copy(isProcessing = false) }
+            }
+        }
+    }
+
+    private fun getFileName(context: Context, uri: Uri): String? {
+        var result: String? = null
+        if (uri.scheme == "content") {
+            val cursor = context.contentResolver.query(uri, null, null, null, null)
+            cursor?.use {
+                if (it.moveToFirst()) {
+                    val index = it.getColumnIndex(android.provider.OpenableColumns.DISPLAY_NAME)
+                    if (index >= 0) result = it.getString(index)
+                }
+            }
+        }
+        if (result == null) {
+            result = uri.path
+            val cut = result?.lastIndexOf('/')
+            if (cut != -1) {
+                result = result?.substring(cut!! + 1)
+            }
+        }
+        return result
+    }
+
+    /**
+     * 处理B站Cookie获取完成
+     * 保存Cookie并继续待处理的下载
+     */
+    fun onBilibiliCookiesExtracted(
+        sessdata: String?,
+        biliJct: String?,
+        dedeUserID: String?,
+        fullCookie: String = "",
+        onComplete: (String, String?) -> Unit
+    ) {
+        viewModelScope.launch {
+            // 优先使用完整Cookie，否则构建基本Cookie
+            val cookieString = if (fullCookie.isNotBlank()) {
+                fullCookie
+            } else {
+                buildString {
+                    sessdata?.let { append("SESSDATA=$it; ") }
+                    biliJct?.let { append("bili_jct=$it; ") }
+                    dedeUserID?.let { append("DedeUserID=$it; ") }
+                }.trimEnd(' ', ';')
+            }
+
+            // 保存Cookie到配置
+            if (sessdata != null) {
+                videoConfigStore.setBilibiliSessdata(sessdata)
+            }
+            if (biliJct != null) {
+                videoConfigStore.setBilibiliBiliJct(biliJct)
+            }
+            if (dedeUserID != null) {
+                videoConfigStore.setBilibiliDedeuserid(dedeUserID)
+            }
+
+            // 立即更新当前Cookie变量（使用完整Cookie）
+            if (cookieString.isNotBlank()) {
+                currentBilibiliCookie = cookieString
+                Log.d("HomeViewModel", "Updated Bilibili cookie, length: ${cookieString.length}")
+            }
+
+            // 关闭登录对话框
+            _uiState.update { it.copy(showBilibiliLogin = false) }
+
+            // 如果有待处理的URL，继续下载
+            val pendingUrl = _uiState.value.pendingDownloadUrl
+            if (pendingUrl.isNotBlank()) {
+                // 清除待处理URL
+                _uiState.update { it.copy(pendingDownloadUrl = "") }
+
+                // 继续下载
+                downloadVideo(onComplete)
+            }
+        }
+    }
+
+    /**
+     * 取消登录对话框
+     */
+    fun dismissBilibiliLogin() {
+        _uiState.update {
+            it.copy(
+                showBilibiliLogin = false,
+                pendingDownloadUrl = ""
+            )
+        }
+        // 移除等待认证的任务
+        activeDownloadTasks.entries.find { it.value.status == DownloadStatus.WAITING_FOR_AUTH }?.key?.let { taskId ->
+            activeDownloadTasks.remove(taskId)
+            updateActiveDownloads()
+        }
+    }
+
+    // ========== YouTube ==========
+
+    fun onYouTubeCookiesExtracted(
+        cookies: Map<String, String>,
+        fullCookie: String = "",
+        onComplete: (String, String?) -> Unit
+    ) {
+        viewModelScope.launch {
+            val cookieString = if (fullCookie.isNotBlank()) fullCookie else {
+                cookies.entries.joinToString("; ") { "${it.key}=${it.value}" }
+            }
+
+            // 保存关键字段
+            cookies["SID"]?.let { videoConfigStore.setYouTubeSid(it) }
+            if (fullCookie.isNotBlank()) {
+                videoConfigStore.setYouTubeFullCookie(fullCookie)
+            }
+
+            // 立即更新当前Cookie变量
+            if (cookieString.isNotBlank()) {
+                currentYouTubeCookie = cookieString
+                Log.d("HomeViewModel", "Updated YouTube cookie, length: ${cookieString.length}")
+            }
+
+            _uiState.update { it.copy(showYouTubeLogin = false) }
+
+            val pendingUrl = _uiState.value.pendingDownloadUrl
+            if (pendingUrl.isNotBlank()) {
+                _uiState.update { it.copy(pendingDownloadUrl = "") }
+                downloadVideo(onComplete)
+            }
+        }
+    }
+
+    fun dismissYouTubeLogin() {
+        _uiState.update {
+            it.copy(
+                showYouTubeLogin = false,
+                pendingDownloadUrl = ""
+            )
+        }
+        // 移除等待认证的任务
+        activeDownloadTasks.entries.find { it.value.status == DownloadStatus.WAITING_FOR_AUTH }?.key?.let { taskId ->
+            activeDownloadTasks.remove(taskId)
+            updateActiveDownloads()
+        }
+    }
+
+    // ========== 抖音 ==========
+
+    fun onDouyinCookiesExtracted(
+        cookies: Map<String, String>,
+        fullCookie: String = "",
+        onComplete: (String, String?) -> Unit
+    ) {
+        viewModelScope.launch {
+            val cookieString = if (fullCookie.isNotBlank()) fullCookie else {
+                cookies.entries.joinToString("; ") { "${it.key}=${it.value}" }
+            }
+
+            // 保存关键字段
+            cookies["sessionid"]?.let { videoConfigStore.setDouyinSessionid(it) }
+            if (fullCookie.isNotBlank()) {
+                videoConfigStore.setDouyinFullCookie(fullCookie)
+            }
+
+            // 立即更新当前Cookie变量
+            if (cookieString.isNotBlank()) {
+                currentDouyinCookie = cookieString
+                Log.d("HomeViewModel", "Updated Douyin cookie, length: ${cookieString.length}")
+            }
+
+            _uiState.update { it.copy(showDouyinLogin = false) }
+
+            val pendingUrl = _uiState.value.pendingDownloadUrl
+            if (pendingUrl.isNotBlank()) {
+                _uiState.update { it.copy(pendingDownloadUrl = "") }
+                downloadVideo(onComplete)
+            }
+        }
+    }
+
+    fun dismissDouyinLogin() {
+        _uiState.update {
+            it.copy(
+                showDouyinLogin = false,
+                pendingDownloadUrl = ""
+            )
+        }
+        // 移除等待认证的任务
+        activeDownloadTasks.entries.find { it.value.status == DownloadStatus.WAITING_FOR_AUTH }?.key?.let { taskId ->
+            activeDownloadTasks.remove(taskId)
+            updateActiveDownloads()
+        }
+    }
+
+    // ========== TikTok ==========
+
+    fun onTiktokCookiesExtracted(
+        cookies: Map<String, String>,
+        fullCookie: String = "",
+        onComplete: (String, String?) -> Unit
+    ) {
+        viewModelScope.launch {
+            val cookieString = if (fullCookie.isNotBlank()) fullCookie else {
+                cookies.entries.joinToString("; ") { "${it.key}=${it.value}" }
+            }
+
+            // 保存关键字段
+            cookies["sessionid"]?.let { videoConfigStore.setTiktokSessionid(it) }
+            if (fullCookie.isNotBlank()) {
+                videoConfigStore.setTiktokFullCookie(fullCookie)
+            }
+
+            // 立即更新当前Cookie变量
+            if (cookieString.isNotBlank()) {
+                currentTiktokCookie = cookieString
+                Log.d("HomeViewModel", "Updated Tiktok cookie, length: ${cookieString.length}")
+            }
+
+            _uiState.update { it.copy(showTiktokLogin = false) }
+
+            val pendingUrl = _uiState.value.pendingDownloadUrl
+            if (pendingUrl.isNotBlank()) {
+                _uiState.update { it.copy(pendingDownloadUrl = "") }
+                downloadVideo(onComplete)
+            }
+        }
+    }
+
+    fun dismissTiktokLogin() {
+        _uiState.update {
+            it.copy(
+                showTiktokLogin = false,
+                pendingDownloadUrl = ""
+            )
+        }
+        // 移除等待认证的任务
+        activeDownloadTasks.entries.find { it.value.status == DownloadStatus.WAITING_FOR_AUTH }?.key?.let { taskId ->
+            activeDownloadTasks.remove(taskId)
+            updateActiveDownloads()
+        }
+    }
+
+    // ========== 转录队列状态 ==========
+
+    /**
+     * 更新转录队列状态
+     */
+    fun updateTranscriptionQueue(
+        currentVideo: String?,
+        queueList: List<String>,
+        progress: Int,
+        message: String
+    ) {
+        _uiState.update {
+            it.copy(
+                transcribingVideo = currentVideo,
+                transcriptionQueue = queueList,
+                transcriptionProgress = progress,
+                transcriptionMessage = message
+            )
+        }
+    }
+
+    /**
+     * 转录完成，清除状态并更新数据库中的 vttPath
+     */
+    fun transcriptionCompleted(videoPath: String? = null, vttPath: String? = null) {
+        val isSuccess = videoPath != null && vttPath != null
+        _uiState.update {
+            it.copy(
+                transcribingVideo = null,
+                transcriptionQueue = emptyList(),
+                transcriptionProgress = 0,
+                transcriptionMessage = "",
+                snackbarMessage = if (isSuccess) "转录完成，可以开始学习了" else "转录失败，请检查网络和 API Key",
+                switchToTab = if (isSuccess) 2 else null
+            )
+        }
+        // 更新数据库中的 vttPath
+        if (videoPath != null && vttPath != null) {
+            viewModelScope.launch(Dispatchers.IO) {
+                try {
+                    val video = videoRepository.getByPath(videoPath)
+                    if (video != null) {
+                        val wtsPath = vttPath.substringBeforeLast(".") + ".wordts.json"
+                        videoRepository.update(video.copy(
+                            vttPath = vttPath,
+                            wordTsPath = if (java.io.File(wtsPath).exists()) wtsPath else null
+                        ))
+                        android.util.Log.d("HomeViewModel", "Updated vttPath for: ${video.title}")
+                    }
+                } catch (e: Exception) {
+                    android.util.Log.e("HomeViewModel", "Failed to update vttPath", e)
+                }
+            }
+        }
+    }
+
+    /**
+     * 开始手动转录视频
+     * 启动 TranscriptionService 进行转录
+     */
+    fun startTranscription(video: VideoEntity, context: Context) {
+        viewModelScope.launch {
+            try {
+                // 启动转录服务
+                val intent = Intent(context, com.multilanglearner.service.TranscriptionService::class.java).apply {
+                    action = com.multilanglearner.service.TranscriptionService.ACTION_START
+                    putExtra(com.multilanglearner.service.TranscriptionService.EXTRA_VIDEO_PATH, video.filePath)
+                    putExtra(com.multilanglearner.service.TranscriptionService.EXTRA_VIDEO_NAME, video.title)
+                }
+                context.startForegroundService(intent)
+
+                _uiState.update { it.copy(
+                    snackbarMessage = "开始转录「${video.title}」",
+                    transcribingVideo = video.title,
+                    transcriptionProgress = 0,
+                    transcriptionMessage = "准备中..."
+                )}
+                android.util.Log.d("HomeViewModel", "Started transcription for: ${video.title}")
+            } catch (e: Exception) {
+                android.util.Log.e("HomeViewModel", "Failed to start transcription", e)
+                _uiState.update { it.copy(snackbarMessage = "启动转录失败: ${e.message}") }
+            }
+        }
+    }
+}

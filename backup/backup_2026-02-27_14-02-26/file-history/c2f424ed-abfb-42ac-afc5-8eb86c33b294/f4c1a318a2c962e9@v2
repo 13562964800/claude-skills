@@ -1,0 +1,5 @@
+#!/usr/bin/env node
+delete process.env.ANTHROPIC_AUTH_TOKEN;
+process.env.ANTHROPIC_BASE_URL = "https://open.bigmodel.cn/api/anthropic";
+process.env.ANTHROPIC_API_KEY = "bdc78cf3476546019386525e5eb8c756.AqjRKxD0nZwVNTjM";
+await import("./dist/entry.js");

@@ -1,0 +1,175 @@
+import os, sys, tempfile, subprocess, requests, hmac, hashlib, base64, json, time
+from urllib.parse import quote
+from datetime import datetime, timezone
+
+_funasr_proc = None
+
+def _ensure_funasr_running():
+    """Auto-start FunASR server if not running."""
+    global _funasr_proc
+    try:
+        r = requests.get('http://localhost:8765/health', timeout=2)
+        if r.status_code == 200:
+            return
+    except:
+        pass
+    # Try to start the server
+    python_exe = os.path.expanduser('~/funasr-venv/Scripts/python.exe')
+    server_script = os.path.expanduser('~/.clawdbot/skills/funasr-transcribe/scripts/server.py')
+    if not os.path.exists(python_exe) or not os.path.exists(server_script):
+        raise Exception('FunASR环境未安装，请检查 ~/funasr-venv 和 ~/.clawdbot/skills/funasr-transcribe')
+    _funasr_proc = subprocess.Popen(
+        [python_exe, server_script],
+        stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
+        creationflags=getattr(subprocess, 'CREATE_NO_WINDOW', 0),
+    )
+    # Wait for server to be ready
+    for _ in range(60):
+        time.sleep(1)
+        try:
+            r = requests.get('http://localhost:8765/health', timeout=2)
+            if r.status_code == 200:
+                return
+        except:
+            pass
+    raise Exception('FunASR服务启动超时，请手动运行:\n' + python_exe + ' ' + server_script)
+
+def transcribe_audio(filepath, config, progress_cb=None):
+    pid = config['asr_provider']
+    keys = config.get('asr_keys', {}).get(pid, {})
+    if pid == 'funasr':
+        return _transcribe_funasr(filepath, progress_cb)
+    elif pid == 'aliyun':
+        return _transcribe_chunked(filepath, lambda f: _transcribe_aliyun(f, keys), progress_cb)
+    elif pid == 'openai_whisper':
+        return _transcribe_chunked(filepath, lambda f: _transcribe_whisper(f, keys['key']), progress_cb)
+    else:
+        raise Exception(f'{pid} 转写暂未实现，请使用 FunASR(本地)、阿里云或 OpenAI Whisper')
+
+# --- FunASR (local server) ---
+def _transcribe_funasr(filepath, progress_cb=None):
+    if progress_cb: progress_cb('正在启动FunASR服务...')
+    _ensure_funasr_running()
+    if progress_cb: progress_cb('正在调用本地FunASR服务...')
+    r = requests.post('http://localhost:8765/transcribe',
+        json={'file_path': os.path.abspath(filepath)}, timeout=600)
+    data = r.json()
+    if data.get('success'):
+        return data.get('text', '')
+    raise Exception(data.get('error', '转写失败'))
+
+# --- Chunked transcription for cloud APIs ---
+def _transcribe_chunked(filepath, transcribe_fn, progress_cb=None):
+    from pydub import AudioSegment
+    if progress_cb: progress_cb('正在加载音频...')
+    audio = AudioSegment.from_file(filepath)
+    duration_s = len(audio) / 1000
+
+    if duration_s <= 60:
+        if progress_cb: progress_cb('正在转写...')
+        return transcribe_fn(filepath)
+
+    # Split into chunks at silence points
+    from pydub.silence import split_on_silence
+    if progress_cb: progress_cb('长语音，正在分块...')
+    chunks = split_on_silence(audio, min_silence_len=500, silence_thresh=-40, keep_silence=300)
+
+    # Merge small chunks, split large ones to keep each ≤ 55s
+    merged = []
+    buf = AudioSegment.empty()
+    for c in chunks:
+        if len(buf) + len(c) <= 55000:
+            buf += c
+        else:
+            if len(buf) > 0:
+                merged.append(buf)
+            if len(c) > 55000:
+                # Hard split
+                for i in range(0, len(c), 55000):
+                    merged.append(c[i:i+55000])
+            else:
+                buf = c
+                continue
+            buf = AudioSegment.empty()
+    if len(buf) > 0:
+        merged.append(buf)
+
+    if not merged:
+        merged = [audio]
+
+    results = []
+    tmpdir = tempfile.mkdtemp()
+    for i, chunk in enumerate(merged):
+        if progress_cb: progress_cb(f'转写分块 {i+1}/{len(merged)}...')
+        tmp = os.path.join(tmpdir, f'chunk_{i}.wav')
+        chunk.export(tmp, format='wav')
+        results.append(transcribe_fn(tmp))
+        os.remove(tmp)
+
+    return ' '.join(results)
+
+# --- Aliyun ASR ---
+def _transcribe_aliyun(filepath, keys):
+    ak_id, ak_secret, app_key = keys.get('key',''), keys.get('secret',''), keys.get('appKey','')
+    if not all([ak_id, ak_secret, app_key]):
+        raise Exception('请配置阿里云 AccessKey ID、Secret 和 AppKey')
+
+    # Get token
+    nonce = os.urandom(8).hex()
+    ts = datetime.now(timezone.utc).strftime('%Y-%m-%dT%H:%M:%SZ')
+    params = {
+        'AccessKeyId': ak_id, 'Action': 'CreateToken', 'Format': 'JSON',
+        'RegionId': 'cn-shanghai', 'SignatureMethod': 'HMAC-SHA1',
+        'SignatureNonce': nonce, 'SignatureVersion': '1.0',
+        'Timestamp': ts, 'Version': '2019-02-28',
+    }
+    canon = '&'.join(f'{quote(k, safe="")}={quote(params[k], safe="")}' for k in sorted(params))
+    sts = f'GET&{quote("/", safe="")}&{quote(canon, safe="")}'
+    sig = base64.b64encode(hmac.new((ak_secret + '&').encode(), sts.encode(), hashlib.sha1).digest()).decode()
+    params['Signature'] = sig
+    query = '&'.join(f'{quote(k, safe="")}={quote(v, safe="")}' for k, v in params.items())
+    resp = requests.get(f'https://nls-meta.cn-shanghai.aliyuncs.com/?{query}', timeout=10)
+    token = resp.json().get('Token', {}).get('Id')
+    if not token:
+        raise Exception('获取阿里云Token失败: ' + resp.text[:200])
+
+    # Transcribe
+    with open(filepath, 'rb') as f:
+        audio_data = f.read()
+    url = f'https://nls-gateway-cn-shanghai.aliyuncs.com/stream/v1/asr?appkey={app_key}&format=wav&sample_rate=16000&enable_punctuation_prediction=true&enable_inverse_text_normalization=true'
+    resp = requests.post(url, headers={'X-NLS-Token': token, 'Content-Type': 'application/octet-stream'}, data=audio_data, timeout=60)
+    result = resp.json()
+    if result.get('status') == 20000000 and result.get('result'):
+        return result['result']
+    raise Exception('阿里云识别失败: ' + json.dumps(result, ensure_ascii=False)[:200])
+
+# --- OpenAI Whisper ---
+def _transcribe_whisper(filepath, api_key):
+    with open(filepath, 'rb') as f:
+        resp = requests.post('https://api.openai.com/v1/audio/transcriptions',
+            headers={'Authorization': f'Bearer {api_key}'},
+            files={'file': (os.path.basename(filepath), f, 'audio/wav')},
+            data={'model': 'whisper-1'}, timeout=60)
+    data = resp.json()
+    if 'text' in data:
+        return data['text']
+    raise Exception('Whisper识别失败: ' + json.dumps(data, ensure_ascii=False)[:200])
+
+# --- Test connection ---
+def test_asr(provider_id, keys):
+    if provider_id == 'funasr':
+        try:
+            _ensure_funasr_running()
+            return True, 'FunASR服务运行中'
+        except Exception as e:
+            return False, str(e)
+    elif provider_id == 'aliyun':
+        if not keys.get('key') or not keys.get('secret') or not keys.get('appKey'):
+            return False, '请填写 AccessKey ID、Secret 和 AppKey'
+        return True, '配置格式正确，将在转写时验证'
+    elif provider_id == 'openai_whisper':
+        if not keys.get('key', '').startswith('sk-'):
+            return False, 'API Key 格式不正确'
+        return True, '配置格式正确'
+    else:
+        return True, '配置已保存，将在转写时验证'

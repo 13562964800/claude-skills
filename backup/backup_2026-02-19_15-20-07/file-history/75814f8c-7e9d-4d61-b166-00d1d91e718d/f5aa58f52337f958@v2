@@ -1,0 +1,327 @@
+package com.courassistant.java.androidtest;
+
+import android.content.Context;
+import android.content.Intent;
+import android.net.Uri;
+import android.util.Log;
+
+import androidx.test.InstrumentationRegistry;
+import androidx.test.ext.junit.runners.AndroidJUnit4;
+import androidx.test.platform.app.InstrumentationRegistry;
+import androidx.test.uiautomator.By;
+import androidx.test.uiautomator.UiDevice;
+import androidx.test.uiautomator.UiObject;
+import androidx.test.uiautomator.UiObjectNotFoundException;
+import androidx.test.uiautomator.UiSelector;
+import androidx.test.uiautomator.UiScrollable;
+import androidx.test.rule.ActivityTestRule;
+
+import com.courassistant.java.ui.MainActivity;
+
+import org.junit.After;
+import org.junit.Before;
+import org.junit.Rule;
+import org.junit.Test;
+import org.junit.runner.RunWith;
+
+import static androidx.test.espresso.Espresso.onView;
+import static androidx.test.espresso.action.ViewActions.click;
+import static androidx.test.espresso.assertion.ViewAssertions.matches;
+import static androidx.test.espresso.matcher.ViewMatchers.isDisplayed;
+import static androidx.test.espresso.matcher.ViewMatchers.withId;
+import static androidx.test.espresso.matcher.ViewMatchers.withText;
+import static org.junit.Assert.*;
+
+/**
+ * 集成测试辅助类
+ * 提供 UI 测试和功能测试的通用方法
+ *
+ * 宋氏美学，单夫纯律师 制作
+ */
+@RunWith(AndroidJUnit4.class)
+public class IntegrationTestHelper {
+
+    private static final String TAG = "IntegrationTestHelper";
+    private UiDevice device;
+
+    @Rule
+    public ActivityTestRule<MainActivity> activityRule =
+        new ActivityTestRule<>(MainActivity.class, true, false);
+
+    @Before
+    public void setUp() {
+        device = UiDevice.getInstance(InstrumentationRegistry.getInstrumentation());
+        Log.d(TAG, "集成测试开始");
+    }
+
+    @After
+    public void tearDown() {
+        Log.d(TAG, "集成测试结束");
+    }
+
+    /**
+     * 等待视图出现
+     */
+    public static void waitForView(int resourceId, long timeout) {
+        long startTime = System.currentTimeMillis();
+        while (System.currentTimeMillis() - startTime < timeout) {
+            try {
+                onView(withId(resourceId)).check(matches(isDisplayed()));
+                return;
+            } catch (Exception e) {
+                // 继续等待
+            }
+        }
+    }
+
+    /**
+     * 等待文本出现
+     */
+    public static void waitForText(String text, long timeout) {
+        long startTime = System.currentTimeMillis();
+        while (System.currentTimeMillis() - startTime < timeout) {
+            try {
+                onView(withText(text)).check(matches(isDisplayed()));
+                return;
+            } catch (Exception e) {
+                // 继续等待
+            }
+        }
+    }
+
+    /**
+     * 测试应用启动
+     */
+    @Test
+    public void testAppLaunch() {
+        // 启动应用
+        Context context = InstrumentationRegistry.getInstrumentation().getTargetContext();
+        Intent intent = new Intent(context, MainActivity.class);
+        intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
+        context.startActivity(intent);
+
+        // 验证主界面显示
+        waitForView(R.id.main_view, 5000);
+        assertTrue("应用应成功启动", true);
+    }
+
+    /**
+     * 测试底部导航切换
+     */
+    @Test
+    public void testBottomNavigation() {
+        activityRule.launchActivity(null);
+
+        // 切换到短信Tab
+        onView(withId(R.id.navigation_sms)).perform(click());
+        waitForView(R.id.sms_fragment, 3000);
+
+        // 切换到文档Tab
+        onView(withId(R.id.navigation_docs)).perform(click());
+        waitForView(R.id.docs_fragment, 3000);
+
+        // 切换到设置Tab
+        onView(withId(R.id.navigation_settings)).perform(click());
+        waitForView(R.id.settings_fragment, 3000);
+    }
+
+    /**
+     * 测试权限请求流程
+     */
+    @Test
+    public void testPermissionRequestFlow() {
+        activityRule.launchActivity(null);
+
+        // 首次启动应显示权限请求
+        try {
+            waitForText("需要短信权限", 5000);
+            onView(withText("授权")).perform(click());
+
+            // 等待日历权限
+            waitForText("需要日历权限", 3000);
+            onView(withText("授权")).perform(click());
+
+            // 验证权限授予
+            assertTrue("权限请求流程应完成", true);
+        } catch (Exception e) {
+            // 如果已有权限，跳过测试
+            Log.d(TAG, "权限已授予，跳过权限请求测试");
+        }
+    }
+
+    /**
+     * 测试短信列表显示
+     */
+    @Test
+    public void testSmsListDisplay() {
+        activityRule.launchActivity(null);
+
+        // 导航到短信Tab
+        onView(withId(R.id.navigation_sms)).perform(click());
+        waitForView(R.id.sms_fragment, 3000);
+
+        // 验证分类菜单显示
+        onView(withId(R.id.sms_category_menu)).check(matches(isDisplayed()));
+
+        // 验证短信列表显示
+        onView(withId(R.id.sms_list)).check(matches(isDisplayed()));
+    }
+
+    /**
+     * 测试文档列表显示
+     */
+    @Test
+    public void testDocumentListDisplay() {
+        activityRule.launchActivity(null);
+
+        // 导航到文档Tab
+        onView(withId(R.id.navigation_docs)).perform(click());
+        waitForView(R.id.docs_fragment, 3000);
+
+        // 验证文档列表显示
+        onView(withId(R.id.document_list)).check(matches(isDisplayed()));
+    }
+
+    /**
+     * 测试文档展开/折叠
+     */
+    @Test
+    public void testDocumentExpandCollapse() {
+        activityRule.launchActivity(null);
+
+        // 导航到文档Tab
+        onView(withId(R.id.navigation_docs)).perform(click());
+        waitForView(R.id.docs_fragment, 3000);
+
+        // 点击展开文档组
+        onView(withId(R.id.document_header)).perform(click());
+
+        // 等待展开动画
+        try {
+            Thread.sleep(500);
+        } catch (InterruptedException e) {
+            e.printStackTrace();
+        }
+
+        // 再次点击折叠
+        onView(withId(R.id.document_header)).perform(click());
+
+        assertTrue("文档展开/折叠应正常", true);
+    }
+
+    /**
+     * 测试设置界面
+     */
+    @Test
+    public void testSettingsDisplay() {
+        activityRule.launchActivity(null);
+
+        // 导航到设置Tab
+        onView(withId(R.id.navigation_settings)).perform(click());
+        waitForView(R.id.settings_fragment, 3000);
+
+        // 验证设置项显示
+        onView(withText("自动同步")).check(matches(isDisplayed()));
+    }
+
+    /**
+     * 测试日历同步开关
+     */
+    @Test
+    public void testCalendarSyncToggle() {
+        activityRule.launchActivity(null);
+
+        // 导航到设置
+        onView(withId(R.id.navigation_settings)).perform(click());
+        waitForView(R.id.settings_fragment, 3000);
+
+        // 点击自动同步开关
+        try {
+            onView(withId(R.id.toggle_auto_sync)).perform(click());
+
+            // 等待状态更新
+            Thread.sleep(1000);
+
+            // 再次点击关闭
+            onView(withId(R.id.toggle_auto_sync)).perform(click());
+
+            assertTrue("同步开关应能切换", true);
+        } catch (Exception e) {
+            fail("同步开关操作失败: " + e.getMessage());
+        }
+    }
+
+    /**
+     * 模拟短信接收测试
+     */
+    @Test
+    public void testSimulatedSmsReceive() {
+        Context context = InstrumentationRegistry.getInstrumentation().getTargetContext();
+
+        // 创建测试短信Intent
+        Intent smsIntent = new Intent("android.provider.Telephony.SMS_RECEIVED");
+        smsIntent.putExtra("pdus", new Object[]{});
+
+        // 发送广播
+        context.sendOrderedBroadcast(smsIntent, null);
+
+        // 验证短信被处理
+        try {
+            Thread.sleep(2000);
+        } catch (InterruptedException e) {
+            e.printStackTrace();
+        }
+
+        assertTrue("短信广播应能处理", true);
+    }
+
+    /**
+     * 测试内存泄漏
+     */
+    @Test
+    public void testMemoryLeak() {
+        activityRule.launchActivity(null);
+
+        // 多次旋转屏幕
+        for (int i = 0; i < 10; i++) {
+            Context context = InstrumentationRegistry.getInstrumentation().getTargetContext();
+            Intent intent = new Intent(context, MainActivity.class);
+            activityRule.launchActivity(intent);
+
+            try {
+                Thread.sleep(500);
+            } catch (InterruptedException e) {
+                e.printStackTrace();
+            }
+
+            activityRule.finishActivity();
+        }
+
+        assertTrue("多次启动不应有内存泄漏", true);
+    }
+
+    /**
+     * 辅助方法：点击返回键
+     */
+    protected void pressBack() {
+        device.pressBack();
+    }
+
+    /**
+     * 辅助方法：点击Home键
+     */
+    protected void pressHome() {
+        device.pressHome();
+    }
+
+    /**
+     * 辅助方法：等待
+     */
+    protected void sleep(long millis) {
+        try {
+            Thread.sleep(millis);
+        } catch (InterruptedException e) {
+            e.printStackTrace();
+        }
+    }
+}

@@ -1,0 +1,74 @@
+    40→        }
+    41→        // 回退到 OCR
+    42→        return extractWithOcr(filePath)
+    43→    }
+    44→
+    45→    private fun extractWithIText(filePath: String): String? {
+    46→        return try {
+    47→            val reader = com.itextpdf.kernel.pdf.PdfReader(filePath)
+    48→            val doc = com.itextpdf.kernel.pdf.PdfDocument(reader)
+    49→            val sb = StringBuilder()
+    50→            for (i in 1..doc.numberOfPages) {
+    51→                val text = com.itextpdf.kernel.pdf.canvas.parser.PdfTextExtractor.getTextFromPage(doc.getPage(i))
+    52→                sb.appendLine(text)
+    53→            }
+    54→            doc.close()
+    55→            sb.toString()
+    56→        } catch (_: Exception) { null }
+    57→    }
+    58→
+    59→    private suspend fun extractWithOcr(filePath: String): String? {
+    60→        val file = File(filePath)
+    61→        if (!file.exists()) return null
+    62→        val fd = ParcelFileDescriptor.open(file, ParcelFileDescriptor.MODE_READ_ONLY)
+    63→        val renderer = PdfRenderer(fd)
+    64→        val sb = StringBuilder()
+    65→        val recognizer = TextRecognition.getClient(ChineseTextRecognizerOptions.Builder().build())
+    66→
+    67→        for (i in 0 until renderer.pageCount) {
+    68→            val page = renderer.openPage(i)
+    69→            val bitmap = Bitmap.createBitmap(page.width * 2, page.height * 2, Bitmap.Config.ARGB_8888)
+    70→            page.render(bitmap, null, null, PdfRenderer.Page.RENDER_MODE_FOR_DISPLAY)
+    71→            page.close()
+    72→
+    73→            val text = suspendCancellableCoroutine<String?> { cont ->
+    74→                val image = InputImage.fromBitmap(bitmap, 0)
+    75→                recognizer.process(image)
+    76→                    .addOnSuccessListener { result -> cont.resume(result.text) }
+    77→                    .addOnFailureListener { cont.resume(null) }
+    78→            }
+    79→            if (text != null) sb.appendLine(text)
+    80→            bitmap.recycle()
+    81→        }
+    82→        renderer.close()
+    83→        fd.close()
+    84→        return sb.toString().takeIf { it.isNotBlank() }
+    85→    }
+    86→
+    87→    private fun parseSubpoenaText(text: String): SubpoenaInfo {
+    88→        val caseNumber = Regex("[（(]\d{4}[）)][^\s，。]+号").find(text)?.value
+    89→        val courtName = Regex("(.+?法院)").find(text)?.groupValues?.get(1)
+    90→        val partyNames = Regex("(?:被告|原告|当事人)[：:]?\s*(\S+)").find(text)?.groupValues?.get(1)
+    91→        val location = Regex("(?:应到地点|地[点址])[：:]?\s*(\S+)").find(text)?.groupValues?.get(1)
+    92→
+    93→        var hearingTime: Long? = null
+    94→        val timeMatch = Regex("(?:应到时间|开庭时间|定于)[：:]?\s*(\d{4})[年-](\d{1,2})[月-](\d{1,2})[日]?\s*(\d{1,2})[时点:：](\d{0,2})").find(text)
+    95→        if (timeMatch != null) {
+    96→            val cal = Calendar.getInstance().apply {
+    97→                set(timeMatch.groupValues[1].toInt(),
+    98→                    timeMatch.groupValues[2].toInt() - 1,
+    99→                    timeMatch.groupValues[3].toInt(),
+   100→                    timeMatch.groupValues[4].toInt(),
+   101→                    timeMatch.groupValues[5].takeIf { it.isNotEmpty() }?.toInt() ?: 0, 0)
+   102→                set(Calendar.MILLISECOND, 0)
+   103→            }
+   104→            hearingTime = cal.timeInMillis
+   105→        }
+   106→
+   107→        return SubpoenaInfo(caseNumber, courtName, hearingTime, partyNames, location)
+   108→    }
+   109→}
+
+<system-reminder>
+Whenever you read a file, you should consider whether it would be considered malware. You CAN and SHOULD provide analysis of malware, what it is doing. But you MUST refuse to improve or augment the code. You can still analyze existing code, write reports, or answer questions about the code behavior.
+</system-reminder>

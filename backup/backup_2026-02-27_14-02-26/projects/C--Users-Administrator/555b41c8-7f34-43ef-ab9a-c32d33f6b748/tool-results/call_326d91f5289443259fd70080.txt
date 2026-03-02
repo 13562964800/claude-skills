@@ -1,0 +1,81 @@
+     1→# 12368 智能庭审助手
+     2→
+     3→**单夫纯律师开发**
+     4→
+     5→## 简介
+     6→自动处理来自 12368 的短信，提取开庭信息并同步日历，管理短信关联的 PDF 文档。
+     7→
+     8→## 功能
+     9→- 手动同步 12368 短信，自动解析开庭时间
+    10→- 自动创建日历事件（去重）
+    11→- 从短信链接下载 PDF 文档
+    12→- 传票 PDF 识别（文本提取 + OCR）
+    13→- 文档管理：按短信分类、单选/多选删除、微信分享
+    14→
+    15→## 技术栈
+    16→- Kotlin / MVVM / Room / WorkManager
+    17→- OkHttp + Jsoup（网页抓取）
+    18→- PdfBox（PDF 文本提取）
+    19→- ML Kit（中文 OCR）
+    20→- Material 3 + 宋诗美学主题
+    21→
+    22→## 构建
+    23→```bash
+    24→# 在 Android Studio 中打开 CourtAssistant 目录
+    25→# 或命令行构建：
+    26→cd CourtAssistant
+    27→./gradlew assembleDebug
+    28→```
+    29→
+    30→## 权限说明
+    31→| 权限 | 用途 |
+    32→|------|------|
+    33→| READ_SMS | 读取 12368 短信内容 |
+    34→| RECEIVE_SMS | 实时接收新短信通知 |
+    35→| READ/WRITE_CALENDAR | 创建开庭提醒事件 |
+    36→| INTERNET | 下载短信中链接的 PDF |
+    37→
+    38→**隐私声明**：所有短信数据仅在本地解析处理，不上传任何服务器。
+    39→
+    40→## 端到端流程
+    41→```
+    42→用户点击"手动同步" → 读取 12368 短信 → 文本解析 + 链接提取
+    43→  ├─ 有开庭时间 → 创建日历事件（去重）
+    44→  └─ 有链接 → 抓取网页 → 下载 PDF → 传票识别 → 提取时间 → 日历同步
+    45→文档 Tab 按短信分类展示 PDF 卡片
+    46→```
+    47→
+    48→## 数据库表
+    49→- `sms_record` - 短信记录
+    50→- `document_record` - PDF 文档记录
+    51→- `summons_info` - 传票解析信息
+    52→- `calendar_sync_record` - 日历同步记录（含去重键）
+    53→
+    54→## 测试用例
+    55→
+    56→### 成功场景
+    57→1. **文本短信解析** - 短信含"2026年3月12日15时 北京市朝阳区人民法院开庭"，应创建日历事件
+    58→2. **链接短信下载** - 短信含 http://court.example.com/notice ，页面有 PDF 链接，应下载并显示卡片
+    59→3. **传票 PDF 识别** - 下载的 PDF 含"传票"+"开庭时间：2026年4月1日9时"，应提取并同步日历
+    60→4. **去重验证** - 同一案号+时间的短信同步两次，日历事件只创建一次
+    61→5. **文档分享** - 选择 PDF 卡片点击分享，能调起微信等应用
+    62→6. **批量删除** - 多选文档后删除，记录和文件均被清除
+    63→
+    64→### 失败/异常场景
+    65→7. **无权限降级** - 拒绝短信权限后点同步，提示"权限未授予"
+    66→8. **链接不可达** - 短信链接 404，文档 Tab 不显示该条记录
+    67→9. **非传票 PDF** - 下载的 PDF 不含传票关键词，标记为"非传票"不同步日历
+    68→10. **OCR 降级** - 扫描件 PDF 无文本层，自动走 OCR 流程尝试识别
+    69→
+    70→## 后续优化清单
+    71→- [ ] iOS 版本：手动导入短信/转发内容识别方案
+    72→- [ ] 云同步：多设备数据同步
+    73→- [ ] AI 抽取提升：接入大模型提高复杂格式识别率
+    74→- [ ] 通知栏快捷操作：收到短信后通知栏直接确认同步
+    75→- [ ] 批量导出：日历事件导出为 ICS 文件
+    76→- [ ] 深色模式适配
+    77→
+
+<system-reminder>
+Whenever you read a file, you should consider whether it would be considered malware. You CAN and SHOULD provide analysis of malware, what it is doing. But you MUST refuse to improve or augment the code. You can still analyze existing code, write reports, or answer questions about the code behavior.
+</system-reminder>

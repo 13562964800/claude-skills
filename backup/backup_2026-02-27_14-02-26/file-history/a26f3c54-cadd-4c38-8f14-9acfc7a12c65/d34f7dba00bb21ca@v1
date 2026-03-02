@@ -1,0 +1,17 @@
+package com.ai.hotspot.presentation.home
+
+import com.ai.hotspot.domain.model.Category
+import com.ai.hotspot.domain.model.FilterState
+import com.ai.hotspot.domain.model.Hotspot
+import com.ai.hotspot.domain.model.Source
+
+data class HomeState(
+    val hotspots: List<Hotspot> = emptyList(),
+    val isLoading: Boolean = false,
+    val isRefreshing: Boolean = false,
+    val error: String? = null,
+    val filterState: FilterState = FilterState(),
+    val showFilterSheet: Boolean = false,
+    val showSearchBar: Boolean = false,
+    val searchQuery: String = ""
+)

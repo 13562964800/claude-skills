@@ -1,0 +1,340 @@
+C:\Users\Administrator\clawdbot\.secrets.baseline:585:    "docs/providers/openrouter.md": [
+C:\Users\Administrator\clawdbot\.secrets.baseline:588:        "filename": "docs/providers/openrouter.md",
+C:\Users\Administrator\clawdbot\CHANGELOG.md:487:- Configure: hide OpenRouter auto routing model from the model picker. (#1182)
+C:\Users\Administrator\clawdbot\CHANGELOG.md:516:- Web search: infer Perplexity base URL from API key source (direct vs OpenRouter).
+C:\Users\Administrator\clawdbot\CHANGELOG.md:801:- Agents: cap tool call IDs for OpenAI/OpenRouter to avoid request rejections. (#875) — thanks @j1philli.
+C:\Users\Administrator\clawdbot\CHANGELOG.md:838:- Agents: strip invalid Gemini thought signatures from OpenRouter history to avoid 400s. (#841, #845) — thanks @MatthieuBizien.
+C:\Users\Administrator\clawdbot\CHANGELOG.md:998:- CLI/Onboarding: add OpenRouter API key auth option in configure/onboard. (#703) — thanks @mteam88.
+C:\Users\Administrator\clawdbot\.agent\workflows\update_clawdbot.md:225:# Check for OpenRouter API key requirements
+C:\Users\Administrator\clawdbot\.agent\workflows\update_clawdbot.md:226:grep -r "openrouter\|OPENROUTER" src/ --include="*.ts" --include="*.js"
+C:\Users\Administrator\clawdbot\src\config\config.env-vars.test.ts:15:            env: { vars: { OPENROUTER_API_KEY: "config-key" } },
+C:\Users\Administrator\clawdbot\src\config\config.env-vars.test.ts:23:      await withEnvOverride({ OPENROUTER_API_KEY: undefined }, async () => {
+C:\Users\Administrator\clawdbot\src\config\config.env-vars.test.ts:26:        expect(process.env.OPENROUTER_API_KEY).toBe("config-key");
+C:\Users\Administrator\clawdbot\src\config\config.env-vars.test.ts:39:            env: { vars: { OPENROUTER_API_KEY: "config-key" } },
+C:\Users\Administrator\clawdbot\src\config\config.env-vars.test.ts:47:      await withEnvOverride({ OPENROUTER_API_KEY: "existing-key" }, async () => {
+C:\Users\Administrator\clawdbot\src\config\config.env-vars.test.ts:50:        expect(process.env.OPENROUTER_API_KEY).toBe("existing-key");
+C:\Users\Administrator\clawdbot\docs\tools\web.md:2:summary: "Web search + fetch tools (Brave Search API, Perplexity direct/OpenRouter)"
+C:\Users\Administrator\clawdbot\docs\tools\web.md:13:- `web_search` — Search the web via Brave Search API (default) or Perplexity Sonar (direct or via OpenRouter).
+C:\Users\Administrator\clawdbot\docs\tools\web.md:34:| **Perplexity** | AI-synthesized answers, citations, real-time | Requires Perplexity or OpenRouter access | `OPENROUTER_API_KEY` or `PERPLEXITY_API_KEY` |
+C:\Users\Administrator\clawdbot\docs\tools\web.md:89:## Using Perplexity (direct or via OpenRouter)
+C:\Users\Administrator\clawdbot\docs\tools\web.md:92:answers with citations. You can use them via OpenRouter (no credit card required - supports
+C:\Users\Administrator\clawdbot\docs\tools\web.md:95:### Getting an OpenRouter API key
+C:\Users\Administrator\clawdbot\docs\tools\web.md:97:1) Create an account at https://openrouter.ai/
+C:\Users\Administrator\clawdbot\docs\tools\web.md:111:          // API key (optional if OPENROUTER_API_KEY or PERPLEXITY_API_KEY is set)
+C:\Users\Administrator\clawdbot\docs\tools\web.md:114:          baseUrl: "https://openrouter.ai/api/v1",
+C:\Users\Administrator\clawdbot\docs\tools\web.md:124:**Environment alternative:** set `OPENROUTER_API_KEY` or `PERPLEXITY_API_KEY` in the Gateway
+C:\Users\Administrator\clawdbot\docs\tools\web.md:130:- `OPENROUTER_API_KEY` or `sk-or-...` → `https://openrouter.ai/api/v1`
+C:\Users\Administrator\clawdbot\docs\tools\web.md:131:- Unknown key formats → OpenRouter (safe fallback)
+C:\Users\Administrator\clawdbot\docs\tools\web.md:150:  - **Perplexity**: `OPENROUTER_API_KEY`, `PERPLEXITY_API_KEY`, or `tools.web.search.perplexity.apiKey`
+C:\Users\Administrator\clawdbot\docs\testing.md:138:- How to select providers (avoid “OpenRouter everything”):
+C:\Users\Administrator\clawdbot\docs\testing.md:273:- OpenRouter: `openrouter/...` (hundreds of models; use `moltbot models scan` to find tool+image capable candidates)
+C:\Users\Administrator\clawdbot\docs\testing.md:277:- Built-in: `openai`, `openai-codex`, `anthropic`, `google`, `google-vertex`, `google-antigravity`, `google-gemini-cli`, `zai`, `openrouter`, `opencode`, `xai`, `groq`, `cerebras`, `mistral`, `github-copilot`
+C:\Users\Administrator\clawdbot\docs\help\faq.md:148:  - [How do I add models from other providers like OpenRouter or Z.AI?](#how-do-i-add-models-from-other-providers-like-openrouter-or-zai)
+C:\Users\Administrator\clawdbot\docs\help\faq.md:702:Pick region-pinned endpoints. OpenRouter exposes US-hosted options for MiniMax, Kimi, and GLM; choose the US-hosted variant to keep data in-region. You can still list Anthropic/OpenAI alongside these by using `models.mode: "merge"` so fallbacks stay available while respecting the regioned provider you select.
+C:\Users\Administrator\clawdbot\docs\help\faq.md:895:- **Model-agnostic:** use Anthropic, OpenAI, MiniMax, OpenRouter, etc., with per‑agent routing
+C:\Users\Administrator\clawdbot\docs\help\faq.md:1595:    OPENROUTER_API_KEY: "sk-or-...",
+C:\Users\Administrator\clawdbot\docs\help\faq.md:2066:### How do I add models from other providers like OpenRouter or ZAI
+C:\Users\Administrator\clawdbot\docs\help\faq.md:2068:OpenRouter (pay‑per‑token; many models):
+C:\Users\Administrator\clawdbot\docs\help\faq.md:2074:      model: { primary: "openrouter/anthropic/claude-sonnet-4-5" },
+C:\Users\Administrator\clawdbot\docs\help\faq.md:2075:      models: { "openrouter/anthropic/claude-sonnet-4-5": {} }
+C:\Users\Administrator\clawdbot\docs\help\faq.md:2078:  env: { OPENROUTER_API_KEY: "sk-or-..." }
+C:\Users\Administrator\clawdbot\docs\start\showcase.md:328:<Card title="OpenRouter Transcription" icon="microphone" href="https://clawdhub.com/obviyus/openrouter-transcribe">
+C:\Users\Administrator\clawdbot\docs\start\showcase.md:331:  Multi-lingual audio transcription via OpenRouter (Gemini, etc). Available on ClawdHub.
+C:\Users\Administrator\clawdbot\docs\reference\transcript-hygiene.md:72:**OpenRouter Gemini**
+C:\Users\Administrator\clawdbot\docs\reference\api-usage-costs.md:65:### 4) Web search tool (Brave / Perplexity via OpenRouter)
+C:\Users\Administrator\clawdbot\docs\reference\api-usage-costs.md:69:- **Perplexity** (via OpenRouter): `PERPLEXITY_API_KEY` or `OPENROUTER_API_KEY`
+C:\Users\Administrator\clawdbot\docs\reference\api-usage-costs.md:101:`moltbot models scan` can probe OpenRouter models and uses `OPENROUTER_API_KEY` when
+C:\Users\Administrator\clawdbot\docs\gateway\local-models.md:107:- Hosted MiniMax/Kimi/GLM variants also exist on OpenRouter with region-pinned endpoints (e.g., US-hosted). Pick the regional variant there to keep traffic in your chosen jurisdiction while still using `models.mode: "merge"` for Anthropic/OpenAI fallbacks.
+C:\Users\Administrator\clawdbot\docs\gateway\configuration.md:283:    OPENROUTER_API_KEY: "sk-or-...",
+C:\Users\Administrator\clawdbot\docs\gateway\configuration.md:1696:        "openrouter/deepseek/deepseek-r1:free": {},
+C:\Users\Administrator\clawdbot\docs\gateway\configuration.md:1710:          "openrouter/deepseek/deepseek-r1:free",
+C:\Users\Administrator\clawdbot\docs\gateway\configuration.md:1711:          "openrouter/meta-llama/llama-3.3-70b-instruct:free"
+C:\Users\Administrator\clawdbot\docs\gateway\configuration.md:1715:        primary: "openrouter/qwen/qwen-2.5-vl-72b-instruct:free",
+C:\Users\Administrator\clawdbot\docs\gateway\configuration.md:1717:          "openrouter/google/gemini-2.0-flash-vision:free"
+C:\Users\Administrator\clawdbot\docs\gateway\configuration.md:3068:      model: "openrouter/meta-llama/llama-3.3-70b-instruct:free",
+C:\Users\Administrator\clawdbot\docs\gateway\configuration-examples.md:53:    OPENROUTER_API_KEY: "sk-or-...",
+C:\Users\Administrator\clawdbot\docs\gateway\configuration-examples.md:230:        primary: "openrouter/anthropic/claude-sonnet-4-5"
+C:\Users\Administrator\clawdbot\docs\gateway\authentication.md:83:moltbot models auth paste-token --provider openrouter
+C:\Users\Administrator\clawdbot\docs\environment.md:29:    OPENROUTER_API_KEY: "sk-or-...",
+C:\Users\Administrator\clawdbot\docs\docs.json:97:      "source": "/openrouter",
+C:\Users\Administrator\clawdbot\docs\docs.json:98:      "destination": "/providers/openrouter"
+C:\Users\Administrator\clawdbot\docs\docs.json:101:      "source": "/openrouter/",
+C:\Users\Administrator\clawdbot\docs\docs.json:102:      "destination": "/providers/openrouter"
+C:\Users\Administrator\clawdbot\docs\docs.json:1015:          "providers/openrouter",
+C:\Users\Administrator\clawdbot\docs\providers\openrouter.md:2:summary: "Use OpenRouter's unified API to access many models in Moltbot"
+C:\Users\Administrator\clawdbot\docs\providers\openrouter.md:5:  - You want to run models via OpenRouter in Moltbot
+C:\Users\Administrator\clawdbot\docs\providers\openrouter.md:7:# OpenRouter
+C:\Users\Administrator\clawdbot\docs\providers\openrouter.md:9:OpenRouter provides a **unified API** that routes requests to many models behind a single
+C:\Users\Administrator\clawdbot\docs\providers\openrouter.md:15:moltbot onboard --auth-choice apiKey --token-provider openrouter --token "$OPENROUTER_API_KEY"
+C:\Users\Administrator\clawdbot\docs\providers\openrouter.md:22:  env: { OPENROUTER_API_KEY: "sk-or-..." },
+C:\Users\Administrator\clawdbot\docs\providers\openrouter.md:25:      model: { primary: "openrouter/anthropic/claude-sonnet-4-5" }
+C:\Users\Administrator\clawdbot\docs\providers\openrouter.md:33:- Model refs are `openrouter/<provider>/<model>`.
+C:\Users\Administrator\clawdbot\docs\providers\openrouter.md:35:- OpenRouter uses a Bearer token with your API key under the hood.
+C:\Users\Administrator\clawdbot\docs\providers\models.md:36:- [OpenRouter](/providers/openrouter)
+C:\Users\Administrator\clawdbot\docs\providers\index.md:39:- [OpenRouter](/providers/openrouter)
+C:\Users\Administrator\clawdbot\docs\concepts\session-pruning.md:14: - Only active for Anthropic API calls (and OpenRouter Anthropic models).
+C:\Users\Administrator\clawdbot\docs\concepts\models.md:106:- If the model ID itself contains `/` (OpenRouter-style), you must include the provider prefix (example: `/model openrouter/moonshotai/kimi-k2`).
+C:\Users\Administrator\clawdbot\docs\concepts\models.md:165:## Scanning (OpenRouter free models)
+C:\Users\Administrator\clawdbot\docs\concepts\models.md:167:`moltbot models scan` inspects OpenRouter’s **free model catalog** and can
+C:\Users\Administrator\clawdbot\docs\concepts\models.md:180:Probing requires an OpenRouter API key (from auth profiles or
+C:\Users\Administrator\clawdbot\docs\concepts\models.md:181:`OPENROUTER_API_KEY`). Without a key, use `--no-probe` to list candidates only.
+C:\Users\Administrator\clawdbot\docs\concepts\models.md:190:- OpenRouter `/models` list (filter `:free`)
+C:\Users\Administrator\clawdbot\docs\concepts\models.md:191:- Requires OpenRouter API key from auth profiles or `OPENROUTER_API_KEY` (see [/environment](/environment))
+C:\Users\Administrator\clawdbot\docs\concepts\model-providers.md:112:- OpenRouter: `openrouter` (`OPENROUTER_API_KEY`)
+C:\Users\Administrator\clawdbot\docs\concepts\model-providers.md:113:- Example model: `openrouter/anthropic/claude-sonnet-4-5`
+C:\Users\Administrator\clawdbot\docs\concepts\memory.md:122:If you want to use a **custom OpenAI-compatible endpoint** (OpenRouter, vLLM, or a proxy),
+C:\Users\Administrator\clawdbot\docs\concepts\agent.md:106:- If the model ID itself contains `/` (OpenRouter-style), include the provider prefix (example: `openrouter/moonshotai/kimi-k2`).
+C:\Users\Administrator\clawdbot\src\config\types.tools.ts:349:        /** API key for Perplexity or OpenRouter (defaults to PERPLEXITY_API_KEY or OPENROUTER_API_KEY env var). */
+C:\Users\Administrator\clawdbot\src\config\types.tools.ts:351:        /** Base URL for API requests (defaults to OpenRouter: https://openrouter.ai/api/v1). */
+C:\Users\Administrator\clawdbot\docs\perplexity.md:5:  - You need PERPLEXITY_API_KEY or OpenRouter setup
+C:\Users\Administrator\clawdbot\docs\perplexity.md:11:through Perplexity’s direct API or via OpenRouter.
+C:\Users\Administrator\clawdbot\docs\perplexity.md:20:### OpenRouter (alternative)
+C:\Users\Administrator\clawdbot\docs\perplexity.md:22:- Base URL: https://openrouter.ai/api/v1
+C:\Users\Administrator\clawdbot\docs\perplexity.md:23:- Environment variable: `OPENROUTER_API_KEY`
+C:\Users\Administrator\clawdbot\docs\perplexity.md:63:If both `PERPLEXITY_API_KEY` and `OPENROUTER_API_KEY` are set, set
+C:\Users\Administrator\clawdbot\docs\perplexity.md:70:- `OPENROUTER_API_KEY` or `sk-or-...` → OpenRouter (`https://openrouter.ai/api/v1`)
+C:\Users\Administrator\clawdbot\docs\perplexity.md:71:- Unknown key formats → OpenRouter (safe fallback)
+C:\Users\Administrator\clawdbot\docs\cli\models.md:33:- Model refs are parsed by splitting on the **first** `/`. If the model ID includes `/` (OpenRouter-style), include the provider prefix (example: `openrouter/moonshotai/kimi-k2`).
+C:\Users\Administrator\clawdbot\docs\cli\index.md:300:- `--auth-choice <setup-token|token|chutes|openai-codex|openai-api-key|openrouter-api-key|ai-gateway-api-key|moonshot-api-key|kimi-code-api-key|synthetic-api-key|venice-api-key|gemini-api-key|zai-api-key|apiKey|minimax-api|minimax-api-lightning|opencode-zen|skip>`
+C:\Users\Administrator\clawdbot\docs\cli\index.md:307:- `--openrouter-api-key <key>`
+C:\Users\Administrator\clawdbot\src\config\schema.ts:443:    "Perplexity or OpenRouter API key (fallback: PERPLEXITY_API_KEY or OPENROUTER_API_KEY env var).",
+C:\Users\Administrator\clawdbot\src\config\schema.ts:445:    "Perplexity base URL override (default: https://openrouter.ai/api/v1 or https://api.perplexity.ai).",
+C:\Users\Administrator\clawdbot\src\config\io.ts:47:  "OPENROUTER_API_KEY",
+C:\Users\Administrator\clawdbot\src\tui\components\searchable-select-list.test.ts:59:      { value: "openrouter/auto", label: "openrouter/auto", description: "Routes to best" },
+C:\Users\Administrator\clawdbot\docs\automation\gmail-pubsub.md:75:      model: "openrouter/meta-llama/llama-3.3-70b-instruct:free",
+C:\Users\Administrator\clawdbot\src\commands\onboard-types.ts:14:  | "openrouter-api-key"
+C:\Users\Administrator\clawdbot\src\commands\onboard-types.ts:64:  openrouterApiKey?: string;
+C:\Users\Administrator\clawdbot\src\commands\onboard-non-interactive\local\auth-choice.ts:16:  applyOpenrouterConfig,
+C:\Users\Administrator\clawdbot\src\commands\onboard-non-interactive\local\auth-choice.ts:27:  setOpenrouterApiKey,
+C:\Users\Administrator\clawdbot\src\commands\onboard-non-interactive\local\auth-choice.ts:198:  if (authChoice === "openrouter-api-key") {
+C:\Users\Administrator\clawdbot\src\commands\onboard-non-interactive\local\auth-choice.ts:200:      provider: "openrouter",
+C:\Users\Administrator\clawdbot\src\commands\onboard-non-interactive\local\auth-choice.ts:202:      flagValue: opts.openrouterApiKey,
+C:\Users\Administrator\clawdbot\src\commands\onboard-non-interactive\local\auth-choice.ts:203:      flagName: "--openrouter-api-key",
+C:\Users\Administrator\clawdbot\src\commands\onboard-non-interactive\local\auth-choice.ts:204:      envVar: "OPENROUTER_API_KEY",
+C:\Users\Administrator\clawdbot\src\commands\onboard-non-interactive\local\auth-choice.ts:208:    if (resolved.source !== "profile") await setOpenrouterApiKey(resolved.key);
+C:\Users\Administrator\clawdbot\src\commands\onboard-non-interactive\local\auth-choice.ts:210:      profileId: "openrouter:default",
+C:\Users\Administrator\clawdbot\src\commands\onboard-non-interactive\local\auth-choice.ts:211:      provider: "openrouter",
+C:\Users\Administrator\clawdbot\src\commands\onboard-non-interactive\local\auth-choice.ts:214:    return applyOpenrouterConfig(nextConfig);
+C:\Users\Administrator\clawdbot\src\commands\onboard-auth.ts:12:  applyOpenrouterConfig,
+C:\Users\Administrator\clawdbot\src\commands\onboard-auth.ts:13:  applyOpenrouterProviderConfig,
+C:\Users\Administrator\clawdbot\src\commands\onboard-auth.ts:36:  OPENROUTER_DEFAULT_MODEL_REF,
+C:\Users\Administrator\clawdbot\src\commands\onboard-auth.ts:43:  setOpenrouterApiKey,
+C:\Users\Administrator\clawdbot\src\commands\onboard-auth.test.ts:14:  applyOpenrouterConfig,
+C:\Users\Administrator\clawdbot\src\commands\onboard-auth.test.ts:15:  applyOpenrouterProviderConfig,
+C:\Users\Administrator\clawdbot\src\commands\onboard-auth.test.ts:18:  OPENROUTER_DEFAULT_MODEL_REF,
+C:\Users\Administrator\clawdbot\src\commands\onboard-auth.test.ts:385:describe("applyOpenrouterProviderConfig", () => {
+C:\Users\Administrator\clawdbot\src\commands\onboard-auth.test.ts:387:    const cfg = applyOpenrouterProviderConfig({});
+C:\Users\Administrator\clawdbot\src\commands\onboard-auth.test.ts:389:    expect(Object.keys(models)).toContain(OPENROUTER_DEFAULT_MODEL_REF);
+C:\Users\Administrator\clawdbot\src\commands\onboard-auth.test.ts:393:    const cfg = applyOpenrouterProviderConfig({
+C:\Users\Administrator\clawdbot\src\commands\onboard-auth.test.ts:397:            [OPENROUTER_DEFAULT_MODEL_REF]: { alias: "Router" },
+C:\Users\Administrator\clawdbot\src\commands\onboard-auth.test.ts:402:    expect(cfg.agents?.defaults?.models?.[OPENROUTER_DEFAULT_MODEL_REF]?.alias).toBe("Router");
+C:\Users\Administrator\clawdbot\src\commands\onboard-auth.test.ts:406:describe("applyOpenrouterConfig", () => {
+C:\Users\Administrator\clawdbot\src\commands\onboard-auth.test.ts:408:    const cfg = applyOpenrouterConfig({});
+C:\Users\Administrator\clawdbot\src\commands\onboard-auth.test.ts:409:    expect(cfg.agents?.defaults?.model?.primary).toBe(OPENROUTER_DEFAULT_MODEL_REF);
+C:\Users\Administrator\clawdbot\src\commands\onboard-auth.test.ts:413:    const cfg = applyOpenrouterConfig({
+C:\Users\Administrator\clawdbot\src\commands\onboard-auth.credentials.ts:116:export const OPENROUTER_DEFAULT_MODEL_REF = "openrouter/auto";
+C:\Users\Administrator\clawdbot\src\commands\onboard-auth.credentials.ts:132:export async function setOpenrouterApiKey(key: string, agentDir?: string) {
+C:\Users\Administrator\clawdbot\src\commands\onboard-auth.credentials.ts:134:    profileId: "openrouter:default",
+C:\Users\Administrator\clawdbot\src\commands\onboard-auth.credentials.ts:137:      provider: "openrouter",
+C:\Users\Administrator\clawdbot\src\commands\onboard-auth.config-core.ts:15:  OPENROUTER_DEFAULT_MODEL_REF,
+C:\Users\Administrator\clawdbot\src\commands\onboard-auth.config-core.ts:58:export function applyOpenrouterProviderConfig(cfg: MoltbotConfig): MoltbotConfig {
+C:\Users\Administrator\clawdbot\src\commands\onboard-auth.config-core.ts:60:  models[OPENROUTER_DEFAULT_MODEL_REF] = {
+C:\Users\Administrator\clawdbot\src\commands\onboard-auth.config-core.ts:61:    ...models[OPENROUTER_DEFAULT_MODEL_REF],
+C:\Users\Administrator\clawdbot\src\commands\onboard-auth.config-core.ts:62:    alias: models[OPENROUTER_DEFAULT_MODEL_REF]?.alias ?? "OpenRouter",
+C:\Users\Administrator\clawdbot\src\commands\onboard-auth.config-core.ts:118:export function applyOpenrouterConfig(cfg: MoltbotConfig): MoltbotConfig {
+C:\Users\Administrator\clawdbot\src\commands\onboard-auth.config-core.ts:119:  const next = applyOpenrouterProviderConfig(cfg);
+C:\Users\Administrator\clawdbot\src\commands\onboard-auth.config-core.ts:133:          primary: OPENROUTER_DEFAULT_MODEL_REF,
+C:\Users\Administrator\clawdbot\src\cli\program.smoke.test.ts:156:        authChoice: "openrouter-api-key",
+C:\Users\Administrator\clawdbot\src\cli\program.smoke.test.ts:157:        flag: "--openrouter-api-key",
+C:\Users\Administrator\clawdbot\src\cli\program.smoke.test.ts:158:        key: "sk-openrouter-test",
+C:\Users\Administrator\clawdbot\src\cli\program.smoke.test.ts:159:        field: "openrouterApiKey",
+C:\Users\Administrator\clawdbot\src\commands\models\shared.ts:92: * When using `/model <key>`, use the exact format shown (e.g., "openrouter/moonshotai/kimi-k2").
+C:\Users\Administrator\clawdbot\src\commands\models\shared.ts:94: * For providers with hierarchical model IDs (e.g., OpenRouter), the model ID may include
+C:\Users\Administrator\clawdbot\src\commands\models\shared.ts:95: * sub-providers (e.g., "moonshotai/kimi-k2"), resulting in a key like "openrouter/moonshotai/kimi-k2".
+C:\Users\Administrator\clawdbot\src\commands\models\scan.ts:3:import { type ModelScanResult, scanOpenRouterModels } from "../../agents/model-scan.js";
+C:\Users\Administrator\clawdbot\src\commands\models\scan.ts:167:        provider: "openrouter",
+C:\Users\Administrator\clawdbot\src\commands\models\scan.ts:177:      label: "Scanning OpenRouter models...",
+C:\Users\Administrator\clawdbot\src\commands\models\scan.ts:182:      await scanOpenRouterModels({
+C:\Users\Administrator\clawdbot\src\commands\models\scan.ts:205:        `Found ${results.length} OpenRouter free models (metadata only; pass --probe to test tools/images).`,
+C:\Users\Administrator\clawdbot\src\commands\models\scan.ts:216:    throw new Error("No tool-capable OpenRouter free models found.");
+C:\Users\Administrator\clawdbot\src\commands\models\list.status-command.ts:133:    "openrouter",
+C:\Users\Administrator\clawdbot\src\commands\model-picker.ts:23:const HIDDEN_ROUTER_MODELS = new Set(["openrouter/auto"]);
+C:\Users\Administrator\clawdbot\src\commands\model-picker.test.ts:40:        provider: "openrouter",
+C:\Users\Administrator\clawdbot\src\commands\model-picker.test.ts:42:        name: "OpenRouter Auto",
+C:\Users\Administrator\clawdbot\src\commands\model-picker.test.ts:45:        provider: "openrouter",
+C:\Users\Administrator\clawdbot\src\commands\model-picker.test.ts:67:    expect(options.some((opt) => opt.value === "openrouter/auto")).toBe(false);
+C:\Users\Administrator\clawdbot\src\commands\model-picker.test.ts:68:    expect(options.some((opt) => opt.value === "openrouter/meta-llama/llama-3.3-70b:free")).toBe(
+C:\Users\Administrator\clawdbot\src\commands\model-picker.test.ts:78:        provider: "openrouter",
+C:\Users\Administrator\clawdbot\src\commands\model-picker.test.ts:80:        name: "OpenRouter Auto",
+C:\Users\Administrator\clawdbot\src\commands\model-picker.test.ts:83:        provider: "openrouter",
+C:\Users\Administrator\clawdbot\src\commands\model-picker.test.ts:98:    expect(options.some((opt: { value: string }) => opt.value === "openrouter/auto")).toBe(false);
+C:\Users\Administrator\clawdbot\src\commands\model-picker.test.ts:101:        (opt: { value: string }) => opt.value === "openrouter/meta-llama/llama-3.3-70b:free",
+C:\Users\Administrator\clawdbot\src\commands\auth-choice.test.ts:34:  const previousOpenrouterKey = process.env.OPENROUTER_API_KEY;
+C:\Users\Administrator\clawdbot\src\commands\auth-choice.test.ts:62:    if (previousOpenrouterKey === undefined) {
+C:\Users\Administrator\clawdbot\src\commands\auth-choice.test.ts:63:      delete process.env.OPENROUTER_API_KEY;
+C:\Users\Administrator\clawdbot\src\commands\auth-choice.test.ts:65:      process.env.OPENROUTER_API_KEY = previousOpenrouterKey;
+C:\Users\Administrator\clawdbot\src\commands\auth-choice.test.ts:284:  it("uses existing OPENROUTER_API_KEY when selecting openrouter-api-key", async () => {
+C:\Users\Administrator\clawdbot\src\commands\auth-choice.test.ts:289:    process.env.OPENROUTER_API_KEY = "sk-openrouter-test";
+C:\Users\Administrator\clawdbot\src\commands\auth-choice.test.ts:316:      authChoice: "openrouter-api-key",
+C:\Users\Administrator\clawdbot\src\commands\auth-choice.test.ts:325:        message: expect.stringContaining("OPENROUTER_API_KEY"),
+C:\Users\Administrator\clawdbot\src\commands\auth-choice.test.ts:329:    expect(result.config.auth?.profiles?.["openrouter:default"]).toMatchObject({
+C:\Users\Administrator\clawdbot\src\commands\auth-choice.test.ts:330:      provider: "openrouter",
+C:\Users\Administrator\clawdbot\src\commands\auth-choice.test.ts:333:    expect(result.config.agents?.defaults?.model?.primary).toBe("openrouter/auto");
+C:\Users\Administrator\clawdbot\src\commands\auth-choice.test.ts:340:    expect(parsed.profiles?.["openrouter:default"]?.key).toBe("sk-openrouter-test");
+C:\Users\Administrator\clawdbot\src\commands\auth-choice.test.ts:342:    delete process.env.OPENROUTER_API_KEY;
+C:\Users\Administrator\clawdbot\src\commands\auth-choice.preferred-provider.ts:13:  "openrouter-api-key": "openrouter",
+C:\Users\Administrator\clawdbot\src\commands\auth-choice.apply.api-providers.ts:22:  applyOpenrouterConfig,
+C:\Users\Administrator\clawdbot\src\commands\auth-choice.apply.api-providers.ts:23:  applyOpenrouterProviderConfig,
+C:\Users\Administrator\clawdbot\src\commands\auth-choice.apply.api-providers.ts:33:  OPENROUTER_DEFAULT_MODEL_REF,
+C:\Users\Administrator\clawdbot\src\commands\auth-choice.apply.api-providers.ts:41:  setOpenrouterApiKey,
+C:\Users\Administrator\clawdbot\src\commands\auth-choice.apply.api-providers.ts:70:    if (params.opts.tokenProvider === "openrouter") {
+C:\Users\Administrator\clawdbot\src\commands\auth-choice.apply.api-providers.ts:71:      authChoice = "openrouter-api-key";
+C:\Users\Administrator\clawdbot\src\commands\auth-choice.apply.api-providers.ts:91:  if (authChoice === "openrouter-api-key") {
+C:\Users\Administrator\clawdbot\src\commands\auth-choice.apply.api-providers.ts:98:      provider: "openrouter",
+C:\Users\Administrator\clawdbot\src\commands\auth-choice.apply.api-providers.ts:102:    let profileId = "openrouter:default";
+C:\Users\Administrator\clawdbot\src\commands\auth-choice.apply.api-providers.ts:117:    if (!hasCredential && params.opts?.token && params.opts?.tokenProvider === "openrouter") {
+C:\Users\Administrator\clawdbot\src\commands\auth-choice.apply.api-providers.ts:118:      await setOpenrouterApiKey(normalizeApiKeyInput(params.opts.token), params.agentDir);
+C:\Users\Administrator\clawdbot\src\commands\auth-choice.apply.api-providers.ts:123:      const envKey = resolveEnvApiKey("openrouter");
+C:\Users\Administrator\clawdbot\src\commands\auth-choice.apply.api-providers.ts:126:          message: `Use existing OPENROUTER_API_KEY (${envKey.source}, ${formatApiKeyPreview(envKey.apiKey)})?`,
+C:\Users\Administrator\clawdbot\src\commands\auth-choice.apply.api-providers.ts:130:          await setOpenrouterApiKey(envKey.apiKey, params.agentDir);
+C:\Users\Administrator\clawdbot\src\commands\auth-choice.apply.api-providers.ts:138:        message: "Enter OpenRouter API key",
+C:\Users\Administrator\clawdbot\src\commands\auth-choice.apply.api-providers.ts:141:      await setOpenrouterApiKey(normalizeApiKeyInput(String(key)), params.agentDir);
+C:\Users\Administrator\clawdbot\src\commands\auth-choice.apply.api-providers.ts:148:        provider: "openrouter",
+C:\Users\Administrator\clawdbot\src\commands\auth-choice.apply.api-providers.ts:156:        defaultModel: OPENROUTER_DEFAULT_MODEL_REF,
+C:\Users\Administrator\clawdbot\src\commands\auth-choice.apply.api-providers.ts:157:        applyDefaultConfig: applyOpenrouterConfig,
+C:\Users\Administrator\clawdbot\src\commands\auth-choice.apply.api-providers.ts:158:        applyProviderConfig: applyOpenrouterProviderConfig,
+C:\Users\Administrator\clawdbot\src\commands\auth-choice.apply.api-providers.ts:159:        noteDefault: OPENROUTER_DEFAULT_MODEL_REF,
+C:\Users\Administrator\clawdbot\src\commands\auth-choice-options.ts:15:  | "openrouter"
+C:\Users\Administrator\clawdbot\src\commands\auth-choice-options.ts:87:    value: "openrouter",
+C:\Users\Administrator\clawdbot\src\commands\auth-choice-options.ts:88:    label: "OpenRouter",
+C:\Users\Administrator\clawdbot\src\commands\auth-choice-options.ts:90:    choices: ["openrouter-api-key"],
+C:\Users\Administrator\clawdbot\src\commands\auth-choice-options.ts:137:  options.push({ value: "openrouter-api-key", label: "OpenRouter API key" });
+C:\Users\Administrator\clawdbot\src\cli\program\register.onboard.ts:55:      "Auth: setup-token|token|chutes|openai-codex|openai-api-key|openrouter-api-key|ai-gateway-api-key|moonshot-api-key|kimi-code-api-key|synthetic-api-key|venice-api-key|gemini-api-key|zai-api-key|apiKey|minimax-api|minimax-api-lightning|opencode-zen|skip",
+C:\Users\Administrator\clawdbot\src\cli\program\register.onboard.ts:69:    .option("--openrouter-api-key <key>", "OpenRouter API key")
+C:\Users\Administrator\clawdbot\src\cli\program\register.onboard.ts:119:            openrouterApiKey: opts.openrouterApiKey as string | undefined,
+C:\Users\Administrator\clawdbot\src\cli\models-cli.ts:249:    .description("Scan OpenRouter free models for tools + images")
+C:\Users\Administrator\clawdbot\src\auto-reply\reply.triggers.trigger-handling.targets-active-session-native-stop.e2e.test.ts:36:      provider: "openrouter",
+C:\Users\Administrator\clawdbot\src\auto-reply\reply.triggers.trigger-handling.targets-active-session-native-stop.e2e.test.ts:38:      name: "Claude Opus 4.5 (OpenRouter)",
+C:\Users\Administrator\clawdbot\src\auto-reply\reply.triggers.trigger-handling.shows-quick-model-picker-grouped-by-model.e2e.test.ts:36:      provider: "openrouter",
+C:\Users\Administrator\clawdbot\src\auto-reply\reply.triggers.trigger-handling.shows-quick-model-picker-grouped-by-model.e2e.test.ts:38:      name: "Claude Opus 4.5 (OpenRouter)",
+C:\Users\Administrator\clawdbot\src\auto-reply\reply.triggers.trigger-handling.shows-quick-model-picker-grouped-by-model.e2e.test.ts:151:  it("selects the exact provider/model pair for openrouter", async () => {
+C:\Users\Administrator\clawdbot\src\auto-reply\reply.triggers.trigger-handling.shows-quick-model-picker-grouped-by-model.e2e.test.ts:158:          Body: "/model openrouter/anthropic/claude-opus-4-5",
+C:\Users\Administrator\clawdbot\src\auto-reply\reply.triggers.trigger-handling.shows-quick-model-picker-grouped-by-model.e2e.test.ts:173:        "Model set to openrouter/anthropic/claude-opus-4-5",
+C:\Users\Administrator\clawdbot\src\auto-reply\reply.triggers.trigger-handling.shows-quick-model-picker-grouped-by-model.e2e.test.ts:177:      expect(store[sessionKey]?.providerOverride).toBe("openrouter");
+C:\Users\Administrator\clawdbot\src\auto-reply\reply.triggers.trigger-handling.shows-endpoint-default-model-status-not-configured.e2e.test.ts:36:      provider: "openrouter",
+C:\Users\Administrator\clawdbot\src\auto-reply\reply.triggers.trigger-handling.shows-endpoint-default-model-status-not-configured.e2e.test.ts:38:      name: "Claude Opus 4.5 (OpenRouter)",
+C:\Users\Administrator\clawdbot\src\auto-reply\reply.triggers.trigger-handling.runs-greeting-prompt-bare-reset.e2e.test.ts:36:      provider: "openrouter",
+C:\Users\Administrator\clawdbot\src\auto-reply\reply.triggers.trigger-handling.runs-greeting-prompt-bare-reset.e2e.test.ts:38:      name: "Claude Opus 4.5 (OpenRouter)",
+C:\Users\Administrator\clawdbot\src\auto-reply\reply.triggers.trigger-handling.runs-compact-as-gated-command.e2e.test.ts:36:      provider: "openrouter",
+C:\Users\Administrator\clawdbot\src\auto-reply\reply.triggers.trigger-handling.runs-compact-as-gated-command.e2e.test.ts:38:      name: "Claude Opus 4.5 (OpenRouter)",
+C:\Users\Administrator\clawdbot\src\auto-reply\reply.triggers.trigger-handling.reports-active-auth-profile-key-snippet-status.e2e.test.ts:36:      provider: "openrouter",
+C:\Users\Administrator\clawdbot\src\auto-reply\reply.triggers.trigger-handling.reports-active-auth-profile-key-snippet-status.e2e.test.ts:38:      name: "Claude Opus 4.5 (OpenRouter)",
+C:\Users\Administrator\clawdbot\src\auto-reply\reply.triggers.trigger-handling.keeps-inline-status-unauthorized-senders.e2e.test.ts:36:      provider: "openrouter",
+C:\Users\Administrator\clawdbot\src\auto-reply\reply.triggers.trigger-handling.keeps-inline-status-unauthorized-senders.e2e.test.ts:38:      name: "Claude Opus 4.5 (OpenRouter)",
+C:\Users\Administrator\clawdbot\src\auto-reply\reply.triggers.trigger-handling.includes-error-cause-embedded-agent-throws.e2e.test.ts:36:      provider: "openrouter",
+C:\Users\Administrator\clawdbot\src\auto-reply\reply.triggers.trigger-handling.includes-error-cause-embedded-agent-throws.e2e.test.ts:38:      name: "Claude Opus 4.5 (OpenRouter)",
+C:\Users\Administrator\clawdbot\src\auto-reply\reply.triggers.trigger-handling.ignores-inline-elevated-directive-unapproved-sender.e2e.test.ts:36:      provider: "openrouter",
+C:\Users\Administrator\clawdbot\src\auto-reply\reply.triggers.trigger-handling.ignores-inline-elevated-directive-unapproved-sender.e2e.test.ts:38:      name: "Claude Opus 4.5 (OpenRouter)",
+C:\Users\Administrator\clawdbot\src\auto-reply\reply.triggers.trigger-handling.handles-inline-commands-strips-it-before-agent.e2e.test.ts:35:      provider: "openrouter",
+C:\Users\Administrator\clawdbot\src\auto-reply\reply.triggers.trigger-handling.handles-inline-commands-strips-it-before-agent.e2e.test.ts:37:      name: "Claude Opus 4.5 (OpenRouter)",
+C:\Users\Administrator\clawdbot\src\auto-reply\reply.triggers.trigger-handling.filters-usage-summary-current-model-provider.e2e.test.ts:38:      provider: "openrouter",
+C:\Users\Administrator\clawdbot\src\auto-reply\reply.triggers.trigger-handling.filters-usage-summary-current-model-provider.e2e.test.ts:40:      name: "Claude Opus 4.5 (OpenRouter)",
+C:\Users\Administrator\clawdbot\src\auto-reply\reply.triggers.trigger-handling.allows-elevated-off-groups-without-mention.e2e.test.ts:36:      provider: "openrouter",
+C:\Users\Administrator\clawdbot\src\auto-reply\reply.triggers.trigger-handling.allows-elevated-off-groups-without-mention.e2e.test.ts:38:      name: "Claude Opus 4.5 (OpenRouter)",
+C:\Users\Administrator\clawdbot\src\auto-reply\reply.triggers.trigger-handling.allows-approved-sender-toggle-elevated-mode.e2e.test.ts:36:      provider: "openrouter",
+C:\Users\Administrator\clawdbot\src\auto-reply\reply.triggers.trigger-handling.allows-approved-sender-toggle-elevated-mode.e2e.test.ts:38:      name: "Claude Opus 4.5 (OpenRouter)",
+C:\Users\Administrator\clawdbot\src\auto-reply\reply.triggers.trigger-handling.allows-activation-from-allowfrom-groups.e2e.test.ts:36:      provider: "openrouter",
+C:\Users\Administrator\clawdbot\src\auto-reply\reply.triggers.trigger-handling.allows-activation-from-allowfrom-groups.e2e.test.ts:38:      name: "Claude Opus 4.5 (OpenRouter)",
+C:\Users\Administrator\clawdbot\src\auto-reply\reply.triggers.group-intro-prompts.e2e.test.ts:36:      provider: "openrouter",
+C:\Users\Administrator\clawdbot\src\auto-reply\reply.triggers.group-intro-prompts.e2e.test.ts:38:      name: "Claude Opus 4.5 (OpenRouter)",
+C:\Users\Administrator\clawdbot\src\security\audit-extra.ts:415:    env.OPENROUTER_API_KEY,
+C:\Users\Administrator\clawdbot\src\cron\isolated-agent.uses-last-non-empty-agent-text-as.test.ts:290:              model: "openrouter/meta-llama/llama-3.3-70b:free",
+C:\Users\Administrator\clawdbot\src\cron\isolated-agent.uses-last-non-empty-agent-text-as.test.ts:306:      expect(call?.provider).toBe("openrouter");
+C:\Users\Administrator\clawdbot\src\cron\isolated-agent.uses-last-non-empty-agent-text-as.test.ts:422:              model: "openrouter/meta-llama/llama-3.3-70b:free",
+C:\Users\Administrator\clawdbot\src\agents\live-model-filter.ts:76:  if (provider === "openrouter" || provider === "opencode") {
+C:\Users\Administrator\clawdbot\src\agents\context-window-guard.test.ts:15:      provider: "openrouter",
+C:\Users\Administrator\clawdbot\src\agents\context-window-guard.test.ts:58:          openrouter: {
+C:\Users\Administrator\clawdbot\src\agents\context-window-guard.test.ts:79:      provider: "openrouter",
+C:\Users\Administrator\clawdbot\src\agents\pi-embedded-runner.google-sanitize-thinking.test.ts:174:  it("strips non-base64 thought signatures for OpenRouter Gemini", async () => {
+C:\Users\Administrator\clawdbot\src\agents\pi-embedded-runner.google-sanitize-thinking.test.ts:206:      modelApi: "openrouter",
+C:\Users\Administrator\clawdbot\src\agents\pi-embedded-runner.google-sanitize-thinking.test.ts:207:      provider: "openrouter",
+C:\Users\Administrator\clawdbot\src\agents\pi-embedded-runner.google-sanitize-thinking.test.ts:210:      sessionId: "session:openrouter-gemini",
+C:\Users\Administrator\clawdbot\src\auto-reply\reply\directive-handling.model-picker.ts:20:  "openrouter",
+C:\Users\Administrator\clawdbot\src\agents\pi-embedded-runner.sanitize-session-history.test.ts:62:      provider: "openrouter",
+C:\Users\Administrator\clawdbot\src\agents\models.profiles.live.test.ts:375:              (model.provider === "openrouter" || model.provider === "opencode")
+C:\Users\Administrator\clawdbot\src\agents\model-scan.ts:12:const OPENROUTER_MODELS_URL = "https://openrouter.ai/api/v1/models";
+C:\Users\Administrator\clawdbot\src\agents\model-scan.ts:25:type OpenRouterModelMeta = {
+C:\Users\Administrator\clawdbot\src\agents\model-scan.ts:36:  pricing: OpenRouterModelPricing | null;
+C:\Users\Administrator\clawdbot\src\agents\model-scan.ts:39:type OpenRouterModelPricing = {
+C:\Users\Administrator\clawdbot\src\agents\model-scan.ts:67:  pricing: OpenRouterModelPricing | null;
+C:\Users\Administrator\clawdbot\src\agents\model-scan.ts:73:export type OpenRouterScanOptions = {
+C:\Users\Administrator\clawdbot\src\agents\model-scan.ts:126:function parseOpenRouterPricing(value: unknown): OpenRouterModelPricing | null {
+C:\Users\Administrator\clawdbot\src\agents\model-scan.ts:147:function isFreeOpenRouterModel(entry: OpenRouterModelMeta): boolean {
+C:\Users\Administrator\clawdbot\src\agents\model-scan.ts:166:async function fetchOpenRouterModels(fetchImpl: typeof fetch): Promise<OpenRouterModelMeta[]> {
+C:\Users\Administrator\clawdbot\src\agents\model-scan.ts:167:  const res = await fetchImpl(OPENROUTER_MODELS_URL, {
+C:\Users\Administrator\clawdbot\src\agents\model-scan.ts:171:    throw new Error(`OpenRouter /models failed: HTTP ${res.status}`);
+C:\Users\Administrator\clawdbot\src\agents\model-scan.ts:211:      const pricing = parseOpenRouterPricing(obj.pricing);
+C:\Users\Administrator\clawdbot\src\agents\model-scan.ts:225:      } satisfies OpenRouterModelMeta;
+C:\Users\Administrator\clawdbot\src\agents\model-scan.ts:227:    .filter((entry): entry is OpenRouterModelMeta => Boolean(entry));
+C:\Users\Administrator\clawdbot\src\agents\model-scan.ts:352:export async function scanOpenRouterModels(
+C:\Users\Administrator\clawdbot\src\agents\model-scan.ts:353:  options: OpenRouterScanOptions = {},
+C:\Users\Administrator\clawdbot\src\agents\model-scan.ts:357:  const apiKey = options.apiKey?.trim() || getEnvApiKey("openrouter") || "";
+C:\Users\Administrator\clawdbot\src\agents\model-scan.ts:359:    throw new Error("Missing OpenRouter API key. Set OPENROUTER_API_KEY to run models scan.");
+C:\Users\Administrator\clawdbot\src\agents\model-scan.ts:368:  const catalog = await fetchOpenRouterModels(fetchImpl);
+C:\Users\Administrator\clawdbot\src\agents\model-scan.ts:372:    if (!isFreeOpenRouterModel(entry)) return false;
+C:\Users\Administrator\clawdbot\src\agents\model-scan.ts:389:  const baseModel = getModel("openrouter", "openrouter/auto") as OpenAIModel;
+C:\Users\Administrator\clawdbot\src\agents\model-scan.ts:401:      const isFree = isFreeOpenRouterModel(entry);
+C:\Users\Administrator\clawdbot\src\agents\model-scan.ts:406:          provider: "openrouter",
+C:\Users\Administrator\clawdbot\src\agents\model-scan.ts:407:          modelRef: `openrouter/${entry.id}`,
+C:\Users\Administrator\clawdbot\src\agents\model-scan.ts:440:        provider: "openrouter",
+C:\Users\Administrator\clawdbot\src\agents\model-scan.ts:441:        modelRef: `openrouter/${entry.id}`,
+C:\Users\Administrator\clawdbot\src\agents\model-scan.ts:466:export { OPENROUTER_MODELS_URL };
+C:\Users\Administrator\clawdbot\src\agents\model-scan.ts:467:export type { OpenRouterModelMeta, OpenRouterModelPricing };
+C:\Users\Administrator\clawdbot\src\agents\model-scan.test.ts:3:import { scanOpenRouterModels } from "./model-scan.js";
+C:\Users\Administrator\clawdbot\src\agents\model-scan.test.ts:13:describe("scanOpenRouterModels", () => {
+C:\Users\Administrator\clawdbot\src\agents\model-scan.test.ts:46:    const results = await scanOpenRouterModels({
+C:\Users\Administrator\clawdbot\src\agents\model-scan.test.ts:70:    const previousKey = process.env.OPENROUTER_API_KEY;
+C:\Users\Administrator\clawdbot\src\agents\model-scan.test.ts:72:      delete process.env.OPENROUTER_API_KEY;
+C:\Users\Administrator\clawdbot\src\agents\model-scan.test.ts:74:        scanOpenRouterModels({
+C:\Users\Administrator\clawdbot\src\agents\model-scan.test.ts:79:      ).rejects.toThrow(/Missing OpenRouter API key/);
+C:\Users\Administrator\clawdbot\src\agents\model-scan.test.ts:82:        delete process.env.OPENROUTER_API_KEY;
+C:\Users\Administrator\clawdbot\src\agents\model-scan.test.ts:84:        process.env.OPENROUTER_API_KEY = previousKey;
+C:\Users\Administrator\clawdbot\src\agents\model-fallback.test.ts:531:      provider: "openrouter",
+C:\Users\Administrator\clawdbot\src\agents\model-auth.ts:279:    openrouter: "OPENROUTER_API_KEY",
+C:\Users\Administrator\clawdbot\src\agents\pi-embedded-runner\extra-params.ts:34:  if (provider === "openrouter" && modelId.startsWith("anthropic/")) return raw;
+C:\Users\Administrator\clawdbot\src\agents\pi-embedded-runner\cache-ttl.ts:15:  if (normalizedProvider === "openrouter" && normalizedModelId.startsWith("anthropic/"))
+C:\Users\Administrator\clawdbot\src\agents\transcript-policy.ts:77:  const isOpenRouterGemini =
+C:\Users\Administrator\clawdbot\src\agents\transcript-policy.ts:78:    (provider === "openrouter" || provider === "opencode") &&
+C:\Users\Administrator\clawdbot\src\agents\transcript-policy.ts:86:  const needsNonImageSanitize = isGoogle || isAnthropic || isMistral || isOpenRouterGemini;
+C:\Users\Administrator\clawdbot\src\agents\transcript-policy.ts:95:  const sanitizeThoughtSignatures = isOpenRouterGemini
+C:\Users\Administrator\clawdbot\src\agents\tools\web-search.test.ts:13:  it("detects an OpenRouter key prefix", () => {
+C:\Users\Administrator\clawdbot\src\agents\tools\web-search.test.ts:14:    expect(inferPerplexityBaseUrlFromApiKey("sk-or-v1-123")).toBe("openrouter");
+C:\Users\Administrator\clawdbot\src\agents\tools\web-search.test.ts:31:  it("defaults to OpenRouter when using OPENROUTER_API_KEY", () => {
+C:\Users\Administrator\clawdbot\src\agents\tools\web-search.test.ts:32:    expect(resolvePerplexityBaseUrl(undefined, "openrouter_env")).toBe(
+C:\Users\Administrator\clawdbot\src\agents\tools\web-search.test.ts:33:      "https://openrouter.ai/api/v1",
+C:\Users\Administrator\clawdbot\src\agents\tools\web-search.test.ts:43:  it("defaults to OpenRouter when config key looks like OpenRouter", () => {
+C:\Users\Administrator\clawdbot\src\agents\tools\web-search.test.ts:45:      "https://openrouter.ai/api/v1",
+C:\Users\Administrator\clawdbot\src\agents\tools\web-search.test.ts:49:  it("defaults to OpenRouter for unknown config key formats", () => {
+C:\Users\Administrator\clawdbot\src\agents\tools\web-search.test.ts:51:      "https://openrouter.ai/api/v1",
+C:\Users\Administrator\clawdbot\src\agents\tools\web-search.ts:25:const DEFAULT_PERPLEXITY_BASE_URL = "https://openrouter.ai/api/v1";
+C:\Users\Administrator\clawdbot\src\agents\tools\web-search.ts:29:const OPENROUTER_KEY_PREFIXES = ["sk-or-"];
+C:\Users\Administrator\clawdbot\src\agents\tools\web-search.ts:93:type PerplexityApiKeySource = "config" | "perplexity_env" | "openrouter_env" | "none";
+C:\Users\Administrator\clawdbot\src\agents\tools\web-search.ts:104:type PerplexityBaseUrlHint = "direct" | "openrouter";
+C:\Users\Administrator\clawdbot\src\agents\tools\web-search.ts:130:        "web_search (perplexity) needs an API key. Set PERPLEXITY_API_KEY or OPENROUTER_API_KEY in the Gateway environment, or configure tools.web.search.perplexity.apiKey.",
+C:\Users\Administrator\clawdbot\src\agents\tools\web-search.ts:172:  const fromEnvOpenRouter = normalizeApiKey(process.env.OPENROUTER_API_KEY);
+C:\Users\Administrator\clawdbot\src\agents\tools\web-search.ts:173:  if (fromEnvOpenRouter) {
+C:\Users\Administrator\clawdbot\src\agents\tools\web-search.ts:174:    return { apiKey: fromEnvOpenRouter, source: "openrouter_env" };
+C:\Users\Administrator\clawdbot\src\agents\tools\web-search.ts:190:  if (OPENROUTER_KEY_PREFIXES.some((prefix) => normalized.startsWith(prefix))) {
+C:\Users\Administrator\clawdbot\src\agents\tools\web-search.ts:191:    return "openrouter";
+C:\Users\Administrator\clawdbot\src\agents\tools\web-search.ts:207:  if (apiKeySource === "openrouter_env") return DEFAULT_PERPLEXITY_BASE_URL;
+C:\Users\Administrator\clawdbot\src\agents\tools\web-search.ts:211:    if (inferred === "openrouter") return DEFAULT_PERPLEXITY_BASE_URL;
+C:\Users\Administrator\clawdbot\src\agents\tools\web-search.ts:421:      ? "Search the web using Perplexity Sonar (direct or via OpenRouter). Returns AI-synthesized answers with citations from real-time web search."
+C:\Users\Administrator\clawdbot\src\agents\tools\web-tools.enabled-defaults.test.ts:151:    await tool?.execute?.(1, { query: "test-openrouter" });
+C:\Users\Administrator\clawdbot\src\agents\tools\web-tools.enabled-defaults.test.ts:178:  it("defaults to OpenRouter when OPENROUTER_API_KEY is set", async () => {
+C:\Users\Administrator\clawdbot\src\agents\tools\web-tools.enabled-defaults.test.ts:180:    vi.stubEnv("OPENROUTER_API_KEY", "sk-or-test");
+C:\Users\Administrator\clawdbot\src\agents\tools\web-tools.enabled-defaults.test.ts:194:    await tool?.execute?.(1, { query: "test-openrouter-env" });
+C:\Users\Administrator\clawdbot\src\agents\tools\web-tools.enabled-defaults.test.ts:197:    expect(mockFetch.mock.calls[0]?.[0]).toBe("https://openrouter.ai/api/v1/chat/completions");
+C:\Users\Administrator\clawdbot\src\agents\tools\web-tools.enabled-defaults.test.ts:202:    vi.stubEnv("OPENROUTER_API_KEY", "sk-or-test");
+C:\Users\Administrator\clawdbot\src\agents\tools\web-tools.enabled-defaults.test.ts:281:  it("defaults to OpenRouter when apiKey looks like OpenRouter", async () => {
+C:\Users\Administrator\clawdbot\src\agents\tools\web-tools.enabled-defaults.test.ts:304:    await tool?.execute?.(1, { query: "test-openrouter-config" });
+C:\Users\Administrator\clawdbot\src\agents\tools\web-tools.enabled-defaults.test.ts:307:    expect(mockFetch.mock.calls[0]?.[0]).toBe("https://openrouter.ai/api/v1/chat/completions");

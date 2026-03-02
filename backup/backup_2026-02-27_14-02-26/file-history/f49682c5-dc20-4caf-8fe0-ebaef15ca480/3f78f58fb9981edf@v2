@@ -1,0 +1,91 @@
+import json, os
+from typing import Dict, Any, Optional
+
+CONFIG_DIR = os.path.join(os.path.expanduser('~'), '.voice-doc-compare')
+CONFIG_FILE = os.path.join(CONFIG_DIR, 'config.json')
+CONFIG_VERSION = '1.0'  # 配置版本，用于迁移
+
+# 内置百度语音转写密钥（使用环境变量覆盖）
+BUILTIN_BAIDU_KEYS = {
+    'app_id': os.getenv('BAIDU_APP_ID', '122105243'),
+    'key': os.getenv('BAIDU_API_KEY', 'WRNGMiXLtsPvIAeh9pFhnM2W'),
+    'secret': os.getenv('BAIDU_SECRET', 'e6nlIRVT25qSuABjRmx21kRoHha2w4t4'),
+}
+
+def _validate_keys(keys: Dict[str, str], required_fields: list) -> bool:
+    """验证密钥配置是否完整"""
+    return all(bool(keys.get(f)) for f in required_fields)
+
+ASR_PROVIDERS = {
+    'baidu_builtin': {'name': '百度语音识别(内置)', 'region': 'cn', 'fields': [], 'builtin': True},
+    'aliyun': {'name': '阿里云语音识别', 'region': 'cn', 'fields': ['key', 'secret', 'appKey']},
+    'baidu': {'name': '百度语音识别(自配)', 'region': 'cn', 'fields': ['key', 'secret']},
+    'funasr': {'name': 'FunASR(本地)', 'region': 'cn', 'fields': []},
+    'groq_whisper': {'name': 'Groq Whisper', 'region': 'intl', 'fields': ['key']},
+    'openai_whisper': {'name': 'OpenAI Whisper', 'region': 'intl', 'fields': ['key']},
+}
+
+LLM_PROVIDERS = {
+    # 国内八家
+    'zhipu': {'name': '智谱GLM', 'region': 'cn', 'endpoint': 'https://open.bigmodel.cn/api/paas/v4/chat/completions', 'default_model': 'glm-4'},
+    'deepseek': {'name': 'DeepSeek', 'region': 'cn', 'endpoint': 'https://api.deepseek.com/v1/chat/completions', 'default_model': 'deepseek-chat'},
+    'qwen': {'name': '通义千问', 'region': 'cn', 'endpoint': 'https://dashscope.aliyuncs.com/compatible-mode/v1/chat/completions', 'default_model': 'qwen-turbo'},
+    'moonshot': {'name': 'Kimi(月之暗面)', 'region': 'cn', 'endpoint': 'https://api.moonshot.cn/v1/chat/completions', 'default_model': 'moonshot-v1-8k'},
+    'baichuan': {'name': '百川智能', 'region': 'cn', 'endpoint': 'https://api.baichuan-ai.com/v1/chat/completions', 'default_model': 'Baichuan4'},
+    'minimax': {'name': 'MiniMax', 'region': 'cn', 'endpoint': 'https://api.minimax.chat/v1/text/chatcompletion_v2', 'default_model': 'abab6.5s-chat'},
+    'stepfun': {'name': '阶跃星辰', 'region': 'cn', 'endpoint': 'https://api.stepfun.com/v1/chat/completions', 'default_model': 'step-1-8k'},
+    'doubao': {'name': '豆包(字节)', 'region': 'cn', 'endpoint': 'https://ark.cn-beijing.volces.com/api/v3/chat/completions', 'default_model': 'doubao-pro-4k'},
+    # 国际八家
+    'openai': {'name': 'OpenAI', 'region': 'intl', 'endpoint': 'https://api.openai.com/v1/chat/completions', 'default_model': 'gpt-4o-mini'},
+    'claude': {'name': 'Claude', 'region': 'intl', 'endpoint': 'https://api.anthropic.com/v1/messages', 'default_model': 'claude-sonnet-4-20250514'},
+    'gemini': {'name': 'Gemini', 'region': 'intl', 'endpoint': 'https://generativelanguage.googleapis.com/v1beta/chat/completions', 'default_model': 'gemini-2.0-flash'},
+    'groq': {'name': 'Groq', 'region': 'intl', 'endpoint': 'https://api.groq.com/openai/v1/chat/completions', 'default_model': 'llama-3.1-70b-versatile'},
+    'mistral': {'name': 'Mistral', 'region': 'intl', 'endpoint': 'https://api.mistral.ai/v1/chat/completions', 'default_model': 'mistral-large-latest'},
+    'cohere': {'name': 'Cohere', 'region': 'intl', 'endpoint': 'https://api.cohere.com/v2/chat', 'default_model': 'command-r-plus'},
+    'perplexity': {'name': 'Perplexity', 'region': 'intl', 'endpoint': 'https://api.perplexity.ai/chat/completions', 'default_model': 'sonar-pro'},
+    'together': {'name': 'Together AI', 'region': 'intl', 'endpoint': 'https://api.together.xyz/v1/chat/completions', 'default_model': 'meta-llama/Llama-3-70b-chat-hf'},
+}
+
+DEFAULT_CONFIG = {
+    'asr_provider': 'funasr',  # 默认使用本地FunASR
+    'llm_provider': 'zhipu',
+    'asr_keys': {},
+    'llm_keys': {},
+    'font_size': '中',
+}
+
+def load_config():
+    if os.path.exists(CONFIG_FILE):
+        try:
+            with open(CONFIG_FILE, 'r', encoding='utf-8') as f:
+                return {**DEFAULT_CONFIG, **json.load(f)}
+        except Exception:
+            pass
+    return dict(DEFAULT_CONFIG)
+
+def save_config(config):
+    os.makedirs(CONFIG_DIR, exist_ok=True)
+    with open(CONFIG_FILE, 'w', encoding='utf-8') as f:
+        json.dump(config, f, ensure_ascii=False, indent=2)
+
+def is_valid(config: Dict[str, Any]) -> bool:
+    """验证配置是否有效"""
+    pid = config.get('asr_provider', '')
+    if pid in ('funasr', 'baidu_builtin'):
+        return True
+
+    # 检查ASR密钥
+    asr_keys = config.get('asr_keys', {}).get(pid, {})
+    provider_info = ASR_PROVIDERS.get(pid, {})
+    required_fields = provider_info.get('fields', [])
+
+    if required_fields:
+        return _validate_keys(asr_keys, required_fields)
+
+    return bool(asr_keys.get('key'))
+
+def get_builtin_keys(provider_id):
+    """获取内置API密钥"""
+    if provider_id == 'baidu_builtin':
+        return BUILTIN_BAIDU_KEYS.copy()
+    return {}

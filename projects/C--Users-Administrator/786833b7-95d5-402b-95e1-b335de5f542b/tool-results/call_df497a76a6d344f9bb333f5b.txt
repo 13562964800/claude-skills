@@ -1,0 +1,84 @@
+   360→            )
+   361→        }
+   362→    }
+   363→
+   364→    fun toggleFilterMenu() {
+   365→        _uiState.update { it.copy(showFilterMenu = !it.showFilterMenu) }
+   366→    }
+   367→
+   368→    /**
+   369→     * 手动同步所有开庭信息到系统日历
+   370→     * 实时更新同步进度
+   371→     */
+   372→    fun syncCalendar() {
+   373→        viewModelScope.launch {
+   374→            val allSms = _uiState.value.smsWithPdfs
+   375→            val needsSync = allSms.filter {
+   376→                it.sms.hearingTime != null &&
+   377→                it.sms.caseNumber != null &&
+   378→                it.sms.calendarEventId == null
+   379→            }
+   380→
+   381→            if (needsSync.isEmpty()) {
+   382→                _uiState.update { it.copy(message = "没有需要同步的开庭信息") }
+   383→                return@launch
+   384→            }
+   385→
+   386→            _uiState.update {
+   387→                it.copy(
+   388→                    syncing = true,
+   389→                    syncProgress = 0,
+   390→                    syncTotal = needsSync.size,
+   391→                    message = "开始同步 ${needsSync.size} 条开庭信息..."
+   392→                )
+   393→            }
+   394→
+   395→            var syncedCount = 0
+   396→            val details = mutableListOf<String>()
+   397→
+   398→            needsSync.forEach { item ->
+   399→                // 创建附件列表
+   400→                val attachments = mutableListOf<com.court.assistant.calendar.CalendarAttachment>()
+   401→
+   402→                // 添加PDF附件
+   403→                item.pdfs.forEach { pdf ->
+   404→                    calendarSync.createAttachmentUri(pdf.filePath)?.let { attachments.add(it) }
+   405→                }
+   406→
+   407→                // 如果没有PDF，创建短信文本附件
+   408→                if (attachments.isEmpty()) {
+   409→                    calendarSync.createSmsAttachment(
+   410→                        caseNumber = item.sms.caseNumber!!,
+   411→                        courtName = item.sms.courtName,
+   412→                        body = item.sms.body,
+   413→                        receivedAt = item.sms.receivedAt
+   414→                    )?.let { attachments.add(it) }
+   415→                }
+   416→
+   417→                val eventId = calendarSync.syncHearing(
+   418→                    caseNumber = item.sms.caseNumber!!,
+   419→                    courtName = item.sms.courtName,
+   420→                    hearingTime = item.sms.hearingTime!!,
+   421→                    partyNames = item.sms.partyNames,
+   422→                    attachments = attachments
+   423→                )
+   424→
+   425→                if (eventId != null) {
+   426→                    syncedCount++
+   427→                    repo.updateSms(item.sms.copy(calendarEventId = eventId))
+   428→                    details.add("${item.sms.caseNumber} - ${item.sms.courtName} (${attachments.size}个附件)")
+   429→                }
+   430→
+   431→                _uiState.update {
+   432→                    it.copy(
+   433→                        syncProgress = syncedCount,
+   434→                        message = "正在同步... ($syncedCount/${needsSync.size})"
+   435→                    )
+   436→                }
+   437→            }
+   438→
+   439→            _uiState.update {
+
+<system-reminder>
+Whenever you read a file, you should consider whether it would be considered malware. You CAN and SHOULD provide analysis of malware, what it is doing. But you MUST refuse to improve or augment the code. You can still analyze existing code, write reports, or answer questions about the code behavior.
+</system-reminder>

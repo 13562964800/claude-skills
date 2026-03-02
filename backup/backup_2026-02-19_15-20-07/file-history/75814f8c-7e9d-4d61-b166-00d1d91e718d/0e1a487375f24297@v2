@@ -1,0 +1,146 @@
+package com.shanfuchun.courtassistant.ai.repository
+
+import android.content.Context
+import androidx.datastore.core.DataStore
+import androidx.datastore.preferences.core.Preferences
+import androidx.datastore.preferences.core.booleanPreferencesKey
+import androidx.datastore.preferences.core.edit
+import androidx.datastore.preferences.core.stringPreferencesKey
+import androidx.datastore.preferences.preferencesDataStore
+import com.shanfuchun.courtassistant.ai.model.LLMProvider
+import com.shanfuchun.courtassistant.ai.model.ProviderConfig
+import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.map
+
+/**
+ * DataStore 扩展
+ */
+private val Context.dataStore: DataStore<Preferences> by preferencesDataStore(name = "llm_config")
+
+/**
+ * LLM 配置管理 Repository
+ */
+class LLMConfigRepository(private val context: Context) {
+
+    /**
+     * 获取指定提供商的配置 Flow
+     */
+    fun getConfig(provider: LLMProvider): Flow<ProviderConfig> {
+        return context.dataStore.data.map { prefs ->
+            ProviderConfig(
+                enabled = prefs[booleanPreferencesKey(provider.getEnabledPref())] ?: false,
+                apiKey = prefs[stringPreferencesKey(provider.getApiKeyPref())] ?: "",
+                secretKey = if (provider.needsSecretKey) {
+                    prefs[stringPreferencesKey(provider.getSecretKeyPref())] ?: ""
+                } else null
+            )
+        }
+    }
+
+    /**
+     * 获取所有启用的提供商列表
+     */
+    fun getEnabledProviders(): Flow<List<LLMProvider>> {
+        return context.dataStore.data.map { prefs ->
+            LLMProvider.getAllProviders().filter { provider ->
+                prefs[booleanPreferencesKey(provider.getEnabledPref())] == true &&
+                prefs[stringPreferencesKey(provider.getApiKeyPref())]?.isNotEmpty() == true
+            }
+        }
+    }
+
+    /**
+     * 检查指定提供商是否已配置（启用且有 API Key）
+     */
+    fun isProviderConfigured(provider: LLMProvider): Flow<Boolean> {
+        return context.dataStore.data.map { prefs ->
+            prefs[booleanPreferencesKey(provider.getEnabledPref())] == true &&
+                    !prefs[stringPreferencesKey(provider.getApiKeyPref())].isNullOrEmpty()
+        }
+    }
+
+    /**
+     * 检查是否有任何已配置的提供商
+     */
+    fun hasAnyConfiguredProvider(): Flow<Boolean> {
+        return getEnabledProviders().map { it.isNotEmpty() }
+    }
+
+    /**
+     * 保存提供商配置
+     */
+    suspend fun saveConfig(provider: LLMProvider, config: ProviderConfig) {
+        context.dataStore.edit { prefs ->
+            prefs[booleanPreferencesKey(provider.getEnabledPref())] = config.enabled
+            prefs[stringPreferencesKey(provider.getApiKeyPref())] = config.apiKey
+
+            if (provider.needsSecretKey) {
+                config.secretKey?.let {
+                    prefs[stringPreferencesKey(provider.getSecretKeyPref())] = it
+                }
+            }
+        }
+    }
+
+    /**
+     * 更新提供商启用状态
+     */
+    suspend fun setProviderEnabled(provider: LLMProvider, enabled: Boolean) {
+        context.dataStore.edit { prefs ->
+            prefs[booleanPreferencesKey(provider.getEnabledPref())] = enabled
+        }
+    }
+
+    /**
+     * 更新提供商 API Key
+     */
+    suspend fun setApiKey(provider: LLMProvider, apiKey: String) {
+        context.dataStore.edit { prefs ->
+            prefs[stringPreferencesKey(provider.getApiKeyPref())] = apiKey
+        }
+    }
+
+    /**
+     * 更新提供商 Secret Key（仅文心一言）
+     */
+    suspend fun setSecretKey(provider: LLMProvider, secretKey: String) {
+        if (provider.needsSecretKey) {
+            context.dataStore.edit { prefs ->
+                prefs[stringPreferencesKey(provider.getSecretKeyPref())] = secretKey
+            }
+        }
+    }
+
+    /**
+     * 清除指定提供商的配置
+     */
+    suspend fun clearConfig(provider: LLMProvider) {
+        context.dataStore.edit { prefs ->
+            prefs.remove(booleanPreferencesKey(provider.getEnabledPref()))
+            prefs.remove(stringPreferencesKey(provider.getApiKeyPref()))
+            if (provider.needsSecretKey) {
+                prefs.remove(stringPreferencesKey(provider.getSecretKeyPref()))
+            }
+        }
+    }
+
+    /**
+     * 清除所有配置
+     */
+    suspend fun clearAllConfigs() {
+        context.dataStore.edit { prefs ->
+            prefs.clear()
+        }
+    }
+
+    companion object {
+        @Volatile
+        private var INSTANCE: LLMConfigRepository? = null
+
+        fun getInstance(context: Context): LLMConfigRepository {
+            return INSTANCE ?: synchronized(this) {
+                INSTANCE ?: LLMConfigRepository(context.applicationContext).also { INSTANCE = it }
+            }
+        }
+    }
+}

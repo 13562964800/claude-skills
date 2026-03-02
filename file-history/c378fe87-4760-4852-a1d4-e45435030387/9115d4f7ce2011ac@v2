@@ -1,0 +1,56 @@
+#!/usr/bin/env python3
+# -*- coding: utf-8 -*-
+"""
+批量生成AI科普画册的所有插图
+使用Agent并行生成以提高效率
+"""
+
+import re
+import json
+
+# 读取文档
+input_file = r'C:\Users\Administrator\AI科普画册\AI科普画册-插图进行中.md'
+with open(input_file, 'r', encoding='utf-8') as f:
+    content = f.read()
+
+# 提取所有插图描述
+pattern = r'【插图(\d+-\d+)：([^】]+)】'
+matches = re.findall(pattern, content)
+
+print(f"找到 {len(matches)} 个插图需要生成")
+print("\n插图清单:")
+for i, (ill_id, desc) in enumerate(matches[:20], 1):  # 显示前20个
+    print(f"  {i}. 插图{ill_id}: {desc[:60]}...")
+
+# 保存插图清单
+illustrations = []
+for ill_id, desc in matches:
+    # 提取上下文
+    marker = f'【插图{ill_id}：'
+    pos = content.find(marker)
+    if pos != -1:
+        # 向前读取300字符
+        start = max(0, pos - 300)
+        before = content[start:pos]
+        # 向后读取200字符
+        end = min(len(content), pos + len(marker) + len(desc) + 200)
+        after = content[pos:end]
+        context = before + after
+    else:
+        context = ""
+
+    illustrations.append({
+        'id': ill_id,
+        'description': desc,
+        'context': context[:500]  # 限制上下文长度
+    })
+
+# 保存到JSON文件
+output_json = r'C:\Users\Administrator\AI科普画册\illustrations_todo.json'
+with open(output_json, 'w', encoding='utf-8') as f:
+    json.dump(illustrations, f, ensure_ascii=False, indent=2)
+
+print(f"\n✓ 插图清单已保存到: {output_json}")
+print(f"✓ 已完成: 2/{len(matches)} 个插图")
+print(f"✓ 待生成: {len(matches) - 2} 个插图")
+print("\n准备使用并行Agent生成剩余插图...")

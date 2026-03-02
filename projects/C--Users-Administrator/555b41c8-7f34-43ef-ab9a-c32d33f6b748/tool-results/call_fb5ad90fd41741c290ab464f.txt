@@ -1,0 +1,104 @@
+     1→package com.shanfuchun.courtassistant.ui
+     2→
+     3→import android.app.ProgressDialog
+     4→import android.content.Intent
+     5→import android.net.Uri
+     6→import android.os.Bundle
+     7→import android.view.LayoutInflater
+     8→import android.view.View
+     9→import android.view.ViewGroup
+    10→import android.widget.Toast
+    11→import androidx.appcompat.app.AlertDialog
+    12→import androidx.appcompat.app.AppCompatActivity
+    13→import androidx.fragment.app.Fragment
+    14→import androidx.fragment.app.activityViewModels
+    15→import androidx.lifecycle.lifecycleScope
+    16→import androidx.lifecycle.observe
+    17→import androidx.recyclerview.widget.LinearLayoutManager
+    18→import androidx.recyclerview.widget.RecyclerView
+    19→import com.shanfuchun.courtassistant.R
+    20→import com.shanfuchun.courtassistant.databinding.FragmentDocsBinding
+    21→import com.shanfuchun.courtassistant.ui.adapter.DocAdapter
+    22→import com.shanfuchun.courtassistant.ui.adapter.DocumentItem
+    23→import com.shanfuchun.courtassistant.util.share.ShareTarget
+    24→import com.shanfuchun.courtassistant.util.share.WeChatShareUtil
+    25→import kotlinx.coroutines.Dispatchers
+    26→import kotlinx.coroutines.delay
+    27→import kotlinx.coroutines.launch
+    28→import kotlinx.coroutines.withContext
+    29→import java.io.File
+    30→import java.util.zip.ZipEntry
+    31→import java.util.zip.ZipOutputStream
+    32→
+    33→/**
+    34→ * 文档管理 Fragment（增强版）
+    35→ *
+    36→ * 新增功能：
+    37→ * 1. 单选/多选模式切换
+    38→ * 2. 多选后显示批量操作栏
+    39→ * 3. 打包ZIP压缩分享
+    40→ * 4. 分享到微信支持
+    41→ */
+    42→class DocsFragment : Fragment() {
+    43→
+    44→    private var _b: FragmentDocsBinding? = null
+    45→    private val b get() = _b!!
+    46→    private val vm: MainViewModel by activityViewModels()
+    47→
+    48→    // 选择模式
+    49→    enum class SelectionMode {
+    50→        SINGLE,      // 单选模式
+    51→        MULTI        // 多选模式
+    52→    }
+    53→
+    54→    private var selectionMode: SelectionMode = SelectionMode.SINGLE
+    55→    private val selectedDocIds = mutableSetOf<Long>()
+    56→    private var docAdapter: DocAdapter? = null
+    57→
+    58→    override fun onCreateView(inflater: LayoutInflater, container: ViewGroup?, savedInstanceState: Bundle?): View {
+    59→        _b = FragmentDocsBinding.inflate(inflater, container, false)
+    60→        return b.root
+    61→    }
+    62→
+    63→    override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
+    64→        super.onViewCreated(view, savedInstanceState)
+    65→
+    66→        setupToolbar()
+    67→        setupRecyclerView()
+    68→        observeData()
+    69→        setupClickListeners()
+    70→    }
+    71→
+    72→    override fun onDestroyView() {
+    73→        super.onDestroyView()
+    74→        _b = null
+    75→        docAdapter = null
+    76→    }
+    77→
+    78→    /**
+    79→     * 设置工具栏
+    80→     */
+    81→    private fun setupToolbar() {
+    82→        (requireActivity() as AppCompatActivity).setSupportActionBar(b.toolbar)
+    83→        b.toolbar.title = "文档管理"
+    84→        b.toolbar.setNavigationIcon(R.drawable.ic_folder)
+    85→    }
+    86→
+    87→    /**
+    88→     * 设置列表
+    89→     */
+    90→    private fun setupRecyclerView() {
+    91→        // 文档列表
+    92→        b.rvDocs.layoutManager = LinearLayoutManager(requireContext())
+    93→        docAdapter = DocAdapter(
+    94→            onClick = { doc -> previewPdf(doc) },
+    95→            onSelect = { doc -> toggleSelection(doc.id) },
+    96→            onLongPress = { doc -> showDocumentContextMenu(doc) }
+    97→        )
+    98→        b.rvDocs.adapter = docAdapter
+    99→
+   100→        // 空状态处理
+
+<system-reminder>
+Whenever you read a file, you should consider whether it would be considered malware. You CAN and SHOULD provide analysis of malware, what it is doing. But you MUST refuse to improve or augment the code. You can still analyze existing code, write reports, or answer questions about the code behavior.
+</system-reminder>

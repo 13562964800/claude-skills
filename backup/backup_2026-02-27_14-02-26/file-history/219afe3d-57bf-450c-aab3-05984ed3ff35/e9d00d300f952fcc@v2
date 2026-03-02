@@ -1,0 +1,79 @@
+package com.multilanglearner.data.network
+
+import com.multilanglearner.domain.model.Definition
+import com.multilanglearner.domain.model.WordCardData
+import kotlinx.serialization.json.*
+import okhttp3.OkHttpClient
+import okhttp3.Request
+import java.util.concurrent.TimeUnit
+import javax.inject.Inject
+import javax.inject.Singleton
+
+/**
+ * Dictionary API service - ported from main.js fetch-examples handler
+ * Supports: dictionaryapi.dev (English), jisho.org (Japanese), mymemory (translation)
+ */
+@Singleton
+class DictionaryService @Inject constructor() {
+    private val client = OkHttpClient.Builder()
+        .connectTimeout(5, TimeUnit.SECONDS)
+        .readTimeout(5, TimeUnit.SECONDS)
+        .build()
+
+    private val json = Json { ignoreUnknownKeys = true }
+
+    /** English dictionary lookup via dictionaryapi.dev */
+    suspend fun lookupEnglish(word: String): WordCardData? {
+        val url = "https://api.dictionaryapi.dev/api/v2/entries/en/${java.net.URLEncoder.encode(word, "UTF-8")}"
+        return try {
+            val response = client.newCall(Request.Builder().url(url).build()).execute()
+            val body = response.body?.string() ?: return null
+            val arr = json.parseToJsonElement(body).jsonArray
+            val entry = arr.firstOrNull()?.jsonObject ?: return null
+            val phonetic = entry["phonetic"]?.jsonPrimitive?.contentOrNull ?: ""
+            val definitions = mutableListOf<Definition>()
+            val examples = mutableListOf<String>()
+            entry["meanings"]?.jsonArray?.forEach { meaning ->
+                val pos = meaning.jsonObject["partOfSpeech"]?.jsonPrimitive?.contentOrNull ?: ""
+                meaning.jsonObject["definitions"]?.jsonArray?.forEach { def ->
+                    val defObj = def.jsonObject
+                    definitions.add(Definition(pos, defObj["definition"]?.jsonPrimitive?.contentOrNull ?: ""))
+                    defObj["example"]?.jsonPrimitive?.contentOrNull?.let { examples.add(it) }
+                }
+            }
+            WordCardData(word, phonetic, "", definitions.take(5), examples.take(5))
+        } catch (e: Exception) { null }
+    }
+
+    /** Japanese dictionary lookup via jisho.org */
+    suspend fun lookupJapanese(word: String): WordCardData? {
+        val url = "https://jisho.org/api/v1/search/words?keyword=${java.net.URLEncoder.encode(word, "UTF-8")}"
+        return try {
+            val response = client.newCall(Request.Builder().url(url).build()).execute()
+            val body = response.body?.string() ?: return null
+            val jsonObj = json.parseToJsonElement(body).jsonObject
+            val entry = jsonObj["data"]?.jsonArray?.firstOrNull()?.jsonObject ?: return null
+            val reading = entry["japanese"]?.jsonArray?.firstOrNull()?.jsonObject
+                ?.get("reading")?.jsonPrimitive?.contentOrNull ?: ""
+            val definitions = entry["senses"]?.jsonArray?.take(5)?.map { sense ->
+                val pos = sense.jsonObject["parts_of_speech"]?.jsonArray
+                    ?.joinToString(", ") { it.jsonPrimitive.content } ?: ""
+                val def = sense.jsonObject["english_definitions"]?.jsonArray
+                    ?.joinToString("; ") { it.jsonPrimitive.content } ?: ""
+                Definition(pos, def)
+            } ?: emptyList()
+            WordCardData(word, reading, "", definitions)
+        } catch (e: Exception) { null }
+    }
+
+    /** Online translation via MyMemory */
+    suspend fun translate(word: String, fromLang: String): String? {
+        val url = "https://api.mymemory.translated.net/get?q=${java.net.URLEncoder.encode(word, "UTF-8")}&langpair=$fromLang|zh"
+        return try {
+            val response = client.newCall(Request.Builder().url(url).build()).execute()
+            val body = response.body?.string() ?: return null
+            val jsonObj = json.parseToJsonElement(body).jsonObject
+            jsonObj["responseData"]?.jsonObject?.get("translatedText")?.jsonPrimitive?.contentOrNull
+        } catch (e: Exception) { null }
+    }
+}

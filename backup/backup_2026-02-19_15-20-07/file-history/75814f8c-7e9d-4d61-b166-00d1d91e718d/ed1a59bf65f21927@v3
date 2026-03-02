@@ -1,0 +1,202 @@
+{
+  "project": "CourtAssistant",
+  "description": "法院助手 Android 应用 - 自动管理法院短信、下载传票PDF、解析开庭信息并同步到系统日历",
+  "version": "1.0.0",
+  "author": "宋氏美学 · 单夫纯律师",
+  "features": [
+    {
+      "category": "数据模型层",
+      "description": "创建核心数据模型类 (CourtCase, CourtMessage, CourtDocument, CalendarEvent)",
+      "steps": [
+        "创建 CourtCase.java",
+        "创建 CourtMessage.java",
+        "创建 CourtDocument.java",
+        "创建 CalendarEvent.java"
+      ],
+      "passes": true
+    },
+    {
+      "category": "工具类层",
+      "description": "实现工具类 (DateUtils, CalendarUtils, FileUtils, PermissionUtils, DeduplicationHelper)",
+      "steps": [
+        "创建 DateUtils.java - 日期解析与格式化",
+        "创建 CalendarUtils.java - 日历操作工具",
+        "创建 FileUtils.java - 文件操作工具",
+        "创建 PermissionUtils.java - 权限管理工具",
+        "创建 DeduplicationHelper.java - 去重工具"
+      ],
+      "passes": true
+    },
+    {
+      "category": "数据库层",
+      "description": "实现 Room 数据库 (4个实体类, 4个DAO, 1个Database类)",
+      "steps": [
+        "创建 CourtCaseEntity.java",
+        "创建 CourtMessageEntity.java",
+        "创建 CourtDocumentEntity.java",
+        "创建 CalendarSyncRecordEntity.java",
+        "创建 CourtCaseDao.java",
+        "创建 CourtMessageDao.java",
+        "创建 CourtDocumentDao.java",
+        "创建 CalendarSyncDao.java",
+        "创建 CourtDatabase.java"
+      ],
+      "passes": true
+    },
+    {
+      "category": "短信解析模块",
+      "description": "实现短信监听与解析功能 (SmsReceiver, SmsMonitorService, SmsParser, CaseInfoExtractor)",
+      "steps": [
+        "创建 SmsReceiver.java - 短信广播接收器",
+        "创建 SmsMonitorService.java - 短信监控服务",
+        "创建 SmsParser.java - 短信内容解析器",
+        "创建 CaseInfoExtractor.java - 案件信息提取器"
+      ],
+      "passes": true
+    },
+    {
+      "category": "WebView & PDF 模块",
+      "description": "实现 WebView 下载和 PDF 解析 (PdfWebViewActivity, PdfViewerActivity, PdfParser, PdfDownloadHelper)",
+      "steps": [
+        "创建 PdfWebViewActivity.java - WebView 下载页面",
+        "创建 PdfViewerActivity.java - PDF 查看器",
+        "创建 PdfParser.java - PDF 解析器",
+        "创建 PdfDownloadHelper.java - 下载辅助类",
+        "创建 CourtWebViewLauncher.java - WebView 启动器"
+      ],
+      "passes": true
+    },
+    {
+      "category": "UI 界面层",
+      "description": "实现用户界面 (MainActivity, Fragments, Adapters)",
+      "steps": [
+        "创建 MainActivity.java - 主界面",
+        "创建 SmsFragment.java - 短信列表",
+        "创建 DocsFragment.java - 文档管理",
+        "创建 SettingsFragment.java - 设置界面",
+        "创建 SmsMenuAdapter.java - 横向菜单适配器",
+        "创建 DocumentListAdapter.java - 文档列表适配器",
+        "创建 PdfCardAdapter.java - PDF 卡片适配器"
+      ],
+      "passes": true
+    },
+    {
+      "category": "仓库层",
+      "description": "实现数据仓库 (CaseRepository, DocumentRepository, MessageRepository)",
+      "steps": [
+        "创建 CaseRepository.java - 案件数据仓库",
+        "创建 DocumentRepository.java - 文档数据仓库",
+        "创建 MessageRepository.java - 短信数据仓库"
+      ],
+      "passes": true
+    },
+    {
+      "category": "XML 布局文件",
+      "description": "创建所有 XML 布局资源",
+      "steps": [
+        "创建 activity_main.xml",
+        "创建 fragment_sms.xml",
+        "创建 fragment_docs.xml",
+        "创建 fragment_settings.xml",
+        "创建 item_sms_header.xml",
+        "创建 item_pdf_card.xml",
+        "创建 activity_webview.xml",
+        "创建 activity_pdf_viewer.xml",
+        "创建 dialog_download_confirm.xml",
+        "创建 colors.xml - 宋氏美学配色",
+        "创建 strings.xml",
+        "创建 styles.xml"
+      ],
+      "passes": true
+    },
+    {
+      "category": "日历同步服务",
+      "description": "实现日历自动同步服务",
+      "steps": [
+        "创建 CalendarSyncService.java - 日历同步服务",
+        "创建 SyncManager.java - 同步管理器",
+        "实现自动同步逻辑",
+        "实现同步失败重试机制",
+        "更新 AndroidManifest.xml 注册服务"
+      ],
+      "passes": true
+    },
+    {
+      "category": "权限请求对话框",
+      "description": "实现运行时权限请求UI",
+      "steps": [
+        "创建 PermissionRequestActivity.java",
+        "创建 dialog_permission_detail.xml 布局",
+        "实现分步权限请求流程",
+        "实现友好的用户引导"
+      ],
+      "passes": true
+    },
+    {
+      "category": "单元测试",
+      "description": "编写核心模块单元测试",
+      "steps": [
+        "DateUtils 测试",
+        "SmsParser 测试",
+        "PdfParser 测试",
+        "DeduplicationHelper 测试"
+      ],
+      "passes": false
+    },
+    {
+      "category": "集成测试",
+      "description": "端到端功能测试",
+      "steps": [
+        "短信接收测试",
+        "PDF 下载测试",
+        "日历同步测试",
+        "去重功能测试"
+      ],
+      "passes": false
+    },
+    {
+      "category": "性能优化",
+      "description": "应用性能调优",
+      "steps": [
+        "数据库查询优化",
+        "图片加载优化",
+        "内存泄漏检查",
+        "启动速度优化"
+      ],
+      "passes": false
+    },
+    {
+      "category": "错误处理完善",
+      "description": "增强异常处理和用户提示",
+      "steps": [
+        "网络错误处理",
+        "文件解析错误处理",
+        "权限被拒绝处理",
+        "友好的错误提示UI"
+      ],
+      "passes": false
+    },
+    {
+      "category": "用户引导页",
+      "description": "首次启动引导流程",
+      "steps": [
+        "创建 OnboardingActivity.java",
+        "设计引导页面布局",
+        "实现功能介绍滑动页"
+      ],
+      "passes": false
+    },
+    {
+      "category": "深色模式",
+      "description": "实现深色主题支持",
+      "steps": [
+        "创建深色主题配色",
+        "实现主题切换逻辑",
+        "保存用户偏好设置"
+      ],
+      "passes": false
+    }
+  ],
+  "current_session": "第一次开发会话 - 核心功能 + 日历同步 + 权限请求",
+  "completion_percentage": 80
+}

@@ -1,0 +1,69 @@
+package com.shanfuchun.courtassistant.ui
+
+import android.graphics.Color
+import android.view.LayoutInflater
+import android.view.ViewGroup
+import androidx.recyclerview.widget.DiffUtil
+import androidx.recyclerview.widget.ListAdapter
+import androidx.recyclerview.widget.RecyclerView
+import com.shanfuchun.courtassistant.data.DocumentRecord
+import com.shanfuchun.courtassistant.databinding.ItemDocBinding
+import java.text.SimpleDateFormat
+import java.util.*
+
+class DocAdapter(
+    private val onShare: (DocumentRecord) -> Unit,
+    private val onSelect: () -> Unit,
+    private val onClick: (DocumentRecord) -> Unit = {}
+) : ListAdapter<DocumentRecord, DocAdapter.VH>(DIFF) {
+
+    private val selected = mutableSetOf<Long>()
+
+    companion object {
+        val DIFF = object : DiffUtil.ItemCallback<DocumentRecord>() {
+            override fun areItemsTheSame(a: DocumentRecord, b: DocumentRecord) = a.id == b.id
+            override fun areContentsTheSame(a: DocumentRecord, b: DocumentRecord) = a == b
+        }
+        val FMT = SimpleDateFormat("yyyy-MM-dd HH:mm", Locale.CHINA)
+    }
+
+    class VH(val b: ItemDocBinding) : RecyclerView.ViewHolder(b.root)
+
+    override fun onCreateViewHolder(parent: ViewGroup, viewType: Int) =
+        VH(ItemDocBinding.inflate(LayoutInflater.from(parent.context), parent, false))
+
+    override fun onBindViewHolder(h: VH, pos: Int) {
+        val item = getItem(pos)
+        // 显示 displayName（原网页名称），fallback 到 fileName
+        h.b.tvFileName.text = item.displayName.ifEmpty { item.fileName }
+        h.b.tvDownloadTime.text = FMT.format(Date(item.downloadTime))
+        h.b.tvParseStatus.text = when (item.parseStatus) {
+            0 -> "待识别"; 1 -> "已识别"; 2 -> "识别失败"; 3 -> "非传票"; 4 -> "点击下载"; else -> "待识别"
+        }
+        // 日历同步状态 - 醒目显示
+        if (item.calendarSynced) {
+            h.b.tvCalendar.text = "✓ 已同步日历"
+            h.b.tvCalendar.setTextColor(Color.parseColor("#2E7D32"))
+        } else if (item.parseStatus == 1) {
+            h.b.tvCalendar.text = "✗ 未同步日历"
+            h.b.tvCalendar.setTextColor(Color.parseColor("#9E9E9E"))
+        } else {
+            h.b.tvCalendar.text = ""
+        }
+        h.b.cbSelect.isChecked = selected.contains(item.id)
+        h.b.cbSelect.setOnCheckedChangeListener { _, checked ->
+            if (checked) selected.add(item.id) else selected.remove(item.id)
+            onSelect()
+        }
+        h.b.btnShare.setOnClickListener { onShare(item) }
+        h.b.root.setOnClickListener { onClick(item) }
+    }
+
+    fun getSelectedIds(): List<Long> = selected.toList()
+    fun clearSelection() { selected.clear(); notifyDataSetChanged() }
+    fun toggleSelectAll() {
+        if (selected.size == currentList.size) selected.clear()
+        else { selected.clear(); currentList.forEach { selected.add(it.id) } }
+        notifyDataSetChanged()
+    }
+}

@@ -1,0 +1,219 @@
+package com.videodownload.app.ui.video
+
+import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.*
+import androidx.compose.material3.*
+import androidx.compose.runtime.*
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.unit.dp
+import androidx.lifecycle.viewmodel.compose.viewModel
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun VideoDetailScreen(
+    videoId: String,
+    onNavigateBack: () -> Unit,
+    onNavigateToTranscription: (String, String) -> Unit,
+    viewModel: VideoDetailViewModel = viewModel()
+) {
+    val video by viewModel.video.collectAsState()
+    val transcription by viewModel.transcription.collectAsState()
+
+    LaunchedEffect(videoId) {
+        viewModel.loadVideo(videoId)
+        viewModel.loadTranscription(videoId)
+    }
+
+    Scaffold(
+        topBar = {
+            TopAppBar(
+                title = { Text("视频详情") },
+                navigationIcon = {
+                    IconButton(onClick = onNavigateBack) {
+                        Icon(Icons.Default.ArrowBack, "返回")
+                    }
+                }
+            )
+        }
+    ) { padding ->
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(padding)
+                .verticalScroll(rememberScrollState())
+                .padding(16.dp),
+            verticalArrangement = Arrangement.spacedBy(16.dp)
+        ) {
+            video?.let { videoData ->
+                // 视频信息卡片
+                VideoInfoCard(videoData)
+
+                // 转录按钮
+                if (transcription == null) {
+                    Button(
+                        onClick = {
+                            onNavigateToTranscription(videoId, videoData.title)
+                        },
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Icon(Icons.Default.Subtitles, contentDescription = null)
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Text("开始转录")
+                    }
+                } else {
+                    // 显示转录结果
+                    TranscriptionResultCard(
+                        transcription = transcription!!,
+                        onRetry = {
+                            onNavigateToTranscription(videoId, videoData.title)
+                        }
+                    )
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun VideoInfoCard(video: com.videodownload.app.data.model.VideoEntity) {
+    Card(
+        modifier = Modifier.fillMaxWidth()
+    ) {
+        Column(
+            modifier = Modifier.padding(16.dp),
+            verticalArrangement = Arrangement.spacedBy(12.dp)
+        ) {
+            Text(
+                text = video.title,
+                style = MaterialTheme.typography.titleLarge,
+                fontWeight = FontWeight.Bold
+            )
+
+            Row(
+                horizontalArrangement = Arrangement.spacedBy(16.dp)
+            ) {
+                InfoChip(
+                    icon = Icons.Default.VideoLibrary,
+                    text = video.platform
+                )
+
+                InfoChip(
+                    icon = Icons.Default.Timer,
+                    text = formatDuration(video.duration)
+                )
+            }
+
+            if (video.localPath != null) {
+                Row(
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Icon(
+                        Icons.Default.CheckCircle,
+                        contentDescription = null,
+                        tint = MaterialTheme.colorScheme.primary,
+                        modifier = Modifier.size(20.dp)
+                    )
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Text(
+                        text = "已下载",
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.primary
+                    )
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun InfoChip(icon: androidx.compose.ui.graphics.vector.ImageVector, text: String) {
+    Surface(
+        color = MaterialTheme.colorScheme.surfaceVariant,
+        shape = MaterialTheme.shapes.small
+    ) {
+        Row(
+            modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(4.dp)
+        ) {
+            Icon(
+                icon,
+                contentDescription = null,
+                modifier = Modifier.size(16.dp)
+            )
+            Text(
+                text = text,
+                style = MaterialTheme.typography.bodySmall
+            )
+        }
+    }
+}
+
+@Composable
+private fun TranscriptionResultCard(
+    transcription: com.videodownload.app.data.model.TranscriptionEntity,
+    onRetry: () -> Unit
+) {
+    Card(
+        modifier = Modifier.fillMaxWidth()
+    ) {
+        Column(
+            modifier = Modifier.padding(16.dp),
+            verticalArrangement = Arrangement.spacedBy(12.dp)
+        ) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Text(
+                    text = "转录结果",
+                    style = MaterialTheme.typography.titleMedium,
+                    fontWeight = FontWeight.Bold
+                )
+
+                TextButton(onClick = onRetry) {
+                    Icon(
+                        Icons.Default.Refresh,
+                        contentDescription = null,
+                        modifier = Modifier.size(16.dp)
+                    )
+                    Spacer(modifier = Modifier.width(4.dp))
+                    Text("重新转录")
+                }
+            }
+
+            Row(
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                InfoChip(
+                    icon = Icons.Default.Language,
+                    text = transcription.language
+                )
+
+                InfoChip(
+                    icon = Icons.Default.Cloud,
+                    text = transcription.engine
+                )
+            }
+
+            Divider()
+
+            Text(
+                text = transcription.text,
+                style = MaterialTheme.typography.bodyMedium
+            )
+        }
+    }
+}
+
+private fun formatDuration(seconds: Float): String {
+    val minutes = (seconds / 60).toInt()
+    val secs = (seconds % 60).toInt()
+    return String.format("%d:%02d", minutes, secs)
+}

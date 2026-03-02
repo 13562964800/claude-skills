@@ -1,0 +1,18 @@
+package com.court.assistant.data.repository
+
+import com.court.assistant.data.db.*
+import kotlinx.coroutines.flow.Flow
+
+class CourtRepository(private val dao: CourtDao) {
+    fun getAllSms(): Flow<List<CourtSmsEntity>> = dao.getAllSms()
+    suspend fun getSmsById(id: Long) = dao.getSmsById(id)
+    suspend fun insertSms(sms: CourtSmsEntity) = dao.insertSms(sms)
+    suspend fun updateSms(sms: CourtSmsEntity) = dao.updateSms(sms)
+    fun getPdfsBySmsId(smsId: Long) = dao.getPdfsBySmsId(smsId)
+    fun getAllPdfs() = dao.getAllPdfs()
+    suspend fun insertPdf(pdf: PdfDocumentEntity) = dao.insertPdf(pdf)
+    suspend fun updatePdf(pdf: PdfDocumentEntity) = dao.updatePdf(pdf)
+    suspend fun getPdfById(id: Long) = dao.getPdfById(id)
+    suspend fun smsExists(hash: Int) = dao.smsExists(hash)
+    suspend fun deletePdf(id: Long) = dao.deletePdf(id)
+}

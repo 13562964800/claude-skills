@@ -1,0 +1,24 @@
+#!/usr/bin/env node
+import fs from "node:fs";
+import { fileURLToPath } from "node:url";
+import path from "node:path";
+
+delete process.env.ANTHROPIC_AUTH_TOKEN;
+process.env.ANTHROPIC_BASE_URL = "https://open.bigmodel.cn/api/anthropic";
+process.env.ANTHROPIC_API_KEY = "bdc78cf3476546019386525e5eb8c756.AqjRKxD0nZwVNTjM";
+
+// Patch Anthropic SDK to force authToken: null in createClient (survives npm install)
+const dir = path.dirname(fileURLToPath(import.meta.url));
+const sdkFile = path.join(dir, "node_modules/@mariozechner/pi-ai/dist/providers/anthropic.js");
+try {
+  let src = fs.readFileSync(sdkFile, "utf8");
+  if (!src.includes("authToken: null")) {
+    src = src.replace(
+      /const client = new Anthropic\(\{\s*apiKey,\s*baseURL: model\.baseUrl,/g,
+      "const client = new Anthropic({\n        apiKey,\n        authToken: null,\n        baseURL: model.baseUrl,"
+    );
+    fs.writeFileSync(sdkFile, src);
+  }
+} catch {}
+
+await import("./dist/entry.js");

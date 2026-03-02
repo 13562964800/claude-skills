@@ -1,0 +1,108 @@
+#!/usr/bin/env python3
+"""Groq CLI - 命令行 AI 聊天工具"""
+
+import sys
+import os
+import argparse
+
+from groq import Groq
+
+MODELS = {
+    "l70": "llama-3.3-70b-versatile",
+    "l8": "llama-3.1-8b-instant",
+    "mix": "mixtral-8x7b-32768",
+    "ds": "deepseek-r1-distill-llama-70b",
+}
+DEFAULT_MODEL = "llama-3.3-70b-versatile"
+SYSTEM_PROMPT = "你是一个有帮助的AI助手，用中文回答问题。回答简洁明了。"
+
+
+def stream_chat(client, messages, model):
+    """流式输出对话"""
+    stream = client.chat.completions.create(
+        model=model, messages=messages, stream=True
+    )
+    result = []
+    for chunk in stream:
+        text = chunk.choices[0].delta.content
+        if text:
+            print(text, end="", flush=True)
+            result.append(text)
+    print()
+    return "".join(result)
+
+
+def single_query(client, prompt, model, pipe_input=None):
+    """单次提问"""
+    content = f"{pipe_input}\n\n{prompt}" if pipe_input else prompt
+    messages = [
+        {"role": "system", "content": SYSTEM_PROMPT},
+        {"role": "user", "content": content},
+    ]
+    stream_chat(client, messages, model)
+
+
+def interactive(client, model):
+    """交互式聊天"""
+    messages = [{"role": "system", "content": SYSTEM_PROMPT}]
+    print(f"Groq Chat ({model})")
+    print("输入 /q 退出, /c 清空对话, /m 切换模型\n")
+
+    while True:
+        try:
+            user_input = input("\033[32m> \033[0m").strip()
+        except (EOFError, KeyboardInterrupt):
+            print("\n再见!")
+            break
+
+        if not user_input:
+            continue
+        if user_input == "/q":
+            print("再见!")
+            break
+        if user_input == "/c":
+            messages = [{"role": "system", "content": SYSTEM_PROMPT}]
+            print("对话已清空\n")
+            continue
+        if user_input == "/m":
+            print("可用模型:")
+            for k, v in MODELS.items():
+                marker = " <-" if v == model else ""
+                print(f"  {k}: {v}{marker}")
+            choice = input("选择: ").strip()
+            if choice in MODELS:
+                model = MODELS[choice]
+                print(f"已切换到 {model}\n")
+            continue
+
+        messages.append({"role": "user", "content": user_input})
+        print("\033[36m", end="")
+        reply = stream_chat(client, messages, model)
+        print("\033[0m", end="")
+        messages.append({"role": "assistant", "content": reply})
+
+
+def main():
+    parser = argparse.ArgumentParser(description="Groq CLI 聊天工具")
+    parser.add_argument("prompt", nargs="*", help="提问内容")
+    parser.add_argument("-m", "--model", default=DEFAULT_MODEL, help="模型名称或简写")
+    args = parser.parse_args()
+
+    model = MODELS.get(args.model, args.model)
+    client = Groq()
+
+    # 检查管道输入
+    pipe_input = None
+    if not sys.stdin.isatty():
+        pipe_input = sys.stdin.read().strip()
+
+    if args.prompt:
+        single_query(client, " ".join(args.prompt), model, pipe_input)
+    elif pipe_input:
+        single_query(client, "请分析以下内容", model, pipe_input)
+    else:
+        interactive(client, model)
+
+
+if __name__ == "__main__":
+    main()

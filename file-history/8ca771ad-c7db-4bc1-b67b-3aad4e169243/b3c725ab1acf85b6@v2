@@ -1,0 +1,121 @@
+package com.videodownload.app.utils
+
+import android.content.Context
+import com.videodownload.app.repository.AudioSegment
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
+import java.io.File
+import kotlin.math.ceil
+import kotlin.math.min
+
+/**
+ * 音频分段器
+ */
+class AudioSegmenter(private val context: Context) {
+
+    private val ffmpegHelper = FFmpegHelper(context)
+
+    companion object {
+        const val MAX_SEGMENT_SIZE = 20 * 1024 * 1024 // 20MB
+        const val SEGMENT_DURATION = 600f // 10分钟
+    }
+
+    /**
+     * 分段音频
+     */
+    suspend fun segment(audioPath: String): List<AudioSegment> = withContext(Dispatchers.IO) {
+        val audioFile = File(audioPath)
+        val fileSize = audioFile.length()
+        val duration = ffmpegHelper.getAudioDuration(audioPath)
+
+        if (fileSize <= MAX_SEGMENT_SIZE) {
+            // 单段，无需切分
+            return@withContext listOf(AudioSegment(audioPath, 0f, duration))
+        }
+
+        // 多段切分
+        segmentBySize(audioPath, fileSize, duration)
+    }
+
+    /**
+     * 按文件大小切分
+     */
+    private suspend fun segmentBySize(
+        audioPath: String,
+        fileSize: Long,
+        duration: Float
+    ): List<AudioSegment> {
+        val segmentCount = ceil(fileSize.toDouble() / MAX_SEGMENT_SIZE).toInt()
+        val segmentDuration = duration / segmentCount
+
+        val segments = mutableListOf<AudioSegment>()
+
+        for (index in 0 until segmentCount) {
+            val startTime = index * segmentDuration
+            val endTime = min((index + 1) * segmentDuration, duration)
+
+            val segmentPath = "${audioPath}_segment_${index}.mp3"
+
+            ffmpegHelper.extractSegment(audioPath, startTime, endTime, segmentPath)
+
+            segments.add(AudioSegment(segmentPath, startTime, endTime))
+        }
+
+        return segments
+    }
+
+    /**
+     * 在静音点切分（可选）
+     */
+    suspend fun segmentAtSilence(audioPath: String): List<AudioSegment> = withContext(Dispatchers.IO) {
+        val duration = ffmpegHelper.getAudioDuration(audioPath)
+        val silencePoints = ffmpegHelper.detectSilence(audioPath)
+
+        if (silencePoints.isEmpty()) {
+            // 没有静音点，按大小切分
+            return@withContext segment(audioPath)
+        }
+
+        val segments = mutableListOf<AudioSegment>()
+        var lastCutPoint = 0f
+        var currentSize = 0L
+
+        silencePoints.forEach { silenceTime ->
+            val estimatedSize = estimateSegmentSize(audioPath, lastCutPoint, silenceTime)
+
+            if (currentSize + estimatedSize > MAX_SEGMENT_SIZE) {
+                // 在此静音点切分
+                val segmentPath = "${audioPath}_segment_${segments.size}.mp3"
+                ffmpegHelper.extractSegment(audioPath, lastCutPoint, silenceTime, segmentPath)
+
+                segments.add(AudioSegment(segmentPath, lastCutPoint, silenceTime))
+
+                lastCutPoint = silenceTime
+                currentSize = 0L
+            } else {
+                currentSize += estimatedSize
+            }
+        }
+
+        // 添加最后一段
+        if (lastCutPoint < duration) {
+            val segmentPath = "${audioPath}_segment_${segments.size}.mp3"
+            ffmpegHelper.extractSegment(audioPath, lastCutPoint, duration, segmentPath)
+
+            segments.add(AudioSegment(segmentPath, lastCutPoint, duration))
+        }
+
+        segments
+    }
+
+    /**
+     * 估算片段大小
+     */
+    private fun estimateSegmentSize(audioPath: String, startTime: Float, endTime: Float): Long {
+        val audioFile = File(audioPath)
+        val duration = endTime - startTime
+        val totalDuration = ffmpegHelper.getAudioDuration(audioPath)
+
+        return (audioFile.length() * (duration / totalDuration)).toLong()
+    }
+}

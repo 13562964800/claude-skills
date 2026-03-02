@@ -1,0 +1,45 @@
+# 项目记忆
+
+## 工作流程标准
+
+### 打包完成后的标准操作
+- **触发条件**: 完成任何安装包、压缩包、发布包的创建
+- **标准动作**: 立即打开安装包所在文件夹
+- **命令**: `cd /c/Users/Administrator && start .` 或 `explorer .`
+- **目的**: 方便用户立即查看和使用生成的文件
+
+### 配置文件更新规则
+- **全局配置**: `~/.claude/` 或系统级配置
+- **本地配置**: 项目根目录的配置文件
+- **原则**: 同时更新全局和本地配置，确保一致性
+
+## 项目信息
+
+### 视频下载转录系统
+- **项目路径**: `~/video-downloader-extension/` 和 `~/video-download-service/`
+- **安装包位置**: `~/VideoDownloadTranscribe-Setup-v1.0.0-Installer.zip`
+- **版本**: v1.0.0
+- **状态**: 已完成开发、测试和打包
+
+### 技术栈
+- 前端: JavaScript (Chrome Extension)
+- 后端: Python + FastAPI
+- 视频处理: yt-dlp + FFmpeg
+- 转录: faster-whisper + Groq API
+
+### 依赖安装
+- 使用清华镜像源: `pip install -r requirements.txt -i https://pypi.tuna.tsinghua.edu.cn/simple`
+- 核心依赖: fastapi, uvicorn, yt-dlp, faster-whisper, openai
+
+## 用户偏好
+
+### 操作习惯
+- 完成打包后立即打开文件夹
+- 不询问确认，直接执行操作
+- 使用最快的下载源（清华镜像）
+
+### 系统环境
+- 操作系统: Windows 11
+- Shell: bash
+- Python: 3.14
+- FFmpeg: 8.0.1

@@ -1,0 +1,77 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 800 450">
+  <defs>
+    <linearGradient id="bg3" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" style="stop-color:#eff6ff"/>
+      <stop offset="100%" style="stop-color:#f8fafc"/>
+    </linearGradient>
+    <filter id="s3">
+      <feDropShadow dx="1" dy="2" stdDeviation="3" flood-opacity="0.12"/>
+    </filter>
+  </defs>
+
+  <rect width="800" height="450" rx="16" fill="url(#bg3)"/>
+
+  <!-- 标题 -->
+  <text x="400" y="40" text-anchor="middle" font-family="Arial, sans-serif" font-size="22" font-weight="bold" fill="#1e3a5f">Commit（提交）—— 给代码"存档"</text>
+
+  <!-- 时间线 -->
+  <line x1="60" y1="180" x2="740" y2="180" stroke="#cbd5e1" stroke-width="3" stroke-linecap="round"/>
+
+  <!-- 时间线箭头 -->
+  <polygon points="740,180 728,173 728,187" fill="#cbd5e1"/>
+  <text x="755" y="185" font-family="Arial, sans-serif" font-size="11" fill="#94a3b8">时间</text>
+
+  <!-- Commit 1 -->
+  <circle cx="140" cy="180" r="28" fill="#fff" stroke="#3b82f6" stroke-width="3" filter="url(#s3)"/>
+  <text x="140" y="175" text-anchor="middle" font-family="Arial, sans-serif" font-size="22">📸</text>
+  <text x="140" y="195" text-anchor="middle" font-family="Arial, sans-serif" font-size="9" fill="#3b82f6" font-weight="bold">v1</text>
+  <rect x="85" y="220" width="110" height="50" rx="10" fill="#dbeafe" stroke="#93c5fd" stroke-width="1.5"/>
+  <text x="140" y="240" text-anchor="middle" font-family="Arial, sans-serif" font-size="11" fill="#1e40af" font-weight="bold">创建首页</text>
+  <text x="140" y="258" text-anchor="middle" font-family="Arial, sans-serif" font-size="9" fill="#64748b">+ index.html</text>
+
+  <!-- Commit 2 -->
+  <circle cx="310" cy="180" r="28" fill="#fff" stroke="#8b5cf6" stroke-width="3" filter="url(#s3)"/>
+  <text x="310" y="175" text-anchor="middle" font-family="Arial, sans-serif" font-size="22">📸</text>
+  <text x="310" y="195" text-anchor="middle" font-family="Arial, sans-serif" font-size="9" fill="#8b5cf6" font-weight="bold">v2</text>
+  <rect x="255" y="220" width="110" height="50" rx="10" fill="#ede9fe" stroke="#c4b5fd" stroke-width="1.5"/>
+  <text x="310" y="240" text-anchor="middle" font-family="Arial, sans-serif" font-size="11" fill="#5b21b6" font-weight="bold">加了导航栏</text>
+  <text x="310" y="258" text-anchor="middle" font-family="Arial, sans-serif" font-size="9" fill="#64748b">~ header.html</text>
+
+  <!-- Commit 3 -->
+  <circle cx="480" cy="180" r="28" fill="#fff" stroke="#ef4444" stroke-width="3" filter="url(#s3)"/>
+  <text x="480" y="175" text-anchor="middle" font-family="Arial, sans-serif" font-size="22">📸</text>
+  <text x="480" y="195" text-anchor="middle" font-family="Arial, sans-serif" font-size="9" fill="#ef4444" font-weight="bold">v3</text>
+  <rect x="425" y="220" width="110" height="50" rx="10" fill="#fee2e2" stroke="#fca5a5" stroke-width="1.5"/>
+  <text x="480" y="240" text-anchor="middle" font-family="Arial, sans-serif" font-size="11" fill="#b91c1c" font-weight="bold">修了个 Bug</text>
+  <text x="480" y="258" text-anchor="middle" font-family="Arial, sans-serif" font-size="9" fill="#64748b">~ login.js</text>
+
+  <!-- Commit 4 -->
+  <circle cx="650" cy="180" r="28" fill="#fff" stroke="#10b981" stroke-width="3" filter="url(#s3)"/>
+  <text x="650" y="175" text-anchor="middle" font-family="Arial, sans-serif" font-size="22">📸</text>
+  <text x="650" y="195" text-anchor="middle" font-family="Arial, sans-serif" font-size="9" fill="#10b981" font-weight="bold">v4</text>
+  <rect x="595" y="220" width="110" height="50" rx="10" fill="#d1fae5" stroke="#6ee7b7" stroke-width="1.5"/>
+  <text x="650" y="240" text-anchor="middle" font-family="Arial, sans-serif" font-size="11" fill="#065f46" font-weight="bold">加了登录功能</text>
+  <text x="650" y="258" text-anchor="middle" font-family="Arial, sans-serif" font-size="9" fill="#64748b">+ auth.js</text>
+
+  <!-- 回退箭头 -->
+  <path d="M620 130 Q480 80 340 130" stroke="#f59e0b" stroke-width="2.5" fill="none" stroke-dasharray="6,3" marker-end="url(#arrowBack)"/>
+  <defs>
+    <marker id="arrowBack" markerWidth="10" markerHeight="7" refX="9" refY="3.5" orient="auto">
+      <polygon points="0 0, 10 3.5, 0 7" fill="#f59e0b"/>
+    </marker>
+  </defs>
+  <rect x="410" y="75" width="140" height="30" rx="15" fill="#fef3c7" stroke="#f59e0b" stroke-width="1.5"/>
+  <text x="480" y="95" text-anchor="middle" font-family="Arial, sans-serif" font-size="12" fill="#92400e" font-weight="bold">⏪ 写崩了？读档回去！</text>
+
+  <!-- 底部游戏存档比喻 -->
+  <rect x="100" y="310" width="600" height="110" rx="14" fill="#fff" filter="url(#s3)" stroke="#e2e8f0" stroke-width="1.5"/>
+
+  <text x="400" y="340" text-anchor="middle" font-family="Arial, sans-serif" font-size="15" fill="#334155" font-weight="bold">🎮 就像打游戏时的存档</text>
+
+  <text x="160" y="370" font-family="Arial, sans-serif" font-size="12" fill="#64748b">📝 改了什么 → 哪些文件变了</text>
+  <text x="160" y="392" font-family="Arial, sans-serif" font-size="12" fill="#64748b">💬 说明信息 → "我做了什么"</text>
+  <text x="460" y="370" font-family="Arial, sans-serif" font-size="12" fill="#64748b">🕐 时间戳 → 什么时候改的</text>
+  <text x="460" y="392" font-family="Arial, sans-serif" font-size="12" fill="#64748b">👤 作者 → 谁改的</text>
+
+  <text x="400" y="412" text-anchor="middle" font-family="Arial, sans-serif" font-size="11" fill="#94a3b8">每次 Commit = 一次存档，随时可以回到任意存档点</text>
+</svg>

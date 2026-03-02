@@ -1,0 +1,219 @@
+# CourtAssistant 项目编程总结
+
+## 项目概述
+
+**CourtAssistant** 是一款 Android 应用，用于法院传票管理和处理。应用能够自动读取法院相关短信、下载传票 PDF、解析关键信息（案号、法院名称、开庭时间等），并支持日历同步。
+
+## 技术栈
+
+| 类别 | 技术 |
+|------|------|
+| 语言 | Kotlin |
+| 架构 | Clean Architecture + Repository Pattern |
+| 数据库 | Room (SQLite) |
+| 异步 | Coroutines |
+| 依赖注入 | 手动依赖注入 |
+| 构建工具 | Gradle (Kotlin DSL) |
+
+## 项目架构
+
+```
+CourtAssistant/
+├── app/                    # 应用层 (UI + Service)
+├── data/                   # 数据层 (Repository)
+├── domain/                 # 领域层 (Model + Business Logic)
+└── core/                   # 核心层 (通用组件)
+```
+
+### 模块职责
+
+| 模块 | 职责 |
+|------|------|
+| **app** | UI 界面、服务处理、数据库实现 |
+| **data** | 数据仓储、数据源抽象 |
+| **domain** | 领域模型、业务逻辑 |
+| **core** | 通用工具类、Result 封装 |
+
+## 核心功能模块
+
+### 1. 短信处理 (SmsReader, SmsProcessor)
+
+```kotlin
+// 自动读取法院相关短信
+// 解析案号、法院名称、开庭时间等信息
+// 提取 PDF 下载链接
+```
+
+### 2. PDF 下载 (PdfDownloader)
+
+```kotlin
+// 从短信中提取的链接下载 PDF
+// 存储到本地文件系统
+// 返回文件路径供后续解析
+```
+
+### 3. 信息解析 (parser 包)
+
+```
+parser/
+├── pattern/        # 正则表达式模式
+│   ├── CaseNoPattern.kt       # 案号匹配
+│   ├── CourtNamePattern.kt    # 法院名称匹配
+│   ├── LocationPattern.kt     # 地点匹配
+│   ├── PartyNamePattern.kt    # 当事人匹配
+│   ├── JudgeNamePattern.kt    # 法官姓名匹配
+│   └── UrlPattern.kt          # URL 匹配
+├── cleaner/        # 文本清理
+│   └── OcrNoiseCleaner.kt     # OCR 噪声清理
+└── extractor/      # 信息提取
+    ├── CaseNoExtractor.kt     # 案号提取
+    └── CourtNameExtractor.kt  # 法院名称提取
+```
+
+### 4. 数据持久化
+
+```kotlin
+// Room 数据库
+@Entity data class Sms(...)
+@Entity data class Document(...)
+@Entity data class Summons(...)
+
+@Dao interface SmsDao { ... }
+@Dao interface DocumentDao { ... }
+
+@Database abstract class AppDatabase : RoomDatabase()
+```
+
+### 5. UI 层
+
+```kotlin
+// Fragment 导航结构
+MainActivity
+├── SmsFragment      # 短信列表
+├── DocsFragment     # 文档列表
+└── SettingsFragment # 设置页面
+```
+
+## 设计模式
+
+### 1. Repository Pattern
+
+```kotlin
+// 抽象数据访问
+abstract class BaseRepository<T> {
+    abstract suspend fun getAll(): Result<List<T>>
+    abstract suspend fun getById(id: Long): Result<T>
+    abstract suspend fun insert(item: T): Result<Long>
+    abstract suspend fun update(item: T): Result<Unit>
+    abstract suspend fun delete(id: Long): Result<Unit>
+}
+```
+
+### 2. Result 封装
+
+```kotlin
+// 统一结果处理
+sealed class Result<out T>
+data class Success<T>(val data: T) : Result<T>()
+data class Error(val exception: Exception) : Result<Nothing>()
+```
+
+### 3. 清洁架构 (Clean Architecture)
+
+```
+UI Layer (app/)
+    ↓
+Data Layer (data/)
+    ↓
+Domain Layer (domain/)
+```
+
+## 待实现功能
+
+### 大模型并行调用
+
+根据项目计划，计划接入以下大模型提高识别率：
+
+| 国内 | 国外 |
+|------|------|
+| 百度文心一言 | OpenAI GPT-4 |
+| 阿里通义千问 | Anthropic Claude |
+| 智谱 GLM | Google Gemini |
+| - | Mistral AI |
+
+**实现架构：**
+```
+ai/
+├── model/          # 数据模型
+├── provider/       # 各大模型客户端
+├── orchestrator/   # 并行调用编排
+├── repository/     # 配置管理
+└── prompt/         # Prompt 模板
+```
+
+## 开发规范
+
+### 命名规范
+
+- **Activity**: `XxxActivity`
+- **Fragment**: `XxxFragment`
+- **Adapter**: `XxxAdapter`
+- **Repository**: `XxxRepository`
+- **Dao**: `XxxDao`
+- **Entity/Model**: 实体名称
+
+### 文件组织
+
+- **UI**: `app/src/main/java/com/shanfuchun/courtassistant/ui/`
+- **Service**: `app/src/main/java/com/shanfuchun/courtassistant/service/`
+- **Data**: `app/src/main/java/com/shanfuchun/courtassistant/data/`
+- **Util**: `app/src/main/java/com/shanfuchun/courtassistant/util/`
+
+## 构建命令
+
+```bash
+# Debug 构建
+./gradlew assembleDebug
+
+# Release 构建
+./gradlew assembleRelease
+
+# 安装到设备
+adb install -r app/build/outputs/apk/debug/app-debug.apk
+```
+
+## 关键文件清单
+
+| 文件 | 用途 |
+|------|------|
+| `App.kt` | Application 入口 |
+| `MainActivity.kt` | 主 Activity |
+| `AppDatabase.kt` | Room 数据库 |
+| `SmsProcessor.kt` | 短信处理核心 |
+| `PdfDownloader.kt` | PDF 下载服务 |
+| `RepositoryManager.kt` | 仓储管理器 |
+| `build.gradle.kts` | 构建配置 |
+
+## 依赖版本
+
+```kotlin
+// 核心依赖
+implementation("androidx.core:core-ktx:1.12.0")
+implementation("androidx.appcompat:appcompat:1.6.1")
+implementation("com.google.android.material:material:1.11.0")
+
+// Room
+implementation("androidx.room:room-runtime:2.6.1")
+implementation("androidx.room:room-ktx:2.6.1")
+
+// Coroutines
+implementation("org.jetbrains.kotlinx:kotlinx-coroutines-android:1.7.3")
+```
+
+## 总结
+
+CourtAssistant 是一个架构清晰、职责分明的 Android 项目。采用清洁架构和仓储模式，代码可维护性较高。待实现的大模型并行调用功能将进一步提升传票识别准确率。
+
+---
+
+*生成时间: 2026-02-13*

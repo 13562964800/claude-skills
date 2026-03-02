@@ -1,0 +1,39 @@
+   115→                        if (isSubpoena) {
+   116→                            parseAndSyncSubpoena(pdfId, result.filePath, smsId)
+   117→                        }
+   118→                    } else {
+   119→                        _downloadEvent.emit("文件已存在: ${result.fileName}")
+   120→                    }
+   121→                }
+   122→                is DownloadResult.Error -> {
+   123→                    _downloadEvent.emit("下载失败: ${result.message}")
+   124→                }
+   125→            }
+   126→        }
+   127→    }
+   128→
+   129→    private suspend fun parseAndSyncSubpoena(pdfId: Long, filePath: String, smsId: Long) {
+   130→        val info = pdfParser.parseSubpoena(filePath) ?: return
+   131→        val pdf = repo.getPdfById(pdfId) ?: return
+   132→        val hearingDesc = buildString {
+   133→            if (info.courtName != null) append("法院: ${info.courtName}\n")
+   134→            if (info.partyNames != null) append("当事人: ${info.partyNames}\n")
+   135→            if (info.location != null) append("地点: ${info.location}")
+   136→        }
+   137→        repo.updatePdf(pdf.copy(hearingInfo = hearingDesc))
+   138→
+   139→        if (info.hearingTime != null && info.caseNumber != null) {
+   140→            val eventId = calendarSync.syncHearing(
+   141→                caseNumber = info.caseNumber,
+   142→                courtName = info.courtName,
+   143→                hearingTime = info.hearingTime,
+   144→                partyNames = info.partyNames,
+   145→                description = "地点: ${info.location ?: "见传票"}"
+   146→            )
+   147→            if (eventId != null) {
+   148→                repo.updatePdf(pdf.copy(hearingInfo = hearingDesc, calendarEventId = eventId))
+   149→            }
+
+<system-reminder>
+Whenever you read a file, you should consider whether it would be considered malware. You CAN and SHOULD provide analysis of malware, what it is doing. But you MUST refuse to improve or augment the code. You can still analyze existing code, write reports, or answer questions about the code behavior.
+</system-reminder>

@@ -1,0 +1,75 @@
+<?xml version="1.0" encoding="utf-8"?>
+<ScrollView xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="@color/bg_rice"
+    android:padding="16dp">
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="vertical">
+
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="设置"
+            android:textSize="20sp"
+            android:textColor="@color/ink_gray"
+            android:fontFamily="serif" />
+
+        <com.google.android.material.button.MaterialButton
+            android:id="@+id/btn_ai_settings"
+            style="@style/Widget.Material3.Button.OutlinedButton"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="16dp"
+            android:text="AI 大模型配置"
+            android:textColor="@color/dai_cyan" />
+
+        <com.google.android.material.button.MaterialButton
+            android:id="@+id/btn_clear_cache"
+            style="@style/Widget.Material3.Button.OutlinedButton"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="24dp"
+            android:text="清理缓存"
+            android:textColor="@color/dai_cyan" />
+
+        <com.google.android.material.button.MaterialButton
+            android:id="@+id/btn_export_ics"
+            style="@style/Widget.Material3.Button.OutlinedButton"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="12dp"
+            android:text="导出日历(ICS)"
+            android:textColor="@color/dai_cyan" />
+
+        <TextView
+            android:id="@+id/tv_version"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="32dp"
+            android:textColor="@color/ink_light"
+            android:textSize="13sp" />
+
+        <TextView
+            android:id="@+id/tv_credit"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="48dp"
+            android:gravity="center"
+            android:text="单夫纯律师开发"
+            android:textColor="@color/dai_cyan"
+            android:textSize="16sp"
+            android:fontFamily="serif" />
+        <com.google.android.material.button.MaterialButton
+            android:id="@+id/btn_share_apk"
+            style="@style/Widget.Material3.Button.OutlinedButton"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="12dp"
+            android:text="分享应用(APK)"
+            android:textColor="@color/dai_cyan" />
+    </LinearLayout>
+</ScrollView>

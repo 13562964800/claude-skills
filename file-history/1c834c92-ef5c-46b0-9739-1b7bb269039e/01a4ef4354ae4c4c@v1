@@ -1,0 +1,18 @@
+from app.skills.base import SkillAdapter, LLMRouter
+
+
+class LegalProposalGeneratorAdapter(SkillAdapter):
+    name = 'legal-proposal-generator'
+
+    def __init__(self):
+        self.router = LLMRouter(primary='gpt-4o', fallback='claude-opus-4-6')
+
+    def run(self, payload: dict) -> dict:
+        text = payload.get('text', '')
+        if not text:
+            return {'error': 'text required'}
+        result = self.router.complete([
+            {'role': 'system', 'content': '根据案件材料生成专业法律服务方案书，包含案情摘要、法律分析、诉讼策略、风险提示。'},
+            {'role': 'user', 'content': text},
+        ])
+        return {'proposal': result}

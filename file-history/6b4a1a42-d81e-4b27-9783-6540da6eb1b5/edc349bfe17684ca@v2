@@ -1,0 +1,82 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 800 600">
+  <!-- 背景 -->
+  <rect width="800" height="600" fill="#f8f9fa"/>
+
+  <!-- 标题 -->
+  <text x="400" y="40" font-family="Arial, sans-serif" font-size="24" font-weight="bold" fill="#4A90E2" text-anchor="middle">Pull Request - 贡献代码</text>
+
+  <!-- 快递车 -->
+  <g>
+    <!-- 车身 -->
+    <rect x="150" y="250" width="200" height="120" fill="#FFD700" stroke="#333" stroke-width="3" rx="10"/>
+
+    <!-- 车头 -->
+    <rect x="350" y="270" width="80" height="100" fill="#FF6B35" stroke="#333" stroke-width="3" rx="5"/>
+
+    <!-- 窗户 -->
+    <rect x="360" y="285" width="60" height="50" fill="#4A90E2" stroke="#333" stroke-width="2" rx="3"/>
+
+    <!-- 车轮 -->
+    <circle cx="200" cy="380" r="30" fill="#333" stroke="#666" stroke-width="3"/>
+    <circle cx="200" cy="380" r="15" fill="#666"/>
+    <circle cx="320" cy="380" r="30" fill="#333" stroke="#666" stroke-width="3"/>
+    <circle cx="320" cy="380" r="15" fill="#666"/>
+
+    <!-- 包裹在车上 -->
+    <rect x="180" y="200" width="60" height="60" fill="#50C878" stroke="#333" stroke-width="2"/>
+    <line x1="180" y1="230" x2="240" y2="230" stroke="#FF6B35" stroke-width="4"/>
+    <line x1="210" y1="200" x2="210" y2="260" stroke="#FF6B35" stroke-width="4"/>
+    <text x="210" y="235" font-family="Arial, sans-serif" font-size="14" font-weight="bold" fill="white" text-anchor="middle">PR</text>
+
+    <rect x="260" y="200" width="60" height="60" fill="#50C878" stroke="#333" stroke-width="2"/>
+    <line x1="260" y1="230" x2="320" y2="230" stroke="#FF6B35" stroke-width="4"/>
+    <line x1="290" y1="200" x2="290" y2="260" stroke="#FF6B35" stroke-width="4"/>
+    <text x="290" y="235" font-family="Arial, sans-serif" font-size="14" font-weight="bold" fill="white" text-anchor="middle">代码</text>
+  </g>
+
+  <!-- 箭头 -->
+  <path d="M 450 320 L 520 320" stroke="#4A90E2" stroke-width="4" fill="none"/>
+  <path d="M 520 320 L 510 310 M 520 320 L 510 330" stroke="#4A90E2" stroke-width="4" fill="none"/>
+
+  <!-- 目标仓库 -->
+  <g>
+    <rect x="540" y="220" width="180" height="180" fill="#4A90E2" stroke="#333" stroke-width="3" rx="10"/>
+    <text x="630" y="250" font-family="Arial, sans-serif" font-size="16" font-weight="bold" fill="white" text-anchor="middle">主仓库</text>
+
+    <!-- 文件夹图标 -->
+    <rect x="570" y="270" width="120" height="100" fill="#FFD700" stroke="#333" stroke-width="2" rx="5"/>
+    <path d="M 570 270 L 610 270 L 620 260 L 690 260 L 690 270" fill="#FF6B35" stroke="#333" stroke-width="2"/>
+
+    <!-- 检查标记 -->
+    <circle cx="630" cy="320" r="25" fill="#50C878" stroke="#333" stroke-width="2"/>
+    <path d="M 615 320 L 625 330 L 645 310" stroke="white" stroke-width="4" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
+  </g>
+
+  <!-- 流程说明 -->
+  <g>
+    <!-- 步骤1 -->
+    <circle cx="100" cy="480" r="20" fill="#FFD700" stroke="#333" stroke-width="2"/>
+    <text x="100" y="488" font-family="Arial, sans-serif" font-size="16" font-weight="bold" fill="#333" text-anchor="middle">1</text>
+    <text x="180" y="488" font-family="Arial, sans-serif" font-size="13" fill="#333" text-anchor="start">你修改了代码</text>
+
+    <!-- 步骤2 -->
+    <circle cx="100" cy="520" r="20" fill="#FFD700" stroke="#333" stroke-width="2"/>
+    <text x="100" y="528" font-family="Arial, sans-serif" font-size="16" font-weight="bold" fill="#333" text-anchor="middle">2</text>
+    <text x="180" y="528" font-family="Arial, sans-serif" font-size="13" fill="#333" text-anchor="start">提交Pull Request</text>
+
+    <!-- 步骤3 -->
+    <circle cx="100" cy="560" r="20" fill="#FFD700" stroke="#333" stroke-width="2"/>
+    <text x="100" y="568" font-family="Arial, sans-serif" font-size="16" font-weight="bold" fill="#333" text-anchor="middle">3</text>
+    <text x="180" y="568" font-family="Arial, sans-serif" font-size="13" fill="#333" text-anchor="start">等待审核和合并</text>
+
+    <!-- 步骤4 -->
+    <circle cx="450" cy="480" r="20" fill="#50C878" stroke="#333" stroke-width="2"/>
+    <text x="450" y="488" font-family="Arial, sans-serif" font-size="16" font-weight="bold" fill="white" text-anchor="middle">✓</text>
+    <text x="530" y="488" font-family="Arial, sans-serif" font-size="13" fill="#333" text-anchor="start">代码被接受！</text>
+  </g>
+
+  <!-- 底部说明 -->
+  <rect x="50" y="100" width="700" height="60" fill="#e8f4f8" rx="10" stroke="#4A90E2" stroke-width="2"/>
+  <text x="400" y="125" font-family="Arial, sans-serif" font-size="14" font-weight="bold" fill="#333" text-anchor="middle">💡 Pull Request就像快递</text>
+  <text x="400" y="148" font-family="Arial, sans-serif" font-size="12" fill="#666" text-anchor="middle">把你的代码改进"快递"给项目维护者，他们审核后决定是否接受</text>
+</svg>

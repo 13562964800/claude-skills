@@ -1,0 +1,62 @@
+from PyQt5.QtWidgets import QWidget, QHBoxLayout, QLabel, QPushButton
+from PyQt5.QtCore import pyqtSignal, QTimer, Qt
+
+
+class FieldSelector(QWidget):
+    fill_requested = pyqtSignal(str)
+
+    def __init__(self, parent=None):
+        super().__init__(parent)
+        self.fields = []
+        self.current_index = 0
+
+        layout = QHBoxLayout(self)
+        layout.setContentsMargins(10, 10, 10, 10)
+
+        self.label = QLabel("请导入文档或粘贴文本")
+        self.label.setObjectName("fieldDisplay")
+        self.label.setMinimumHeight(70)
+        self.label.setAlignment(Qt.AlignCenter)
+        layout.addWidget(self.label, stretch=1)
+
+        self.fill_btn = QPushButton("填 入")
+        self.fill_btn.setObjectName("fillButton")
+        self.fill_btn.clicked.connect(self._on_fill)
+        layout.addWidget(self.fill_btn)
+
+        self.setFocusPolicy(Qt.StrongFocus)
+
+    def set_fields(self, fields):
+        self.fields = fields
+        self.current_index = 0
+        self._update_display()
+
+    def set_index(self, idx):
+        if 0 <= idx < len(self.fields):
+            self.current_index = idx
+            self._update_display()
+
+    def wheelEvent(self, event):
+        if not self.fields:
+            return
+        delta = event.angleDelta().y()
+        if delta > 0 and self.current_index > 0:
+            self.current_index -= 1
+        elif delta < 0 and self.current_index < len(self.fields) - 1:
+            self.current_index += 1
+        self._update_display()
+
+    def _update_display(self):
+        if self.fields:
+            self.label.setText(self.fields[self.current_index])
+        else:
+            self.label.setText("请导入文档或粘贴文本")
+
+    def current_text(self):
+        if self.fields:
+            return self.fields[self.current_index]
+        return ""
+
+    def _on_fill(self):
+        if self.fields:
+            self.fill_requested.emit(self.fields[self.current_index])

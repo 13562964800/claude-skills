@@ -1,0 +1,377 @@
+"""核心对比算法 - 完全移植自桌面版 compare.py，适配Android"""
+import re
+from difflib import SequenceMatcher
+from functools import lru_cache
+from typing import List, Dict
+
+FILLER_WORDS = {'嗯', '呃', '啊', '哦', '呢', '吧', '嘛', '哈', '噢', '诶',
+                '那个', '就是', '就是说', '然后', '对吧', '对的', '这个',
+                '那', '所以', '但是', '不过', '其实', '反正', '好的'}
+
+CN_NUMBERS_READING = {
+    '0': '零', '1': '一', '2': '二', '3': '三', '4': '四',
+    '5': '五', '6': '六', '7': '七', '8': '八', '9': '九'
+}
+
+# 预编译正则表达式
+_RE_PUNCT = re.compile(r'[，。！？；：、\u201c\u201d\u2018\u2019（）【】《》…—·\s,.!?;:\'"()\[\]{}\-]')
+
+_SENTENCE_END_PUNCT = set('。！？.!?\n')
+
+# jieba分词器状态
+_jieba_initialized = False
+_jieba_available = None
+
+
+def _ensure_jieba():
+    """确保jieba可用并初始化"""
+    global _jieba_initialized, _jieba_available
+    if _jieba_available is None:
+        try:
+            import jieba
+            _jieba_available = True
+        except ImportError:
+            _jieba_available = False
+    if _jieba_available and not _jieba_initialized:
+        import jieba
+        jieba.initialize()
+        _jieba_initialized = True
+    return _jieba_available
+
+
+# 拼音缓存
+@lru_cache(maxsize=10000)
+def _get_char_pinyin(char: str):
+    """获取单个字符的拼音（带缓存）"""
+    if not char:
+        return []
+    try:
+        from pypinyin import pinyin, Style
+        return pinyin(char, style=Style.TONE3, neutral_tone_with_five=True)[0]
+    except ImportError:
+        return [char]
+
+
+def _is_punct(ch: str) -> bool:
+    if len(ch) == 1:
+        if ch in '.,!?;:\'"()[]{}-\n\r\t ':
+            return True
+    return _RE_PUNCT.match(ch) is not None
+
+
+def _normalize(text):
+    return _RE_PUNCT.sub('', text)
+
+
+def _arabic_to_chinese_simple(num_str, is_year=False):
+    if not num_str or not num_str.isdigit():
+        return num_str
+    if is_year:
+        return ''.join(CN_NUMBERS_READING.get(d, d) for d in num_str)
+    try:
+        num = int(num_str)
+        if num < 10:
+            return CN_NUMBERS_READING[num_str]
+        elif num < 20:
+            return '十' + (CN_NUMBERS_READING[num_str[1]] if num_str[1] != '0' else '')
+        elif num < 100:
+            tens = num // 10
+            ones = num % 10
+            result = CN_NUMBERS_READING[str(tens)] + '十' if tens != 1 else '十'
+            if ones > 0:
+                result += CN_NUMBERS_READING[str(ones)]
+            return result
+        elif num < 1000:
+            hundreds = num // 100
+            remainder = num % 100
+            result = CN_NUMBERS_READING[str(hundreds)] + '百'
+            if remainder > 0:
+                if remainder < 10:
+                    result += '零' + CN_NUMBERS_READING[str(remainder)]
+                elif remainder < 20:
+                    result += '一十'
+                    if remainder > 10:
+                        result += CN_NUMBERS_READING[str(remainder % 10)]
+                else:
+                    result += _arabic_to_chinese_simple(str(remainder))
+            return result
+        elif num < 10000:
+            thousands = num // 1000
+            remainder = num % 1000
+            result = CN_NUMBERS_READING[str(thousands)] + '千'
+            if remainder > 0 and remainder < 100:
+                result += '零' + _arabic_to_chinese_simple(str(remainder))
+            elif remainder >= 100:
+                result += _arabic_to_chinese_simple(str(remainder))
+            return result
+        elif num < 100000000:
+            wan = num // 10000
+            remainder = num % 10000
+            result = _arabic_to_chinese_simple(str(wan)) + '万'
+            if remainder > 0 and remainder < 1000:
+                result += '零' + _arabic_to_chinese_simple(str(remainder))
+            elif remainder >= 1000:
+                result += _arabic_to_chinese_simple(str(remainder))
+            return result
+        else:
+            yi = num // 100000000
+            remainder = num % 100000000
+            result = _arabic_to_chinese_simple(str(yi)) + '亿'
+            if remainder > 0:
+                result += _arabic_to_chinese_simple(str(remainder))
+            return result
+    except:
+        return num_str
+
+
+def _normalize_number_reading(text):
+    result = text
+    # 1. 年份
+    def convert_year(match):
+        year = match.group(1)
+        return ''.join(CN_NUMBERS_READING.get(d, d) for d in year) + '年'
+    result = re.sub(r'(\d{4})年', convert_year, result)
+
+    # 2. 百分比范围
+    def convert_percent_range(match):
+        num1 = match.group(1)
+        num2 = match.group(2)
+        return '百分之' + _arabic_to_chinese_simple(num1) + '到百分之' + _arabic_to_chinese_simple(num2)
+    result = re.sub(r'(\d+)%-(\d+)%', convert_percent_range, result)
+
+    # 3. 范围表达式
+    def convert_range(match):
+        num1 = match.group(1)
+        num2 = match.group(2)
+        suffix = match.group(3) if match.group(3) else ''
+        return _arabic_to_chinese_simple(num1) + '到' + _arabic_to_chinese_simple(num2) + suffix
+    result = re.sub(r'(\d+)-(\d+)(年|月|日|元|美元|亿|万|)?', convert_range, result)
+
+    # 4. 百分比
+    def convert_percent(match):
+        num = match.group(1)
+        return '百分之' + _arabic_to_chinese_simple(num)
+    result = re.sub(r'(\d+)%', convert_percent, result)
+
+    # 5. 带单位数字
+    def convert_with_unit(match):
+        num = match.group(1)
+        unit = match.group(2)
+        return _arabic_to_chinese_simple(num) + unit
+    result = re.sub(r'(\d+)([亿万千百元块美])', convert_with_unit, result)
+
+    # 6. 剩余纯数字
+    def convert_number(match):
+        num = match.group(1)
+        return _arabic_to_chinese_simple(num)
+    result = re.sub(r'\b(\d+)\b', convert_number, result)
+
+    result = re.sub(r'\s+', '', result)
+    return result
+
+
+def _same_pinyin(a: str, b: str) -> bool:
+    if not a or not b:
+        return False
+    a_normalized = _normalize_number_reading(a)
+    b_normalized = _normalize_number_reading(b)
+    a_clean = _normalize(a_normalized)
+    b_clean = _normalize(b_normalized)
+    if not a_clean or not b_clean:
+        return False
+    # 直接字符串比较
+    if a_clean == b_clean:
+        return True
+    # 英语大小写
+    if a_clean.lower() == b_clean.lower():
+        return True
+
+    pa = [_get_char_pinyin(c) for c in a_clean]
+    pb = [_get_char_pinyin(c) for c in b_clean]
+
+    if len(pa) == len(pb):
+        return pa == pb
+
+    # 长度不同时检查子序列拼音
+    if len(pa) < len(pb):
+        return _is_subsequence_pinyin(pa, pb)
+    else:
+        return _is_subsequence_pinyin(pb, pa)
+
+
+def _is_subsequence_pinyin(shorter, longer):
+    if not shorter:
+        return True
+    if not longer:
+        return False
+    from collections import Counter
+    shorter_strs = [''.join(p) if isinstance(p, list) else str(p) for p in shorter]
+    longer_strs = [''.join(p) if isinstance(p, list) else str(p) for p in longer]
+    shorter_counter = Counter(shorter_strs)
+    longer_counter = Counter(longer_strs)
+    for py, count in shorter_counter.items():
+        if longer_counter.get(py, 0) < count:
+            return False
+    return True
+
+
+def _punct_only_diff(a, b):
+    na, nb = _normalize(a), _normalize(b)
+    if na != nb:
+        return False
+    return _sentence_breaks_match(a, b)
+
+
+def _get_sentence_breaks(text):
+    breaks = []
+    char_idx = 0
+    for ch in text:
+        if _is_punct(ch):
+            if ch in _SENTENCE_END_PUNCT:
+                breaks.append(char_idx)
+        else:
+            char_idx += 1
+    return breaks
+
+
+def _sentence_breaks_match(doc_text, audio_text):
+    doc_breaks = _get_sentence_breaks(doc_text)
+    audio_breaks = _get_sentence_breaks(audio_text)
+    if not doc_breaks and not audio_breaks:
+        return True
+    if not doc_breaks or not audio_breaks:
+        return len(doc_breaks) == len(audio_breaks)
+    return doc_breaks == audio_breaks
+
+
+def _segment(text: str) -> List[str]:
+    if _ensure_jieba():
+        import jieba
+        return [w for w in jieba.cut(text) if w.strip()]
+    return [c for c in text if c.strip()]
+
+
+def _find_paragraph(doc_paragraphs, doc_text_norm, word_pos, doc_words):
+    char_offset = 0
+    for i, w in enumerate(doc_words):
+        if i == word_pos:
+            break
+        char_offset += len(w)
+    running = 0
+    for idx, p in enumerate(doc_paragraphs):
+        plen = len(_normalize(p))
+        if running + plen > char_offset:
+            return idx
+        running += plen
+    return len(doc_paragraphs) - 1
+
+
+def compare_texts(audio_text, doc_text, word_timestamps=None, confidence_threshold=0.0):
+    """核心对比算法：jieba分词 + SequenceMatcher + 拼音同音字识别
+    完全移植自桌面版。
+    """
+    doc_paragraphs = [p.strip() for p in doc_text.split('\n') if p.strip()]
+
+    audio_norm = _normalize(audio_text)
+    doc_norm = _normalize(doc_text)
+    audio_words = _segment(audio_norm)
+    doc_words = _segment(doc_norm)
+
+    # 时间戳映射
+    ts_map = {}
+    if word_timestamps:
+        offset = 0
+        for wt in word_timestamps:
+            w_normalized = _normalize(wt['word'])
+            for i in range(len(w_normalized)):
+                ts_map[offset + i] = {'start': wt['start'], 'end': wt['end'], 'confidence': wt.get('confidence', 1.0)}
+            offset += len(w_normalized)
+
+    # 序列比对
+    matcher = SequenceMatcher(None, doc_words, audio_words)
+    raw_diffs = []
+
+    audio_char_offsets = []
+    off = 0
+    for w in audio_words:
+        audio_char_offsets.append(off)
+        off += len(w)
+
+    for tag, i1, i2, j1, j2 in matcher.get_opcodes():
+        if tag == 'equal':
+            continue
+
+        doc_fragment = ''.join(doc_words[i1:i2])
+        audio_fragment = ''.join(audio_words[j1:j2])
+
+        # 过滤填充词
+        if tag == 'insert' and audio_fragment in FILLER_WORDS:
+            continue
+        if tag == 'delete' and doc_fragment in FILLER_WORDS:
+            continue
+        if tag == 'replace':
+            if doc_fragment in FILLER_WORDS and audio_fragment in FILLER_WORDS:
+                continue
+            if _same_pinyin(doc_fragment, audio_fragment):
+                continue
+            if _punct_only_diff(doc_fragment, audio_fragment):
+                continue
+
+        # 跳过纯空白/标点差异
+        if not doc_fragment.strip() and not audio_fragment.strip():
+            continue
+        if all(_is_punct(c) or not c.strip() for c in doc_fragment) and all(_is_punct(c) or not c.strip() for c in audio_fragment):
+            continue
+
+        pos = _find_paragraph(doc_paragraphs, doc_norm, i1, doc_words)
+
+        # 时间戳
+        ts_start = ts_end = None
+        confidence = 1.0
+        if ts_map and j1 < len(audio_char_offsets):
+            char_off = audio_char_offsets[j1]
+            if char_off in ts_map:
+                ts_start = ts_map[char_off]['start']
+                confidence = ts_map[char_off]['confidence']
+            if j2 > 0 and j2 - 1 < len(audio_char_offsets):
+                end_off = audio_char_offsets[j2 - 1]
+                if end_off in ts_map:
+                    ts_end = ts_map[end_off]['end']
+
+        diff_entry = {
+            'docText': doc_fragment,
+            'audioText': audio_fragment,
+            'type': 'mismatch' if tag == 'replace' else ('missing_in_audio' if tag == 'delete' else 'extra_in_audio'),
+            'position': pos,
+            'confidence': confidence,
+            'uncertain': confidence < confidence_threshold if confidence_threshold > 0 else False,
+        }
+        if ts_start is not None:
+            diff_entry['time_start'] = ts_start
+        if ts_end is not None:
+            diff_entry['time_end'] = ts_end
+        raw_diffs.append(diff_entry)
+
+    n_mismatch = sum(1 for d in raw_diffs if d['type'] == 'mismatch')
+    n_missing = sum(1 for d in raw_diffs if d['type'] == 'missing_in_audio')
+    n_extra = sum(1 for d in raw_diffs if d['type'] == 'extra_in_audio')
+
+    # 断句对齐检查
+    break_ok = _sentence_breaks_match(doc_text, audio_text)
+    break_note = '' if break_ok else '\n语音断句位置与原文不一致'
+
+    # 准确率计算
+    total = max(len(doc_norm), 1)
+    diff_chars = sum(max(len(d['docText']), len(d['audioText'])) for d in raw_diffs)
+    accuracy = max(0, (1 - diff_chars / total) * 100)
+
+    summary = f'共{len(raw_diffs)}处差异：{n_mismatch}处误读，{n_missing}处漏读，{n_extra}处多读{break_note}\n字准确率 {accuracy:.1f}%'
+
+    return {
+        'diffs': raw_diffs,
+        'summary': summary,
+        'accuracy': accuracy,
+        'n_mismatch': n_mismatch,
+        'n_missing': n_missing,
+        'n_extra': n_extra,
+    }

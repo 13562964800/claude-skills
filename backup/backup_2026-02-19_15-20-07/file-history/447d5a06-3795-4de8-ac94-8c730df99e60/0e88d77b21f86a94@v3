@@ -1,0 +1,173 @@
+#!/usr/bin/env python3
+# -*- encoding: utf-8 -*-
+"""
+Whisper 多语言转录 - Groq API（默认）+ 本地 Whisper 备选
+"""
+
+import sys
+import os
+import json
+import argparse
+import urllib.request
+import urllib.error
+from pathlib import Path
+
+sys.stdout.reconfigure(encoding='utf-8', errors='replace')
+sys.stderr.reconfigure(encoding='utf-8', errors='replace')
+
+CONFIG_PATH = Path.home() / ".clawdbot" / "translate_config.json"
+
+
+def load_config():
+    if CONFIG_PATH.exists():
+        return json.loads(CONFIG_PATH.read_text("utf-8"))
+    return {}
+
+
+def save_config(cfg):
+    CONFIG_PATH.parent.mkdir(parents=True, exist_ok=True)
+    CONFIG_PATH.write_text(json.dumps(cfg, ensure_ascii=False, indent=2), "utf-8")
+
+
+def groq_transcribe(file_path, lang=None):
+    """用 Groq API 转录（whisper-large-v3）"""
+    cfg = load_config()
+    api_key = cfg.get("groq_key", "")
+    if not api_key:
+        return None, "Groq API Key 未配置，运行 --setup 配置"
+
+    file_path = Path(file_path).resolve()
+    # 构建 multipart/form-data
+    boundary = "----WebKitFormBoundary7MA4YWxkTrZu0gW"
+    body = b""
+    # file field
+    body += f"--{boundary}\r\n".encode()
+    body += f'Content-Disposition: form-data; name="file"; filename="{file_path.name}"\r\n'.encode()
+    body += b"Content-Type: application/octet-stream\r\n\r\n"
+    body += file_path.read_bytes()
+    body += b"\r\n"
+    # model field
+    body += f"--{boundary}\r\n".encode()
+    body += b'Content-Disposition: form-data; name="model"\r\n\r\n'
+    body += b"whisper-large-v3\r\n"
+    # response_format field - verbose_json for timestamps
+    body += f"--{boundary}\r\n".encode()
+    body += b'Content-Disposition: form-data; name="response_format"\r\n\r\n'
+    body += b"verbose_json\r\n"
+    # language field
+    if lang:
+        body += f"--{boundary}\r\n".encode()
+        body += b'Content-Disposition: form-data; name="language"\r\n\r\n'
+        body += f"{lang}\r\n".encode()
+    body += f"--{boundary}--\r\n".encode()
+
+    req = urllib.request.Request(
+        "https://api.groq.com/openai/v1/audio/transcriptions",
+        data=body,
+        headers={
+            "Authorization": f"Bearer {api_key}",
+            "Content-Type": f"multipart/form-data; boundary={boundary}",
+        },
+    )
+    try:
+        with urllib.request.urlopen(req, timeout=300) as resp:
+            return json.loads(resp.read()), None
+    except urllib.error.HTTPError as e:
+        err_body = e.read().decode("utf-8", errors="replace")
+        return None, f"Groq HTTP {e.code}: {err_body}"
+    except Exception as e:
+        return None, f"Groq 请求失败: {e}"
+
+
+def to_markdown(result, file_path, output_path=None):
+    """将 Groq/Whisper 结果转为 Markdown"""
+    file_path = Path(file_path)
+    lang = result.get("language", "unknown")
+    segments = result.get("segments", [])
+
+    lines = [f"# 转录：{file_path.name}\n", f"语言：{lang}\n", "## 转录内容\n"]
+    for seg in segments:
+        start = int(seg["start"])
+        h, m, s = start // 3600, (start % 3600) // 60, start % 60
+        lines.append(f"{h:02d}:{m:02d}:{s:02d}")
+        lines.append(seg["text"].strip())
+        lines.append("")
+
+    if output_path is None:
+        output_path = file_path.parent / f"{file_path.stem}.md"
+    else:
+        output_path = Path(output_path)
+
+    output_path.write_text("\n".join(lines), "utf-8")
+    print(f"✅ 转录完成: {output_path}")
+    print(f"   语言: {lang}, 段落数: {len(segments)}")
+    return str(output_path)
+
+
+def local_transcribe(file_path, lang=None, model_size="base", output_path=None):
+    """本地 Whisper 转录（备选）"""
+    import whisper
+
+    file_path = Path(file_path).resolve()
+    print(f"加载本地模型: {model_size}")
+    model = whisper.load_model(model_size)
+    print(f"转录中: {file_path.name}")
+    opts = {"verbose": False}
+    if lang:
+        opts["language"] = lang
+    result = model.transcribe(str(file_path), **opts)
+    return to_markdown(result, file_path, output_path)
+
+
+def setup():
+    cfg = load_config()
+    print("=== Groq API 配置 ===")
+    print("获取 Key: https://console.groq.com/keys (免费)")
+    cfg["groq_key"] = input(f"  Groq API Key [{cfg.get('groq_key', '')}]: ").strip() or cfg.get("groq_key", "")
+    save_config(cfg)
+    print(f"✅ 已保存到 {CONFIG_PATH}")
+
+
+def main():
+    parser = argparse.ArgumentParser(description="Whisper 多语言转录（Groq API / 本地）")
+    parser.add_argument("path", nargs="?", help="音视频文件路径")
+    parser.add_argument("--lang", help="语言代码（ru, en, ja 等），默认自动检测")
+    parser.add_argument("--local", action="store_true", help="使用本地 Whisper（默认用 Groq API）")
+    parser.add_argument("--model", default="base", choices=["tiny", "base", "small", "medium", "large"],
+                        help="本地模型大小（默认 base）")
+    parser.add_argument("-o", "--output", help="输出路径")
+    parser.add_argument("--setup", action="store_true", help="配置 Groq API Key")
+    args = parser.parse_args()
+
+    if args.setup:
+        setup()
+        return
+
+    if not args.path:
+        parser.print_help()
+        sys.exit(1)
+
+    file_path = Path(args.path).resolve()
+    if not file_path.exists():
+        print(f"文件不存在: {file_path}")
+        sys.exit(1)
+
+    # Groq API 文件大小限制 25MB，超过则用本地
+    use_local = args.local or file_path.stat().st_size > 25 * 1024 * 1024
+
+    if use_local:
+        print("使用本地 Whisper 转录")
+        local_transcribe(file_path, args.lang, args.model, args.output)
+    else:
+        print("使用 Groq API 转录 (whisper-large-v3)")
+        result, err = groq_transcribe(file_path, args.lang)
+        if err:
+            print(f"⚠️ Groq API 失败: {err}")
+            print("回退到本地 Whisper...")
+            local_transcribe(file_path, args.lang, args.model, args.output)
+        else:
+            to_markdown(result, file_path, args.output)
+
+
+if __name__ == "__main__":
+    main()

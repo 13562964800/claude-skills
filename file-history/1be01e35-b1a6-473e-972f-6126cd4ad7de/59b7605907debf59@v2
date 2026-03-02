@@ -1,0 +1,44 @@
+# 华为手机扬声器修复脚本
+# 请在手机上手动执行以下操作
+
+Write-Host "=== 华为手机扬声器修复指南 ===" -ForegroundColor Cyan
+Write-Host ""
+
+Write-Host "【方法1】重置开发者选项" -ForegroundColor Yellow
+Write-Host "1. 设置 → 系统和更新 → 开发者选项" -ForegroundColor White
+Write-Host "2. 找到以下选项并关闭:" -ForegroundColor White
+Write-Host "   - USB 音频 (USB Audio)" -ForegroundColor White
+Write-Host "   - 禁用绝对音量" -ForegroundColor White
+Write-Host "   - 模拟辅助设备" -ForegroundColor White
+Write-Host "3. 完全关闭开发者选项（开关关掉）" -ForegroundColor White
+Write-Host "4. 重启手机" -ForegroundColor White
+Write-Host ""
+
+Write-Host "【方法2】清除音频设置" -ForegroundColor Yellow
+Write-Host "在拨号界面输入以下代码：" -ForegroundColor White
+Write-Host "  *#*#2846579159#*#*" -ForegroundColor Cyan
+Write-Host "进入 ProjectMenu → Audio → Reset Audio" -ForegroundColor White
+Write-Host ""
+
+Write-Host "【方法3】重置声音设置" -ForegroundColor Yellow
+Write-Host "1. 设置 → 声音和振动" -ForegroundColor White
+Write-Host "2. 点击每个音量类型，确保不是静音" -ForegroundColor White
+Write-Host "3. 关闭 ''勿扰模式''" -ForegroundColor White
+Write-Host "4. 关闭 ''定向音''（如果有）" -ForegroundColor White
+Write-Host ""
+
+Write-Host "【方法4】清除缓存" -ForegroundColor Yellow
+Write-Host "1. 关机" -ForegroundColor White
+Write-Host "2. 长按 电源键 + 音量上键" -ForegroundColor White
+Write-Host "3. 进入恢复模式" -ForegroundColor White
+Write-Host "4. 选择 ''Wipe cache partition''" -ForegroundColor White
+Write-Host "5. 重启手机" -ForegroundColor White
+Write-Host ""
+
+Write-Host "【方法5】ADB 命令修复（需要USB调试）" -ForegroundColor Yellow
+Write-Host "请在手机上:" -ForegroundColor White
+Write-Host "1. 设置 → 更多设置 → 备份和重置 → 恢复出厂设置" -ForegroundColor White
+Write-Host ""
+
+Write-Host "按回车键继续..." -ForegroundColor Gray
+Read-Host

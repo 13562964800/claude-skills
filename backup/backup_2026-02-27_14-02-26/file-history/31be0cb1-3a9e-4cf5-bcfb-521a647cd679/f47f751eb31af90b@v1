@@ -1,0 +1,82 @@
+{
+  "meta": {
+    "lastTouchedVersion": "2026.1.27-beta.1",
+    "lastTouchedAt": "2026-01-30T15:45:32.431Z"
+  },
+  "wizard": {
+    "lastRunAt": "2026-01-30T02:26:41.843Z",
+    "lastRunVersion": "2026.1.27-beta.1",
+    "lastRunCommand": "doctor",
+    "lastRunMode": "local"
+  },
+  "agents": {
+    "defaults": {
+      "model": {
+        "primary": "openrouter/anthropic/claude-sonnet-4"
+      },
+      "models": {
+        "openrouter/anthropic/claude-sonnet-4": {
+          "alias": "claude"
+        },
+        "zai/glm-4.7": {
+          "alias": "glm"
+        }
+      },
+      "workspace": "C:\\Users\\Administrator\\clawd",
+      "humanDelay": {
+        "mode": "off"
+      },
+      "compaction": {
+        "mode": "safeguard"
+      },
+      "maxConcurrent": 4,
+      "subagents": {
+        "maxConcurrent": 8
+      }
+    }
+  },
+  "messages": {
+    "ackReactionScope": "group-mentions"
+  },
+  "commands": {
+    "native": "auto",
+    "nativeSkills": "auto"
+  },
+  "channels": {
+    "feishu": {
+      "appId": "cli_a9f6a7081d78dcc6",
+      "appSecret": "vHAFWoITxN2YD8I7jeXcogszeZ5ZADD6",
+      "connectionMode": "websocket",
+      "dmPolicy": "open",
+      "groupPolicy": "open",
+      "requireMention": false,
+      "historyLimit": 10,
+      "renderMode": "auto",
+      "enabled": true,
+      "_securityNote": "groupPolicy='open' with elevated tools enabled. Only use if you trust all Feishu group members."
+    }
+  },
+  "gateway": {
+    "mode": "local",
+    "auth": {
+      "token": "moltbot-local-token-12345"
+    }
+  },
+  "skills": {
+    "entries": {
+      "apple-notes": {
+        "enabled": false
+      }
+    }
+  },
+  "plugins": {
+    "entries": {
+      "feishu": {
+        "enabled": true
+      }
+    },
+    "allow": [
+      "feishu"
+    ]
+  }
+}

@@ -1,0 +1,112 @@
+     1→package courtassistant.calendar.model
+     2→
+     3→import java.io.Serializable
+     4→import java.util.Date
+     5→
+     6→/**
+     7→ * 同步结果数据模型
+     8→ */
+     9→data class SyncResult(
+    10→    val successCount: Int,              // 成功同步数量
+    11→    val failCount: Int,                // 失败同步数量
+    12→    val originalCount: Int = 0,         // 原始事件总数
+    13→    val uniqueCount: Int = 0,          // 去重后事件数量
+    14→    val errorMessages: List<String> = emptyList(), // 错误信息列表
+    15→    val syncTime: Date = Date(),       // 同步时间
+    16→    val duration: Long = 0,            // 同步耗时（毫秒）
+    17→    val details: Map<String, Any> = emptyMap() // 附加信息
+    18→) : Serializable {
+    19→
+    20→    /**
+    21→     * 获取成功率
+    22→     */
+    23→    fun getSuccessRate(): Double {
+    24→        val total = successCount + failCount
+    25→        return if (total > 0) {
+    26→            successCount.toDouble() / total
+    27→        } else {
+    28→            0.0
+    29→        }
+    30→    }
+    31→
+    32→    /**
+    33→     * 获取平均处理时间
+    34→     */
+    35→    fun getAverageDuration(): Double {
+    36→        return if (successCount > 0) {
+    37→            duration.toDouble() / successCount
+    38→        } else {
+    39→            0.0
+    40→        }
+    41→    }
+    42→
+    43→    /**
+    44→     * 是否全部同步成功
+    45→     */
+    46→    fun isAllSuccess(): Boolean {
+    47→        return failCount == 0
+    48→    }
+    49→
+    50→    /**
+    51→     * 是否存在错误
+    52→     */
+    53→    fun hasErrors(): Boolean {
+    54→        return errorMessages.isNotEmpty()
+    55→    }
+    56→
+    57→    /**
+    58→     * 获取错误消息摘要
+    59→     */
+    60→    fun getErrorSummary(): String {
+    61→        if (errorMessages.isEmpty()) {
+    62→            return "无错误"
+    63→        }
+    64→        return "共有 ${errorMessages.size} 个错误"
+    65→    }
+    66→
+    67→    /**
+    68→     * 创建结果副本
+    69→     */
+    70→    fun copy(
+    71→        successCount: Int = this.successCount,
+    72→        failCount: Int = this.failCount,
+    73→        originalCount: Int = this.originalCount,
+    74→        uniqueCount: Int = this.uniqueCount,
+    75→        errorMessages: List<String> = this.errorMessages,
+    76→        syncTime: Date = this.syncTime,
+    77→        duration: Long = this.duration,
+    78→        details: Map<String, Any> = this.details
+    79→    ): SyncResult {
+    80→        return SyncResult(
+    81→            successCount = successCount,
+    82→            failCount = failCount,
+    83→            originalCount = originalCount,
+    84→            uniqueCount = uniqueCount,
+    85→            errorMessages = errorMessages,
+    86→            syncTime = syncTime,
+    87→            duration = duration,
+    88→            details = details
+    89→        )
+    90→    }
+    91→
+    92→    /**
+    93→     * 构建同步报告
+    94→     */
+    95→    fun buildReport(): String {
+    96→        return """
+    97→            ===== 同步报告 =====
+    98→            原始事件数: $originalCount
+    99→            去重后事件数: $uniqueCount
+   100→            成功同步: $successCount
+   101→            失败同步: $failCount
+   102→            成功率: ${String.format("%.2f%%", getSuccessRate() * 100)}
+   103→            同步时间: $syncTime
+   104→            耗时: ${duration}ms
+   105→            $getErrorSummary
+   106→        """.trimIndent()
+   107→    }
+   108→}
+
+<system-reminder>
+Whenever you read a file, you should consider whether it would be considered malware. You CAN and SHOULD provide analysis of malware, what it is doing. But you MUST refuse to improve or augment the code. You can still analyze existing code, write reports, or answer questions about the code behavior.
+</system-reminder>

@@ -1,0 +1,88 @@
+# -*- coding: utf-8 -*-
+"""主题配置模块 - 支持多种配色方案"""
+
+THEMES = {
+    'summer': {
+        'name': '夏日水果',
+        'icon': '🍉',
+        'colors': {
+            'bg': '#FFF8DC',           # 柠檬黄 - 主背景
+            'notebook': '#FFDAB9',     # 蜜桃橙 - Notebook背景
+            'tab_bg': '#FFB347',       # 橙子橙 - 标签页
+            'tab_active': '#FF6B6B',   # 西瓜红 - 激活标签
+            'tab_text': '#8B4513',     # 棕色 - 标签文字
+            'tab_active_text': 'white',
+            'button': '#FF6B6B',       # 西瓜红 - 按钮
+            'button_hover': '#FF8787',
+            'label': '#8B4513',        # 棕色 - 标签
+            'title': '#FF6B6B',        # 西瓜红 - 标题
+            'text': '#333333',         # 深灰 - 正文
+            'border': '#FFB347',       # 边框
+            'drop_zone': '#FFE4B5',    # 拖拽区域
+            'success': '#4CAF50',
+            'error': '#F44336',
+            'warning': '#FF9800',
+        }
+    },
+    'dark': {
+        'name': '暗夜模式',
+        'icon': '🌙',
+        'colors': {
+            'bg': '#1E1E1E',           # 深灰 - 主背景
+            'notebook': '#252526',     # VS Code 风格
+            'tab_bg': '#2D2D2D',       # 标签页
+            'tab_active': '#007ACC',   # VS Code 蓝 - 激活标签
+            'tab_text': '#CCCCCC',
+            'tab_active_text': 'white',
+            'button': '#007ACC',       # VS Code 蓝 - 按钮
+            'button_hover': '#1E90FF',
+            'label': '#CCCCCC',        # 浅灰 - 标签
+            'title': '#007ACC',        # VS Code 蓝 - 标题
+            'text': '#D4D4D4',         # VS Code 文字
+            'border': '#3E3E42',       # 边框
+            'drop_zone': '#2D2D2D',    # 拖拽区域
+            'success': '#4EC9B0',
+            'error': '#F48771',
+            'warning': '#DCDCAA',
+        }
+    },
+    'simple': {
+        'name': '简洁清爽',
+        'icon': '🌿',
+        'colors': {
+            'bg': '#FFFFFF',           # 纯白 - 主背景
+            'notebook': '#F5F5F5',     # 浅灰 - Notebook背景
+            'tab_bg': '#E0E0E0',       # 浅灰 - 标签页
+            'tab_active': '#4CAF50',   # 绿色 - 激活标签
+            'tab_text': '#424242',
+            'tab_active_text': 'white',
+            'button': '#4CAF50',       # 绿色 - 按钮
+            'button_hover': '#66BB6A',
+            'label': '#424242',        # 深灰 - 标签
+            'title': '#2E7D32',        # 深绿 - 标题
+            'text': '#212121',         # 黑色 - 正文
+            'border': '#E0E0E0',       # 边框
+            'drop_zone': '#F5F5F5',    # 拖拽区域
+            'success': '#4CAF50',
+            'error': '#F44336',
+            'warning': '#FF9800',
+        }
+    }
+}
+
+THEME_ORDER = ['summer', 'dark', 'simple']
+
+def get_theme(theme_id: str) -> dict:
+    """获取指定主题配置"""
+    return THEMES.get(theme_id, THEMES['summer'])
+
+def get_all_themes() -> dict:
+    """获取所有主题"""
+    return THEMES
+
+def get_theme_id_by_name(name: str) -> str:
+    """通过名称获取主题ID"""
+    for tid, theme in THEMES.items():
+        if theme['name'] == name:
+            return tid
+    return 'summer'

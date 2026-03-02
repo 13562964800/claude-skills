@@ -1,0 +1,47 @@
+ 结构错误（先修这些，否则后面算法优化没法落地）
+
+  1. app/src/main/AndroidManifest.xml:11 资源 XML 结构已损坏，[xml] 解析报错（line 12, position
+     30），会直接导致 Android 资源编译失败。
+  2. app/src/main/res/layout/activity_main.xml:25、app/src/main/res/layout/
+     activity_main.xml:43、app/src/main/res/layout/activity_main.xml:102、app/src/main/res/
+     layout/activity_main.xml:163、app/src/main/res/layout/activity_main.xml:230 多处文本属性异
+     常，[xml] 解析失败（line 26, position 35）。
+  3. app/src/main/res/layout/activity_settings.xml:99、app/src/main/res/layout/
+     activity_settings.xml:204、app/src/main/res/layout/activity_settings.xml:222、app/src/main/
+     res/layout/activity_settings.xml:296、app/src/main/res/layout/activity_settings.xml:324 同
+     样存在 XML 结构错误，[xml] 解析失败（line 100, position 35）。
+
+  算法实现可优化点（按收益排序）
+
+  1. app/src/main/python/engine.py:87 当前用 SequenceMatcher 做“字级”对比，长文本复杂度和误报率
+     都高。
+     优化：改为“句子切分 -> 词级对齐 -> 局部字级精修”，并加最大窗口，避免全量 O(n*m) 对齐。
+  2. app/src/main/python/engine.py:117 准确率公式 1 - len(diffs)*3/total 过于粗糙，且与错误类型
+     无关。
+     优化：按 replace/delete/insert 分别加权（类似 WER/CER），并输出可解释指标（CER、漏读率、误
+     读率）。
+  3. app/src/main/python/engine.py:96~100 只在整段 audio_frag/doc_frag 命中填充词时过滤，无法处
+     理“片段内夹杂填充词”。
+     优化：在对齐前先做 token 级停用词过滤，或对 insert 片段二次切分再过滤。
+  4. app/src/main/python/engine.py:61~74 每次 replace 都做拼音转换，重复计算明显。
+     优化：给 _same_pinyin 增加 LRU 缓存（key=(a,b) 或各自拼音结果缓存），长文档速度提升明显。
+  5. app/src/main/python/engine.py:494~551 时间戳映射与归一化流程不一致，标点/空白会造成
+     time_start/time_end 偏移。
+     优化：先统一 _norm 再建立字符索引，或直接用 ASR 原生 token+time 做对齐，不走“字符偏移推
+     断”。
+  6. app/src/main/java/com/voicedoc/app/MainActivity.java:542~549 分段去重仅比较前后最多 5 字，
+     长重叠会残留重复。
+     优化：改为最长公共后缀/前缀匹配（例如 30~50 字窗口）或按 token overlap 去重。
+  7. app/src/main/java/com/voicedoc/app/MainActivity.java:507~553 离线转写固定 30s+1s overlap，
+     对不同语速不稳。
+     优化：静音检测后按语音段切块（VAD），减少截断误差并提升 Sherpa 识别质量。
+
+  额外高风险问题
+
+  1. app/src/main/python/engine.py:124、app/src/main/python/engine.py:125、app/src/main/python/
+     engine.py:230、app/src/main/java/com/voicedoc/app/MainActivity.java:40、app/src/main/java/
+     com/voicedoc/app/SettingsActivity.java:46 硬编码 API Key/Secret，存在泄漏和滥用风险。应改为
+     服务端签发或至少本地安全存储+可轮换。
+
+  如果你要，我下一步可以直接按 yolo 模式给你一版“可直接替换”的修复清单：先修 XML 编译阻塞，再落
+  地前三个算法优化（对齐分层、准确率重算、拼音缓存）。

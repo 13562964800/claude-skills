@@ -1,0 +1,142 @@
+package com.multilanglearner.ui.home
+
+import android.app.Application
+import android.content.Context
+import android.net.Uri
+import androidx.lifecycle.AndroidViewModel
+import androidx.lifecycle.viewModelScope
+import com.multilanglearner.data.db.entity.VideoEntity
+import com.multilanglearner.data.repository.VideoRepository
+import com.multilanglearner.data.store.ThemeStore
+import com.yausername.youtubedl_android.YoutubeDL
+import com.yausername.youtubedl_android.YoutubeDLRequest
+import dagger.hilt.android.lifecycle.HiltViewModel
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.flow.*
+import kotlinx.coroutines.launch
+import java.io.File
+import java.io.FileOutputStream
+import javax.inject.Inject
+
+data class HomeUiState(
+    val url: String = "",
+    val selectedLang: String = "en",
+    val isDownloading: Boolean = false,
+    val downloadProgress: Float = 0f,
+    val statusText: String = "",
+    val videos: List<VideoEntity> = emptyList()
+)
+
+@HiltViewModel
+class HomeViewModel @Inject constructor(
+    application: Application,
+    private val videoRepository: VideoRepository,
+    private val themeStore: ThemeStore
+) : AndroidViewModel(application) {
+    private val _uiState = MutableStateFlow(HomeUiState())
+    val uiState: StateFlow<HomeUiState> = _uiState.asStateFlow()
+
+    private val downloadsDir: File = File(application.filesDir, "downloads").also { it.mkdirs() }
+
+    init {
+        viewModelScope.launch {
+            videoRepository.getAll().collect { videos ->
+                _uiState.update { it.copy(videos = videos) }
+            }
+        }
+    }
+
+    fun setUrl(url: String) { _uiState.update { it.copy(url = url) } }
+    fun setLang(lang: String) { _uiState.update { it.copy(selectedLang = lang) } }
+
+    fun setTheme(theme: String) { viewModelScope.launch { themeStore.setTheme(theme) } }
+    fun setFontSize(size: String) { viewModelScope.launch { themeStore.setFontSize(size) } }
+
+    fun downloadVideo(onComplete: (String, String?) -> Unit) {
+        val url = _uiState.value.url.trim()
+        if (url.isBlank()) {
+            _uiState.update { it.copy(statusText = "请输入视频链接") }
+            return
+        }
+
+        _uiState.update { it.copy(isDownloading = true, downloadProgress = 0f, statusText = "正在初始化下载...") }
+
+        viewModelScope.launch(Dispatchers.IO) {
+            try {
+                val request = YoutubeDLRequest(url).apply {
+                    addOption("-o", "${downloadsDir.absolutePath}/%(title)s.%(ext)s")
+                    addOption("--write-sub")
+                    addOption("--write-auto-sub")
+                    addOption("--sub-lang", _uiState.value.selectedLang)
+                    addOption("--sub-format", "vtt")
+                    addOption("--convert-subs", "vtt")
+                    addOption("-f", "bestvideo[height<=720]+bestaudio/best[height<=720]/best")
+                    addOption("--merge-output-format", "mp4")
+                    addOption("--no-playlist")
+                }
+
+                YoutubeDL.getInstance().execute(request) { progress, line ->
+                    _uiState.update { it.copy(downloadProgress = progress / 100f, statusText = "下载中 ${progress.toInt()}%") }
+                }
+
+                // Find downloaded files
+                val mp4Files = downloadsDir.listFiles { f -> f.extension == "mp4" }?.sortedByDescending { it.lastModified() }
+                val videoFile = mp4Files?.firstOrNull()
+                if (videoFile != null) {
+                    val vttFile = downloadsDir.listFiles { f ->
+                        f.nameWithoutExtension.startsWith(videoFile.nameWithoutExtension) && f.extension == "vtt"
+                    }?.firstOrNull()
+
+                    val entity = VideoEntity(
+                        title = videoFile.nameWithoutExtension,
+                        filePath = videoFile.absolutePath,
+                        vttPath = vttFile?.absolutePath,
+                        language = _uiState.value.selectedLang,
+                        sourceUrl = url
+                    )
+                    videoRepository.insert(entity)
+
+                    _uiState.update { it.copy(isDownloading = false, statusText = "下载完成!") }
+                    launch(Dispatchers.Main) { onComplete(videoFile.absolutePath, vttFile?.absolutePath) }
+                } else {
+                    _uiState.update { it.copy(isDownloading = false, statusText = "下载失败") }
+                }
+            } catch (e: Exception) {
+                _uiState.update { it.copy(isDownloading = false, statusText = "失败: ${e.message}") }
+            }
+        }
+    }
+
+    fun importVideo(context: Context, uri: Uri, onComplete: (String, String?) -> Unit) {
+        viewModelScope.launch(Dispatchers.IO) {
+            try {
+                _uiState.update { it.copy(statusText = "正在导入...") }
+
+                // Create a temporary file from the URI
+                val inputStream = context.contentResolver.openInputStream(uri)
+                val tempFile = File(downloadsDir, "import_${System.currentTimeMillis()}.mp4")
+                val outputStream = FileOutputStream(tempFile)
+
+                inputStream?.use { input ->
+                    outputStream.use { output ->
+                        input.copyTo(output)
+                    }
+                }
+
+                val entity = VideoEntity(
+                    title = tempFile.nameWithoutExtension,
+                    filePath = tempFile.absolutePath,
+                    vttPath = null,
+                    language = _uiState.value.selectedLang,
+                    sourceUrl = null
+                )
+                videoRepository.insert(entity)
+
+                _uiState.update { it.copy(statusText = "导入完成!") }
+                launch(Dispatchers.Main) { onComplete(tempFile.absolutePath, null) }
+            } catch (e: Exception) {
+                _uiState.update { it.copy(statusText = "导入失败: ${e.message}") }
+            }
+        }
+    }
+}

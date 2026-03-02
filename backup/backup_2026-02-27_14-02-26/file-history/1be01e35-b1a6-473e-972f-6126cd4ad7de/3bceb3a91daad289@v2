@@ -1,0 +1,32 @@
+# Audio Diagnostic Script
+
+Write-Host "=== Audio Diagnostic ==="
+Write-Host ""
+
+# Check TTS
+Write-Host "Testing TTS..."
+try {
+    Add-Type -AssemblyName System.Speech
+    $synth = New-Object System.Speech.Synthesis.SpeechSynthesizer
+    $synth.Speak("Test")
+    Write-Host "TTS Test: SUCCESS"
+} catch {
+    Write-Host "TTS Test: FAILED - $($_.Exception.Message)"
+}
+Write-Host ""
+
+# List registry devices
+Write-Host "Audio Devices in Registry:"
+$devices = Get-ChildItem "HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\MMDevices\Audio\Render" -ErrorAction SilentlyContinue
+Write-Host "Found $($devices.Count) audio render devices"
+Write-Host ""
+
+# Try restart service suggestion
+Write-Host "To restart audio service, run:"
+Write-Host "net stop audiosrv"
+Write-Host "net start audiosrv"
+Write-Host ""
+
+# Windows audio troubleshooter
+Write-Host "To run Windows Audio Troubleshooter:"
+Write-Host "msdt.exe -id AudioDiagnostic"

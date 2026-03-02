@@ -1,0 +1,187 @@
+@echo off
+chcp 65001 >nul
+title 视频下载转录系统 - 安装向导 v1.0.0
+
+:: 设置颜色
+color 0A
+
+:WELCOME
+cls
+echo.
+echo     ╔════════════════════════════════════════════════════════╗
+echo     ║                                                        ║
+echo     ║          视频下载转录系统 v1.0.0                      ║
+echo     ║          Video Download ^& Transcribe System           ║
+echo     ║                                                        ║
+echo     ╚════════════════════════════════════════════════════════╝
+echo.
+echo     欢迎使用安装向导！
+echo.
+echo     本程序将安装以下组件：
+echo     • 浏览器扩展（Chrome/Edge）
+echo     • 本地服务（Python + FastAPI）
+echo     • 转录引擎（faster-whisper + Groq API）
+echo.
+echo     系统要求：
+echo     • Windows 11
+echo     • Python 3.10+
+echo     • FFmpeg
+echo     • Chrome/Edge 浏览器
+echo.
+echo     按任意键开始安装，或按 Ctrl+C 取消...
+pause >nul
+
+:CHECK_ADMIN
+cls
+echo.
+echo [1/6] 检查管理员权限...
+net session >nul 2>&1
+if %errorlevel% neq 0 (
+    echo [X] 需要管理员权限
+    echo.
+    echo     请右键点击此文件，选择"以管理员身份运行"
+    echo.
+    pause
+    exit /b 1
+)
+echo [OK] 已获得管理员权限
+timeout /t 1 >nul
+
+:CHECK_PYTHON
+cls
+echo.
+echo [2/6] 检查 Python...
+python --version >nul 2>&1
+if %errorlevel% neq 0 (
+    echo [X] Python 未安装
+    echo.
+    echo     正在打开 Python 下载页面...
+    start https://www.python.org/downloads/
+    echo.
+    echo     请安装 Python 3.10 或更高版本后重新运行此安装程序
+    echo.
+    pause
+    exit /b 1
+)
+for /f "tokens=2" %%i in ('python --version 2^>^&1') do set PYTHON_VERSION=%%i
+echo [OK] Python %PYTHON_VERSION% 已安装
+timeout /t 1 >nul
+
+:CHECK_FFMPEG
+cls
+echo.
+echo [3/6] 检查 FFmpeg...
+ffmpeg -version >nul 2>&1
+if %errorlevel% neq 0 (
+    echo [!] FFmpeg 未安装
+    echo.
+    echo     正在打开 FFmpeg 下载页面...
+    start https://ffmpeg.org/download.html
+    echo.
+    echo     请下载并安装 FFmpeg 后重新运行此安装程序
+    echo     安装步骤：
+    echo     1. 下载 FFmpeg
+    echo     2. 解压到 C:\ffmpeg
+    echo     3. 将 C:\ffmpeg\bin 添加到系统 PATH
+    echo.
+    pause
+    exit /b 1
+)
+for /f "tokens=3" %%i in ('ffmpeg -version 2^>^&1 ^| findstr "ffmpeg version"') do set FFMPEG_VERSION=%%i
+echo [OK] FFmpeg %FFMPEG_VERSION% 已安装
+timeout /t 1 >nul
+
+:INSTALL_DEPS
+cls
+echo.
+echo [4/6] 安装 Python 依赖...
+echo.
+echo     正在使用清华镜像源安装依赖包...
+echo     这可能需要几分钟时间，请耐心等待...
+echo.
+cd video-download-service
+pip install -r requirements.txt -i https://pypi.tuna.tsinghua.edu.cn/simple --quiet
+if %errorlevel% neq 0 (
+    echo.
+    echo [X] 依赖安装失败
+    echo.
+    pause
+    exit /b 1
+)
+echo.
+echo [OK] 依赖安装完成
+timeout /t 2 >nul
+
+:CREATE_CONFIG
+cls
+echo.
+echo [5/6] 创建配置文件...
+if not exist config.yaml (
+    copy config.yaml.example config.yaml >nul 2>&1
+    echo [OK] 配置文件已创建
+) else (
+    echo [OK] 配置文件已存在
+)
+timeout /t 1 >nul
+
+:CREATE_SHORTCUT
+cls
+echo.
+echo [6/6] 创建快捷方式...
+echo Set oWS = WScript.CreateObject("WScript.Shell") > CreateShortcut.vbs
+echo sLinkFile = "%USERPROFILE%\Desktop\视频下载转录服务.lnk" >> CreateShortcut.vbs
+echo Set oLink = oWS.CreateShortcut(sLinkFile) >> CreateShortcut.vbs
+echo oLink.TargetPath = "%CD%\start.bat" >> CreateShortcut.vbs
+echo oLink.WorkingDirectory = "%CD%" >> CreateShortcut.vbs
+echo oLink.Description = "视频下载转录服务" >> CreateShortcut.vbs
+echo oLink.Save >> CreateShortcut.vbs
+cscript //nologo CreateShortcut.vbs
+del CreateShortcut.vbs
+echo [OK] 桌面快捷方式已创建
+timeout /t 1 >nul
+
+:COMPLETE
+cls
+echo.
+echo     ╔════════════════════════════════════════════════════════╗
+echo     ║                                                        ║
+echo     ║                  安装完成！                            ║
+echo     ║                                                        ║
+echo     ╚════════════════════════════════════════════════════════╝
+echo.
+echo     [OK] 所有组件已成功安装
+echo.
+echo     下一步：
+echo.
+echo     1. 配置 Groq API Key（可选）
+echo        编辑：video-download-service\config.yaml
+echo        获取：https://console.groq.com/
+echo.
+echo     2. 启动服务
+echo        双击桌面的"视频下载转录服务"快捷方式
+echo.
+echo     3. 安装浏览器扩展
+echo        • 打开 Chrome/Edge 浏览器
+echo        • 访问 chrome://extensions/
+echo        • 开启"开发者模式"
+echo        • 点击"加载已解压的扩展程序"
+echo        • 选择 video-downloader-extension 文件夹
+echo.
+echo     4. 开始使用
+echo        • 访问 YouTube 或 B站视频页面
+echo        • 点击"下载转录"按钮
+echo.
+echo     详细文档：
+echo     • README.md - 完整文档
+echo     • QUICKSTART.md - 快速开始
+echo     • INSTALLATION_GUIDE.md - 安装指南
+echo.
+echo.
+choice /c YN /m "是否现在打开配置文件"
+if %errorlevel%==1 (
+    notepad config.yaml
+)
+echo.
+echo     感谢使用！
+echo.
+pause

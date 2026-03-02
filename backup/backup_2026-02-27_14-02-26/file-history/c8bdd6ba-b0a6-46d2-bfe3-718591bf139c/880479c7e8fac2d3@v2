@@ -1,0 +1,106 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 800 500">
+  <defs>
+    <linearGradient id="sky" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" style="stop-color:#e0f2fe"/>
+      <stop offset="100%" style="stop-color:#f0f9ff"/>
+    </linearGradient>
+    <linearGradient id="cloud" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" style="stop-color:#60a5fa"/>
+      <stop offset="100%" style="stop-color:#3b82f6"/>
+    </linearGradient>
+    <linearGradient id="local" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" style="stop-color:#34d399"/>
+      <stop offset="100%" style="stop-color:#10b981"/>
+    </linearGradient>
+    <filter id="shadow">
+      <feDropShadow dx="2" dy="3" stdDeviation="3" flood-opacity="0.15"/>
+    </filter>
+  </defs>
+
+  <!-- 背景 -->
+  <rect width="800" height="500" rx="16" fill="url(#sky)"/>
+
+  <!-- 标题 -->
+  <text x="400" y="45" text-anchor="middle" font-family="Arial, sans-serif" font-size="22" font-weight="bold" fill="#1e3a5f">Clone / Fork / Pull / Push —— 四个搬运动作</text>
+
+  <!-- 云端区域 -->
+  <rect x="50" y="70" width="700" height="170" rx="20" fill="url(#cloud)" opacity="0.12" stroke="#3b82f6" stroke-width="2" stroke-dasharray="8,4"/>
+  <text x="400" y="100" text-anchor="middle" font-family="Arial, sans-serif" font-size="16" fill="#2563eb" font-weight="bold">☁️ GitHub 云端</text>
+
+  <!-- 别人的仓库 -->
+  <rect x="100" y="120" width="200" height="90" rx="14" fill="#fff" filter="url(#shadow)" stroke="#93c5fd" stroke-width="2"/>
+  <text x="200" y="155" text-anchor="middle" font-family="Arial, sans-serif" font-size="15" font-weight="bold" fill="#1e40af">📁 别人的仓库</text>
+  <text x="200" y="180" text-anchor="middle" font-family="Arial, sans-serif" font-size="12" fill="#64748b">原始项目</text>
+  <text x="200" y="198" text-anchor="middle" font-family="Arial, sans-serif" font-size="11" fill="#94a3b8">owner/project</text>
+
+  <!-- 你的远程仓库 -->
+  <rect x="480" y="120" width="220" height="90" rx="14" fill="#fff" filter="url(#shadow)" stroke="#93c5fd" stroke-width="2"/>
+  <text x="590" y="155" text-anchor="middle" font-family="Arial, sans-serif" font-size="15" font-weight="bold" fill="#1e40af">📁 你的远程仓库</text>
+  <text x="590" y="180" text-anchor="middle" font-family="Arial, sans-serif" font-size="12" fill="#64748b">你账号下的副本</text>
+  <text x="590" y="198" text-anchor="middle" font-family="Arial, sans-serif" font-size="11" fill="#94a3b8">you/project</text>
+
+  <!-- Fork 箭头 -->
+  <path d="M310 165 L470 165" stroke="#f59e0b" stroke-width="3" fill="none" marker-end="url(#arrowOrange)"/>
+  <defs>
+    <marker id="arrowOrange" markerWidth="10" markerHeight="7" refX="9" refY="3.5" orient="auto">
+      <polygon points="0 0, 10 3.5, 0 7" fill="#f59e0b"/>
+    </marker>
+  </defs>
+  <rect x="350" y="142" width="70" height="28" rx="14" fill="#fef3c7" stroke="#f59e0b" stroke-width="1.5"/>
+  <text x="385" y="161" text-anchor="middle" font-family="Arial, sans-serif" font-size="13" font-weight="bold" fill="#b45309">🍴 Fork</text>
+
+  <!-- 本地区域 -->
+  <rect x="50" y="300" width="700" height="170" rx="20" fill="url(#local)" opacity="0.1" stroke="#10b981" stroke-width="2" stroke-dasharray="8,4"/>
+  <text x="400" y="330" text-anchor="middle" font-family="Arial, sans-serif" font-size="16" fill="#047857" font-weight="bold">💻 你的电脑（本地）</text>
+
+  <!-- 本地仓库 -->
+  <rect x="430" y="350" width="220" height="90" rx="14" fill="#fff" filter="url(#shadow)" stroke="#6ee7b7" stroke-width="2"/>
+  <text x="540" y="385" text-anchor="middle" font-family="Arial, sans-serif" font-size="15" font-weight="bold" fill="#065f46">📁 本地仓库</text>
+  <text x="540" y="410" text-anchor="middle" font-family="Arial, sans-serif" font-size="12" fill="#64748b">你电脑上的代码</text>
+  <text x="540" y="428" text-anchor="middle" font-family="Arial, sans-serif" font-size="11" fill="#94a3b8">git clone 下来的</text>
+
+  <!-- Clone 箭头（远程 → 本地） -->
+  <defs>
+    <marker id="arrowGreen" markerWidth="10" markerHeight="7" refX="9" refY="3.5" orient="auto">
+      <polygon points="0 0, 10 3.5, 0 7" fill="#10b981"/>
+    </marker>
+    <marker id="arrowPurple" markerWidth="10" markerHeight="7" refX="9" refY="3.5" orient="auto">
+      <polygon points="0 0, 10 3.5, 0 7" fill="#8b5cf6"/>
+    </marker>
+    <marker id="arrowRed" markerWidth="10" markerHeight="7" refX="9" refY="3.5" orient="auto">
+      <polygon points="0 0, 10 3.5, 0 7" fill="#ef4444"/>
+    </marker>
+  </defs>
+
+  <!-- Clone 箭头 -->
+  <path d="M620 218 L570 342" stroke="#10b981" stroke-width="3" fill="none" marker-end="url(#arrowGreen)"/>
+  <rect x="610" y="258" width="80" height="28" rx="14" fill="#d1fae5" stroke="#10b981" stroke-width="1.5"/>
+  <text x="650" y="277" text-anchor="middle" font-family="Arial, sans-serif" font-size="12" font-weight="bold" fill="#065f46">📋 Clone</text>
+
+  <!-- Pull 箭头 -->
+  <path d="M560 218 L550 342" stroke="#8b5cf6" stroke-width="2.5" fill="none" marker-end="url(#arrowPurple)" stroke-dasharray="6,3"/>
+  <rect x="490" y="258" width="65" height="28" rx="14" fill="#ede9fe" stroke="#8b5cf6" stroke-width="1.5"/>
+  <text x="522" y="277" text-anchor="middle" font-family="Arial, sans-serif" font-size="12" font-weight="bold" fill="#5b21b6">📥 Pull</text>
+
+  <!-- Push 箭头 -->
+  <path d="M510 342 L530 218" stroke="#ef4444" stroke-width="2.5" fill="none" marker-end="url(#arrowRed)" stroke-dasharray="6,3"/>
+  <rect x="440" y="258" width="70" height="28" rx="14" fill="#fee2e2" stroke="#ef4444" stroke-width="1.5"/>
+  <text x="475" y="277" text-anchor="middle" font-family="Arial, sans-serif" font-size="12" font-weight="bold" fill="#b91c1c">📤 Push</text>
+
+  <!-- PR 箭头（本地 → 别人的仓库） -->
+  <path d="M430 390 L200 390 L200 218" stroke="#ec4899" stroke-width="2.5" fill="none" marker-end="url(#arrowPink)" stroke-dasharray="8,4"/>
+  <defs>
+    <marker id="arrowPink" markerWidth="10" markerHeight="7" refX="9" refY="3.5" orient="auto">
+      <polygon points="0 0, 10 3.5, 0 7" fill="#ec4899"/>
+    </marker>
+  </defs>
+  <rect x="130" y="290" width="140" height="28" rx="14" fill="#fce7f3" stroke="#ec4899" stroke-width="1.5"/>
+  <text x="200" y="309" text-anchor="middle" font-family="Arial, sans-serif" font-size="12" font-weight="bold" fill="#9d174d">🙋 Pull Request</text>
+
+  <!-- 图例 -->
+  <rect x="100" y="355" width="250" height="100" rx="10" fill="#fff" opacity="0.85" stroke="#cbd5e1" stroke-width="1"/>
+  <text x="120" y="378" font-family="Arial, sans-serif" font-size="11" fill="#475569">🍴 Fork = 复制到你的GitHub账号</text>
+  <text x="120" y="398" font-family="Arial, sans-serif" font-size="11" fill="#475569">📋 Clone = 下载到你的电脑</text>
+  <text x="120" y="418" font-family="Arial, sans-serif" font-size="11" fill="#475569">📤 Push = 上传改动  📥 Pull = 下载更新</text>
+  <text x="120" y="438" font-family="Arial, sans-serif" font-size="11" fill="#475569">🙋 PR = 请求合并到原始项目</text>
+</svg>

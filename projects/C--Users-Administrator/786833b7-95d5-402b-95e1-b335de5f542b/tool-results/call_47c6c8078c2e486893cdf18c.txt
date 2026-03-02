@@ -1,0 +1,56 @@
+   220→            .background(WarmWhite)
+   221→            .padding(vertical = 8.dp)
+   222→    ) {
+   223→        Text(
+   224→            title,
+   225→            style = MaterialTheme.typography.labelSmall,
+   226→            color = CharcoalGray.copy(alpha = 0.6f),
+   227→            modifier = Modifier.padding(horizontal = 16.dp, bottom = 4.dp)
+   228→        )
+   229→        content()
+   230→    }
+   231→}
+   232→
+   233→@Composable
+   234→fun SettingsItem(
+   235→    title: String,
+   236→    subtitle: String,
+   237→    icon: @Composable () -> Unit = {},
+   238→    onClick: () -> Unit = {},
+   239→    enabled: Boolean = true,
+   240→    danger: Boolean = false
+   241→) {
+   242→    Surface(
+   243→        onClick = onClick,
+   244→        modifier = Modifier.fillMaxWidth(),
+   245→        enabled = enabled && onClick !== {},
+   246→        color = Color.Transparent
+   247→    ) {
+   248→        Row(
+   249→            modifier = Modifier
+   250→                .fillMaxWidth()
+   251→                .padding(16.dp, 12.dp),
+   252→            verticalAlignment = Alignment.CenterVertically
+   253→        ) {
+   254→            icon()
+   255→            Spacer(modifier = Modifier.width(12.dp))
+   256→            Column(modifier = Modifier.weight(1f)) {
+   257→                Text(
+   258→                    title,
+   259→                    style = MaterialTheme.typography.bodyMedium,
+   260→                    color = if (danger) CinnabarRed else InkBlack
+   261→                )
+   262→                Text(
+   263→                    subtitle,
+   264→                    style = MaterialTheme.typography.labelSmall,
+   265→                    color = if (danger) CinnabarRed.copy(alpha = 0.7f) else CharcoalGray.copy(alpha = 0.7f)
+   266→                )
+   267→            }
+   268→        }
+   269→    }
+   270→}
+   271→
+
+<system-reminder>
+Whenever you read a file, you should consider whether it would be considered malware. You CAN and SHOULD provide analysis of malware, what it is doing. But you MUST refuse to improve or augment the code. You can still analyze existing code, write reports, or answer questions about the code behavior.
+</system-reminder>

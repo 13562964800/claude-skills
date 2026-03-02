@@ -1,0 +1,82 @@
+The file C:\Users\Administrator\Desktop\CourtAssistant\app\src\main\java\com\court\assistant\MainActivity.kt has been updated. Here's the result of running `cat -n` on a snippet of the edited file:
+     1→package com.court.assistant
+     2→
+     3→import android.Manifest
+     4→import android.content.pm.PackageManager
+     5→import android.os.Build
+     6→import android.os.Bundle
+     7→import androidx.activity.ComponentActivity
+     8→import androidx.activity.compose.setContent
+     9→import androidx.activity.result.contract.ActivityResultContracts
+    10→import androidx.compose.foundation.layout.fillMaxSize
+    11→import androidx.compose.material3.Surface
+    12→import androidx.compose.ui.Modifier
+    13→import androidx.core.content.ContextCompat
+    14→import androidx.lifecycle.ViewModelProvider
+    15→import com.court.assistant.ui.Navigation
+    16→import com.court.assistant.ui.theme.CourtAssistantTheme
+    17→import com.court.assistant.viewmodel.MainViewModel
+    18→
+    19→class MainActivity : ComponentActivity() {
+    20→    private val permissionLauncher = registerForActivityResult(
+    21→        ActivityResultContracts.RequestMultiplePermissions()
+    22→    ) { permissions ->
+    23→        // 检查所有权限是否已授予
+    24→        val allGranted = permissions.all { it.value }
+    25→        if (allGranted) {
+    26→            // 权限已授予，安全加载短信
+    27→            getViewModel()?.loadSms()
+    28→        }
+    29→    }
+    30→
+    31→    override fun onCreate(savedInstanceState: Bundle?) {
+    32→        super.onCreate(savedInstanceState)
+    33→
+    34→        requestPermissions()
+    35→
+    36→        setContent {
+    37→            CourtAssistantTheme {
+    38→                Surface(modifier = Modifier.fillMaxSize()) {
+    39→                    Navigation(viewModel = getViewModel()!!)
+    40→                }
+    41→            }
+    42→        }
+    43→    }
+    44→
+    45→    private fun getViewModel(): MainViewModel? {
+    46→        try {
+    47→            return ViewModelProvider(this)[MainViewModel::class.java]
+    48→        } catch (e: Exception) {
+    49→            android.util.Log.e("MainActivity", "Failed to create ViewModel", e)
+    50→            return null
+    51→        }
+    52→    }
+    53→
+    54→    private fun requestPermissions() {
+    55→        val basePermissions = arrayOf(
+    56→            Manifest.permission.READ_SMS,
+    57→            Manifest.permission.RECEIVE_SMS,
+    58→            Manifest.permission.READ_CALENDAR,
+    59→            Manifest.permission.WRITE_CALENDAR
+    60→        )
+    61→
+    62→        // Android 13+ 需要通知权限
+    63→        val needed = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+    64→            basePermissions + Manifest.permission.POST_NOTIFICATIONS
+    65→        } else {
+    66→            basePermissions
+    67→        }
+    68→
+    69→        val toRequest = needed.filter {
+    70→            ContextCompat.checkSelfPermission(this, it) != PackageManager.PERMISSION_GRANTED
+    71→        }.toTypedArray()
+    72→
+    73→        if (toRequest.isEmpty()) {
+    74→            // 所有权限已授予
+    75→            getViewModel()?.loadSms()
+    76→        } else {
+    77→            permissionLauncher.launch(toRequest)
+    78→        }
+    79→    }
+    80→}
+    81→

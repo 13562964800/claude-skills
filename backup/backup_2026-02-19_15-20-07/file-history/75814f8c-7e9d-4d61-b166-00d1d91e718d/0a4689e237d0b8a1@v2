@@ -1,0 +1,273 @@
+package com.courassistant;
+
+import com.courassistant.java.parser.SmsParser;
+import com.courassistant.java.model.CourtMessage;
+
+import org.junit.Test;
+import static org.junit.Assert.*;
+
+/**
+ * SmsParser 单元测试
+ * 测试短信解析功能
+ */
+public class SmsParserTest {
+
+    /**
+     * 测试标准法院短信解析
+     */
+    @Test
+    public void testParseStandardCourtSms() {
+        String smsContent = "【北京市第一中级人民法院】您有案件(2024)京01民初123号将于2024年3月15日上午9:30在第三法庭开庭，请准时出席。";
+        CourtMessage message = SmsParser.parse(smsContent, "10690000");
+
+        assertNotNull("解析结果不应为null", message);
+        assertTrue("应标记为已解析", message.getIsParsed());
+        assertEquals("案号应正确", "(2024)京01民初123号", message.getParsedCaseNo());
+        assertEquals("法院名称应包含", message.getCourtName(), "北京市第一中级人民法院");
+        assertTrue("应包含开庭时间", message.getHearingTime() > 0);
+    }
+
+    /**
+     * 测试案号提取
+     */
+    @Test
+    public void testExtractCaseNo() {
+        // 标准格式
+        String caseNo1 = SmsParser.extractCaseNo("案件(2024)京01民初123号");
+        assertEquals("标准案号", "(2024)京01民初123号", caseNo1);
+
+        // 民事案件
+        String caseNo2 = SmsParser.extractCaseNo("(2024)京01民初123号");
+        assertEquals("民事案号", "(2024)京01民初123号", caseNo2);
+
+        // 刑事案件
+        String caseNo3 = SmsParser.extractCaseNo("(2024)京01刑初456号");
+        assertEquals("刑事案号", "(2024)京01刑初456号", caseNo3);
+
+        // 行政案件
+        String caseNo4 = SmsParser.extractCaseNo("(2024)京01行终789号");
+        assertEquals("行政案号", "(2024)京01行终789号", caseNo4);
+    }
+
+    /**
+     * 测试开庭时间提取
+     */
+    @Test
+    public void testExtractHearingTime() {
+        // 标准格式: 2024年3月15日上午9:30
+        long time1 = SmsParser.extractHearingTime("开庭时间：2024年3月15日上午9:30");
+        assertTrue("应成功解析上午时间", time1 > 0);
+
+        // 下午时间
+        long time2 = SmsParser.extractHearingTime("2024年3月15日下午2:30");
+        assertTrue("应成功解析下午时间", time2 > 0);
+
+        // 短格式
+        long time3 = SmsParser.extractHearingTime("2024年3月15日开庭");
+        assertTrue("应成功解析短日期格式", time3 > 0);
+
+        // 数字格式
+        long time4 = SmsParser.extractHearingTime("2024-03-15 09:30");
+        assertTrue("应成功解析数字格式", time4 > 0);
+    }
+
+    /**
+     * 测试法院名称提取
+     */
+    @Test
+    public void testExtractCourtName() {
+        // 完整名称
+        String court1 = SmsParser.extractCourtName("【北京市第一中级人民法院】");
+        assertEquals("完整法院名", "北京市第一中级人民法院", court1);
+
+        // 简称
+        String court2 = SmsParser.extractCourtName("北京一中院");
+        assertNotNull("应提取到法院名称", court2);
+
+        // 带地方法院
+        String court3 = SmsParser.extractCourtName("【北京市海淀区人民法院】");
+        assertEquals("地方法院", "北京市海淀区人民法院", court3);
+    }
+
+    /**
+     * 测试当事人名称提取
+     */
+    @Test
+    public void testExtractPartyName() {
+        // 被告
+        String party1 = SmsParser.extractPartyName("被告张三");
+        assertEquals("被告名称", "张三", party1);
+
+        // 原告
+        String party2 = SmsParser.extractPartyName("原告李四");
+        assertEquals("原告名称", "李四", party2);
+
+        // 被传唤人
+        String party3 = SmsParser.extractPartyName("被传唤人王五");
+        assertEquals("被传唤人名称", "王五", party3);
+    }
+
+    /**
+     * 测试URL提取
+     */
+    @Test
+    public void testExtractUrl() {
+        // https URL
+        String url1 = SmsParser.extractUrl("请点击链接查看详情：https://court.example.com/doc?id=123");
+        assertEquals("https URL", "https://court.example.com/doc?id=123", url1);
+
+        // http URL
+        String url2 = SmsParser.extractUrl("详情：http://court.test.com/summons");
+        assertEquals("http URL", "http://court.test.com/summons", url2);
+
+        // 无URL
+        String url3 = SmsParser.extractUrl("请准时出席庭审");
+        assertNull("无URL应返回null", url3);
+    }
+
+    /**
+     * 测试传票识别
+     */
+    @Test
+    public void testIsSummonsMessage() {
+        // 包含"传票"
+        boolean isSummons1 = SmsParser.isSummonsMessage("开庭传票已送达，请查收");
+        assertTrue("包含传票关键词", isSummons1);
+
+        // 包含"应诉"
+        boolean isSummons2 = SmsParser.isSummonsMessage("应诉通知书");
+        assertTrue("包含应诉关键词", isSummons2);
+
+        // 包含"开庭通知"
+        boolean isSummons3 = SmsParser.isSummonsMessage("开庭通知");
+        assertTrue("包含开庭通知关键词", isSummons3);
+
+        // 普通短信
+        boolean isSummons4 = SmsParser.isSummonsMessage("您的验证码是123456");
+        assertFalse("普通短信不应被识别为传票", isSummons4);
+    }
+
+    /**
+     * 测试法院关键词过滤
+     */
+    @Test
+    public void testIsCourtRelatedMessage() {
+        // 法院关键词
+        boolean isCourt1 = SmsParser.isCourtRelatedMessage("北京市第一中级人民法院通知");
+        assertTrue("包含法院关键词", isCourt1);
+
+        // 开庭关键词
+        boolean isCourt2 = SmsParser.isCourtRelatedMessage("您有案件即将开庭");
+        assertTrue("包含开庭关键词", isCourt2);
+
+        // 案件关键词
+        boolean isCourt3 = SmsParser.isCourtRelatedMessage("案件(2024)京01民初123号");
+        assertTrue("包含案件关键词", isCourt3);
+
+        // 非法院短信
+        boolean isNotCourt = SmsParser.isCourtRelatedMessage("您的快递已送达");
+        assertFalse("普通短信不应被识别", isNotCourt);
+    }
+
+    /**
+     * 测试完整短信解析流程
+     */
+    @Test
+    public void testParseCompleteMessage() {
+        String smsContent = "【北京市第一中级人民法院】案号：(2024)京01民初123号" +
+                        "原告：张三 被告：李四" +
+                        "开庭时间：2024年3月15日上午9:30" +
+                        "地点：第三法庭" +
+                        "请点击链接查看传票：https://court.example.com/summons.pdf";
+
+        CourtMessage message = SmsParser.parse(smsContent, "10690000");
+
+        assertNotNull("解析结果不应为null", message);
+        assertTrue("应标记为法院短信", message.getIsParsed());
+        assertEquals("案号正确", "(2024)京01民初123号", message.getParsedCaseNo());
+        assertTrue("开庭时间应正确", message.getHearingTime() > 0);
+        assertEquals("包含URL", "https://court.example.com/summons.pdf", SmsParser.extractUrl(smsContent));
+        assertTrue("应为传票消息", SmsParser.isSummonsMessage(smsContent));
+    }
+
+    /**
+     * 测试边界情况
+     */
+    @Test
+    public void testEdgeCases() {
+        // 空字符串
+        CourtMessage emptyMsg = SmsParser.parse("", "10690000");
+        assertNotNull("空字符串应返回消息对象", emptyMsg);
+
+        // null 输入
+        CourtMessage nullMsg = SmsParser.parse(null, "10690000");
+        assertNotNull("null应返回消息对象", nullMsg);
+
+        // 无效发送者
+        CourtMessage invalidSender = SmsParser.parse("【法院】开庭通知", null);
+        assertNotNull("无效发送者应返回消息对象", invalidSender);
+
+        // 非常长的短信
+        StringBuilder longSms = new StringBuilder();
+        for (int i = 0; i < 1000; i++) {
+            longSms.append("测试");
+        }
+        CourtMessage longMsg = SmsParser.parse(longSms.toString(), "10690000");
+        assertNotNull("长短信应能处理", longMsg);
+    }
+
+    /**
+     * 测试不同地区法院格式
+     */
+    @Test
+    public void testDifferentCourtFormats() {
+        // 北京格式
+        String caseNo1 = SmsParser.extractCaseNo("(2024)京01民初123号");
+        assertNotNull("北京格式应能解析", caseNo1);
+
+        // 上海格式
+        String caseNo2 = SmsParser.extractCaseNo("(2024)沪01民终456号");
+        assertNotNull("上海格式应能解析", caseNo2);
+
+        // 广东格式
+        String caseNo3 = SmsParser.extractCaseNo("(2024)粤01民再789号");
+        assertNotNull("广东格式应能解析", caseNo3);
+    }
+
+    /**
+     * 测试特殊字符处理
+     */
+    @Test
+    public void testSpecialCharacters() {
+        // 包含括号
+        String caseNo1 = SmsParser.extractCaseNo("（2024）京01民初123号"); // 全角括号
+        assertNotNull("全角括号应能处理", caseNo1);
+
+        // 包含空格
+        String caseNo2 = SmsParser.extractCaseNo("( 2024 ) 京 01 民初 123 号");
+        assertNotNull("多余空格应能处理", caseNo2);
+
+        // 包含中英文混合
+        String content = "案号 Case No: (2024)京01民初123号";
+        CourtMessage msg = SmsParser.parse(content, "10690000");
+        assertNotNull("中英文混合应能处理", msg);
+    }
+
+    /**
+     * 测试时间格式容错
+     */
+    @Test
+    public void testTimeFormatTolerance() {
+        // 缺少分钟
+        long time1 = SmsParser.extractHearingTime("2024年3月15日上午9点");
+        assertTrue("缺少分钟应能解析", time1 > 0);
+
+        // 使用"时"而不是":"
+        long time2 = SmsParser.extractHearingTime("2024年3月15日9时30分");
+        assertTrue("使用时应能解析", time2 > 0);
+
+        // 24小时制
+        long time3 = SmsParser.extractHearingTime("2024年3月15日14:30");
+        assertTrue("24小时制应能解析", time3 > 0);
+    }
+}

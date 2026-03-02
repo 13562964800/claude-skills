@@ -1,0 +1,5 @@
+[Console]::OutputEncoding = [System.Text.Encoding]::UTF8
+$today = (Get-Date).Date
+Get-ChildItem -Path "$env:USERPROFILE\Desktop" -Force |
+  Where-Object { $_.LastWriteTime.Date -eq $today } |
+  Format-Table Name, Length, LastWriteTime -AutoSize

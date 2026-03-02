@@ -1,0 +1,103 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:orientation="vertical"
+    android:background="@color/song_paper">
+
+    <!-- 档案选择栏 -->
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="36dp"
+        android:orientation="horizontal"
+        android:gravity="center_vertical"
+        android:paddingHorizontal="8dp"
+        android:background="@color/song_wood">
+
+        <TextView
+            android:id="@+id/tvProfile"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:text="默认档案"
+            android:textColor="@color/song_paper"
+            android:textSize="13sp"
+            android:singleLine="true" />
+
+        <ImageButton
+            android:id="@+id/btnPrevProfile"
+            android:layout_width="32dp"
+            android:layout_height="32dp"
+            android:src="@android:drawable/ic_media_previous"
+            android:background="?attr/selectableItemBackgroundBorderless"
+            android:contentDescription="上一个档案" />
+
+        <ImageButton
+            android:id="@+id/btnNextProfile"
+            android:layout_width="32dp"
+            android:layout_height="32dp"
+            android:src="@android:drawable/ic_media_next"
+            android:background="?attr/selectableItemBackgroundBorderless"
+            android:contentDescription="下一个档案" />
+
+        <ImageButton
+            android:id="@+id/btnSwitchKeyboard"
+            android:layout_width="32dp"
+            android:layout_height="32dp"
+            android:src="@android:drawable/ic_menu_sort_by_size"
+            android:background="?attr/selectableItemBackgroundBorderless"
+            android:contentDescription="切换键盘" />
+    </LinearLayout>
+
+    <!-- 字段建议条 -->
+    <androidx.recyclerview.widget.RecyclerView
+        android:id="@+id/rvFields"
+        android:layout_width="match_parent"
+        android:layout_height="48dp"
+        android:orientation="horizontal"
+        android:paddingHorizontal="4dp"
+        android:clipToPadding="false" />
+
+    <!-- 全部字段网格 -->
+    <androidx.recyclerview.widget.RecyclerView
+        android:id="@+id/rvAllFields"
+        android:layout_width="match_parent"
+        android:layout_height="160dp"
+        android:padding="4dp"
+        android:visibility="gone"
+        android:clipToPadding="false" />
+
+    <!-- 底部操作栏 -->
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="36dp"
+        android:orientation="horizontal"
+        android:gravity="center_vertical"
+        android:paddingHorizontal="8dp"
+        android:background="@color/song_light_wood">
+
+        <TextView
+            android:id="@+id/btnExpand"
+            android:layout_width="wrap_content"
+            android:layout_height="match_parent"
+            android:gravity="center"
+            android:text="展开 ▲"
+            android:textColor="@color/song_ink"
+            android:textSize="13sp"
+            android:paddingHorizontal="12dp" />
+
+        <View
+            android:layout_width="0dp"
+            android:layout_height="0dp"
+            android:layout_weight="1" />
+
+        <TextView
+            android:id="@+id/tvHint"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:textColor="@color/song_ink"
+            android:textSize="11sp"
+            android:alpha="0.6" />
+    </LinearLayout>
+
+</LinearLayout>

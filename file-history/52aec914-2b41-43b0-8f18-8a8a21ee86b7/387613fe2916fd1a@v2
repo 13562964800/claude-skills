@@ -1,0 +1,76 @@
+@echo off
+echo === LegalFlow Studio Windows Installer Build Script ===
+echo.
+
+REM 检查 Python
+python --version >nul 2>&1
+if errorlevel 1 (
+    echo Error: Python is not installed
+    exit /b 1
+)
+
+REM 检查 Node.js
+node --version >nul 2>&1
+if errorlevel 1 (
+    echo Error: Node.js is not installed
+    exit /b 1
+)
+
+REM 检查 PyInstaller
+pip show pyinstaller >nul 2>&1
+if errorlevel 1 (
+    echo Installing PyInstaller...
+    pip install pyinstaller
+)
+
+echo.
+echo Step 1: Building API executable...
+cd build\pyinstaller
+pyinstaller legalflow-api.spec
+if errorlevel 1 (
+    echo Error: Failed to build API executable
+    exit /b 1
+)
+cd ..\..
+
+echo.
+echo Step 2: Building frontend...
+cd apps\web
+call npm install
+call npm run build
+if errorlevel 1 (
+    echo Error: Failed to build frontend
+    exit /b 1
+)
+cd ..\..
+
+echo.
+echo Step 3: Preparing Electron app...
+cd apps\desktop
+
+REM 创建 api 目录并复制 API 可执行文件
+if not exist api mkdir api
+copy ..\..\build\pyinstaller\dist\legalflow-api.exe api\
+
+REM 创建 renderer 目录并复制前端构建文件
+if not exist renderer mkdir renderer
+xcopy /E /I /Y ..\web\out renderer
+
+REM 安装 Electron 依赖
+call npm install
+
+echo.
+echo Step 4: Building Electron installer...
+call npm run build:win
+if errorlevel 1 (
+    echo Error: Failed to build Electron installer
+    exit /b 1
+)
+
+cd ..\..
+
+echo.
+echo === Build Complete ===
+echo Installer location: apps\desktop\dist\LegalFlow Studio Setup 0.5.0.exe
+echo.
+pause

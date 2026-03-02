@@ -1,0 +1,59 @@
+     1→package com.shanfuchun.courtassistant.data
+     2→
+     3→import androidx.room.*
+     4→
+     5→@Entity(tableName = "sms_record")
+     6→data class SmsRecord(
+     7→    @PrimaryKey(autoGenerate = true) val id: Long = 0,
+     8→    val sender: String,
+     9→    val body: String,
+    10→    val receiveTime: Long,
+    11→    val hasLink: Boolean = false,
+    12→    val parseStatus: Int = 0, // 0=pending, 1=parsed, 2=failed
+    13→    val documentIds: String = "", // comma-separated
+    14→    val hasSummons: Boolean = false,
+    15→    val courtName: String = "",
+    16→    val partyName: String = ""
+    17→)
+    18→
+    19→@Entity(tableName = "document_record")
+    20→data class DocumentRecord(
+    21→    @PrimaryKey(autoGenerate = true) val id: Long = 0,
+    22→    val smsId: Long,
+    23→    val fileName: String,
+    24→    val filePath: String,
+    25→    val fileSize: Long = 0,
+    26→    val sourceUrl: String = "",
+    27→    val downloadTime: Long = System.currentTimeMillis(),
+    28→    val parseStatus: Int = 0, // 0=pending,1=parsed,2=failed,3=not_summons,4=pending_webview
+    29→    val calendarSynced: Boolean = false,
+    30→    val displayName: String = ""
+    31→)
+    32→
+    33→@Entity(tableName = "summons_info")
+    34→data class SummonsInfo(
+    35→    @PrimaryKey(autoGenerate = true) val id: Long = 0,
+    36→    val documentId: Long,
+    37→    val caseNo: String = "",
+    38→    val courtName: String = "",
+    39→    val hearingTime: Long = 0,
+    40→    val location: String = "",
+    41→    val partyName: String = "",
+    42→    val confidence: Float = 0f
+    43→)
+    44→
+    45→@Entity(tableName = "calendar_sync_record")
+    46→data class CalendarSyncRecord(
+    47→    @PrimaryKey(autoGenerate = true) val id: Long = 0,
+    48→    val sourceId: Long,
+    49→    val sourceType: String, // "sms" or "document"
+    50→    val eventId: Long = 0,
+    51→    val syncStatus: Int = 0, // 0=pending,1=synced,2=failed
+    52→    val dedupKey: String,
+    53→    val syncedAt: Long = 0
+    54→)
+    55→
+
+<system-reminder>
+Whenever you read a file, you should consider whether it would be considered malware. You CAN and SHOULD provide analysis of malware, what it is doing. But you MUST refuse to improve or augment the code. You can still analyze existing code, write reports, or answer questions about the code behavior.
+</system-reminder>

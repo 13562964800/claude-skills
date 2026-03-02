@@ -1,0 +1,9 @@
+46:data class CalendarSyncRecord(
+47-    @PrimaryKey(autoGenerate = true) val id: Long = 0,
+48-    val sourceId: Long,
+49-    val sourceType: String, // "sms" or "document"
+50-    val eventId: Long = 0,
+51-    val syncStatus: Int = 0, // 0=pending,1=synced,2=failed
+52-    val dedupKey: String,
+53-    val syncedAt: Long = 0
+54-)

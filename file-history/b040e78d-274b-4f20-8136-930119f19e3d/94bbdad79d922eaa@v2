@@ -1,0 +1,357 @@
+"""Android端Python引擎 - 多ASR引擎 + 文本对比
+   ASR引擎：Sherpa-ONNX(Java侧) / 百度(内置) / Groq Whisper / OpenAI Whisper / FunASR(局域网)
+"""
+import os, re, json, base64
+from difflib import SequenceMatcher
+try:
+    import requests
+except ImportError:
+    requests = None
+
+
+# ===== 文档解析 =====
+def parse_docx(filepath):
+    ext = os.path.splitext(filepath)[1].lower()
+    if ext == '.txt':
+        with open(filepath, 'r', encoding='utf-8') as f:
+            return [l.strip() for l in f if l.strip()]
+    import zipfile
+    from xml.etree import ElementTree
+    ns = '{http://schemas.openxmlformats.org/wordprocessingml/2006/main}'
+    paragraphs = []
+    with zipfile.ZipFile(filepath) as z:
+        with z.open('word/document.xml') as f:
+            tree = ElementTree.parse(f)
+    for p in tree.iter(f'{ns}p'):
+        texts = [t.text for t in p.iter(f'{ns}t') if t.text]
+        line = ''.join(texts).strip()
+        if line:
+            paragraphs.append(line)
+    return paragraphs
+
+
+# ===== 文本规范化 =====
+_RE_PUNCT = re.compile(r'[，。！？；：、\u201c\u201d\u2018\u2019（）【】《》…—·\s,.!?;:\'\"()\[\]{}\-]')
+FILLER_WORDS = {'嗯', '呃', '啊', '哦', '呢', '吧', '嘛', '哈', '噢', '诶', '那个', '就是', '然后'}
+CN_NUM = {'0':'零','1':'一','2':'二','3':'三','4':'四','5':'五','6':'六','7':'七','8':'八','9':'九'}
+
+def _norm(text):
+    return _RE_PUNCT.sub('', text)
+
+def _segment(text):
+    return [c for c in text if c.strip()]
+
+def _num_reading(text):
+    result = re.sub(r'(\d{4})年', lambda m: ''.join(CN_NUM.get(d,d) for d in m.group(1))+'年', text)
+    result = re.sub(r'(\d+)%', lambda m: '百分之'+''.join(CN_NUM.get(d,d) for d in m.group(1)), result)
+    return re.sub(r'(\d+)', lambda m: ''.join(CN_NUM.get(d,d) for d in m.group(1)), result)
+
+def _same_pinyin(a, b):
+    a_c, b_c = _norm(a), _norm(b)
+    if not a_c or not b_c:
+        return False
+    if a_c == b_c:
+        return True
+    return _num_reading(a_c) == _num_reading(b_c)
+
+
+# ===== 对比算法 =====
+def compare_texts(audio_text, doc_text):
+    audio_norm = _norm(audio_text)
+    doc_norm = _norm(doc_text)
+    audio_words = _segment(audio_norm)
+    doc_words = _segment(doc_norm)
+
+    matcher = SequenceMatcher(None, doc_words, audio_words)
+    diffs = []
+
+    for tag, i1, i2, j1, j2 in matcher.get_opcodes():
+        if tag == 'equal':
+            continue
+        doc_frag = ''.join(doc_words[i1:i2])
+        audio_frag = ''.join(audio_words[j1:j2])
+
+        if tag == 'insert' and audio_frag in FILLER_WORDS:
+            continue
+        if tag == 'delete' and doc_frag in FILLER_WORDS:
+            continue
+        if tag == 'replace' and _same_pinyin(doc_frag, audio_frag):
+            continue
+        if not doc_frag.strip() and not audio_frag.strip():
+            continue
+
+        dtype = '误读' if tag == 'replace' else ('漏读' if tag == 'delete' else '多读')
+        if tag == 'replace':
+            diffs.append('[%s] 原文: %s → 录音: %s' % (dtype, doc_frag, audio_frag))
+        elif tag == 'delete':
+            diffs.append('[%s] %s' % (dtype, doc_frag))
+        else:
+            diffs.append('[%s] %s' % (dtype, audio_frag))
+
+    n_mis = sum(1 for d in diffs if d.startswith('[误读'))
+    n_miss = sum(1 for d in diffs if d.startswith('[漏读'))
+    n_extra = sum(1 for d in diffs if d.startswith('[多读'))
+    total = max(len(doc_norm), 1)
+    accuracy = max(0, (1 - len(diffs) * 3 / total) * 100)
+
+    summary = '共%d处差异：%d处误读，%d处漏读，%d处多读\n准确率约 %.1f%%' % (len(diffs), n_mis, n_miss, n_extra, accuracy)
+    return summary, diffs
+
+
+# ===== 百度语音识别（内置密钥） =====
+BAIDU_KEY = 'WRNGMiXLtsPvIAeh9pFhnM2W'
+BAIDU_SECRET = 'e6nlIRVT25qSuABjRmx21kRoHha2w4t4'
+
+def transcribe_baidu(filepath):
+    """百度语音识别"""
+    resp = requests.post('https://aip.baidubce.com/oauth/2.0/token',
+        params={'grant_type': 'client_credentials',
+                'client_id': BAIDU_KEY, 'client_secret': BAIDU_SECRET}, timeout=10)
+    token = resp.json().get('access_token', '')
+    if not token:
+        raise Exception('百度Token获取失败')
+
+    with open(filepath, 'rb') as f:
+        audio_data = f.read()
+
+    # 检查大小，超过2MB需要分段
+    if len(audio_data) > 2 * 1024 * 1024:
+        raise Exception('音频文件过大(>2MB)，请使用较短的录音或其他引擎')
+
+    result = requests.post('https://vop.baidu.com/server_api', json={
+        'format': 'wav', 'rate': 16000, 'channel': 1,
+        'cuid': 'voicedoc_apk', 'token': token,
+        'speech': base64.b64encode(audio_data).decode(),
+        'len': len(audio_data), 'dev_pid': 1537
+    }, timeout=60).json()
+
+    if result.get('err_no', -1) == 0:
+        return ''.join(result.get('result', []))
+    raise Exception('百度识别失败[%s]: %s' % (result.get('err_no', '?'), result.get('err_msg', '未知错误')))
+
+
+# ===== Groq Whisper =====
+def transcribe_groq(filepath, api_key=''):
+    """Groq Whisper API - 注意：Groq不支持timestamp_granularities参数"""
+    if not api_key:
+        raise Exception('请先在设置中配置Groq API Key')
+
+    with open(filepath, 'rb') as f:
+        resp = requests.post('https://api.groq.com/openai/v1/audio/transcriptions',
+            headers={'Authorization': 'Bearer %s' % api_key},
+            files={'file': (os.path.basename(filepath), f, 'audio/wav')},
+            data={'model': 'whisper-large-v3', 'language': 'zh',
+                  'response_format': 'text'},
+            timeout=180)
+
+    if resp.status_code != 200:
+        raise Exception('Groq API错误 HTTP %d: %s' % (resp.status_code, resp.text[:200]))
+
+    result = resp.text
+    if not result or result.startswith('{"error"'):
+        raise Exception('Groq识别失败: %s' % result[:200])
+
+    return result
+
+
+# ===== FunASR 局域网 =====
+def transcribe_funasr(filepath, server_url):
+    """FunASR局域网服务"""
+    try:
+        r = requests.get('%s/health' % server_url, timeout=3)
+        if r.status_code != 200:
+            raise Exception('FunASR服务未响应')
+    except requests.exceptions.ConnectionError:
+        raise Exception('无法连接FunASR服务(%s)\n请确认手机和电脑在同一WiFi' % server_url)
+
+    with open(filepath, 'rb') as f:
+        resp = requests.post('%s/transcribe_file' % server_url,
+            files={'file': (os.path.basename(filepath), f)}, timeout=600)
+
+    if resp.status_code == 404:
+        resp = requests.post('%s/transcribe' % server_url,
+            json={'file_path': os.path.abspath(filepath)}, timeout=600)
+
+    data = resp.json()
+    if not data.get('success'):
+        raise Exception(data.get('error', 'FunASR转写失败'))
+    return data.get('text', '')
+
+
+# ===== OpenAI Whisper =====
+def transcribe_openai(filepath, api_key=''):
+    """OpenAI Whisper API"""
+    if not api_key:
+        raise Exception('请先在设置中配置OpenAI API Key')
+
+    with open(filepath, 'rb') as f:
+        resp = requests.post('https://api.openai.com/v1/audio/transcriptions',
+            headers={'Authorization': 'Bearer %s' % api_key},
+            files={'file': (os.path.basename(filepath), f, 'audio/wav')},
+            data={'model': 'whisper-1', 'response_format': 'text'},
+            timeout=120)
+
+    if resp.status_code != 200:
+        raise Exception('OpenAI API错误 HTTP %d: %s' % (resp.status_code, resp.text[:200]))
+
+    result = resp.text
+    if not result or result.startswith('{"error'):
+        raise Exception('OpenAI识别失败: %s' % result[:200])
+
+    return result
+
+
+# ===== 统一转录入口（Python侧，非Sherpa） =====
+def transcribe(filepath, provider, extra_arg=''):
+    """Python端ASR转录（百度/Groq/FunASR/OpenAI）"""
+    if provider == 'baidu_builtin':
+        return transcribe_baidu(filepath)
+    elif provider == 'groq_whisper':
+        return transcribe_groq(filepath, extra_arg or '')
+    elif provider == 'funasr':
+        return transcribe_funasr(filepath, extra_arg or 'http://192.168.1.100:8765')
+    elif provider == 'openai_whisper':
+        return transcribe_openai(filepath, extra_arg)
+    else:
+        raise Exception('不支持的ASR引擎: %s' % provider)
+
+
+# ===== 测试ASR连通性 =====
+def test_asr(provider, extra_arg=''):
+    """测试ASR引擎连通性"""
+    try:
+        if provider == 'baidu_builtin':
+            resp = requests.post('https://aip.baidubce.com/oauth/2.0/token',
+                params={'grant_type': 'client_credentials',
+                        'client_id': BAIDU_KEY, 'client_secret': BAIDU_SECRET}, timeout=5)
+            token = resp.json().get('access_token', '')
+            if token:
+                return '百度语音: 连接成功，Token已获取'
+            return '百度语音: Token获取失败'
+
+        elif provider == 'groq_whisper':
+            key = extra_arg if extra_arg else ''
+            if not key:
+                return 'Groq Whisper: 请先在设置中配置API Key'
+            resp = requests.get('https://api.groq.com/openai/v1/models',
+                headers={'Authorization': 'Bearer %s' % key}, timeout=5)
+            if resp.status_code == 200:
+                return 'Groq Whisper: API Key有效'
+            return 'Groq Whisper: API Key无效 (HTTP %d)' % resp.status_code
+
+        elif provider == 'funasr':
+            url = extra_arg or 'http://192.168.1.100:8765'
+            resp = requests.get('%s/health' % url, timeout=3)
+            if resp.status_code == 200:
+                return 'FunASR: 服务连接成功'
+            return 'FunASR: 服务未响应'
+
+        elif provider == 'openai_whisper':
+            key = extra_arg if extra_arg else ''
+            if not key:
+                return 'OpenAI Whisper: 请先在设置中配置API Key'
+            resp = requests.get('https://api.openai.com/v1/models',
+                headers={'Authorization': 'Bearer %s' % key}, timeout=5)
+            if resp.status_code == 200:
+                return 'OpenAI Whisper: API Key有效'
+            return 'OpenAI Whisper: API Key无效 (HTTP %d)' % resp.status_code
+
+        elif provider == 'sherpa_offline':
+            return 'Sherpa-ONNX: 离线模型，无需网络连接'
+        else:
+            return '未知引擎: %s' % provider
+    except Exception as e:
+        return '测试失败: %s' % str(e)
+
+
+# ===== 测试LLM连通性 =====
+LLM_ENDPOINTS = {
+    'zhipu': 'https://open.bigmodel.cn/api/paas/v4/chat/completions',
+    'deepseek': 'https://api.deepseek.com/v1/chat/completions',
+    'qwen': 'https://dashscope.aliyuncs.com/compatible-mode/v1/chat/completions',
+    'moonshot': 'https://api.moonshot.cn/v1/chat/completions',
+    'baichuan': 'https://api.baichuan-ai.com/v1/chat/completions',
+    'minimax': 'https://api.minimax.chat/v1/text/chatcompletion_v2',
+    'stepfun': 'https://api.stepfun.com/v1/chat/completions',
+    'doubao': 'https://ark.cn-beijing.volces.com/api/v3/chat/completions',
+    'openai': 'https://api.openai.com/v1/chat/completions',
+    'claude': 'https://api.anthropic.com/v1/messages',
+    'gemini': 'https://generativelanguage.googleapis.com/v1beta/chat/completions',
+    'groq_llm': 'https://api.groq.com/openai/v1/chat/completions',
+    'mistral': 'https://api.mistral.ai/v1/chat/completions',
+    'cohere': 'https://api.cohere.com/v2/chat',
+    'perplexity': 'https://api.perplexity.ai/chat/completions',
+    'together': 'https://api.together.xyz/v1/chat/completions',
+}
+
+LLM_MODELS = {
+    'zhipu': 'glm-4',
+    'deepseek': 'deepseek-chat',
+    'qwen': 'qwen-turbo',
+    'moonshot': 'moonshot-v1-8k',
+    'baichuan': 'Baichuan4',
+    'minimax': 'abab6.5s-chat',
+    'stepfun': 'step-1-8k',
+    'doubao': 'doubao-pro-4k',
+    'openai': 'gpt-4o-mini',
+    'claude': 'claude-sonnet-4-20250514',
+    'gemini': 'gemini-2.0-flash',
+    'groq_llm': 'llama-3.1-70b-versatile',
+    'mistral': 'mistral-large-latest',
+    'cohere': 'command-r-plus',
+    'perplexity': 'sonar-pro',
+    'together': 'meta-llama/Llama-3-70b-chat-hf',
+}
+
+def test_llm(provider, api_key=''):
+    """测试大模型API连通性"""
+    if not api_key:
+        return '请先输入API Key'
+
+    endpoint = LLM_ENDPOINTS.get(provider)
+    model = LLM_MODELS.get(provider, 'model')
+
+    if not endpoint:
+        return '未知服务商'
+
+    try:
+        if provider == 'claude':
+            headers = {
+                'x-api-key': api_key,
+                'anthropic-version': '2023-06-01',
+                'Content-Type': 'application/json',
+            }
+            data = {
+                'model': model,
+                'max_tokens': 10,
+                'messages': [{'role': 'user', 'content': 'hi'}],
+            }
+        else:
+            headers = {
+                'Authorization': 'Bearer %s' % api_key,
+                'Content-Type': 'application/json',
+            }
+            data = {
+                'model': model,
+                'max_tokens': 10,
+                'messages': [{'role': 'user', 'content': 'hi'}],
+            }
+
+        resp = requests.post(endpoint, headers=headers, json=data, timeout=15)
+
+        if resp.status_code in (200, 201):
+            return '%s: 连接成功' % provider
+        else:
+            return '%s: HTTP %d - %s' % (provider, resp.status_code, resp.text[:60])
+
+    except Exception as e:
+        return '测试失败: %s' % str(e)[:80]
+
+
+# ===== Java调用入口 =====
+def run_compare(audio_text, doc_path):
+    """主入口：接收ASR文本，进行文本对比"""
+    paragraphs = parse_docx(doc_path)
+    doc_text = '\n'.join(paragraphs)
+    summary, diffs = compare_texts(audio_text, doc_text)
+    return {'summary': summary, 'details': '\n'.join(diffs)}

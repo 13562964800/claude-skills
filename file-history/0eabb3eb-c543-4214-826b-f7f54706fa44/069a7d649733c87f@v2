@@ -1,0 +1,68 @@
+package com.ai.hotspot.data.mapper
+
+import com.ai.hotspot.data.local.entity.HotspotEntity
+import com.ai.hotspot.domain.model.Category
+import com.ai.hotspot.domain.model.Hotspot
+import com.ai.hotspot.domain.model.Source
+import kotlinx.serialization.encodeToString
+import kotlinx.serialization.json.Json
+import java.time.LocalDateTime
+import java.time.ZoneOffset
+
+/**
+ * 数据映射器 - Domain Model <-> Entity
+ */
+object HotspotMapper {
+
+    private val json = Json { ignoreUnknownKeys = true }
+
+    fun Hotspot.toEntity(): HotspotEntity {
+        return HotspotEntity(
+            id = id,
+            title = title,
+            description = description,
+            source = source.name,
+            category = category.name,
+            url = url,
+            stars = stars,
+            author = author,
+            tags = json.encodeToString(tags),
+            imageUrl = imageUrl,
+            publishedAt = publishedAt.toEpochSecond(ZoneOffset.UTC),
+            fetchedAt = fetchedAt.toEpochSecond(ZoneOffset.UTC),
+            isRead = isRead,
+            isBookmarked = isBookmarked
+        )
+    }
+
+    fun HotspotEntity.toDomain(): Hotspot {
+        return Hotspot(
+            id = id,
+            title = title,
+            description = description,
+            source = Source.valueOf(source),
+            category = Category.valueOf(category),
+            url = url,
+            stars = stars,
+            author = author,
+            tags = try {
+                json.decodeFromString(tags)
+            } catch (e: Exception) {
+                emptyList()
+            },
+            imageUrl = imageUrl,
+            publishedAt = LocalDateTime.ofEpochSecond(publishedAt, 0, ZoneOffset.UTC),
+            fetchedAt = LocalDateTime.ofEpochSecond(fetchedAt, 0, ZoneOffset.UTC),
+            isRead = isRead,
+            isBookmarked = isBookmarked
+        )
+    }
+
+    fun List<HotspotEntity>.toDomainList(): List<Hotspot> {
+        return map { it.toDomain() }
+    }
+
+    fun List<Hotspot>.toEntityList(): List<HotspotEntity> {
+        return map { it.toEntity() }
+    }
+}

@@ -1,0 +1,31 @@
+985-     * 获取状态文本
+986-     */
+987-    fun getStatusText(status: DownloadStatus): String {
+988-        return when (status) {
+989-            DownloadStatus.PENDING -> "等待中"
+990-            DownloadStatus.FETCHING_INFO -> "解析中..."
+991-            DownloadStatus.DOWNLOADING -> "下载中"
+992-            DownloadStatus.PAUSED -> "已暂停"
+993-            DownloadStatus.COMPLETED -> "已完成"
+994-            DownloadStatus.FAILED -> "失败"
+995-            DownloadStatus.CANCELLED -> "已取消"
+996-            DownloadStatus.WAITING_FOR_AUTH -> "需要登录"
+997-        }
+998-    }
+999-
+1000:    fun importVideo(context: Context, uri: Uri, onComplete: (String, String?) -> Unit) {
+1001-        viewModelScope.launch(Dispatchers.IO) {
+1002-            try {
+1003-                _uiState.update { it.copy(isProcessing = true) }
+1004-
+1005-                val fileName = getFileName(context, uri) ?: "import_${System.currentTimeMillis()}.mp4"
+1006-                val tempFile = File(downloadsDir, fileName)
+1007-
+1008-                val inputStream = context.contentResolver.openInputStream(uri)
+1009-                val outputStream = FileOutputStream(tempFile)
+1010-
+1011-                inputStream?.use { input ->
+1012-                    outputStream.use { output ->
+1013-                        input.copyTo(output)
+1014-                    }
+1015-                }

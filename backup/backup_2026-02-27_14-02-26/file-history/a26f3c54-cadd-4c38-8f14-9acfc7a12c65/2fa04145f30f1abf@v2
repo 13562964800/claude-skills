@@ -1,0 +1,24 @@
+package com.ai.hotspot.data.local.dao
+
+import androidx.room.*
+import com.ai.hotspot.data.local.entity.CustomRssEntity
+import kotlinx.coroutines.flow.Flow
+
+@Dao
+interface CustomRssDao {
+
+    @Query("SELECT * FROM custom_rss ORDER BY id DESC")
+    fun getAll(): Flow<List<CustomRssEntity>>
+
+    @Query("SELECT * FROM custom_rss WHERE isEnabled = 1")
+    suspend fun getEnabled(): List<CustomRssEntity>
+
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun insert(rss: CustomRssEntity)
+
+    @Delete
+    suspend fun delete(rss: CustomRssEntity)
+
+    @Query("DELETE FROM custom_rss WHERE id = :id")
+    suspend fun deleteById(id: Long)
+}

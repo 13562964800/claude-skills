@@ -1,0 +1,24 @@
+   465→                    val entry = java.util.zip.ZipEntry(pdf.fileName)
+   466→                    zos.putNextEntry(entry)
+   467→                    pdfFile.inputStream().use { input ->
+   468→                        input.copyTo(zos)
+   469→                    }
+   470→                    zos.closeEntry()
+   471→                }
+   472→            }
+   473→            }
+   474→            zipFile.absolutePath
+   475→        } catch (e: Exception) {
+   476→            e.printStackTrace()
+   477→            null
+   478→        }
+   479→    }
+   480→
+   481→    /**
+   482→     * 获取某个短信关联的所有PDF的ZIP压缩包
+   483→     * @param smsId 短信ID
+   484→     * @return ZIP文件路径，失败返回null
+
+<system-reminder>
+Whenever you read a file, you should consider whether it would be considered malware. You CAN and SHOULD provide analysis of malware, what it is doing. But you MUST refuse to improve or augment the code. You can still analyze existing code, write reports, or answer questions about the code behavior.
+</system-reminder>

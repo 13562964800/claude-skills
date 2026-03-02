@@ -1,0 +1,312 @@
+package com.courassistant.java.utils;
+
+import android.util.Log;
+
+import com.shanfuchun.courtassistant.java.model.CalendarEvent;
+import com.shanfuchun.courtassistant.java.model.CourtCase;
+import com.shanfuchun.courtassistant.java.model.CourtDocument;
+import com.shanfuchun.courtassistant.java.model.CourtMessage;
+
+import java.io.File;
+import java.util.ArrayList;
+import java.util.HashSet;
+import java.util.List;
+import java.util.Set;
+
+/**
+ * 去重工具类
+ * 用于短信、文档、日历事件的去重处理
+ *
+ * 去重策略：
+ * 1. 短信：基于短信内容和接收时间（5秒内相同内容视为重复）
+ * 2. 文档：基于文件名和文件大小
+ * 3. 日历事件：基于案号和开庭时间
+ */
+public class DeduplicationHelper {
+
+    private static final String TAG = "DeduplicationHelper";
+    private static final long SMS_DUPLICATE_TIME_WINDOW = 5000; // 5秒
+
+    /**
+     * 短信去重检查
+     * 检查新短信是否与已存在列表中的短信重复
+     *
+     * @param newMsg   新短信
+     * @param existing 已存在的短信列表
+     * @return true 表示重复，false 表示不重复
+     */
+    public static boolean isDuplicateSms(CourtMessage newMsg, List<CourtMessage> existing) {
+        if (newMsg == null || existing == null || existing.isEmpty()) {
+            return false;
+        }
+
+        for (CourtMessage msg : existing) {
+            if (isDuplicateSms(newMsg, msg)) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    /**
+     * 比较两条短信是否重复
+     */
+    public static boolean isDuplicateSms(CourtMessage msg1, CourtMessage msg2) {
+        if (msg1 == null || msg2 == null) {
+            return false;
+        }
+
+        // 内容相同且时间在5秒内
+        String content1 = msg1.getContent();
+        String content2 = msg2.getContent();
+
+        if (content1 == null || content2 == null) {
+            return false;
+        }
+
+        if (!content1.equals(content2)) {
+            return false;
+        }
+
+        long timeDiff = Math.abs(msg1.getReceiveTime() - msg2.getReceiveTime());
+        return timeDiff < SMS_DUPLICATE_TIME_WINDOW;
+    }
+
+    /**
+     * 从新短信列表中过滤出非重复的短信
+     *
+     * @param newSms   新收到的短信列表
+     * @param existing 已存在的短信列表
+     * @return 去重后的短信列表
+     */
+    public static List<CourtMessage> filterDuplicateSms(List<CourtMessage> newSms,
+                                                        List<CourtMessage> existing) {
+        if (newSms == null || newSms.isEmpty()) {
+            return new ArrayList<>();
+        }
+
+        if (existing == null || existing.isEmpty()) {
+            return new ArrayList<>(newSms);
+        }
+
+        List<CourtMessage> result = new ArrayList<>();
+        for (CourtMessage newMsg : newSms) {
+            if (!isDuplicateSms(newMsg, existing)) {
+                result.add(newMsg);
+            } else {
+                Log.d(TAG, "过滤重复短信: " + newMsg.getContent());
+            }
+        }
+        return result;
+    }
+
+    /**
+     * 文档去重检查
+     * 检查文件是否与已存在列表中的文档重复
+     *
+     * @param file     要检查的文件
+     * @param existing 已存在的文档列表
+     * @return true 表示重复，false 表示不重复
+     */
+    public static boolean isDuplicateDocument(File file, List<CourtDocument> existing) {
+        if (file == null || !file.exists() || existing == null || existing.isEmpty()) {
+            return false;
+        }
+
+        for (CourtDocument doc : existing) {
+            if (isDuplicateDocument(file, doc)) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    /**
+     * 比较文件与文档记录是否重复
+     */
+    public static boolean isDuplicateDocument(File file, CourtDocument doc) {
+        if (file == null || doc == null) {
+            return false;
+        }
+
+        // 文件名相同且文件大小相同
+        String fileName = file.getName();
+        long fileSize = file.length();
+
+        return fileName.equals(doc.getFileName()) && fileSize == doc.getFileSize();
+    }
+
+    /**
+     * 比较两个文档是否重复
+     */
+    public static boolean isDuplicateDocument(CourtDocument doc1, CourtDocument doc2) {
+        if (doc1 == null || doc2 == null) {
+            return false;
+        }
+
+        return doc1.getFileName().equals(doc2.getFileName()) &&
+                doc1.getFileSize() == doc2.getFileSize();
+    }
+
+    /**
+     * 从新文档列表中过滤出非重复的文档
+     */
+    public static List<CourtDocument> filterDuplicateDocuments(List<CourtDocument> newDocs,
+                                                           List<CourtDocument> existing) {
+        if (newDocs == null || newDocs.isEmpty()) {
+            return new ArrayList<>();
+        }
+
+        if (existing == null || existing.isEmpty()) {
+            return new ArrayList<>(newDocs);
+        }
+
+        List<CourtDocument> result = new ArrayList<>();
+        for (CourtDocument newDoc : newDocs) {
+            if (!isDuplicateDocument(newDoc, existing)) {
+                result.add(newDoc);
+            } else {
+                Log.d(TAG, "过滤重复文档: " + newDoc.getFileName());
+            }
+        }
+        return result;
+    }
+
+    /**
+     * 日历事件去重检查
+     * 检查案件是否已存在对应的日历事件
+     *
+     * @param newCase  新案件
+     * @param existing 已存在的案件列表
+     * @return true 表示重复，false 表示不重复
+     */
+    public static boolean isDuplicateCalendarEvent(CourtCase newCase, List<CourtCase> existing) {
+        if (newCase == null || existing == null || existing.isEmpty()) {
+            return false;
+        }
+
+        for (CourtCase c : existing) {
+            if (isDuplicateCalendarEvent(newCase, c)) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    /**
+     * 比较两个案件是否为同一天的开庭（用于日历去重）
+     */
+    public static boolean isDuplicateCalendarEvent(CourtCase case1, CourtCase case2) {
+        if (case1 == null || case2 == null) {
+            return false;
+        }
+
+        // 案号相同且开庭时间相同
+        String caseNo1 = case1.getCaseNo();
+        String caseNo2 = case2.getCaseNo();
+
+        if (caseNo1 == null || caseNo2 == null) {
+            return false;
+        }
+
+        if (!caseNo1.equals(caseNo2)) {
+            return false;
+        }
+
+        // 开庭时间相同（1分钟内视为相同）
+        long timeDiff = Math.abs(case1.getHearingDate() - case2.getHearingDate());
+        return timeDiff < 60000; // 1分钟
+    }
+
+    /**
+     * 生成日历事件的去重键
+     */
+    public static String buildCalendarDedupKey(String caseNo, long hearingDate) {
+        return caseNo + "_" + hearingDate;
+    }
+
+    /**
+     * 检查日历事件记录是否重复
+     */
+    public static boolean isDuplicateCalendarEventRecord(CalendarEvent event1, CalendarEvent event2) {
+        if (event1 == null || event2 == null) {
+            return false;
+        }
+
+        String key1 = event1.getDedupKey();
+        String key2 = event2.getDedupKey();
+
+        return key1 != null && key1.equals(key2);
+    }
+
+    /**
+     * 使用 Set 进行快速去重
+     * 返回去重后的列表
+     */
+    public static <T> List<T> deduplicateList(List<T> list, DedupComparator<T> comparator) {
+        if (list == null || list.isEmpty()) {
+            return new ArrayList<>();
+        }
+
+        Set<String> keys = new HashSet<>();
+        List<T> result = new ArrayList<>();
+
+        for (T item : list) {
+            String key = comparator.getKey(item);
+            if (key != null && !keys.contains(key)) {
+                keys.add(key);
+                result.add(item);
+            }
+        }
+
+        return result;
+    }
+
+    /**
+     * 去重比较器接口
+     */
+    public interface DedupComparator<T> {
+        String getKey(T item);
+    }
+
+    /**
+     * 短信去重比较器
+     */
+    public static class SmsDedupComparator implements DedupComparator<CourtMessage> {
+        @Override
+        public String getKey(CourtMessage item) {
+            if (item == null) {
+                return null;
+            }
+            // 使用内容和时间（5秒精度）作为键
+            long timeKey = item.getReceiveTime() / SMS_DUPLICATE_TIME_WINDOW;
+            return item.getContent() + "_" + timeKey;
+        }
+    }
+
+    /**
+     * 文档去重比较器
+     */
+    public static class DocumentDedupComparator implements DedupComparator<CourtDocument> {
+        @Override
+        public String getKey(CourtDocument item) {
+            if (item == null) {
+                return null;
+            }
+            return item.getFileName() + "_" + item.getFileSize();
+        }
+    }
+
+    /**
+     * 案件去重比较器
+     */
+    public static class CaseDedupComparator implements DedupComparator<CourtCase> {
+        @Override
+        public String getKey(CourtCase item) {
+            if (item == null) {
+                return null;
+            }
+            return item.getCaseNo() + "_" + item.getHearingDate();
+        }
+    }
+}

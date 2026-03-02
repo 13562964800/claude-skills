@@ -1,0 +1,14 @@
+package com.ai.hotspot.domain.usecase
+
+import com.ai.hotspot.domain.repository.IHotspotRepository
+import javax.inject.Inject
+import javax.inject.Singleton
+
+@Singleton
+class RefreshHotspotsUseCase @Inject constructor(
+    private val repository: IHotspotRepository
+) {
+    suspend operator fun invoke(keywords: List<String> = emptyList()): Result<Unit> {
+        return repository.refreshHotspots(keywords)
+    }
+}

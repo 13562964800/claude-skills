@@ -1,0 +1,24 @@
+   115→                                }
+   116→                            }
+   117→                            return clicked.size;
+   118→                        })()
+   119→                    """.trimIndent()) { result ->
+   120→                        Log.d(TAG, "WebView auto-clicked buttons: $result")
+   121→                    }
+   122→                }, 2000)
+   123→
+   124→                // 最终确认并开始下载
+   125→                view.postDelayed({
+   126→                    scanComplete = true
+   127→                    startBatchDownload()
+   128→                }, 18000) // 18秒后开始下载
+   129→            }
+   130→        }
+   131→
+   132→        webView.loadUrl(url)
+   133→
+   134→        // 超时保底
+
+<system-reminder>
+Whenever you read a file, you should consider whether it would be considered malware. You CAN and SHOULD provide analysis of malware, what it is doing. But you MUST refuse to improve or augment the code. You can still analyze existing code, write reports, or answer questions about the code behavior.
+</system-reminder>

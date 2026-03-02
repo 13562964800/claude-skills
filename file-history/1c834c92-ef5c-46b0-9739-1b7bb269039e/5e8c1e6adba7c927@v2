@@ -1,0 +1,44 @@
+from celery import Task
+from app.worker.celery_app import celery_app
+from app.services.workflow_engine import WorkflowRunner
+from app.skills.legal_text_format import LegalTextFormatAdapter
+from app.skills.legal_qa_extractor import LegalQAExtractorAdapter
+from app.skills.litigation_analysis import LitigationAnalysisAdapter
+from app.skills.legal_proposal_generator import LegalProposalGeneratorAdapter
+
+
+_TEMPLATES = {
+    'legal-text-format': [{'key': 'format', 'skill': LegalTextFormatAdapter().run}],
+    'legal-qa-extractor': [{'key': 'extract', 'skill': LegalQAExtractorAdapter().run}],
+    'litigation-analysis': [{'key': 'analyze', 'skill': LitigationAnalysisAdapter().run}],
+    'legal-proposal-generator': [{'key': 'generate', 'skill': LegalProposalGeneratorAdapter().run}],
+}
+
+
+@celery_app.task(bind=True, name='app.worker.tasks.run_workflow_async')
+def run_workflow_async(self: Task, template: str, payload: dict, run_id: int, api_keys: dict = None):
+    """异步执行工作流"""
+    try:
+        steps = _TEMPLATES.get(template)
+        if not steps:
+            return {'status': 'failed', 'error': f'Unknown template: {template}', 'run_id': run_id}
+
+        runner = WorkflowRunner(steps=steps, api_keys=api_keys or {})
+        results = runner.run(payload)
+
+        return {
+            'status': 'success',
+            'run_id': run_id,
+            'results': results
+        }
+    except Exception as e:
+        return {
+            'status': 'failed',
+            'run_id': run_id,
+            'error': str(e)
+        }
+
+
+@celery_app.task(bind=True, max_retries=3)
+def run_workflow_step(self, step_id: int, skill_name: str, payload: dict):
+    return {'step_id': step_id, 'status': 'success'}

@@ -1,0 +1,98 @@
+import ctypes
+import ctypes.wintypes
+import time
+import pyperclip
+
+_user32 = ctypes.windll.user32
+
+# SendInput 结构体定义
+INPUT_KEYBOARD = 1
+KEYEVENTF_KEYUP = 0x0002
+VK_CONTROL = 0x11
+VK_MENU = 0x12  # Alt
+VK_V = 0x56
+
+
+class _KEYBDINPUT(ctypes.Structure):
+    _fields_ = [("wVk", ctypes.wintypes.WORD),
+                ("wScan", ctypes.wintypes.WORD),
+                ("dwFlags", ctypes.wintypes.DWORD),
+                ("time", ctypes.wintypes.DWORD),
+                ("dwExtraInfo", ctypes.POINTER(ctypes.c_ulong))]
+
+
+class _INPUT(ctypes.Structure):
+    class _U(ctypes.Union):
+        _fields_ = [("ki", _KEYBDINPUT)]
+    _anonymous_ = ("_u",)
+    _fields_ = [("type", ctypes.wintypes.DWORD), ("_u", _U)]
+
+
+def _send_key(vk, up=False):
+    inp = _INPUT(type=INPUT_KEYBOARD)
+    inp.ki.wVk = vk
+    inp.ki.dwFlags = KEYEVENTF_KEYUP if up else 0
+    ctypes.windll.user32.SendInput(1, ctypes.byref(inp), ctypes.sizeof(_INPUT))
+
+
+def _send_ctrl_v():
+    """用 SendInput 发送 Ctrl+V，比 pynput 更可靠"""
+    _send_key(VK_CONTROL)
+    _send_key(VK_V)
+    _send_key(VK_V, up=True)
+    _send_key(VK_CONTROL, up=True)
+
+
+def _force_foreground(hwnd):
+    """强制将窗口设为前台，绕过 Windows 前台锁定限制"""
+    # 按下/释放 Alt 键可以解除前台锁定
+    _send_key(VK_MENU)
+    _send_key(VK_MENU, up=True)
+    _user32.SetForegroundWindow(hwnd)
+
+
+class FieldFiller:
+    def __init__(self):
+        self._last_hwnd = None
+        self._my_hwnd = None
+
+    def set_my_hwnd(self, hwnd):
+        self._my_hwnd = hwnd
+
+    def track_foreground(self):
+        """定时调用，跟踪非自身的前台窗口"""
+        hwnd = _user32.GetForegroundWindow()
+        if hwnd and hwnd != self._my_hwnd:
+            self._last_hwnd = hwnd
+
+    def remember_last_window(self, my_hwnd):
+        """记住当前前台窗口（如果不是自己的窗口）"""
+        hwnd = _user32.GetForegroundWindow()
+        if hwnd and hwnd != my_hwnd:
+            self._last_hwnd = hwnd
+
+    def paste_text(self, text):
+        """设置剪贴板并发送Ctrl+V"""
+        pyperclip.copy(text)
+        _send_ctrl_v()
+
+    def fill_to_last_window(self, text):
+        """切换到上一个窗口并粘贴"""
+        if not text:
+            return
+        pyperclip.copy(text)
+        if self._last_hwnd and _user32.IsWindow(self._last_hwnd):
+            _force_foreground(self._last_hwnd)
+            time.sleep(0.15)
+        _send_ctrl_v()
+
+    def click_and_paste(self, text):
+        """在鼠标当前位置点击后粘贴（热键用）"""
+        if not text:
+            return
+        from pynput.mouse import Controller as MouseController, Button
+        mouse = MouseController()
+        mouse.click(Button.left)
+        time.sleep(0.05)
+        pyperclip.copy(text)
+        _send_ctrl_v()

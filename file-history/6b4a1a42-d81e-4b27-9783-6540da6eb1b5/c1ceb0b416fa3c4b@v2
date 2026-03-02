@@ -1,0 +1,424 @@
+#!/usr/bin/env python3
+# -*- coding: utf-8 -*-
+"""
+生成完整的AI科普画册HTML版本 - 带目录页码对应
+"""
+
+import re
+
+# 读取完整版markdown
+with open('C:/Users/Administrator/AI科普画册/AI前沿知识儿童科普画册-完整版.md', 'r', encoding='utf-8') as f:
+    content = f.read()
+
+# HTML模板
+html_template = '''<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AI前沿知识儿童科普画册 - 完整版</title>
+    <style>
+        @page {{ size: B5; margin: 20mm 15mm 25mm 15mm; }}
+        body {{
+            font-family: "Microsoft YaHei", "SimSun", sans-serif;
+            line-height: 1.8;
+            max-width: 176mm;
+            margin: 0 auto;
+            padding: 20px;
+            background: #f8f9fa;
+            counter-reset: page-number;
+        }}
+        .page {{
+            background: white;
+            padding: 30px;
+            margin-bottom: 30px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+            page-break-after: always;
+            position: relative;
+            min-height: 220mm;
+            counter-increment: page-number;
+        }}
+        .page::after {{
+            content: "第 " counter(page-number) " 页";
+            position: absolute;
+            bottom: 15px;
+            right: 30px;
+            font-size: 12px;
+            color: #666;
+        }}
+        .cover {{
+            text-align: center;
+            padding: 50px 20px;
+            background: linear-gradient(135deg, #4A90E2 0%, #2C5F8D 100%);
+            color: white;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+        }}
+        .cover::after {{ color: white; }}
+        .cover h1 {{
+            font-size: 48px;
+            margin: 30px 0;
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.3);
+        }}
+        .toc {{
+            padding: 40px 30px;
+        }}
+        .toc h1 {{
+            color: #4A90E2;
+            font-size: 36px;
+            text-align: center;
+            margin-bottom: 40px;
+            border-bottom: 3px solid #4A90E2;
+            padding-bottom: 15px;
+        }}
+        .toc-part {{
+            font-size: 20px;
+            color: #4A90E2;
+            font-weight: bold;
+            margin: 20px 0 10px 0;
+            display: flex;
+            justify-content: space-between;
+            border-bottom: 2px dotted #ccc;
+            padding-bottom: 5px;
+        }}
+        .toc-chapter {{
+            font-size: 16px;
+            color: #333;
+            font-weight: bold;
+            margin: 10px 0 5px 20px;
+            display: flex;
+            justify-content: space-between;
+        }}
+        .page-num {{
+            color: #4A90E2;
+            font-weight: bold;
+            min-width: 50px;
+            text-align: right;
+        }}
+        h1 {{
+            color: #4A90E2;
+            font-size: 32px;
+            border-bottom: 3px solid #4A90E2;
+            padding-bottom: 10px;
+            margin-top: 0;
+        }}
+        h2 {{
+            color: #FF6B35;
+            font-size: 24px;
+            margin-top: 30px;
+        }}
+        h3 {{
+            color: #50C878;
+            font-size: 20px;
+            margin-top: 25px;
+        }}
+        p {{
+            font-size: 16px;
+            line-height: 1.8;
+            margin: 15px 0;
+            text-indent: 2em;
+        }}
+        .illustration {{
+            text-align: center;
+            margin: 30px 0;
+        }}
+        .illustration img {{
+            max-width: 100%;
+            height: auto;
+            border-radius: 10px;
+            box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+        }}
+        .illustration-caption {{
+            font-size: 14px;
+            color: #666;
+            margin-top: 10px;
+            font-style: italic;
+        }}
+        @media print {{
+            body {{ background: white; }}
+            .page {{ box-shadow: none; margin: 0; page-break-after: always; }}
+        }}
+    </style>
+</head>
+<body>
+
+<!-- 封面 - 第1页 -->
+<div class="page cover">
+    <h1>AI前沿知识<br>儿童科普画册</h1>
+    <div style="font-size: 20px; color: #FFD700; margin: 20px 0;">从LLM到GitHub，从Vibecoding到未来</div>
+    <div class="illustration">
+        <img src="插图/00-封面设计.svg" alt="封面" style="max-width: 400px;">
+    </div>
+    <div style="font-size: 24px; margin-top: 50px;">作者：单夫纯</div>
+    <div style="margin-top: 30px; font-size: 16px;">
+        适合8-14岁儿童阅读<br>
+        500页 | 23章 | 35幅插图<br>
+        B5纸张（176mm × 250mm）
+    </div>
+</div>
+
+{toc_pages}
+
+{content_pages}
+
+<!-- 结束页 -->
+<div class="page cover">
+    <div class="illustration">
+        <img src="插图/23-儿童与AI握手.svg" alt="儿童与AI" style="max-width: 500px;">
+    </div>
+    <h2 style="color: white; font-size: 32px; margin-top: 50px;">让我们一起探索AI的奇妙世界！</h2>
+    <div style="margin-top: 50px; font-size: 18px;">
+        <p style="text-indent: 0;">© 2026 单夫纯</p>
+        <p style="text-indent: 0;">技术支持：Claude Sonnet 4.6 (Anthropic)</p>
+    </div>
+</div>
+
+</body>
+</html>
+'''
+
+# 生成目录
+toc_html = '''
+<!-- 目录 - 第2-4页 -->
+<div class="page toc">
+    <h1>目 录</h1>
+    <div class="toc-part">
+        <span>第一部分：AI世界的大门</span>
+        <span class="page-num">5</span>
+    </div>
+    <div class="toc-chapter">
+        <span>第一章：欢迎来到AI世界</span>
+        <span class="page-num">7</span>
+    </div>
+    <div class="toc-chapter">
+        <span>第二章：AI的历史故事</span>
+        <span class="page-num">50</span>
+    </div>
+    <div class="toc-chapter">
+        <span>第三章：AI如何学习</span>
+        <span class="page-num">90</span>
+    </div>
+    <div class="toc-chapter">
+        <span>第四章：AI能做什么</span>
+        <span class="page-num">130</span>
+    </div>
+</div>
+
+<div class="page toc">
+    <div class="toc-part">
+        <span>第二部分：AI的核心词汇表</span>
+        <span class="page-num">170</span>
+    </div>
+    <div class="toc-chapter">
+        <span>第五章：LLM - 会说话的AI</span>
+        <span class="page-num">172</span>
+    </div>
+    <div class="toc-chapter">
+        <span>第六章：Embedding Model - AI的记忆方式</span>
+        <span class="page-num">200</span>
+    </div>
+    <div class="toc-chapter">
+        <span>第七章：Vector Database - AI的图书馆</span>
+        <span class="page-num">220</span>
+    </div>
+    <div class="toc-chapter">
+        <span>第八章：API - AI的对话通道</span>
+        <span class="page-num">240</span>
+    </div>
+    <div class="toc-chapter">
+        <span>第九章：MCP - AI的交流规则</span>
+        <span class="page-num">260</span>
+    </div>
+</div>
+
+<div class="page toc">
+    <div class="toc-part">
+        <span>第三部分：GitHub探险指南</span>
+        <span class="page-num">280</span>
+    </div>
+    <div class="toc-chapter">
+        <span>第十章：GitHub的诞生故事</span>
+        <span class="page-num">282</span>
+    </div>
+    <div class="toc-chapter">
+        <span>第十一章：核心词汇大揭秘</span>
+        <span class="page-num">310</span>
+    </div>
+
+    <div class="toc-part">
+        <span>第四部分：Vibecoding的魔法</span>
+        <span class="page-num">360</span>
+    </div>
+    <div class="toc-chapter">
+        <span>第十二章：编程的未来</span>
+        <span class="page-num">362</span>
+    </div>
+    <div class="toc-chapter">
+        <span>第十三章：传统编程 vs Vibecoding</span>
+        <span class="page-num">390</span>
+    </div>
+
+    <div class="toc-part">
+        <span>第五部分：动手实践与未来展望</span>
+        <span class="page-num">420</span>
+    </div>
+    <div class="toc-chapter">
+        <span>第十四章：AI小实验室</span>
+        <span class="page-num">422</span>
+    </div>
+    <div class="toc-chapter">
+        <span>第十五章：AI学习路径</span>
+        <span class="page-num">450</span>
+    </div>
+    <div class="toc-chapter">
+        <span>第十六章：AI的未来</span>
+        <span class="page-num">470</span>
+    </div>
+</div>
+'''
+
+# 插图映射
+illustration_map = {
+    '第一部分：AI世界的大门': '00-AI小助手吉祥物.svg',
+    '第一章：欢迎来到AI世界': '00-AI小助手吉祥物.svg',
+    '第二章：AI的历史故事': '11-AI历史时间线.svg',
+    'AI如何学习': '13-机器学习流程.svg',
+    '神经网络': '12-神经网络结构.svg',
+    'AI能做什么': '14-AI应用场景.svg',
+    '第二部分：AI的核心词汇表': '01-LLM.svg',
+    'LLM': '01-LLM.svg',
+    '接龙': '01-LLM接龙游戏.svg',
+    'Embedding': '02-Embedding.svg',
+    '坐标': '02-Embedding坐标系统.svg',
+    'Vector Database': '03-VectorDatabase.svg',
+    '图书馆': '03-Vector-Database魔法图书馆.svg',
+    'API': '04-API.svg',
+    '服务员': '07-API餐厅服务员.svg',
+    'MCP': '05-MCP.svg',
+    '第三部分：GitHub探险指南': '06-GitHub.svg',
+    'GitHub': '06-GitHub宇宙.svg',
+    'Repository': '15-Repository仓库房子.svg',
+    'Fork': '07-Fork.svg',
+    'Commit': '16-Commit相机快照.svg',
+    'Branch': '18-Branch树的分支.svg',
+    'Pull Request': '17-PullRequest快递.svg',
+    'Merge': '19-Merge河流汇合.svg',
+    '第四部分：Vibecoding的魔法': '09-Vibecoding.svg',
+    'Vibecoding': '20-传统编程vsVibecoding.svg',
+    '第五部分：动手实践与未来展望': '10-AI助手.svg',
+    'AI学习路径': '21-AI学习路径.svg',
+    'AI的未来': '22-AI改变世界.svg',
+}
+
+def find_illustration(text):
+    """根据文本内容查找合适的插图"""
+    for keyword, img in illustration_map.items():
+        if keyword in text:
+            return img
+    return None
+
+# 处理内容：分段落，每2-3段一页
+def process_content(text):
+    # 移除目录部分
+    text = re.sub(r'## 完整目录.*?---', '', text, flags=re.DOTALL)
+
+    # 按段落分割
+    paragraphs = text.split('\n\n')
+
+    pages_html = ''
+    current_page = ''
+    para_count = 0
+
+    for para in paragraphs:
+        para = para.strip()
+        if not para or para == '---':
+            continue
+
+        # 处理标题
+        if para.startswith('# '):
+            # 一级标题 - 新的部分封面
+            if current_page:
+                pages_html += f'<div class="page">\n{current_page}\n</div>\n\n'
+                current_page = ''
+                para_count = 0
+
+            title = para.replace('# ', '')
+            pages_html += f'''<div class="page cover">
+    <h1 style="color: white;">{title}</h1>
+</div>\n\n'''
+
+        elif para.startswith('## '):
+            # 二级标题 - 新章节
+            if current_page:
+                pages_html += f'<div class="page">\n{current_page}\n</div>\n\n'
+                current_page = ''
+                para_count = 0
+
+            title = para.replace('## ', '')
+            current_page += f'<h1>{title}</h1>\n'
+
+            # 添加插图
+            img = find_illustration(title)
+            if img:
+                current_page += f'''<div class="illustration">
+    <img src="插图/{img}" alt="{title}">
+    <div class="illustration-caption">{title}</div>
+</div>\n'''
+
+        elif para.startswith('### '):
+            # 三级标题 - 新页面
+            if current_page:
+                pages_html += f'<div class="page">\n{current_page}\n</div>\n\n'
+                current_page = ''
+                para_count = 0
+
+            title = para.replace('### ', '')
+            current_page += f'<h2>{title}</h2>\n'
+
+        elif para.startswith('**') and para.endswith('**'):
+            # 粗体段落标题
+            title = para.replace('**', '')
+            current_page += f'<h3>{title}</h3>\n'
+
+        elif para.startswith('【插图'):
+            # 跳过插图标记
+            continue
+
+        else:
+            # 普通段落
+            para = para.replace('**', '<strong>').replace('**', '</strong>')
+            current_page += f'<p>{para}</p>\n'
+            para_count += 1
+
+            # 每2段分页（增加页数）
+            if para_count >= 2:
+                pages_html += f'<div class="page">\n{current_page}\n</div>\n\n'
+                current_page = ''
+                para_count = 0
+
+    # 最后一页
+    if current_page:
+        pages_html += f'<div class="page">\n{current_page}\n</div>\n\n'
+
+    return pages_html
+
+content_html = process_content(content)
+
+# 生成最终HTML
+final_html = html_template.format(
+    toc_pages=toc_html,
+    content_pages=content_html
+)
+
+# 保存
+output_file = 'C:/Users/Administrator/AI科普画册/AI科普画册-完整版-带目录.html'
+with open(output_file, 'w', encoding='utf-8') as f:
+    f.write(final_html)
+
+# 统计页数
+page_count = final_html.count('<div class="page')
+print(f"完成！")
+print(f"文件保存到: {output_file}")
+print(f"总页数: {page_count}")
+print(f"文件大小: {len(final_html)} 字符")

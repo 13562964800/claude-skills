@@ -1,0 +1,212 @@
+import os
+import sys
+import ctypes
+from pynput import keyboard as pynput_kb
+from PyQt5.QtWidgets import (QMainWindow, QWidget, QVBoxLayout, QHBoxLayout,
+                             QPushButton, QLabel, QMessageBox)
+from PyQt5.QtCore import Qt, QTimer, QUrl
+from app.widgets.import_bar import ImportBar
+from app.widgets.field_selector import FieldSelector
+from app.widgets.field_list import FieldList
+from app.widgets.favorite_dialog import FavoriteDialog, CategoryManagerDialog
+from app.widgets.settings_dialog import SettingsDialog
+from app.core.nlp_engine import LegalFieldExtractor
+from app.core.field_filler import FieldFiller
+from app.data.db_manager import DBManager
+
+
+class MainWindow(QMainWindow):
+    def __init__(self):
+        super().__init__()
+        self.setWindowTitle("智能填表助手")
+        self.setMinimumSize(480, 650)
+        self.setWindowFlags(self.windowFlags() | Qt.WindowStaysOnTopHint)
+        self.setAcceptDrops(True)
+
+        self.nlp = LegalFieldExtractor()
+        self.filler = FieldFiller()
+        self.db = DBManager()
+        self.fields = []
+        self.showing_favorites = False
+
+        # 全局热键 Ctrl+Q
+        self._hotkey_listener = pynput_kb.GlobalHotKeys({
+            '<ctrl>+q': self._on_hotkey_fill
+        })
+        self._hotkey_listener.start()
+
+        # 定时跟踪前台窗口（每200ms检查一次）
+        self._track_timer = QTimer()
+        self._track_timer.timeout.connect(self._track_window)
+        self._track_timer.start(200)
+
+        central = QWidget()
+        self.setCentralWidget(central)
+        layout = QVBoxLayout(central)
+        layout.setSpacing(8)
+
+        # 导入栏
+        self.import_bar = ImportBar()
+        self.import_bar.text_extracted.connect(self._on_text_extracted)
+        self.import_bar.image_extracted.connect(self._on_image_extracted)
+        layout.addWidget(self.import_bar)
+
+        # 字段选择器
+        self.selector = FieldSelector()
+        self.selector.fill_requested.connect(self._on_fill)
+        layout.addWidget(self.selector)
+
+        # 字段列表
+        self.field_list = FieldList()
+        self.field_list.field_clicked.connect(self._on_field_clicked)
+        self.field_list.field_edited.connect(self._on_field_edited)
+        self.field_list.field_deleted.connect(self._on_field_deleted)
+        self.field_list.field_favorited.connect(self._on_field_favorited)
+        layout.addWidget(self.field_list, stretch=1)
+
+        # 底部按钮栏
+        bottom = QHBoxLayout()
+        fav_btn = QPushButton("常用字段")
+        fav_btn.setObjectName("favBtn")
+        fav_btn.clicked.connect(self._on_favorite_btn)
+        bottom.addWidget(fav_btn)
+
+        cat_btn = QPushButton("管理分类")
+        cat_btn.setObjectName("smallBtn")
+        cat_btn.clicked.connect(self._on_manage_categories)
+        bottom.addWidget(cat_btn)
+
+        clear_btn = QPushButton("清空列表")
+        clear_btn.setObjectName("clearBtn")
+        clear_btn.clicked.connect(self._on_clear)
+        bottom.addWidget(clear_btn)
+
+        settings_btn = QPushButton("设置")
+        settings_btn.setObjectName("settingsBtn")
+        settings_btn.clicked.connect(self._on_settings)
+        bottom.addWidget(settings_btn)
+
+        bottom.addStretch()
+        copyright_label = QLabel("著作权属于单夫纯律师所有")
+        copyright_label.setObjectName("copyright")
+        bottom.addWidget(copyright_label)
+        layout.addLayout(bottom)
+
+    def _my_hwnd(self):
+        return int(self.winId())
+
+    def showEvent(self, e):
+        super().showEvent(e)
+        self.filler.set_my_hwnd(self._my_hwnd())
+
+    def _track_window(self):
+        self.filler.track_foreground()
+
+    def event(self, e):
+        # 窗口激活时记住上一个前台窗口
+        if e.type() == e.WindowActivate:
+            self.filler.remember_last_window(self._my_hwnd())
+        return super().event(e)
+
+    def _on_text_extracted(self, text):
+        self.showing_favorites = False
+        custom_keys = [f["field_name"] for f in self.db.get_custom_fields()]
+        self.fields = self.nlp.extract_fields(text, custom_keys=custom_keys or None)
+        self.selector.set_fields(self.fields)
+        self.field_list.set_fields(self.fields)
+
+    def _on_image_extracted(self, text):
+        """图片OCR结果：按行拆分，保留全部信息"""
+        self.showing_favorites = False
+        self.fields = [line.strip() for line in text.splitlines() if line.strip()]
+        self.selector.set_fields(self.fields)
+        self.field_list.set_fields(self.fields)
+
+    def _on_fill(self, text):
+        """填入按钮：切回上一个窗口并粘贴"""
+        self.filler.fill_to_last_window(text)
+
+    def _on_field_clicked(self, index):
+        """点击字段列表项：选中并立即填入到上一个窗口"""
+        self.selector.set_index(index)
+        text = self.selector.current_text()
+        if text:
+            self.filler.fill_to_last_window(text)
+
+    def _on_hotkey_fill(self):
+        """全局热键 Ctrl+Q：在鼠标当前位置填入"""
+        text = self.selector.current_text()
+        if text:
+            self.filler.click_and_paste(text)
+
+    def _on_field_edited(self, index, new_text):
+        if 0 <= index < len(self.fields):
+            self.fields[index] = new_text
+            self.selector.set_fields(self.fields)
+            self.selector.set_index(index)
+
+    def _on_field_deleted(self, index):
+        if 0 <= index < len(self.fields):
+            self.fields.pop(index)
+            self.selector.set_fields(self.fields)
+            self.field_list.set_fields(self.fields)
+
+    def _on_field_favorited(self, text):
+        dlg = FavoriteDialog(self.db, self)
+        dlg.value_input.setText(text)
+        dlg.exec_()
+
+    def _on_favorite_btn(self):
+        msg = QMessageBox(self)
+        msg.setWindowTitle("常用字段")
+        msg.setText("请选择操作：")
+        show_btn = msg.addButton("显示全部常用字段", QMessageBox.AcceptRole)
+        add_btn = msg.addButton("添加新常用字段", QMessageBox.ActionRole)
+        msg.addButton("取消", QMessageBox.RejectRole)
+        msg.exec_()
+        if msg.clickedButton() == show_btn:
+            self._show_all_favorites()
+        elif msg.clickedButton() == add_btn:
+            dlg = FavoriteDialog(self.db, self)
+            dlg.exec_()
+
+    def _show_all_favorites(self):
+        self.showing_favorites = True
+        favs = self.db.get_all_favorites()
+        self.fields = [f["value"] for f in favs]
+        self.selector.set_fields(self.fields)
+        self.field_list.set_fields(self.fields, title="常用字段列表")
+
+    def _on_manage_categories(self):
+        CategoryManagerDialog(self.db, self).exec_()
+
+    def _on_settings(self):
+        SettingsDialog(self.db, self).exec_()
+
+    def _on_clear(self):
+        if self.showing_favorites:
+            return
+        self.fields = []
+        self.selector.set_fields([])
+        self.field_list.set_fields([])
+
+    def closeEvent(self, event):
+        self._hotkey_listener.stop()
+        super().closeEvent(event)
+
+    # 拖拽支持
+    def dragEnterEvent(self, event):
+        if event.mimeData().hasUrls():
+            event.acceptProposedAction()
+
+    def dropEvent(self, event):
+        from app.core.extractor import DocumentExtractor
+        extractor = DocumentExtractor()
+        for url in event.mimeData().urls():
+            path = url.toLocalFile()
+            ext = os.path.splitext(path)[1].lower()
+            if ext in ('.pdf', '.docx', '.xlsx', '.png', '.jpg', '.jpeg', '.bmp'):
+                text = extractor.extract(path)
+                if text:
+                    self._on_text_extracted(text)
+                break

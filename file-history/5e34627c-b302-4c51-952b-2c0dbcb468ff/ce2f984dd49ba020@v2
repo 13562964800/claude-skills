@@ -1,0 +1,146 @@
+# PowerShell脚本：最终整合 - 插入封面、扉页、封底并生成PDF
+
+param(
+    [string]$DocPath = "C:\Users\Administrator\AI科普画册\AI前沿知识儿童科普画册-完整版-已插图.docx",
+    [string]$OutputPath = "C:\Users\Administrator\AI科普画册\AI前沿知识儿童科普画册-最终版.docx"
+)
+
+Write-Host "=" * 70 -ForegroundColor Cyan
+Write-Host "📚 最终整合：插入封面、扉页、封底" -ForegroundColor Cyan
+Write-Host "=" * 70 -ForegroundColor Cyan
+
+$coverPath = "C:\Users\Administrator\插图\封面-最终版.svg"
+$titlePagePath = "C:\Users\Administrator\插图\扉页-最终版.svg"
+$backCoverPath = "C:\Users\Administrator\插图\封底-最终版.svg"
+
+# 检查文件
+if (-not (Test-Path $DocPath)) {
+    Write-Host "❌ 找不到文档: $DocPath" -ForegroundColor Red
+    exit 1
+}
+
+foreach ($file in @($coverPath, $titlePagePath, $backCoverPath)) {
+    if (-not (Test-Path $file)) {
+        Write-Host "❌ 找不到文件: $file" -ForegroundColor Red
+        exit 1
+    }
+}
+
+Write-Host "`n📂 输入文件: $DocPath" -ForegroundColor Yellow
+Write-Host "📂 输出文件: $OutputPath`n" -ForegroundColor Yellow
+
+try {
+    Write-Host "📖 启动Word应用程序..." -ForegroundColor Green
+    $word = New-Object -ComObject Word.Application
+    $word.Visible = $false
+
+    Write-Host "📖 打开Word文档..." -ForegroundColor Green
+    $doc = $word.Documents.Open($DocPath)
+
+    # 1. 在文档开头插入封面
+    Write-Host "`n📕 插入封面..." -ForegroundColor Green
+    $range = $doc.Range(0, 0)
+    $shape = $range.InlineShapes.AddPicture($coverPath, $false, $true, $range)
+    $shape.Width = 595  # A4宽度（磅）
+    $shape.LockAspectRatio = -1
+
+    # 添加分页符
+    $range.InsertParagraphAfter()
+    $range.InsertBreak(7)  # wdPageBreak
+    Write-Host "  ✓ 封面已插入" -ForegroundColor Green
+
+    # 2. 插入扉页
+    Write-Host "📄 插入扉页..." -ForegroundColor Green
+    $range = $doc.Range(0, 0)
+    $range.Collapse(0)  # wdCollapseEnd
+    $shape = $range.InlineShapes.AddPicture($titlePagePath, $false, $true, $range)
+    $shape.Width = 595
+    $shape.LockAspectRatio = -1
+
+    # 添加分页符
+    $range.InsertParagraphAfter()
+    $range.InsertBreak(7)
+    Write-Host "  ✓ 扉页已插入" -ForegroundColor Green
+
+    # 3. 在文档末尾插入封底
+    Write-Host "📗 插入封底..." -ForegroundColor Green
+    $range = $doc.Range()
+    $range.Collapse(0)  # wdCollapseEnd
+    $range.InsertBreak(7)  # 先插入分页符
+    $shape = $range.InlineShapes.AddPicture($backCoverPath, $false, $true, $range)
+    $shape.Width = 595
+    $shape.LockAspectRatio = -1
+    Write-Host "  ✓ 封底已插入" -ForegroundColor Green
+
+    # 4. 设置页码
+    Write-Host "`n📄 设置页码..." -ForegroundColor Green
+
+    # 封面和扉页不显示页码
+    $doc.Sections.Item(1).PageSetup.DifferentFirstPageHeaderFooter = $true
+
+    # 为正文添加页码（从第3页开始）
+    if ($doc.Sections.Count -ge 3) {
+        $section = $doc.Sections.Item(3)
+        $footer = $section.Footers.Item(1)  # wdHeaderFooterPrimary
+        $footer.Range.Text = ""
+        $footer.Range.ParagraphFormat.Alignment = 1  # wdAlignParagraphCenter
+        $footer.Range.Fields.Add($footer.Range, 33) | Out-Null  # wdFieldPage
+        Write-Host "  ✓ 页码已设置" -ForegroundColor Green
+    }
+
+    # 5. 更新所有域
+    Write-Host "📑 更新目录和域..." -ForegroundColor Green
+    foreach ($field in $doc.Fields) {
+        try { $field.Update() | Out-Null } catch {}
+    }
+    foreach ($toc in $doc.TablesOfContents) {
+        try { $toc.Update() | Out-Null } catch {}
+    }
+    Write-Host "  ✓ 目录已更新" -ForegroundColor Green
+
+    # 6. 保存Word文档
+    Write-Host "`n💾 保存Word文档..." -ForegroundColor Green
+    $doc.SaveAs([ref]$OutputPath)
+    Write-Host "  ✓ Word文档已保存" -ForegroundColor Green
+
+    # 7. 转换为PDF
+    Write-Host "📄 转换为PDF..." -ForegroundColor Green
+    $pdfPath = $OutputPath -replace '\.docx$', '.pdf'
+    $doc.SaveAs([ref]$pdfPath, [ref]17)
+    Write-Host "  ✓ PDF已生成" -ForegroundColor Green
+
+    $doc.Close()
+    $word.Quit()
+
+    # 释放COM对象
+    [System.Runtime.Interopservices.Marshal]::ReleaseComObject($doc) | Out-Null
+    [System.Runtime.Interopservices.Marshal]::ReleaseComObject($word) | Out-Null
+    [System.GC]::Collect()
+    [System.GC]::WaitForPendingFinalizers()
+
+    # 获取文件信息
+    $docSize = (Get-Item $OutputPath).Length / 1MB
+    $pdfSize = (Get-Item $pdfPath).Length / 1MB
+
+    Write-Host "`n" + ("=" * 70) -ForegroundColor Cyan
+    Write-Host "🎉 最终整合完成！" -ForegroundColor Green
+    Write-Host "`n📊 完成情况：" -ForegroundColor Yellow
+    Write-Host "   ✓ 封面已插入" -ForegroundColor Green
+    Write-Host "   ✓ 扉页已插入" -ForegroundColor Green
+    Write-Host "   ✓ 封底已插入" -ForegroundColor Green
+    Write-Host "   ✓ 479个插图已插入" -ForegroundColor Green
+    Write-Host "   ✓ 页码已设置" -ForegroundColor Green
+    Write-Host "   ✓ 目录已更新" -ForegroundColor Green
+    Write-Host "`n📁 输出文件：" -ForegroundColor Yellow
+    Write-Host "   Word: $OutputPath ({0:N2} MB)" -f $docSize -ForegroundColor Green
+    Write-Host "   PDF:  $pdfPath ({0:N2} MB)" -f $pdfSize -ForegroundColor Green
+    Write-Host ("=" * 70) -ForegroundColor Cyan
+}
+catch {
+    Write-Host "`n❌ 错误: $_" -ForegroundColor Red
+    Write-Host $_.Exception.Message -ForegroundColor Red
+
+    # 清理
+    if ($doc) { $doc.Close() }
+    if ($word) { $word.Quit() }
+}

@@ -1,0 +1,120 @@
+#!/usr/bin/env python3
+# -*- coding: utf-8 -*-
+"""
+生成插图1-2: 对比图——左边是普通计算器只能算数，右边是AI助手能聊天、画画、写作
+上下文: AI与传统计算器的能力对比
+"""
+
+svg_code = '''<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 800 450" style="background:#F0F4F8">
+  <!-- 分隔线 -->
+  <line x1="400" y1="60" x2="400" y2="390" stroke="#CCC" stroke-width="3" stroke-dasharray="10,5"/>
+
+  <!-- 左侧：普通计算器 -->
+  <g id="calculator-side">
+    <!-- 标题 -->
+    <text x="200" y="90" font-size="32" font-weight="bold" text-anchor="middle" fill="#555">普通计算器</text>
+
+    <!-- 计算器 -->
+    <g transform="translate(120, 130)">
+      <rect width="160" height="200" rx="12" fill="#2C3E50" stroke="#1A252F" stroke-width="4"/>
+      <!-- 显示屏 -->
+      <rect x="15" y="15" width="130" height="50" rx="5" fill="#7F8C8D"/>
+      <text x="80" y="50" font-size="28" text-anchor="middle" fill="#2ECC71" font-family="monospace">1+1=2</text>
+
+      <!-- 按钮 -->
+      <g id="buttons">
+        <rect x="20" y="80" width="35" height="25" rx="4" fill="#34495E"/>
+        <rect x="62" y="80" width="35" height="25" rx="4" fill="#34495E"/>
+        <rect x="104" y="80" width="35" height="25" rx="4" fill="#34495E"/>
+
+        <rect x="20" y="115" width="35" height="25" rx="4" fill="#34495E"/>
+        <rect x="62" y="115" width="35" height="25" rx="4" fill="#34495E"/>
+        <rect x="104" y="115" width="35" height="25" rx="4" fill="#34495E"/>
+
+        <rect x="20" y="150" width="35" height="25" rx="4" fill="#34495E"/>
+        <rect x="62" y="150" width="35" height="25" rx="4" fill="#34495E"/>
+        <rect x="104" y="150" width="35" height="25" rx="4" fill="#E74C3C"/>
+      </g>
+    </g>
+
+    <!-- 只能做的事 -->
+    <text x="200" y="360" font-size="24" text-anchor="middle" fill="#666">只能：</text>
+    <text x="200" y="390" font-size="28" text-anchor="middle">➕ ➖ ✖️ ➗</text>
+  </g>
+
+  <!-- 右侧：AI助手 -->
+  <g id="ai-side">
+    <!-- 标题 -->
+    <text x="600" y="90" font-size="32" font-weight="bold" text-anchor="middle" fill="#2980B9">AI助手</text>
+
+    <!-- AI机器人头像 -->
+    <g transform="translate(520, 140)">
+      <circle cx="80" cy="80" r="70" fill="#3498DB" stroke="#2980B9" stroke-width="4"/>
+      <!-- 眼睛 -->
+      <circle cx="60" cy="70" r="12" fill="#FFF"/>
+      <circle cx="100" cy="70" r="12" fill="#FFF"/>
+      <circle cx="62" cy="72" r="6" fill="#333"/>
+      <circle cx="102" cy="72" r="6" fill="#333"/>
+      <!-- 微笑 -->
+      <path d="M 55 95 Q 80 110 105 95" stroke="#FFF" stroke-width="4" fill="none" stroke-linecap="round"/>
+      <!-- 闪光效果 -->
+      <circle cx="80" cy="80" r="70" fill="none" stroke="#5DADE2" stroke-width="2" opacity="0.5">
+        <animate attributeName="r" values="70;80;70" dur="2s" repeatCount="indefinite"/>
+        <animate attributeName="opacity" values="0.5;0;0.5" dur="2s" repeatCount="indefinite"/>
+      </circle>
+    </g>
+
+    <!-- 能做的事情 -->
+    <g id="capabilities" transform="translate(450, 280)">
+      <text x="150" y="30" font-size="24" text-anchor="middle" fill="#666">能做：</text>
+
+      <!-- 聊天 -->
+      <g transform="translate(30, 50)">
+        <text font-size="35">💬</text>
+        <text x="45" y="25" font-size="18" fill="#555">聊天</text>
+      </g>
+
+      <!-- 画画 -->
+      <g transform="translate(120, 50)">
+        <text font-size="35">🎨</text>
+        <text x="45" y="25" font-size="18" fill="#555">画画</text>
+      </g>
+
+      <!-- 写作 -->
+      <g transform="translate(210, 50)">
+        <text font-size="35">✍️</text>
+        <text x="45" y="25" font-size="18" fill="#555">写作</text>
+      </g>
+    </g>
+  </g>
+
+  <!-- 对比箭头 -->
+  <g transform="translate(200, 200)">
+    <text x="0" y="0" font-size="50" opacity="0.3">→</text>
+    <text x="200" y="0" font-size="50" opacity="0.3">✨</text>
+    <animateTransform
+      attributeName="transform"
+      type="translate"
+      values="200 200; 210 200; 200 200"
+      dur="1.5s"
+      repeatCount="indefinite"/>
+  </g>
+</svg>'''
+
+# 读取文档
+input_file = r'C:\Users\Administrator\AI科普画册\AI科普画册-插图进行中.md'
+with open(input_file, 'r', encoding='utf-8') as f:
+    content = f.read()
+
+# 替换插图1-2
+import re
+pattern = r'【插图1-2：[^】]+】\n\n\n'
+replacement = f'【插图1-2：对比图——左边是普通计算器只能算数，右边是AI助手能聊天、画画、写作】\n\n{svg_code}\n\n'
+content = re.sub(pattern, replacement, content, count=1)
+
+# 保存
+with open(input_file, 'w', encoding='utf-8') as f:
+    f.write(content)
+
+print("✓ 插图1-2已生成并插入文档")
+print("  对比图：普通计算器 vs AI助手")

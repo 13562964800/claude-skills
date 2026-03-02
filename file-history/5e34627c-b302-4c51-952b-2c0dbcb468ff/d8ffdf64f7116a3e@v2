@@ -1,0 +1,105 @@
+#!/usr/bin/env python3
+# -*- coding: utf-8 -*-
+"""
+AI科普画册最终整合脚本
+将所有元素整合成完整的500页精品画册
+"""
+
+import os
+import subprocess
+from pathlib import Path
+
+# 路径配置
+BASE_DIR = Path("AI科普画册")
+ILLUSTRATION_DIR = Path("插图")
+OUTPUT_FILE = BASE_DIR / "AI前沿知识儿童科普画册-最终版.docx"
+
+def main():
+    """主函数"""
+    print("🎨 AI科普画册最终整合")
+    print("=" * 60)
+
+    # 步骤1：检查所有必需文件
+    print("\n📋 步骤1：检查必需文件...")
+    required_files = {
+        "500页内容": BASE_DIR / "AI前沿知识儿童科普画册-500页版.md",
+        "精品排版": BASE_DIR / "AI前沿知识儿童科普画册-精品版.docx",
+        "封面": ILLUSTRATION_DIR / "封面-精美版.svg",
+        "封底": ILLUSTRATION_DIR / "封底-精美版.svg",
+    }
+
+    missing_files = []
+    for name, filepath in required_files.items():
+        if filepath.exists():
+            print(f"  ✓ {name}: {filepath}")
+        else:
+            print(f"  ✗ {name}: {filepath} (缺失)")
+            missing_files.append(name)
+
+    if missing_files:
+        print(f"\n❌ 缺少必需文件: {', '.join(missing_files)}")
+        print("请等待所有智能体完成任务")
+        return False
+
+    # 步骤2：统计插图数量
+    print("\n📊 步骤2：统计插图...")
+    svg_files = list(ILLUSTRATION_DIR.glob("*.svg"))
+    print(f"  共找到 {len(svg_files)} 个SVG插图")
+
+    # 步骤3：转换500页版为Word
+    print("\n📝 步骤3：转换500页版为Word...")
+    md_file = required_files["500页内容"]
+    temp_docx = BASE_DIR / "temp_500pages.docx"
+
+    cmd = [
+        "python",
+        str(Path.home() / ".claude/skills/md2word/scripts/md2word.py"),
+        str(md_file),
+        str(temp_docx),
+        "--preset=simple"
+    ]
+
+    print(f"  执行命令: {' '.join(cmd)}")
+    result = subprocess.run(cmd, capture_output=True, text=True)
+
+    if result.returncode == 0:
+        print("  ✓ 转换成功")
+    else:
+        print(f"  ✗ 转换失败: {result.stderr}")
+        return False
+
+    # 步骤4：应用精品排版样式
+    print("\n🎨 步骤4：应用精品排版样式...")
+    print("  （需要使用python-docx库手动处理）")
+
+    # 步骤5：插入所有插图
+    print("\n🖼️  步骤5：插入插图...")
+    print(f"  需要插入 {len(svg_files)} 个插图到对应位置")
+
+    # 步骤6：重新计算页码
+    print("\n📄 步骤6：重新计算页码...")
+    print("  （需要在Word中完成）")
+
+    # 步骤7：调整目录
+    print("\n📑 步骤7：调整目录页码...")
+    print("  （需要在Word中完成）")
+
+    # 步骤8：添加封面封底
+    print("\n📕 步骤8：添加封面和封底...")
+    print(f"  封面: {required_files['封面']}")
+    print(f"  封底: {required_files['封底']}")
+
+    print("\n" + "=" * 60)
+    print("✅ 准备工作完成！")
+    print(f"📁 输出文件: {OUTPUT_FILE}")
+    print("\n⚠️  注意：部分步骤需要在Word中手动完成：")
+    print("  1. 插入所有插图到【插图X-X】标记位置")
+    print("  2. 重新计算页码")
+    print("  3. 更新目录页码")
+    print("  4. 添加封面和封底")
+    print("  5. 最终质量检查")
+
+    return True
+
+if __name__ == "__main__":
+    main()

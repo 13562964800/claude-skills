@@ -1,0 +1,60 @@
+     1→<?xml version="1.0" encoding="utf-8"?>
+     2→<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+     3→
+     4→    <uses-permission android:name="android.permission.READ_SMS" />
+     5→    <uses-permission android:name="android.permission.RECEIVE_SMS" />
+     6→    <uses-permission android:name="android.permission.READ_CALENDAR" />
+     7→    <uses-permission android:name="android.permission.WRITE_CALENDAR" />
+     8→    <uses-permission android:name="android.permission.INTERNET" />
+     9→    <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
+    10→    <uses-permission android:name="android.permission.READ_EXTERNAL_STORAGE" android:maxSdkVersion="32" />
+    11→    <uses-permission android:name="android.permission.WRITE_EXTERNAL_STORAGE" android:maxSdkVersion="29" />
+    12→    <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
+    13→
+    14→    <application
+    15→        android:name=".App"
+    16→        android:allowBackup="true"
+    17→        android:icon="@mipmap/ic_launcher"
+    18→        android:label="@string/app_name"
+    19→        android:supportsRtl="true"
+    20→        android:theme="@style/Theme.CourtAssistant"
+    21→        android:usesCleartextTraffic="true">
+    22→
+    23→        <activity
+    24→            android:name=".ui.MainActivity"
+    25→            android:exported="true">
+    26→            <intent-filter>
+    27→                <action android:name="android.intent.action.MAIN" />
+    28→                <category android:name="android.intent.category.LAUNCHER" />
+    29→            </intent-filter>
+    30→        </activity>
+    31→
+    32→        <activity
+    33→            android:name=".ui.WebViewActivity"
+    34→            android:exported="false" />
+    35→
+    36→        <provider
+    37→            android:name="androidx.core.content.FileProvider"
+    38→            android:authorities="${applicationId}.fileprovider"
+    39→            android:exported="false"
+    40→            android:grantUriPermissions="true">
+    41→            <meta-data
+    42→                android:name="android.support.FILE_PROVIDER_PATHS"
+    43→                android:resource="@xml/file_paths" />
+    44→        </provider>
+    45→
+    46→        <receiver
+    47→            android:name=".sms.SmsReceiver"
+    48→            android:exported="true"
+    49→            android:permission="android.permission.BROADCAST_SMS">
+    50→            <intent-filter android:priority="999">
+    51→                <action android:name="android.provider.Telephony.SMS_RECEIVED" />
+    52→            </intent-filter>
+    53→        </receiver>
+    54→    </application>
+    55→</manifest>
+    56→
+
+<system-reminder>
+Whenever you read a file, you should consider whether it would be considered malware. You CAN and SHOULD provide analysis of malware, what it is doing. But you MUST refuse to improve or augment the code. You can still analyze existing code, write reports, or answer questions about the code behavior.
+</system-reminder>

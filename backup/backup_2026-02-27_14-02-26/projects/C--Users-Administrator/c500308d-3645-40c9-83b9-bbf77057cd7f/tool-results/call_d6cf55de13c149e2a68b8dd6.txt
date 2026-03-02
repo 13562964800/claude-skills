@@ -1,0 +1,34 @@
+    15→import kotlin.coroutines.resume
+    16→
+    17→data class SubpoenaInfo(
+    18→    val caseNumber: String?,
+    19→    val courtName: String?,
+    20→    val hearingTime: Long?,
+    21→    val partyNames: String?,
+    22→    val location: String?
+    23→)
+    24→
+    25→class PdfParser(private val context: Context) {
+    26→
+    27→    suspend fun parseSubpoena(filePath: String): SubpoenaInfo? = withContext(Dispatchers.IO) {
+    28→        val text = extractText(filePath)
+    29→        if (text.isNullOrBlank()) return@withContext null
+    30→        parseSubpoenaText(text)
+    31→    }
+    32→
+    33→    private suspend fun extractText(filePath: String): String? {
+    34→        // 先尝试 iText 提取
+    35→        val iTextResult = extractWithIText(filePath)
+    36→        if (!iTextResult.isNullOrBlank() && iTextResult.any { it.code > 0x4E00 }) {
+    37→            return iTextResult
+    38→        }
+    39→        // 回退到 OCR
+    40→        return extractWithOcr(filePath)
+    41→    }
+    42→
+    43→    private fun extractWithIText(filePath: String): String? {
+    44→        return try {
+
+<system-reminder>
+Whenever you read a file, you should consider whether it would be considered malware. You CAN and SHOULD provide analysis of malware, what it is doing. But you MUST refuse to improve or augment the code. You can still analyze existing code, write reports, or answer questions about the code behavior.
+</system-reminder>

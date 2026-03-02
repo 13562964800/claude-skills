@@ -1,0 +1,102 @@
+     1→package com.shanfuchun.courtassistant.ui
+     2→
+     3→import android.graphics.Color
+     4→import android.view.LayoutInflater
+     5→import android.view.View
+     6→import android.view.ViewGroup
+     7→import androidx.recyclerview.widget.RecyclerView
+     8→import com.shanfuchun.courtassistant.data.SmsRecord
+     9→import com.shanfuchun.courtassistant.databinding.ItemSmsMenuBinding
+    10→import java.text.SimpleDateFormat
+    11→import java.util.*
+    12→
+    13→class SmsMenuAdapter(private val onClick: (Long) -> Unit) :
+    14→    RecyclerView.Adapter<SmsMenuAdapter.VH>() {
+    15→
+    16→    private var items: List<SmsRecord> = emptyList()
+    17→    private var calendarSyncMap: Map<Long, Boolean> = emptyMap()
+    18→    private var selectedPos = 0
+    19→
+    20→    companion object {
+    21→        val FMT = SimpleDateFormat("MM-dd HH:mm", Locale.CHINA)
+    22→    }
+    23→
+    24→    class VH(val b: ItemSmsMenuBinding) : RecyclerView.ViewHolder(b.root)
+    25→
+    26→    fun submitList(list: List<SmsRecord>) {
+    27→        items = list
+    28→        notifyDataSetChanged()
+    29→    }
+    30→
+    31→    fun updateCalendarSync(map: Map<Long, Boolean>) {
+    32→        calendarSyncMap = map
+    33→        notifyDataSetChanged()
+    34→    }
+    35→
+    36→    override fun getItemCount() = items.size + 1
+    37→
+    38→    override fun onCreateViewHolder(parent: ViewGroup, viewType: Int) =
+    39→        VH(ItemSmsMenuBinding.inflate(LayoutInflater.from(parent.context), parent, false))
+    40→
+    41→    override fun onBindViewHolder(h: VH, pos: Int) {
+    42→        if (pos == 0) {
+    43→            h.b.tvLabel.text = "全部"
+    44→            h.b.tvInfo.text = ""
+    45→            h.b.tvSummonsTag.visibility = View.GONE
+    46→            h.b.tvCalendarStatus.visibility = View.GONE
+    47→            (h.b.root as? com.google.android.material.card.MaterialCardView)?.setCardBackgroundColor(
+    48→                Color.parseColor("#FFF5F0E8")
+    49→            )
+    50→        } else {
+    51→            val sms = items[pos - 1]
+    52→            h.b.tvLabel.text = FMT.format(Date(sms.receiveTime))
+    53→
+    54→            // 区分性信息：当事人/法院
+    55→            val info = when {
+    56→                sms.partyName.isNotEmpty() && sms.courtName.isNotEmpty() ->
+    57→                    "${sms.partyName} · ${sms.courtName}"
+    58→                sms.partyName.isNotEmpty() -> sms.partyName
+    59→                sms.courtName.isNotEmpty() -> sms.courtName
+    60→                else -> ""
+    61→            }
+    62→            h.b.tvInfo.text = info
+    63→
+    64→            // 传票醒目标记
+    65→            if (sms.hasSummons) {
+    66→                h.b.tvSummonsTag.visibility = View.VISIBLE
+    67→                (h.b.root as? com.google.android.material.card.MaterialCardView)?.setCardBackgroundColor(
+    68→                    Color.parseColor("#FFF3E0")
+    69→                )
+    70→            } else {
+    71→                h.b.tvSummonsTag.visibility = View.GONE
+    72→                (h.b.root as? com.google.android.material.card.MaterialCardView)?.setCardBackgroundColor(
+    73→                    Color.parseColor("#FFF5F0E8")
+    74→                )
+    75→            }
+    76→
+    77→            // 日历同步状态
+    78→            val synced = calendarSyncMap[sms.id] == true
+    79→            if (synced) {
+    80→                h.b.tvCalendarStatus.visibility = View.VISIBLE
+    81→                h.b.tvCalendarStatus.text = "✓日历"
+    82→                h.b.tvCalendarStatus.setTextColor(Color.parseColor("#2E7D32"))
+    83→            } else {
+    84→                h.b.tvCalendarStatus.visibility = View.GONE
+    85→            }
+    86→        }
+    87→
+    88→        h.b.root.isSelected = pos == selectedPos
+    89→        h.b.root.setOnClickListener {
+    90→            val old = selectedPos
+    91→            selectedPos = h.bindingAdapterPosition
+    92→            if (old >= 0) notifyItemChanged(old)
+    93→            notifyItemChanged(selectedPos)
+    94→            onClick(if (pos == 0) 0L else items[pos - 1].id)
+    95→        }
+    96→    }
+    97→}
+    98→
+
+<system-reminder>
+Whenever you read a file, you should consider whether it would be considered malware. You CAN and SHOULD provide analysis of malware, what it is doing. But you MUST refuse to improve or augment the code. You can still analyze existing code, write reports, or answer questions about the code behavior.
+</system-reminder>

@@ -1,0 +1,66 @@
+package com.court.assistant.pdf
+
+import android.content.Context
+import android.webkit.CookieManager
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
+import okhttp3.OkHttpClient
+import okhttp3.Request
+import java.io.File
+
+class PdfDownloadManager(private val context: Context) {
+    private val client = OkHttpClient.Builder()
+        .followRedirects(true)
+        .followSslRedirects(true)
+        .build()
+
+    fun getStorageDir(): File {
+        val dir = File(context.getExternalFilesDir(null), "Documents")
+        if (!dir.exists()) dir.mkdirs()
+        return dir
+    }
+
+    suspend fun download(url: String, fileName: String? = null, cookies: String? = null): DownloadResult = withContext(Dispatchers.IO) {
+        try {
+            val requestBuilder = Request.Builder().url(url)
+            val cookie = cookies ?: CookieManager.getInstance()?.getCookie(url)
+            if (cookie != null) {
+                requestBuilder.addHeader("Cookie", cookie)
+            }
+            val response = client.newCall(requestBuilder.build()).execute()
+            if (!response.isSuccessful) return@withContext DownloadResult.Error("HTTP ${response.code}")
+
+            val contentDisposition = response.header("Content-Disposition")
+            val resolvedName = fileName
+                ?: parseFileNameFromDisposition(contentDisposition)
+                ?: "document_${System.currentTimeMillis()}.pdf"
+
+            val safeName = resolvedName.replace(Regex("[\\/:*?\"<>|]"), "_")
+            val file = File(getStorageDir(), safeName)
+            response.body?.byteStream()?.use { input ->
+                file.outputStream().use { output -> input.copyTo(output) }
+            }
+            DownloadResult.Success(file.absolutePath, safeName, file.length())
+        } catch (e: Exception) {
+            DownloadResult.Error(e.message ?: "Download failed")
+        }
+    }
+
+    private fun parseFileNameFromDisposition(header: String?): String? {
+        if (header == null) return null
+        // filename*=UTF-8''xxx.pdf
+        Regex("filename\\*=(?:UTF-8''|utf-8'')(.+)").find(header)?.let {
+            return java.net.URLDecoder.decode(it.groupValues[1], "UTF-8")
+        }
+        // filename="xxx.pdf"
+        Regex("filename=\"?([^\"]+)\"?").find(header)?.let {
+            return it.groupValues[1].trim()
+        }
+        return null
+    }
+}
+
+sealed class DownloadResult {
+    data class Success(val filePath: String, val fileName: String, val fileSize: Long) : DownloadResult()
+    data class Error(val message: String) : DownloadResult()
+}

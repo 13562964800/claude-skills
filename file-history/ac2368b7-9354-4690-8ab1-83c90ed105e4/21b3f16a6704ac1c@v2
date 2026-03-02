@@ -1,0 +1,394 @@
+package com.multilanglearner.ui.player
+
+import android.app.Application
+import android.speech.tts.TextToSpeech
+import androidx.lifecycle.AndroidViewModel
+import androidx.lifecycle.SavedStateHandle
+import androidx.lifecycle.viewModelScope
+import com.multilanglearner.data.network.AIService
+import com.multilanglearner.data.network.DictionaryService
+import com.multilanglearner.data.network.WhisperService
+import com.multilanglearner.data.repository.FavoriteRepository
+import com.multilanglearner.data.store.AIConfigStore
+import com.multilanglearner.domain.model.*
+import com.multilanglearner.domain.util.VttParser
+import com.multilanglearner.domain.util.WordAligner
+import dagger.hilt.android.lifecycle.HiltViewModel
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.flow.*
+import kotlinx.coroutines.isActive
+import kotlinx.coroutines.launch
+import kotlinx.serialization.json.Json
+import java.io.File
+import java.util.Locale
+import javax.inject.Inject
+
+data class PlayerUiState(
+    val subtitles: List<SubtitleCue> = emptyList(),
+    val wordTimings: List<WordTimestamp> = emptyList(),
+    val currentCueIndex: Int = -1,
+    val currentPositionMs: Long = 0,
+    val mode: String = "learn", // "learn" or "dictation"
+    val currentLang: String = "en",
+    val statusText: String = "加载中...",
+    val isTranscribing: Boolean = false,
+    // Word card
+    val showWordCard: Boolean = false,
+    val wordCardData: WordCardData? = null,
+    val currentSentence: String = "",
+    // AI analysis
+    val aiAnalysisResult: String? = null,
+    val isAnalyzing: Boolean = false,
+    // Dictation
+    val dictationIndex: Int = 0
+)
+
+@HiltViewModel
+class PlayerViewModel @Inject constructor(
+    application: Application,
+    private val favoriteRepository: FavoriteRepository,
+    private val aiConfigStore: AIConfigStore,
+    private val aiService: AIService,
+    private val dictionaryService: DictionaryService,
+    private val whisperService: WhisperService
+) : AndroidViewModel(application) {
+
+    private val _uiState = MutableStateFlow(PlayerUiState())
+    val uiState: StateFlow<PlayerUiState> = _uiState.asStateFlow()
+
+    private var tts: TextToSpeech? = null
+    private val json = Json { ignoreUnknownKeys = true }
+
+    init {
+        tts = TextToSpeech(application) { status ->
+            if (status == TextToSpeech.SUCCESS) {
+                tts?.language = Locale.US
+            }
+        }
+    }
+
+    fun loadSubtitles(videoPath: String, subtitlePath: String?) {
+        viewModelScope.launch(Dispatchers.IO) {
+            // Try loading VTT subtitle
+            val vttPath = subtitlePath ?: findExistingSubtitle(videoPath)
+            if (vttPath != null) {
+                val file = File(vttPath)
+                if (file.exists()) {
+                    val content = file.readText()
+                    val subs = VttParser.parse(content)
+                    if (subs.isNotEmpty()) {
+                        _uiState.update { it.copy(
+                            subtitles = subs,
+                            statusText = "已加载 ${subs.size} 条字幕"
+                        )}
+                        // Load word timestamps if available
+                        loadWordTimestamps(vttPath)
+                        return@launch
+                    }
+                }
+            }
+            _uiState.update { it.copy(statusText = "无字幕文件，请在 AI 设置中配置 Groq Whisper 后重新转录") }
+        }
+    }
+
+    private fun findExistingSubtitle(videoPath: String): String? {
+        val base = videoPath.substringBeforeLast(".")
+        for (ext in listOf(".vtt", ".srt")) {
+            val f = File(base + ext)
+            if (f.exists()) return f.absolutePath
+        }
+        // Check with language suffix
+        val dir = File(videoPath).parentFile ?: return null
+        val name = File(videoPath).nameWithoutExtension
+        dir.listFiles()?.forEach { f ->
+            if (f.name.startsWith(name) && f.extension == "vtt") return f.absolutePath
+        }
+        return null
+    }
+
+    private fun loadWordTimestamps(vttPath: String) {
+        val wtsPath = vttPath.replace(Regex("\\.vtt$"), ".wordts.json")
+        val wtsFile = File(wtsPath)
+        if (wtsFile.exists()) {
+            try {
+                val timings: List<WordTimestamp> = json.decodeFromString(wtsFile.readText())
+                _uiState.update { it.copy(wordTimings = timings) }
+            } catch (_: Exception) {}
+        }
+    }
+
+    /** Called every 30ms from the player to sync subtitles */
+    fun updatePosition(positionMs: Long) {
+        _uiState.update { it.copy(currentPositionMs = positionMs) }
+        val subs = _uiState.value.subtitles
+        if (subs.isEmpty()) return
+
+        // Binary search for current cue (ported from renderer.js)
+        var lo = 0; var hi = subs.size - 1; var idx = -1
+        while (lo <= hi) {
+            val mid = (lo + hi) ushr 1
+            when {
+                positionMs < subs[mid].startMs -> hi = mid - 1
+                positionMs > subs[mid].endMs -> lo = mid + 1
+                else -> { idx = mid; break }
+            }
+        }
+        // Gap handling: find next cue within 0.5s
+        if (idx < 0) {
+            for (i in subs.indices) {
+                if (subs[i].startMs > positionMs) {
+                    idx = if (subs[i].startMs - positionMs < 500) i else if (i > 0) i - 1 else 0
+                    break
+                }
+            }
+            if (idx < 0) idx = subs.size - 1
+        }
+
+        if (idx != _uiState.value.currentCueIndex) {
+            _uiState.update { it.copy(
+                currentCueIndex = idx,
+                currentSentence = subs[idx].text,
+                showWordCard = false,
+                aiAnalysisResult = null
+            )}
+        }
+    }
+
+    /** Retranscribe - ported from renderer.js retranscribeBtn click handler.
+     *  Deletes existing subtitle files and triggers Groq Whisper transcription. */
+    fun retranscribe(videoPath: String) {
+        viewModelScope.launch(Dispatchers.IO) {
+            // Delete existing subtitle files
+            val base = videoPath.substringBeforeLast(".")
+            listOf(".vtt", ".wordts.json").forEach { ext ->
+                val f = File(base + ext)
+                if (f.exists()) f.delete()
+            }
+            // Also check language-suffixed vtt
+            File(videoPath).parentFile?.listFiles()?.forEach { f ->
+                val name = File(videoPath).nameWithoutExtension
+                if (f.name.startsWith(name) && (f.extension == "vtt" || f.name.endsWith(".wordts.json"))) {
+                    f.delete()
+                }
+            }
+
+            _uiState.update { it.copy(
+                subtitles = emptyList(),
+                wordTimings = emptyList(),
+                currentCueIndex = -1,
+                isTranscribing = true,
+                statusText = "正在重新转录..."
+            )}
+
+            // Transcribe via Groq Whisper
+            val config = aiConfigStore.config.first()
+            if (!config.groqWhisperEnabled || config.apiKey.isBlank()) {
+                _uiState.update { it.copy(isTranscribing = false, statusText = "请先在 AI 设置中配置 Groq Whisper") }
+                return@launch
+            }
+
+            val vttPath = base + ".vtt"
+            val wtsPath = base + ".wordts.json"
+            val vttBuilder = StringBuilder("WEBVTT\n\n")
+            val allWordTimings = mutableListOf<WordTimestamp>()
+
+            // Check Groq API Key
+            val hasGroqKey = config.groqApiKey.isNotBlank() ||
+                             (config.provider == "groq" && config.apiKey.isNotBlank())
+
+            if (!config.groqWhisperEnabled || !hasGroqKey) {
+                _uiState.update { it.copy(isTranscribing = false, statusText = "请先在 AI 设置中配置 Groq Whisper API Key") }
+                return@launch
+            }
+
+            _uiState.update { it.copy(statusText = "正在检查文件大小...") }
+
+            val videoFile = File(videoPath)
+            val fileSizeMB = videoFile.length() / 1024.0 / 1024.0
+
+            _uiState.update { it.copy(statusText = "正在转录 (文件大小: ${"%.2f".format(fileSizeMB)}MB)...") }
+
+            // For simplicity, try transcribing the video file directly
+            // Note: Groq has a 25MB file size limit
+            val result = whisperService.transcribeGroq(videoFile, config)
+
+            if (result != null && result.success && result.text.isNotBlank()) {
+                // Build VTT from word timestamps
+                if (result.words.isNotEmpty()) {
+                    var curWords = mutableListOf<WordTimestamp>()
+                    for (wt in result.words) {
+                        curWords.add(wt)
+                        if (wt.w.trim().matches(Regex(".*[.!?。！？]$")) && curWords.isNotEmpty()) {
+                            val sentText = curWords.joinToString(" ") { it.w }
+                            val sStart = curWords.first().s
+                            val sEnd = curWords.last().e
+                            vttBuilder.append("${VttParser.formatVtt(sStart)} --> ${VttParser.formatVtt(sEnd)}\n$sentText\n\n")
+                            allWordTimings.addAll(curWords)
+                            curWords = mutableListOf()
+                        }
+                    }
+                    if (curWords.isNotEmpty()) {
+                        val sentText = curWords.joinToString(" ") { it.w }
+                        val sStart = curWords.first().s
+                        val sEnd = curWords.last().e
+                        vttBuilder.append("${VttParser.formatVtt(sStart)} --> ${VttParser.formatVtt(sEnd)}\n$sentText\n\n")
+                        allWordTimings.addAll(curWords)
+                    }
+                }
+
+                // Save files
+                File(vttPath).writeText(vttBuilder.toString())
+                if (allWordTimings.isNotEmpty()) {
+                    File(wtsPath).writeText(json.encodeToString(kotlinx.serialization.builtins.ListSerializer(WordTimestamp.serializer()), allWordTimings))
+                }
+
+                // Reload
+                val subs = VttParser.parse(vttBuilder.toString())
+                _uiState.update { it.copy(
+                    subtitles = subs,
+                    wordTimings = allWordTimings,
+                    isTranscribing = false,
+                    statusText = "重新转录完成，共 ${subs.size} 条字幕"
+                )}
+            } else {
+                // Show detailed error message
+                val errorMsg = result?.error ?: "转录失败"
+                _uiState.update { it.copy(isTranscribing = false, statusText = errorMsg) }
+            }
+        }
+    }
+
+    fun setMode(mode: String) {
+        _uiState.update { it.copy(mode = mode, dictationIndex = _uiState.value.currentCueIndex.coerceAtLeast(0)) }
+    }
+
+    fun setLang(lang: String) {
+        _uiState.update { it.copy(currentLang = lang) }
+        val locale = LANGUAGES.find { it.code == lang }?.ttsLocale ?: "en-US"
+        tts?.language = Locale.forLanguageTag(locale)
+    }
+
+    /** Look up a word - ported from renderer.js showWordInline() */
+    fun lookupWord(word: String) {
+        _uiState.update { it.copy(showWordCard = true, wordCardData = WordCardData(word = word, translation = "查询中...")) }
+        speak(word)
+
+        viewModelScope.launch(Dispatchers.IO) {
+            val lang = _uiState.value.currentLang
+            val context = _uiState.value.currentSentence
+
+            // Parallel lookups
+            val aiConfig = aiConfigStore.config.first()
+            val aiTransPromise = launch { aiTranslateWord(word, context, lang, aiConfig) }
+
+            val cardData = when (lang) {
+                "en" -> {
+                    val online = dictionaryService.lookupEnglish(word)
+                    val translation = dictionaryService.translate(word, "en")
+                    val aiTrans = aiTranslateWord(word, context, lang, aiConfig)
+                    WordCardData(
+                        word = word,
+                        phonetic = online?.phonetic ?: "",
+                        translation = aiTrans ?: translation ?: online?.translation ?: "未找到释义",
+                        definitions = online?.definitions ?: emptyList(),
+                        examples = online?.examples ?: emptyList()
+                    )
+                }
+                "ja" -> {
+                    val online = dictionaryService.lookupJapanese(word)
+                    val translation = dictionaryService.translate(word, "ja")
+                    val aiTrans = aiTranslateWord(word, context, lang, aiConfig)
+                    WordCardData(
+                        word = word,
+                        phonetic = online?.phonetic ?: "",
+                        translation = aiTrans ?: translation ?: "未找到释义",
+                        definitions = online?.definitions ?: emptyList()
+                    )
+                }
+                else -> {
+                    val translation = dictionaryService.translate(word, lang)
+                    val aiTrans = aiTranslateWord(word, context, lang, aiConfig)
+                    WordCardData(
+                        word = word,
+                        translation = aiTrans ?: translation ?: "未找到释义"
+                    )
+                }
+            }
+            _uiState.update { it.copy(wordCardData = cardData) }
+        }
+    }
+
+    private suspend fun aiTranslateWord(word: String, context: String, lang: String, config: AIConfig): String? {
+        val langName = LANGUAGES.find { it.code == lang }?.name ?: "英语"
+        val prompt = "将${langName}「${word}」翻译为中文。${if (context.isNotBlank()) "语境:\"$context\"。" else ""}只回复中文释义，多义项用/分隔，不要音译。"
+        return aiService.chat(config, prompt)
+    }
+
+    fun hideWordCard() { _uiState.update { it.copy(showWordCard = false) } }
+
+    /** AI analyze sentence - ported from main.js ai-analyze-sentence */
+    fun analyzeSentence() {
+        val sentence = _uiState.value.currentSentence
+        if (sentence.isBlank()) return
+        _uiState.update { it.copy(isAnalyzing = true, aiAnalysisResult = "🤖 AI分析中...") }
+
+        viewModelScope.launch(Dispatchers.IO) {
+            val lang = _uiState.value.currentLang
+            val langName = LANGUAGES.find { it.code == lang }?.name ?: lang
+            val config = aiConfigStore.config.first()
+            val prompt = """分析${langName}句子："$sentence"
+【翻译】中文翻译
+【语法】1-2个关键语法点
+【重点词汇】2-3个重要词汇及释义"""
+            val result = aiService.chat(config, prompt)
+            _uiState.update { it.copy(
+                isAnalyzing = false,
+                aiAnalysisResult = result ?: "AI未配置或请求失败，请在设置中配置API Key"
+            )}
+        }
+    }
+
+    /** Favorite operations */
+    suspend fun isFavorite(word: String): Boolean {
+        return favoriteRepository.isFavorite(word, _uiState.value.currentLang)
+    }
+
+    fun toggleFavorite(word: String, phonetic: String = "", translation: String = "") {
+        viewModelScope.launch {
+            val lang = _uiState.value.currentLang
+            if (favoriteRepository.isFavorite(word, lang)) {
+                favoriteRepository.remove(word, lang)
+            } else {
+                favoriteRepository.add(word, lang, phonetic, translation, _uiState.value.currentSentence)
+            }
+        }
+    }
+
+    /** TTS */
+    fun speak(text: String) {
+        tts?.speak(text, TextToSpeech.QUEUE_FLUSH, null, "word_tts")
+    }
+
+    /** Dictation */
+    fun nextDictation() {
+        val nextIdx = (_uiState.value.dictationIndex + 1).coerceAtMost(_uiState.value.subtitles.size - 1)
+        _uiState.update { it.copy(dictationIndex = nextIdx) }
+    }
+
+    /** Get aligned word timings for current cue */
+    fun getAlignedTimings(words: List<String>): List<WordTimestamp?> {
+        val state = _uiState.value
+        val cueIdx = state.currentCueIndex
+        if (cueIdx < 0 || cueIdx >= state.subtitles.size || state.wordTimings.isEmpty()) {
+            return List(words.size) { null }
+        }
+        val cue = state.subtitles[cueIdx]
+        return WordAligner.alignWords(words, state.wordTimings, cue.startMs / 1000.0, cue.endMs / 1000.0)
+    }
+
+    override fun onCleared() {
+        tts?.shutdown()
+        super.onCleared()
+    }
+}

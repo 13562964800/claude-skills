@@ -1,0 +1,381 @@
+# SaaS 云系统部署指南
+
+## 架构概览
+
+```
+用户浏览器
+    ↓
+Nginx (反向代理 + SSL)
+    ↓
+┌─────────────────────────────┐
+│  Docker Compose 容器集群     │
+│  ├── Web (Next.js)          │
+│  ├── API (FastAPI)          │
+│  ├── PostgreSQL             │
+│  └── Redis                  │
+└─────────────────────────────┘
+```
+
+## 前置要求
+
+### 服务器配置
+- **CPU**: 2 核心以上
+- **内存**: 4GB 以上
+- **存储**: 20GB 以上
+- **操作系统**: Ubuntu 20.04+ / CentOS 8+
+
+### 必需软件
+- Docker 20.10+
+- Docker Compose 2.0+
+- Nginx
+- Git
+
+## 部署步骤
+
+### Step 1: 服务器初始化
+
+```bash
+# 更新系统
+sudo apt update && sudo apt upgrade -y
+
+# 安装 Docker
+curl -fsSL https://get.docker.com -o get-docker.sh
+sudo sh get-docker.sh
+
+# 安装 Docker Compose
+sudo curl -L "https://github.com/docker/compose/releases/latest/download/docker-compose-$(uname -s)-$(uname -m)" -o /usr/local/bin/docker-compose
+sudo chmod +x /usr/local/bin/docker-compose
+
+# 安装 Nginx
+sudo apt install nginx -y
+
+# 安装 Git
+sudo apt install git -y
+```
+
+### Step 2: 克隆项目
+
+```bash
+# 创建部署目录
+sudo mkdir -p /opt/legalflow-studio
+sudo chown $USER:$USER /opt/legalflow-studio
+
+# 克隆代码
+cd /opt/legalflow-studio
+git clone https://github.com/yourusername/legalflow-studio.git .
+```
+
+### Step 3: 配置环境变量
+
+```bash
+# 复制环境变量模板
+cp .env.example .env
+
+# 编辑环境变量
+nano .env
+```
+
+必须配置的变量：
+```bash
+# 数据库密码
+DB_PASSWORD=your-secure-password
+
+# LLM API Keys
+ANTHROPIC_API_KEY=sk-ant-xxx
+OPENAI_API_KEY=sk-xxx
+# ... 其他 API keys
+
+# 安全密钥
+SECRET_KEY=your-random-secret-key
+```
+
+### Step 4: 启动服务
+
+```bash
+# 使用部署脚本
+chmod +x deploy/deploy.sh
+./deploy/deploy.sh
+
+# 或手动启动
+docker-compose up -d
+```
+
+### Step 5: 配置 Nginx
+
+```bash
+# 复制 Nginx 配置
+sudo cp deploy/nginx.conf /etc/nginx/sites-available/legalflow
+
+# 创建软链接
+sudo ln -s /etc/nginx/sites-available/legalflow /etc/nginx/sites-enabled/
+
+# 测试配置
+sudo nginx -t
+
+# 重启 Nginx
+sudo systemctl restart nginx
+```
+
+### Step 6: 配置 SSL 证书（推荐）
+
+使用 Let's Encrypt 免费证书：
+
+```bash
+# 安装 Certbot
+sudo apt install certbot python3-certbot-nginx -y
+
+# 获取证书
+sudo certbot --nginx -d legalflow.studio -d www.legalflow.studio
+
+# 自动续期
+sudo certbot renew --dry-run
+```
+
+### Step 7: 配置防火墙
+
+```bash
+# 允许 HTTP/HTTPS
+sudo ufw allow 80/tcp
+sudo ufw allow 443/tcp
+
+# 允许 SSH
+sudo ufw allow 22/tcp
+
+# 启用防火墙
+sudo ufw enable
+```
+
+## 验证部署
+
+### 检查服务状态
+
+```bash
+# 查看容器状态
+docker-compose ps
+
+# 查看日志
+docker-compose logs -f
+
+# 检查 API 健康
+curl http://localhost:8000/docs
+
+# 检查前端
+curl http://localhost:3000
+```
+
+### 访问应用
+
+- **HTTP**: http://your-domain.com
+- **HTTPS**: https://your-domain.com
+- **API 文档**: https://your-domain.com/api/docs
+
+## 维护操作
+
+### 更新应用
+
+```bash
+cd /opt/legalflow-studio
+./deploy/deploy.sh
+```
+
+### 查看日志
+
+```bash
+# 所有服务
+docker-compose logs -f
+
+# 特定服务
+docker-compose logs -f api
+docker-compose logs -f web
+```
+
+### 备份数据库
+
+```bash
+# 备份
+docker-compose exec postgres pg_dump -U legalflow legalflow > backup.sql
+
+# 恢复
+docker-compose exec -T postgres psql -U legalflow legalflow < backup.sql
+```
+
+### 重启服务
+
+```bash
+# 重启所有服务
+docker-compose restart
+
+# 重启特定服务
+docker-compose restart api
+```
+
+## 监控和日志
+
+### 使用 Docker 日志
+
+```bash
+# 实时查看日志
+docker-compose logs -f
+
+# 查看最近 100 行
+docker-compose logs --tail=100
+
+# 查看特定时间范围
+docker-compose logs --since 2024-01-01 --until 2024-01-02
+```
+
+### 配置日志轮转
+
+创建 `/etc/docker/daemon.json`:
+```json
+{
+  "log-driver": "json-file",
+  "log-opts": {
+    "max-size": "10m",
+    "max-file": "3"
+  }
+}
+```
+
+重启 Docker:
+```bash
+sudo systemctl restart docker
+```
+
+## 性能优化
+
+### 1. 数据库优化
+
+编辑 `docker-compose.yml`，添加 PostgreSQL 配置：
+```yaml
+postgres:
+  command: postgres -c shared_buffers=256MB -c max_connections=200
+```
+
+### 2. Redis 持久化
+
+```yaml
+redis:
+  command: redis-server --appendonly yes
+  volumes:
+    - redis_data:/data
+```
+
+### 3. Nginx 缓存
+
+在 `nginx.conf` 中添加：
+```nginx
+proxy_cache_path /var/cache/nginx levels=1:2 keys_zone=my_cache:10m max_size=1g;
+
+location / {
+    proxy_cache my_cache;
+    proxy_cache_valid 200 1h;
+}
+```
+
+## 安全加固
+
+### 1. 限制 Docker 端口暴露
+
+修改 `docker-compose.yml`，移除不必要的端口映射：
+```yaml
+postgres:
+  # ports:
+  #   - "5432:5432"  # 不暴露到外部
+```
+
+### 2. 配置 Nginx 安全头
+
+```nginx
+add_header X-Frame-Options "SAMEORIGIN" always;
+add_header X-Content-Type-Options "nosniff" always;
+add_header X-XSS-Protection "1; mode=block" always;
+```
+
+### 3. 限制请求速率
+
+```nginx
+limit_req_zone $binary_remote_addr zone=api_limit:10m rate=10r/s;
+
+location /api {
+    limit_req zone=api_limit burst=20;
+}
+```
+
+## 故障排查
+
+### 问题 1: 容器无法启动
+
+```bash
+# 查看详细错误
+docker-compose logs api
+
+# 检查端口占用
+sudo netstat -tulpn | grep :8000
+```
+
+### 问题 2: 数据库连接失败
+
+```bash
+# 检查数据库状态
+docker-compose exec postgres pg_isready
+
+# 测试连接
+docker-compose exec api python -c "from app.core.database import engine; print(engine.connect())"
+```
+
+### 问题 3: 前端无法访问 API
+
+检查 CORS 配置和环境变量：
+```bash
+# 查看 API 环境变量
+docker-compose exec api env | grep API
+```
+
+## 自动化部署（CI/CD）
+
+### GitHub Actions 示例
+
+创建 `.github/workflows/deploy.yml`:
+```yaml
+name: Deploy to Production
+
+on:
+  push:
+    branches: [master]
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Deploy to server
+        uses: appleboy/ssh-action@master
+        with:
+          host: ${{ secrets.SERVER_HOST }}
+          username: ${{ secrets.SERVER_USER }}
+          key: ${{ secrets.SSH_PRIVATE_KEY }}
+          script: |
+            cd /opt/legalflow-studio
+            git pull origin master
+            ./deploy/deploy.sh
+```
+
+## 扩展部署
+
+### 多服务器部署
+
+使用 Docker Swarm 或 Kubernetes 进行水平扩展。
+
+### 负载均衡
+
+在多个服务器前添加负载均衡器（如 HAProxy）。
+
+### CDN 加速
+
+将静态资源上传到 CDN（如阿里云 OSS + CDN）。
+
+## 技术支持
+
+- 文档：[项目 README](../../README.md)
+- Issues：[GitHub Issues](https://github.com/yourusername/legalflow-studio/issues)
+- 邮件：support@legalflow.studio

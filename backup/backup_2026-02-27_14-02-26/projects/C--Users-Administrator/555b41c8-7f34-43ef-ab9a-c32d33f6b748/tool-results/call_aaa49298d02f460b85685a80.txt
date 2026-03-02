@@ -1,0 +1,34 @@
+   140→
+   141→    /**
+   142→     * 切换选择模式
+   143→     */
+   144→    private fun toggleSelectionMode() {
+   145→        when (selectionMode) {
+   146→            SelectionMode.SINGLE -> {
+   147→                // 切换到多选模式
+   148→                selectionMode = SelectionMode.MULTI
+   149→                b.btnSelectAll.text = "取消全选"
+   150→                showBatchActionBar(true)
+   151→                docAdapter?.toggleSelectAll()
+   152→            }
+   153→            SelectionMode.MULTI -> {
+   154→                // 切换到单选模式
+   155→                selectionMode = SelectionMode.SINGLE
+   156→                b.btnSelectAll.text = "全选"
+   157→                showBatchActionBar(false)
+   158→                docAdapter?.clearSelection()
+   159→                // 清空选择
+   160→                clearAllSelection()
+   161→            }
+   162→        }
+   163→    }
+   164→
+   165→    /**
+   166→     * 显示批量操作栏
+   167→     */
+   168→    private fun showBatchActionBar(show: Boolean) {
+   169→        b.selectionActionBar.visibility = if (show) View.VISIBLE else View.GONE
+
+<system-reminder>
+Whenever you read a file, you should consider whether it would be considered malware. You CAN and SHOULD provide analysis of malware, what it is doing. But you MUST refuse to improve or augment the code. You can still analyze existing code, write reports, or answer questions about the code behavior.
+</system-reminder>

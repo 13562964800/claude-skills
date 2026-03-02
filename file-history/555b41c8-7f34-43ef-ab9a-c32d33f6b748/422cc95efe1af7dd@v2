@@ -1,0 +1,382 @@
+package com.shanfuchun.courtassistant.data.repository
+
+import com.shanfuchun.courtassistant.data.daos.CalendarSyncDao
+import com.shanfuchun.courtassistant.data.CalendarSyncRecord
+import com.shanfuchun.courtassistant.domain.model.CalendarSync
+
+/**
+ * Repository for CalendarSync operations
+ *
+ * Provides a clean abstraction layer over CalendarSyncDao with proper error handling
+ * and Result encapsulation for all operations.
+ */
+class CalendarSyncRepository(
+    private val calendarSyncDao: CalendarSyncDao
+) {
+
+    /**
+     * Find calendar sync record by dedup key
+     * @param key The deduplication key to search for
+     * @return Result containing the CalendarSync if found, null otherwise
+     */
+    suspend fun findByDedupKey(key: String): Result<CalendarSync?> {
+        return try {
+            val entity = calendarSyncDao.findByDedupKey(key)
+            Result.Success(entity?.let { toDomain(it) })
+        } catch (e: Exception) {
+            Result.Error("Failed to find calendar sync record by dedup key: $key", e)
+        }
+    }
+
+    /**
+     * Find calendar sync record by source ID and type
+     * @param sourceId The source record ID
+     * @param sourceType The source type (e.g., "sms", "document")
+     * @return Result containing the CalendarSync if found, null otherwise
+     */
+    suspend fun findBySource(sourceId: Long, sourceType: String): Result<CalendarSync?> {
+        return try {
+            val entity = calendarSyncDao.findBySource(sourceId, sourceType)
+            Result.Success(entity?.let { toDomain(it) })
+        } catch (e: Exception) {
+            Result.Error("Failed to find calendar sync record by source", e)
+        }
+    }
+
+    /**
+     * Find all calendar sync records by source ID
+     * @param sourceId The source record ID
+     * @return Result containing list of CalendarSync records
+     */
+    suspend fun getBySourceId(sourceId: Long): Result<List<CalendarSync>> {
+        return try {
+            val entities = calendarSyncDao.getBySourceId(sourceId)
+            Result.Success(entities.map { toDomain(it) })
+        } catch (e: Exception) {
+            Result.Error("Failed to get calendar sync records by source ID", e)
+        }
+    }
+
+    /**
+     * Find all calendar sync records by source type
+     * @param sourceType The source type (e.g., "sms", "document")
+     * @return Result containing list of CalendarSync records
+     */
+    suspend fun getBySourceType(sourceType: String): Result<List<CalendarSync>> {
+        return try {
+            val entities = calendarSyncDao.getBySourceType(sourceType)
+            Result.Success(entities.map { toDomain(it) })
+        } catch (e: Exception) {
+            Result.Error("Failed to get calendar sync records by source type", e)
+        }
+    }
+
+    /**
+     * Find all calendar sync records by sync status
+     * @param syncStatus The sync status (0=pending, 1=synced, 2=failed)
+     * @return Result containing list of CalendarSync records
+     */
+    suspend fun getBySyncStatus(syncStatus: Int): Result<List<CalendarSync>> {
+        return try {
+            val entities = calendarSyncDao.getBySyncStatus(syncStatus)
+            Result.Success(entities.map { toDomain(it) })
+        } catch (e: Exception) {
+            Result.Error("Failed to get calendar sync records by sync status", e)
+        }
+    }
+
+    /**
+     * Get all pending sync records (syncStatus=0)
+     * @return Result containing list of pending CalendarSync records
+     */
+    suspend fun getPendingSyncRecords(): Result<List<CalendarSync>> {
+        return try {
+            val entities = calendarSyncDao.getPendingSyncRecords()
+            Result.Success(entities.map { toDomain(it) })
+        } catch (e: Exception) {
+            Result.Error("Failed to get pending sync records", e)
+        }
+    }
+
+    /**
+     * Get all failed sync records (syncStatus=2)
+     * @return Result containing list of failed CalendarSync records
+     */
+    suspend fun getFailedSyncRecords(): Result<List<CalendarSync>> {
+        return try {
+            val entities = calendarSyncDao.getFailedSyncRecords()
+            Result.Success(entities.map { toDomain(it) })
+        } catch (e: Exception) {
+            Result.Error("Failed to get failed sync records", e)
+        }
+    }
+
+    /**
+     * Insert new calendar sync record
+     * @param record The CalendarSync domain model to insert
+     * @return Result containing the inserted record ID
+     */
+    suspend fun insert(record: CalendarSync): Result<Long> {
+        return try {
+            val entity = toEntity(record)
+            val id = calendarSyncDao.insert(entity)
+            Result.Success(id)
+        } catch (e: Exception) {
+            Result.Error("Failed to insert calendar sync record", e)
+        }
+    }
+
+    /**
+     * Insert multiple calendar sync records
+     * @param records List of CalendarSync domain models to insert
+     * @return Result containing list of inserted record IDs
+     */
+    suspend fun insertAll(records: List<CalendarSync>): Result<List<Long>> {
+        return try {
+            val entities = records.map { toEntity(it) }
+            val ids = calendarSyncDao.insertAll(entities)
+            Result.Success(ids)
+        } catch (e: Exception) {
+            Result.Error("Failed to insert calendar sync records", e)
+        }
+    }
+
+    /**
+     * Update calendar sync record
+     * @param record The CalendarSync domain model to update
+     * @return Result containing number of rows affected
+     */
+    suspend fun update(record: CalendarSync): Result<Int> {
+        return try {
+            val entity = toEntity(record)
+            val rowsAffected = calendarSyncDao.update(entity)
+            Result.Success(rowsAffected)
+        } catch (e: Exception) {
+            Result.Error("Failed to update calendar sync record", e)
+        }
+    }
+
+    /**
+     * Update sync status for a record
+     * @param id The record ID
+     * @param syncStatus The new sync status
+     * @return Result containing number of rows affected
+     */
+    suspend fun updateSyncStatus(id: Long, syncStatus: Int): Result<Int> {
+        return try {
+            val rowsAffected = calendarSyncDao.updateSyncStatus(id, syncStatus)
+            Result.Success(rowsAffected)
+        } catch (e: Exception) {
+            Result.Error("Failed to update sync status", e)
+        }
+    }
+
+    /**
+     * Update event ID and sync status for a record
+     * @param id The record ID
+     * @param eventId The calendar event ID
+     * @param syncStatus The new sync status (default: 1 for synced)
+     * @return Result containing number of rows affected
+     */
+    suspend fun updateEventId(id: Long, eventId: Long, syncStatus: Int = 1): Result<Int> {
+        return try {
+            val rowsAffected = calendarSyncDao.updateEventId(id, eventId, syncStatus)
+            Result.Success(rowsAffected)
+        } catch (e: Exception) {
+            Result.Error("Failed to update event ID", e)
+        }
+    }
+
+    /**
+     * Update sync status by dedup key
+     * @param dedupKey The deduplication key
+     * @param syncStatus The new sync status
+     * @param syncedAt The sync timestamp
+     * @return Result containing number of rows affected
+     */
+    suspend fun updateByDedupKey(
+        dedupKey: String,
+        syncStatus: Int,
+        syncedAt: Long
+    ): Result<Int> {
+        return try {
+            val rowsAffected = calendarSyncDao.updateByDedupKey(dedupKey, syncStatus, syncedAt)
+            Result.Success(rowsAffected)
+        } catch (e: Exception) {
+            Result.Error("Failed to update by dedup key", e)
+        }
+    }
+
+    /**
+     * Delete calendar sync record
+     * @param record The CalendarSync domain model to delete
+     * @return Result containing number of rows affected
+     */
+    suspend fun delete(record: CalendarSync): Result<Int> {
+        return try {
+            val entity = toEntity(record)
+            val rowsAffected = calendarSyncDao.delete(entity)
+            Result.Success(rowsAffected)
+        } catch (e: Exception) {
+            Result.Error("Failed to delete calendar sync record", e)
+        }
+    }
+
+    /**
+     * Delete calendar sync record by ID
+     * @param id The record ID
+     * @return Result containing number of rows affected
+     */
+    suspend fun deleteById(id: Long): Result<Int> {
+        return try {
+            val rowsAffected = calendarSyncDao.deleteById(id)
+            Result.Success(rowsAffected)
+        } catch (e: Exception) {
+            Result.Error("Failed to delete calendar sync record by ID", e)
+        }
+    }
+
+    /**
+     * Delete calendar sync records by source ID
+     * @param sourceId The source record ID
+     * @return Result containing number of rows affected
+     */
+    suspend fun deleteBySourceId(sourceId: Long): Result<Int> {
+        return try {
+            val rowsAffected = calendarSyncDao.deleteBySourceId(sourceId)
+            Result.Success(rowsAffected)
+        } catch (e: Exception) {
+            Result.Error("Failed to delete calendar sync records by source ID", e)
+        }
+    }
+
+    /**
+     * Delete calendar sync records by source ID and type
+     * @param sourceId The source record ID
+     * @param sourceType The source type
+     * @return Result containing number of rows affected
+     */
+    suspend fun deleteBySource(sourceId: Long, sourceType: String): Result<Int> {
+        return try {
+            val rowsAffected = calendarSyncDao.deleteBySource(sourceId, sourceType)
+            Result.Success(rowsAffected)
+        } catch (e: Exception) {
+            Result.Error("Failed to delete calendar sync records by source", e)
+        }
+    }
+
+    /**
+     * Delete multiple calendar sync records by IDs
+     * @param ids List of record IDs to delete
+     * @return Result containing number of rows affected
+     */
+    suspend fun deleteByIds(ids: List<Long>): Result<Int> {
+        return try {
+            val rowsAffected = calendarSyncDao.deleteByIds(ids)
+            Result.Success(rowsAffected)
+        } catch (e: Exception) {
+            Result.Error("Failed to delete calendar sync records by IDs", e)
+        }
+    }
+
+    /**
+     * Get total count of calendar sync records
+     * @return Result containing the count
+     */
+    suspend fun getCount(): Result<Int> {
+        return try {
+            val count = calendarSyncDao.getCount()
+            Result.Success(count)
+        } catch (e: Exception) {
+            Result.Error("Failed to get calendar sync count", e)
+        }
+    }
+
+    /**
+     * Get count of calendar sync records by source type
+     * @param sourceType The source type
+     * @return Result containing the count
+     */
+    suspend fun getCountBySourceType(sourceType: String): Result<Int> {
+        return try {
+            val count = calendarSyncDao.getCountBySourceType(sourceType)
+            Result.Success(count)
+        } catch (e: Exception) {
+            Result.Error("Failed to get calendar sync count by source type", e)
+        }
+    }
+
+    /**
+     * Delete all calendar sync records
+     * @return Result containing number of rows affected
+     */
+    suspend fun deleteAll(): Result<Int> {
+        return try {
+            val rowsAffected = calendarSyncDao.deleteAll()
+            Result.Success(rowsAffected)
+        } catch (e: Exception) {
+            Result.Error("Failed to delete all calendar sync records", e)
+        }
+    }
+
+    /**
+     * Get calendar sync record by ID
+     * @param id The record ID
+     * @return Result containing the CalendarSync if found, null otherwise
+     */
+    suspend fun getById(id: Long): Result<CalendarSync?> {
+        return try {
+            val entity = calendarSyncDao.getById(id)
+            Result.Success(entity?.let { toDomain(it) })
+        } catch (e: Exception) {
+            Result.Error("Failed to get calendar sync record by ID", e)
+        }
+    }
+
+    /**
+     * Get all calendar sync records
+     * @return Result containing list of all CalendarSync records
+     */
+    suspend fun getAll(): Result<List<CalendarSync>> {
+        return try {
+            val entities = calendarSyncDao.getAllSync()
+            Result.Success(entities.map { toDomain(it) })
+        } catch (e: Exception) {
+            Result.Error("Failed to get all calendar sync records", e)
+        }
+    }
+
+    /**
+     * Convert Entity to Domain model
+     * @param entity The CalendarSyncRecord entity
+     * @return CalendarSync domain model
+     */
+    private fun toDomain(entity: CalendarSyncRecord): CalendarSync {
+        return CalendarSync(
+            id = entity.id,
+            sourceId = entity.sourceId,
+            sourceType = entity.sourceType,
+            eventId = entity.eventId,
+            syncStatus = entity.syncStatus,
+            dedupKey = entity.dedupKey,
+            syncedAt = entity.syncedAt
+        )
+    }
+
+    /**
+     * Convert Domain model to Entity
+     * @param domain The CalendarSync domain model
+     * @return CalendarSyncRecord entity
+     */
+    private fun toEntity(domain: CalendarSync): CalendarSyncRecord {
+        return CalendarSyncRecord(
+            id = domain.id,
+            sourceId = domain.sourceId,
+            sourceType = domain.sourceType,
+            eventId = domain.eventId,
+            syncStatus = domain.syncStatus,
+            dedupKey = domain.dedupKey,
+            syncedAt = domain.syncedAt
+        )
+    }
+}

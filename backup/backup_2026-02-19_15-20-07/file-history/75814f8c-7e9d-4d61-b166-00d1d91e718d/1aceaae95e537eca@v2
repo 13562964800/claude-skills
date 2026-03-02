@@ -1,0 +1,449 @@
+package com.courassistant;
+
+import com.courassistant.java.parser.PdfParser;
+import com.courassistant.java.model.CourtCase;
+
+import org.junit.Test;
+import static org.junit.Assert.*;
+
+import java.io.File;
+import java.io.FileWriter;
+import java.io.IOException;
+
+/**
+ * PdfParser 单元测试
+ * 测试 PDF 解析功能
+ */
+public class PdfParserTest {
+
+    /**
+     * 测试标准传票解析
+     */
+    @Test
+    public void testParseSummonsPdf_StandardFormat() {
+        // 创建测试 PDF 内容（模拟文本提取）
+        String pdfText = "北京市第一中级人民法院\n" +
+                       "开庭传票\n" +
+                       "案号：(2024)京01民初123号\n" +
+                       "原告：张三\n" +
+                       "被告：李四\n" +
+                       "开庭时间：2024年3月15日上午9:30\n" +
+                       "地点：第三法庭\n" +
+                       "审判长：王法官";
+
+        // 创建临时测试文件
+        File testFile = createTempFile("test_summons.txt", pdfText);
+
+        PdfParser parser = new PdfParser();
+        CourtCase courtCase = parser.parseSummonsPdf(testFile.getAbsolutePath());
+
+        assertNotNull("解析结果不应为null", courtCase);
+        assertEquals("案号应正确", "(2024)京01民初123号", courtCase.getCaseNo());
+        assertEquals("原告应正确", "张三", courtCase.getPlaintiff());
+        assertEquals("被告应正确", "李四", courtCase.getDefendant());
+        assertTrue("开庭时间应正确", courtCase.getHearingDate() > 0);
+
+        // 清理测试文件
+        testFile.delete();
+    }
+
+    /**
+     * 测试案号提取
+     */
+    @Test
+     public void testExtractCaseNo() {
+        String pdfText = "案号：(2024)京01民初123号";
+
+        PdfParser parser = new PdfParser();
+        String caseNo = parser.extractCaseNoFromText(pdfText);
+
+        assertEquals("案号提取正确", "(2024)京01民初123号", caseNo);
+    }
+
+    /**
+     * 测试不同案号格式
+     */
+    @Test
+    public void testExtractCaseNo_DifferentFormats() {
+        PdfParser parser = new PdfParser();
+
+        // 民事案件
+        String caseNo1 = parser.extractCaseNoFromText("案号：(2024)京01民初123号");
+        assertEquals("民事案号", "(2024)京01民初123号", caseNo1);
+
+        // 刑事案件
+        String caseNo2 = parser.extractCaseNoFromText("案号：(2024)京01刑初456号");
+        assertEquals("刑事案号", "(2024)京01刑初456号", caseNo2);
+
+        // 行政案件
+        String caseNo3 = parser.extractCaseNoFromText("案号：(2024)京01行终789号");
+        assertEquals("行政案号", "(2024)京01行终789号", caseNo3);
+
+        // 无括号格式
+        String caseNo4 = parser.extractCaseNoFromText("案号：2024年京01民初123号");
+        assertNotNull("无括号格式应能解析", caseNo4);
+    }
+
+    /**
+     * 测试开庭时间提取
+     */
+    @Test
+    public void testExtractHearingDate() {
+        PdfParser parser = new PdfParser();
+
+        // 标准格式
+        long time1 = parser.extractHearingDateFromText("开庭时间：2024年3月15日上午9:30");
+        assertTrue("标准格式应能解析", time1 > 0);
+
+        // 短格式
+        long time2 = parser.extractHearingDateFromText("开庭时间：2024年3月15日");
+        assertTrue("短格式应能解析", time2 > 0);
+
+        // 数字格式
+        long time3 = parser.extractHearingDateFromText("开庭时间：2024-03-15 09:30");
+        assertTrue("数字格式应能解析", time3 > 0);
+    }
+
+    /**
+     * 测试法院名称提取
+     */
+    @Test
+    public void testExtractCourtName() {
+        PdfParser parser = new PdfParser();
+
+        // 完整名称
+        String court1 = parser.extractCourtNameFromText("北京市第一中级人民法院");
+        assertEquals("完整法院名", "北京市第一中级人民法院", court1);
+
+        // 简化名称
+        String court2 = parser.extractCourtNameFromText("北京一中院");
+        assertNotNull("简化法院名应能提取", court2);
+
+        // 包含"人民法院"
+        String court3 = parser.extractCourtNameFromText("北京市海淀区人民法院");
+        assertEquals("地方法院", "北京市海淀区人民法院", court3);
+    }
+
+    /**
+     * 测试当事人提取
+     */
+    @Test
+    public void testExtractParties() {
+        PdfParser parser = new PdfParser();
+        String pdfText = "原告：张三\n被告：李四";
+
+        // 提取原告
+        String plaintiff = parser.extractPlaintiffFromText(pdfText);
+        assertEquals("原告正确", "张三", plaintiff);
+
+        // 提取被告
+        String defendant = parser.extractDefendantFromText(pdfText);
+        assertEquals("被告正确", "李四", defendant);
+    }
+
+    /**
+     * 测试法官信息提取
+     */
+    @Test
+    public void testExtractJudgeInfo() {
+        PdfParser parser = new PdfParser();
+
+        // 审判长
+        String judge1 = parser.extractJudgeFromText("审判长：王法官");
+        assertEquals("审判长", "王法官", judge1);
+
+        // 独任审判员
+        String judge2 = parser.extractJudgeFromText("独任审判员：李法官");
+        assertEquals("独任审判员", "李法官", judge2);
+
+        // 陪审员
+        String judge3 = parser.extractJudgeFromText("人民陪审员：赵女士");
+        assertEquals("陪审员", "赵女士", judge3);
+    }
+
+    /**
+     * 测试地点提取
+     */
+    @Test
+    public void testExtractLocation() {
+        PdfParser parser = new PdfParser();
+
+        String location1 = parser.extractLocationFromText("地点：第三法庭");
+        assertEquals("法庭地点", "第三法庭", location1);
+
+        String location2 = parser.extractLocationFromText("开庭地点：第5审判庭");
+        assertEquals("审判庭地点", "第5审判庭", location2);
+
+        String location3 = parser.extractLocationFromText("地址：北京市朝阳区XX路XX号");
+        assertNotNull("详细地址应能提取", location3);
+    }
+
+    /**
+     * 测试案件类型识别
+     */
+    @Test
+    public void testIdentifyCaseType() {
+        PdfParser parser = new PdfParser();
+
+        // 民事案件
+        String type1 = parser.identifyCaseType("(2024)京01民初123号");
+        assertEquals("民事案件", "民事", type1);
+
+        // 刑事案件
+        String type2 = parser.identifyCaseType("(2024)京01刑初456号");
+        assertEquals("刑事案件", "刑事", type2);
+
+        // 行政案件
+        String type3 = parser.identifyCaseType("(2024)京01行终789号");
+        assertEquals("行政案件", "行政", type3);
+    }
+
+    /**
+     * 测试完整传票解析流程
+     */
+    @Test
+    public void testParseCompleteSummons() {
+        String completePdfText =
+            "================================\n" +
+            "  北京市第一中级人民法院\n" +
+            "        开庭传票\n" +
+            "================================\n" +
+            "\n" +
+            "案号：(2024)京01民初123号\n" +
+            "案件类型：民事纠纷\n" +
+            "\n" +
+            "当事人信息：\n" +
+            "  原告：张三\n" +
+            "  被告：李四\n" +
+            "\n" +
+            "开庭信息：\n" +
+            "  时间：2024年3月15日上午9:30\n" +
+            "  地点：第三法庭\n" +
+            "  审判长：王法官\n" +
+            "  书记员：陈书记员\n" +
+            "\n" +
+            "注意事项：\n" +
+            "  请携带身份证件\n" +
+            "  请准时出席\n" +
+            "================================";
+
+        File testFile = createTempFile("complete_summons.txt", completePdfText);
+
+        PdfParser parser = new PdfParser();
+        CourtCase courtCase = parser.parseSummonsPdf(testFile.getAbsolutePath());
+
+        assertNotNull("完整传票应能解析", courtCase);
+        assertEquals("案号正确", "(2024)京01民初123号", courtCase.getCaseNo());
+        assertEquals("法院名称", "北京市第一中级人民法院", courtCase.getCourtFullName());
+        assertEquals("原告", "张三", courtCase.getPlaintiff());
+        assertEquals("被告", "李四", courtCase.getDefendant());
+        assertEquals("案件类型", "民事", courtCase.getCaseType());
+        assertTrue("开庭时间正确", courtCase.getHearingDate() > 0);
+        assertEquals("地点", "第三法庭", courtCase.getLocation());
+        assertEquals("审判长", "王法官", courtCase.getJudgeName());
+
+        testFile.delete();
+    }
+
+    /**
+     * 测试扫描件传票（无法解析）
+     */
+    @Test
+    public void testParseScannedPdf() {
+        // 扫描件 PDF 提取的文本通常为空或乱码
+        String scannedText = ""; // 或为乱码
+
+        File testFile = createTempFile("scanned.txt", scannedText);
+
+        PdfParser parser = new PdfParser();
+        CourtCase courtCase = parser.parseSummonsPdf(testFile.getAbsolutePath());
+
+        // 扫描件应该返回 null 或部分信息
+        // 这里假设解析器能处理这种情况
+        assertNotNull("应能处理扫描件", courtCase);
+
+        testFile.delete();
+    }
+
+    /**
+     * 测试多页传票
+     */
+    @Test
+    public void testParseMultiPageSummons() {
+        String page1 = "案号：(2024)京01民初123号\n原告：张三\n";
+        String page2 = "被告：李四\n开庭时间：2024年3月15日\n";
+        String page3 = "地点：第三法庭\n审判长：王法官";
+
+        // 模拟多页内容
+        String multiPageText = page1 + "\n[第2页]\n" + page2 + "\n[第3页]\n" + page3;
+
+        File testFile = createTempFile("multipage.txt", multiPageText);
+
+        PdfParser parser = new PdfParser();
+        CourtCase courtCase = parser.parseSummonsPdf(testFile.getAbsolutePath());
+
+        assertNotNull("多页传票应能解析", courtCase);
+        assertEquals("案号应正确", "(2024)京01民初123号", courtCase.getCaseNo());
+
+        testFile.delete();
+    }
+
+    /**
+     * 测试不同法院格式
+     */
+    @Test
+    public void testDifferentCourtFormats() {
+        PdfParser parser = new PdfParser();
+
+        // 高级人民法院
+        String court1 = parser.extractCourtNameFromText("北京市高级人民法院");
+        assertEquals("高级法院", "北京市高级人民法院", court1);
+
+        // 中级人民法院
+        String court2 = parser.extractCourtNameFromText("上海市第一中级人民法院");
+        assertEquals("中级法院", "上海市第一中级人民法院", court2);
+
+        // 基层人民法院
+        String court3 = parser.extractCourtNameFromText("深圳市福田区人民法院");
+        assertEquals("基层法院", "深圳市福田区人民法院", court3);
+
+        // 专门法院
+        String court4 = parser.extractCourtNameFromText("北京知识产权法院");
+        assertEquals("专门法院", "北京知识产权法院", court4);
+    }
+
+    /**
+     * 测试特殊字符处理
+     */
+    @Test
+    public void testSpecialCharacters() {
+        PdfParser parser = new PdfParser();
+
+        // 全角标点
+        String caseNo1 = parser.extractCaseNoFromText("案号：（2024）京01民初123号");
+        assertNotNull("全角标点应能处理", caseNo1);
+
+        // 空格
+        String caseNo2 = parser.extractCaseNoFromText("案号： ( 2024 ) 京 01 民初 123 号");
+        assertNotNull("多余空格应能处理", caseNo2);
+
+        // 制表符
+        String caseNo3 = parser.extractCaseNoFromText("案号：\t(2024)\t京01民初123号");
+        assertNotNull("制表符应能处理", caseNo3);
+    }
+
+    /**
+     * 测试边界情况
+     */
+    @Test
+    public void testEdgeCases() {
+        PdfParser parser = new PdfParser();
+
+        // 空字符串
+        CourtCase emptyCase = parser.parseSummonsPdf("");
+        assertNotNull("空路径应能处理", emptyCase);
+
+        // null 输入
+        CourtCase nullCase = parser.parseSummonsPdf(null);
+        assertNotNull("null路径应能处理", nullCase);
+
+        // 不存在的文件
+        CourtCase notExistCase = parser.parseSummonsPdf("/path/to/not/exist.pdf");
+        assertNotNull("不存在文件应能处理", notExistCase);
+
+        // 非常长的内容
+        StringBuilder longContent = new StringBuilder();
+        for (int i = 0; i < 10000; i++) {
+            longContent.append("测试内容 ");
+        }
+        File longFile = createTempFile("long.txt", longContent.toString());
+        CourtCase longCase = parser.parseSummonsPdf(longFile.getAbsolutePath());
+        assertNotNull("超长文件应能处理", longCase);
+        longFile.delete();
+    }
+
+    /**
+     * 测试部分信息缺失
+     */
+    @Test
+    public void testPartialInformation() {
+        PdfParser parser = new PdfParser();
+
+        // 只有案号
+        String partial1 = "案号：(2024)京01民初123号";
+        CourtCase case1 = new CourtCase();
+        case1.setCaseNo(parser.extractCaseNoFromText(partial1));
+        assertEquals("仅案号应能解析", "(2024)京01民初123号", case1.getCaseNo());
+
+        // 只有时间
+        String partial2 = "开庭时间：2024年3月15日";
+        long time = parser.extractHearingDateFromText(partial2);
+        assertTrue("仅时间应能解析", time > 0);
+
+        // 缺少案号
+        CourtCase missingCase = parser.parseSummonsPdf("无案号文档");
+        // 应该返回 null 或案号为空的 CourtCase
+        assertNotNull("缺少案号应能处理", missingCase);
+    }
+
+    /**
+     * 测试时间格式容错
+     */
+    @Test
+    public void testTimeFormatTolerance() {
+        PdfParser parser = new PdfParser();
+
+        // 使用"时"而非":"
+        long time1 = parser.extractHearingDateFromText("2024年3月15日9时30分");
+        assertTrue("使用时应能解析", time1 > 0);
+
+        // 24小时制
+        long time2 = parser.extractHearingDateFromText("2024年3月15日14时30分");
+        assertTrue("24小时制应能解析", time2 > 0);
+
+        // 仅日期
+        long time3 = parser.extractHearingDateFromText("2024年3月15日开庭");
+        assertTrue("仅日期应能解析", time3 > 0);
+    }
+
+    /**
+     * 测试法律文书类型识别
+     */
+    @Test
+    public void testIdentifyDocumentType() {
+        PdfParser parser = new PdfParser();
+
+        // 传票
+        boolean isSummons1 = parser.isSummonsDocument("开庭传票");
+        assertTrue("传票关键词", isSummons1);
+
+        // 应诉通知书
+        boolean isSummons2 = parser.isSummonsDocument("应诉通知书");
+        assertTrue("应诉通知书关键词", isSummons2);
+
+        // 判决书
+        boolean isSummons3 = parser.isSummonsDocument("民事判决书");
+        assertFalse("判决书不是传票", isSummons3);
+
+        // 裁定书
+        boolean isSummons4 = parser.isSummonsDocument("裁定书");
+        assertFalse("裁定书不是传票", isSummons4);
+    }
+
+    /**
+     * 辅助方法：创建临时测试文件
+     */
+    private File createTempFile(String name, String content) {
+        try {
+            File tempDir = new File(System.getProperty("java.io.tmpdir"));
+            File tempFile = new File(tempDir, name);
+            FileWriter writer = new FileWriter(tempFile);
+            writer.write(content);
+            writer.close();
+            return tempFile;
+        } catch (IOException e) {
+            fail("创建测试文件失败: " + e.getMessage());
+            return null;
+        }
+    }
+}

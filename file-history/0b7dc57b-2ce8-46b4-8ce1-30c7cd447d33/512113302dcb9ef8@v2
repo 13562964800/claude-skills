@@ -1,0 +1,44 @@
+"""文档解析模块 - Android版"""
+import os
+import re
+
+
+def parse_docx(filepath):
+    """解析Word文档，返回段落列表"""
+    try:
+        from docx import Document
+        doc = Document(filepath)
+        return [p.text.strip() for p in doc.paragraphs if p.text.strip()]
+    except ImportError:
+        # python-docx不可用时，尝试用zipfile解析docx（docx本质是zip）
+        return _parse_docx_raw(filepath)
+
+
+def _parse_docx_raw(filepath):
+    """不依赖python-docx的docx解析（备用方案）"""
+    import zipfile
+    from xml.etree import ElementTree
+
+    ns = '{http://schemas.openxmlformats.org/wordprocessingml/2006/main}'
+    paragraphs = []
+
+    with zipfile.ZipFile(filepath) as z:
+        with z.open('word/document.xml') as f:
+            tree = ElementTree.parse(f)
+
+    for p_elem in tree.iter(f'{ns}p'):
+        texts = []
+        for t_elem in p_elem.iter(f'{ns}t'):
+            if t_elem.text:
+                texts.append(t_elem.text)
+        line = ''.join(texts).strip()
+        if line:
+            paragraphs.append(line)
+
+    return paragraphs
+
+
+def parse_txt(filepath):
+    """解析纯文本文件"""
+    with open(filepath, 'r', encoding='utf-8') as f:
+        return [line.strip() for line in f if line.strip()]

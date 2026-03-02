@@ -1,0 +1,61 @@
+package com.shanfuchun.courtassistant.ui
+
+import android.Manifest
+import android.content.pm.PackageManager
+import android.os.Bundle
+import android.widget.Toast
+import androidx.activity.result.contract.ActivityResultContracts
+import androidx.appcompat.app.AppCompatActivity
+import androidx.core.content.ContextCompat
+import androidx.fragment.app.Fragment
+import com.google.android.material.bottomnavigation.BottomNavigationView
+import com.shanfuchun.courtassistant.R
+
+class MainActivity : AppCompatActivity() {
+
+    private val permissions = arrayOf(
+        Manifest.permission.READ_SMS,
+        Manifest.permission.RECEIVE_SMS,
+        Manifest.permission.READ_CALENDAR,
+        Manifest.permission.WRITE_CALENDAR
+    )
+
+    private val permLauncher = registerForActivityResult(
+        ActivityResultContracts.RequestMultiplePermissions()
+    ) { results ->
+        val denied = results.filter { !it.value }.keys
+        if (denied.isNotEmpty()) {
+            Toast.makeText(this, "部分权限未授予，功能可能受限", Toast.LENGTH_LONG).show()
+        }
+    }
+
+    override fun onCreate(savedInstanceState: Bundle?) {
+        super.onCreate(savedInstanceState)
+        setContentView(R.layout.activity_main)
+        requestPerms()
+
+        val nav = findViewById<BottomNavigationView>(R.id.bottom_nav)
+        if (savedInstanceState == null) loadFragment(SmsFragment())
+
+        nav.setOnItemSelectedListener { item ->
+            when (item.itemId) {
+                R.id.nav_sms -> loadFragment(SmsFragment())
+                R.id.nav_docs -> loadFragment(DocsFragment())
+                R.id.nav_settings -> loadFragment(SettingsFragment())
+                else -> false
+            }
+        }
+    }
+
+    private fun loadFragment(f: Fragment): Boolean {
+        supportFragmentManager.beginTransaction().replace(R.id.container, f).commit()
+        return true
+    }
+
+    private fun requestPerms() {
+        val needed = permissions.filter {
+            ContextCompat.checkSelfPermission(this, it) != PackageManager.PERMISSION_GRANTED
+        }
+        if (needed.isNotEmpty()) permLauncher.launch(needed.toTypedArray())
+    }
+}

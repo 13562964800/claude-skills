@@ -1,0 +1,180 @@
+package com.shanfuchun.courtassistant.service
+
+import android.content.Context
+import androidx.core.content.FileProvider
+
+import com.google.mlkit.vision.common.InputImage
+import com.google.mlkit.vision.text.TextRecognition
+import com.google.mlkit.vision.text.chinese.ChineseTextRecognizerOptions
+import com.shanfuchun.courtassistant.ai.orchestrator.LLMOrchestrator
+import com.shanfuchun.courtassistant.ai.repository.LLMConfigRepository
+import com.shanfuchun.courtassistant.data.AppDatabase
+import com.shanfuchun.courtassistant.data.SummonsInfo
+import com.tom_roush.pdfbox.pdmodel.PDDocument
+import com.tom_roush.pdfbox.rendering.PDFRenderer
+import com.tom_roush.pdfbox.text.PDFTextStripper
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.suspendCancellableCoroutine
+import kotlinx.coroutines.withContext
+import java.io.File
+import kotlin.coroutines.resume
+
+object PdfParser {
+
+    private val SUMMONS_KEYWORDS = listOf("传票", "开庭", "应诉", "法院", "出庭", "审判")
+
+    /**
+     * 检查文件名是否包含"传票"
+     * 用于优先处理明确是传票的文件
+     */
+    fun isSummonsFile(fileName: String): Boolean {
+        return fileName.contains("传票")
+    }
+
+    suspend fun parseAndSync(context: Context, db: AppDatabase, docId: Long) {
+        withContext(Dispatchers.IO) {
+            val doc = db.documentDao().getById(docId) ?: return@withContext
+            val file = File(doc.filePath)
+            if (!file.exists()) return@withContext
+
+            try {
+                // 检查文件名是否包含"传票"，如果是则提高解析优先级
+                val isNamedSummons = isSummonsFile(doc.fileName) || isSummonsFile(file.name)
+
+                var text = extractText(file)
+                if (text.isBlank()) text = ocrExtract(context, file)
+
+                // 如果文件名包含"传票"，即使文本解析失败也尝试OCR处理
+                val isSummons = isNamedSummons || SUMMONS_KEYWORDS.any { text.contains(it) }
+                if (!isSummons) {
+                    db.documentDao().update(doc.copy(parseStatus = 3))
+                    return@withContext
+                }
+
+                // 标记短信含传票
+                val sms = db.smsDao().getById(doc.smsId)
+                if (sms != null && !sms.hasSummons) {
+                    db.smsDao().update(sms.copy(hasSummons = true))
+                }
+
+                // 对于文件名包含"传票"的文件，使用增强解析
+                val info = if (isNamedSummons) {
+                    TextParser.parseSummons(text)
+                } else {
+                    TextParser.parse(text)
+                }
+
+                // 如果常规解析未提取到开庭时间，尝试使用 AI 抽取
+                val finalInfo = if (info.hearingTime == 0) {
+                    val aiResult = tryExtractWithAI(context, text, null)
+                    if (aiResult != null) {
+                        HearingInfo(
+                            hearingTime = aiResult.hearingTime ?: 0,
+                            courtName = aiResult.courtName ?: info.courtName,
+                            caseNo = aiResult.caseNo ?: info.caseNo,
+                            location = aiResult.location ?: info.location,
+                            partyName = aiResult.partyName ?: info.partyName,
+                            judge = info.judge
+                        )
+                    } else {
+                        info
+                    }
+                } else {
+                    info
+                }
+
+                db.summonsDao().insert(
+                    SummonsInfo(
+                        documentId = docId, caseNo = finalInfo.caseNo, courtName = finalInfo.courtName,
+                        hearingTime = finalInfo.hearingTime, location = finalInfo.location,
+                        partyName = finalInfo.partyName, confidence = if (finalInfo.hearingTime > 0) 0.9f else 0.5f
+                    )
+                )
+
+                val synced = if (finalInfo.hearingTime > 0) {
+
+                val synced = if (info.hearingTime > 0) {
+                    val pdfUri = try {
+                        val uri = FileProvider.getUriForFile(context, "${context.packageName}.fileprovider", file)
+                        uri.toString()
+                    } catch (_: Exception) { doc.filePath }
+                    CalendarHelper.syncHearing(context, db, info, docId, "document", pdfFilePath = pdfUri)
+                } else false
+
+                db.documentDao().update(doc.copy(parseStatus = 1, calendarSynced = synced))
+            } catch (e: Exception) {
+                db.documentDao().update(doc.copy(parseStatus = 2))
+            }
+        }
+    }
+
+    private fun extractText(file: File): String {
+        return try {
+            PDDocument.load(file).use { doc ->
+                PDFTextStripper().getText(doc).trim()
+            }
+        } catch (_: Exception) { "" }
+    }
+
+    private suspend fun ocrExtract(context: Context, file: File): String {
+        return try {
+            val pdDoc = PDDocument.load(file)
+            val renderer = PDFRenderer(pdDoc)
+            val sb = StringBuilder()
+            val pages = minOf(pdDoc.numberOfPages, 3) // OCR first 3 pages max
+            for (i in 0 until pages) {
+                val bmp = renderer.renderImageWithDPI(i, 200f)
+                val text = recognizeText(context, bmp)
+                sb.appendLine(text)
+                bmp.recycle()
+            }
+            pdDoc.close()
+            sb.toString().trim()
+        } catch (_: Exception) { "" }
+    }
+
+    private suspend fun recognizeText(context: Context, bitmap: android.graphics.Bitmap): String {
+        return suspendCancellableCoroutine { cont ->
+            val recognizer = TextRecognition.getClient(ChineseTextRecognizerOptions.Builder().build())
+            val image = InputImage.fromBitmap(bitmap, 0)
+            recognizer.process(image)
+                .addOnSuccessListener { cont.resume(it.text) }
+                .addOnFailureListener { cont.resume("") }
+        }
+    }
+
+    /**
+     * 使用 AI 大模型抽取传票信息
+     * @param context Android Context
+     * @param pdfText PDF 提取的文本
+     * @param ocrText OCR 识别的文本（可选）
+     * @return AI 抽取结果，如果失败则返回 null
+     */
+    private suspend fun tryExtractWithAI(
+        context: Context,
+        pdfText: String,
+        ocrText: String?
+    ): com.shanfuchun.courtassistant.ai.model.SummonsExtraction? {
+        return try {
+            val configRepository = LLMConfigRepository.getInstance(context)
+            val orchestrator = LLMOrchestrator.getInstance(configRepository)
+
+            // 检查是否有已配置的提供商
+            if (!orchestrator.hasConfiguredProvider()) {
+                return null
+            }
+
+            // 并行调用所有已配置的模型
+            val result = orchestrator.extractSummonsParallel(pdfText, ocrText, timeout = 30)
+
+            if (result != null && result.success) {
+                result.response
+            } else {
+                null
+            }
+        } catch (e: Exception) {
+            // AI 抽取失败，静默处理
+            null
+        }
+    }
+}

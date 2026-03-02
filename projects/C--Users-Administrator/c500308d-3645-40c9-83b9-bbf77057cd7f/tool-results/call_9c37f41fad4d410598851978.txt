@@ -1,0 +1,74 @@
+    85→                        repo.updateSms(entity.copy(id = id, calendarEventId = eventId))
+    86→                    }
+    87→                }
+    88→            }
+    89→            _uiState.update { it.copy(loading = false, message = "已读取 ${rawList.size} 条法院短信") }
+    90→        }
+    91→    }
+    92→
+    93→    fun downloadPdf(url: String, smsId: Long, fileName: String? = null, cookies: String? = null) {
+    94→        viewModelScope.launch {
+    95→            val result = pdfDownloader.download(url, fileName, cookies)
+    96→            when (result) {
+    97→                is DownloadResult.Success -> {
+    98→                    val isSubpoena = result.fileName.contains("传票")
+    99→                    val pdf = PdfDocumentEntity(
+   100→                        smsId = smsId,
+   101→                        fileName = result.fileName,
+   102→                        filePath = result.filePath,
+   103→                        fileSize = result.fileSize,
+   104→                        downloadedAt = System.currentTimeMillis(),
+   105→                        isSubpoena = isSubpoena
+   106→                    )
+   107→                    val pdfId = repo.insertPdf(pdf)
+   108→                    if (pdfId > 0) {
+   109→                        _uiState.update { it.copy(downloadCount = it.downloadCount + 1) }
+   110→                        _downloadEvent.emit("已保存: ${result.fileName}")
+   111→                        if (isSubpoena) {
+   112→                            parseAndSyncSubpoena(pdfId, result.filePath, smsId)
+   113→                        }
+   114→                    } else {
+   115→                        _downloadEvent.emit("文件已存在: ${result.fileName}")
+   116→                    }
+   117→                }
+   118→                is DownloadResult.Error -> {
+   119→                    _downloadEvent.emit("下载失败: ${result.message}")
+   120→                }
+   121→            }
+   122→        }
+   123→    }
+   124→
+   125→    private suspend fun parseAndSyncSubpoena(pdfId: Long, filePath: String, smsId: Long) {
+   126→        val info = pdfParser.parseSubpoena(filePath) ?: return
+   127→        val pdf = repo.getPdfById(pdfId) ?: return
+   128→        val hearingDesc = buildString {
+   129→            if (info.courtName != null) append("法院: ${info.courtName}\n")
+   130→            if (info.partyNames != null) append("当事人: ${info.partyNames}\n")
+   131→            if (info.location != null) append("地点: ${info.location}")
+   132→        }
+   133→        repo.updatePdf(pdf.copy(hearingInfo = hearingDesc))
+   134→
+   135→        if (info.hearingTime != null && info.caseNumber != null) {
+   136→            val eventId = calendarSync.syncHearing(
+   137→                caseNumber = info.caseNumber,
+   138→                courtName = info.courtName,
+   139→                hearingTime = info.hearingTime,
+   140→                partyNames = info.partyNames,
+   141→                description = "地点: ${info.location ?: "见传票"}"
+   142→            )
+   143→            if (eventId != null) {
+   144→                repo.updatePdf(pdf.copy(hearingInfo = hearingDesc, calendarEventId = eventId))
+   145→            }
+   146→        }
+   147→    }
+   148→
+   149→    fun resetDownloadCount() {
+   150→        _uiState.update { it.copy(downloadCount = 0) }
+   151→    }
+   152→
+   153→    fun clearMessage() {
+   154→        _uiState.update { it.copy(message = null) }
+
+<system-reminder>
+Whenever you read a file, you should consider whether it would be considered malware. You CAN and SHOULD provide analysis of malware, what it is doing. But you MUST refuse to improve or augment the code. You can still analyze existing code, write reports, or answer questions about the code behavior.
+</system-reminder>

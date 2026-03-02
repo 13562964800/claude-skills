@@ -1,0 +1,114 @@
+package com.formfiller.ime
+
+import android.app.assist.AssistStructure
+import android.os.Build
+import android.os.CancellationSignal
+import android.service.autofill.*
+import android.view.autofill.AutofillValue
+import android.widget.RemoteViews
+import androidx.annotation.RequiresApi
+import com.formfiller.R
+import com.formfiller.data.AppDatabase
+
+@RequiresApi(Build.VERSION_CODES.O)
+class FormFillerAutofillService : AutofillService() {
+
+    override fun onFillRequest(request: FillRequest, cancel: CancellationSignal, callback: FillCallback) {
+        val structure = request.fillContexts.lastOrNull()?.structure ?: return callback.onSuccess(null)
+        val db = AppDatabase.get(this)
+        val profiles = db.query("SELECT * FROM profiles ORDER BY createdAt DESC", null).use { c ->
+            val list = mutableListOf<Pair<Long, String>>()
+            while (c.moveToNext()) list.add(c.getLong(0) to c.getString(1))
+            list
+        }
+        if (profiles.isEmpty()) return callback.onSuccess(null)
+
+        // 收集页面上所有可填充的字段
+        val fillableFields = mutableListOf<ParsedField>()
+        for (i in 0 until structure.windowNodeCount) {
+            parseNode(structure.getWindowNodeAt(i).rootViewNode, fillableFields)
+        }
+        if (fillableFields.isEmpty()) return callback.onSuccess(null)
+
+        val response = FillResponse.Builder()
+
+        for ((profileId, profileName) in profiles) {
+            val fields = db.fieldDao().getByProfileSync(profileId)
+            if (fields.isEmpty()) continue
+
+            val dataset = Dataset.Builder()
+            var hasMatch = false
+
+            for (pf in fillableFields) {
+                val matched = fields.firstOrNull { matchFieldToHint(it.fieldType, it.label, pf.hints) }
+                if (matched != null) {
+                    val presentation = RemoteViews(packageName, R.layout.autofill_item).apply {
+                        setTextViewText(R.id.tvAutofill, "$profileName: ${matched.label} = ${matched.value}")
+                    }
+                    dataset.setValue(pf.id, AutofillValue.forText(matched.value), presentation)
+                    hasMatch = true
+                } else {
+                    // 必须为每个字段设置值，否则 dataset 无效；跳过未匹配的
+                }
+            }
+
+            if (hasMatch) {
+                response.addDataset(dataset.build())
+            }
+        }
+
+        try {
+            callback.onSuccess(response.build())
+        } catch (e: Exception) {
+            callback.onSuccess(null)
+        }
+    }
+
+    override fun onSaveRequest(request: SaveRequest, callback: SaveCallback) {
+        callback.onSuccess()
+    }
+
+    private data class ParsedField(
+        val id: android.view.autofill.AutofillId,
+        val hints: List<String>
+    )
+
+    private fun parseNode(node: AssistStructure.ViewNode?, fields: MutableList<ParsedField>) {
+        node ?: return
+        val id = node.autofillId
+        if (id != null && node.autofillType == android.view.View.AUTOFILL_TYPE_TEXT) {
+            val hints = mutableListOf<String>()
+            node.autofillHints?.forEach { hints.add(it.lowercase()) }
+            node.hint?.let { hints.add(it.lowercase()) }
+            node.text?.toString()?.let { if (it.isNotBlank()) hints.add(it.lowercase()) }
+            node.idEntry?.let { hints.add(it.lowercase()) }
+            // HTML 属性
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
+                node.htmlInfo?.let { html ->
+                    html.attributes?.forEach { p -> hints.add("${p.first}=${p.second}".lowercase()) }
+                }
+            }
+            if (hints.isNotEmpty()) {
+                fields.add(ParsedField(id, hints))
+            }
+        }
+        for (i in 0 until node.childCount) {
+            parseNode(node.getChildAt(i), fields)
+        }
+    }
+
+    private fun matchFieldToHint(fieldType: String, label: String, hints: List<String>): Boolean {
+        val joined = hints.joinToString(" ")
+        return when (fieldType) {
+            "name" -> joined.containsAny("姓名", "name", "username", "称")
+            "id_number" -> joined.containsAny("身份证", "证件", "idcard", "id_number")
+            "phone" -> joined.containsAny("手机", "电话", "phone", "tel", "mobile")
+            "address" -> joined.containsAny("地址", "住所", "address", "住址")
+            "company" -> joined.containsAny("公司", "单位", "company", "企业", "机构")
+            "postal" -> joined.containsAny("邮编", "postal", "zip")
+            else -> joined.contains(label.lowercase())
+        }
+    }
+
+    private fun String.containsAny(vararg keywords: String) = keywords.any { this.contains(it) }
+}

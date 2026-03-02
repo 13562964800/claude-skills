@@ -1,0 +1,67 @@
+package com.shanfuchun.courtassistant.ai.model
+
+/**
+ * LLM 调用结果
+ */
+data class LLMResult(
+    val provider: String,                // 提供商名称
+    val response: SummonsExtraction,     // 抽取结果
+    val latency: Long,                   // 响应延迟（毫秒）
+    val success: Boolean,                // 是否成功
+    val error: Throwable? = null,        // 错误信息
+    val confidence: Float = 0f           // AI 自信度
+) {
+    companion object {
+        /**
+         * 创建失败结果
+         */
+        fun failure(provider: String, error: Throwable): LLMResult {
+            return LLMResult(
+                provider = provider,
+                response = SummonsExtraction(),
+                latency = 0,
+                success = false,
+                error = error
+            )
+        }
+
+        /**
+         * 创建成功结果
+         */
+        fun success(
+            provider: String,
+            response: SummonsExtraction,
+            latency: Long
+        ): LLMResult {
+            return LLMResult(
+                provider = provider,
+                response = response,
+                latency = latency,
+                success = true,
+                confidence = response.confidence
+            )
+        }
+    }
+
+    /**
+     * 获取综合评分（用于结果对比）
+     * 评分标准：自信度 60% + 完整度 30% + 速度 10%
+     */
+    fun getScore(): Float {
+        if (!success) return 0f
+
+        val confidenceScore = confidence * 0.6f
+        val completenessScore = response.getCompleteness() * 0.3f
+
+        // 速度评分：3秒内满分，超过30秒递减
+        val speedScore = when {
+            latency <= 3000 -> 1.0f
+            latency <= 10000 -> 0.8f
+            latency <= 20000 -> 0.5f
+            latency <= 30000 -> 0.3f
+            else -> 0.1f
+        } * 0.1f
+
+        return confidenceScore + completenessScore + speedScore
+    }
+}

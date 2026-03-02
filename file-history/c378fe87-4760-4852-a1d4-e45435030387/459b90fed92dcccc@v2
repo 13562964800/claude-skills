@@ -1,0 +1,66 @@
+#!/usr/bin/env python3
+# -*- coding: utf-8 -*-
+"""
+AI科普画册插图生成脚本
+根据插图描述生成精美的SVG插图,并清理原有代码块
+"""
+
+import re
+import os
+
+def clean_svg_blocks(content):
+    """删除文档中的SVG代码块"""
+    # 匹配 <svg...>...</svg> 标签
+    content = re.sub(r'<svg[^>]*>.*?</svg>', '', content, flags=re.DOTALL)
+    # 匹配 ```svg...``` 代码块
+    content = re.sub(r'```svg.*?```', '', content, flags=re.DOTALL)
+    # 匹配其他代码块
+    content = re.sub(r'```[a-z]*\n.*?```', '', content, flags=re.DOTALL)
+    return content
+
+def extract_illustration_descriptions(content):
+    """提取所有插图描述"""
+    pattern = r'【插图(\d+-\d+)：([^】]+)】'
+    matches = re.findall(pattern, content)
+    return [(m[0], m[1].strip()) for m in matches]
+
+def read_context(content, illustration_marker):
+    """读取插图周围的上下文"""
+    # 找到插图标记的位置
+    pos = content.find(f'【插图{illustration_marker}')
+    if pos == -1:
+        return ""
+
+    # 向前读取500字符作为上文
+    start = max(0, pos - 500)
+    before = content[start:pos]
+
+    # 向后读取500字符作为下文
+    end = min(len(content), pos + 500)
+    after = content[pos:end]
+
+    return before + after
+
+# 读取文档
+input_file = r'C:\Users\Administrator\AI科普画册\AI前沿知识儿童科普画册-带全部插图.md'
+with open(input_file, 'r', encoding='utf-8') as f:
+    content = f.read()
+
+# 清理SVG代码块
+print("正在清理原有代码块...")
+cleaned_content = clean_svg_blocks(content)
+
+# 保存清理后的文档
+output_file = r'C:\Users\Administrator\AI科普画册\AI科普画册-待插图版.md'
+with open(output_file, 'w', encoding='utf-8') as f:
+    f.write(cleaned_content)
+
+print(f"✓ 已清理代码块,保存到: {output_file}")
+
+# 提取插图描述
+illustrations = extract_illustration_descriptions(content)
+print(f"\n找到 {len(illustrations)} 个插图描述:")
+for ill_id, desc in illustrations[:10]:  # 只显示前10个
+    print(f"  - 插图{ill_id}: {desc[:50]}...")
+
+print(f"\n准备开始生成插图...")

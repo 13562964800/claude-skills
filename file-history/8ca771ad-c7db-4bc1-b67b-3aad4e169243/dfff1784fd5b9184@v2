@@ -1,0 +1,29 @@
+package com.videodownload.app.data.model
+
+import androidx.room.Entity
+import androidx.room.PrimaryKey
+
+/**
+ * 视频实体
+ */
+@Entity(tableName = "videos")
+data class VideoEntity(
+    @PrimaryKey
+    val id: String,
+
+    // 视频信息
+    val title: String,
+    val url: String,
+    val platform: String, // youtube, bilibili, douyin, etc.
+    val duration: Float,
+    val thumbnailUrl: String?,
+
+    // 下载信息
+    val localPath: String?,
+    val downloadStatus: String, // pending, downloading, completed, failed
+    val downloadProgress: Float,
+
+    // 时间戳
+    val createdAt: Long,
+    val updatedAt: Long
+)

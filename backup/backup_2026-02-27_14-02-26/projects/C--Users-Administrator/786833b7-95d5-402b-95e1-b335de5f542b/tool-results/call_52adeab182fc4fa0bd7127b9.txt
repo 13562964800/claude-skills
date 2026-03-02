@@ -1,0 +1,29 @@
+C:\Users\Administrator\Desktop\CourtAssistant\app\src\main\AndroidManifest.xml:4:    <uses-permission android:name="android.permission.READ_SMS" />
+C:\Users\Administrator\Desktop\CourtAssistant\app\src\main\AndroidManifest.xml:5:    <uses-permission android:name="android.permission.RECEIVE_SMS" />
+C:\Users\Administrator\Desktop\CourtAssistant\app\src\main\AndroidManifest.xml:6:    <uses-permission android:name="android.permission.READ_CALENDAR" />
+C:\Users\Administrator\Desktop\CourtAssistant\app\src\main\AndroidManifest.xml:7:    <uses-permission android:name="android.permission.WRITE_CALENDAR" />
+C:\Users\Administrator\Desktop\CourtAssistant\app\src\main\AndroidManifest.xml:8:    <uses-permission android:name="android.permission.INTERNET" />
+C:\Users\Administrator\Desktop\CourtAssistant\app\src\main\AndroidManifest.xml:9:    <uses-permission android:name="android.permission.WRITE_EXTERNAL_STORAGE"
+C:\Users\Administrator\Desktop\CourtAssistant\app\src\main\AndroidManifest.xml:11:    <uses-permission android:name="android.permission.READ_EXTERNAL_STORAGE"
+C:\Users\Administrator\Desktop\CourtAssistant\app\src\main\AndroidManifest.xml:24:            android:name=".MainActivity"
+C:\Users\Administrator\Desktop\CourtAssistant\app\src\main\AndroidManifest.xml:37:            android:grantUriPermissions="true">
+C:\Users\Administrator\Desktop\CourtAssistant\app\src\main\java\com\court\assistant\MainActivity.kt:6:import androidx.activity.ComponentActivity
+C:\Users\Administrator\Desktop\CourtAssistant\app\src\main\java\com\court\assistant\MainActivity.kt:8:import androidx.activity.result.contract.ActivityResultContracts
+C:\Users\Administrator\Desktop\CourtAssistant\app\src\main\java\com\court\assistant\MainActivity.kt:18:class MainActivity : ComponentActivity() {
+C:\Users\Administrator\Desktop\CourtAssistant\app\src\main\java\com\court\assistant\MainActivity.kt:21:    private val permissionLauncher = registerForActivityResult(
+C:\Users\Administrator\Desktop\CourtAssistant\app\src\main\java\com\court\assistant\MainActivity.kt:22:        ActivityResultContracts.RequestMultiplePermissions()
+C:\Users\Administrator\Desktop\CourtAssistant\app\src\main\java\com\court\assistant\MainActivity.kt:23:    ) { permissions ->
+C:\Users\Administrator\Desktop\CourtAssistant\app\src\main\java\com\court\assistant\MainActivity.kt:24:        if (permissions.all { it.value }) {
+C:\Users\Administrator\Desktop\CourtAssistant\app\src\main\java\com\court\assistant\MainActivity.kt:33:        requestPermissions()
+C:\Users\Administrator\Desktop\CourtAssistant\app\src\main\java\com\court\assistant\MainActivity.kt:44:    private fun requestPermissions() {
+C:\Users\Administrator\Desktop\CourtAssistant\app\src\main\java\com\court\assistant\MainActivity.kt:46:            Manifest.permission.READ_SMS,
+C:\Users\Administrator\Desktop\CourtAssistant\app\src\main\java\com\court\assistant\MainActivity.kt:47:            Manifest.permission.READ_CALENDAR,
+C:\Users\Administrator\Desktop\CourtAssistant\app\src\main\java\com\court\assistant\MainActivity.kt:48:            Manifest.permission.WRITE_CALENDAR
+C:\Users\Administrator\Desktop\CourtAssistant\app\src\main\java\com\court\assistant\MainActivity.kt:50:            ContextCompat.checkSelfPermission(this, it) != PackageManager.PERMISSION_GRANTED
+C:\Users\Administrator\Desktop\CourtAssistant\app\src\main\java\com\court\assistant\MainActivity.kt:56:            permissionLauncher.launch(needed)
+C:\Users\Administrator\Desktop\CourtAssistant\app\src\main\java\com\court\assistant\ui\Navigation.kt:50:                        context.startActivity(Intent.createChooser(intent, "分享文书压缩包"))
+C:\Users\Administrator\Desktop\CourtAssistant\app\src\main\java\com\court\assistant\ui\SettingsScreen.kt:45:        androidx.activity.compose.rememberLauncherForActivityResult(
+C:\Users\Administrator\Desktop\CourtAssistant\app\src\main\java\com\court\assistant\ui\SettingsScreen.kt:46:            contract = androidx.activity.result.contract.ActivityResultContracts.CreateDocument("text/csv")
+C:\Users\Administrator\Desktop\CourtAssistant\app\src\main\java\com\court\assistant\ui\PdfPreviewScreen.kt:39:        androidx.activity.compose.rememberLauncherForActivityResult(
+C:\Users\Administrator\Desktop\CourtAssistant\app\src\main\java\com\court\assistant\ui\PdfPreviewScreen.kt:40:            contract = androidx.activity.result.contract.ActivityResultContracts.StartActivityForResult()
+C:\Users\Administrator\Desktop\CourtAssistant\app\src\main\java\com\court\assistant\ui\PdfPreviewScreen.kt:59:        context.startActivity(android.content.Intent.createChooser(intent, "分享文书"))

@@ -1,0 +1,323 @@
+127-
+128-    /**
+129-     * 获取视频下载链接 - 主入口函数
+130-     * 参考 Electron 版本的 extract-info IPC 处理
+131-     */
+132:    suspend fun getVideoInfo(url: String): Result<VideoDownloadInfo> = withContext(Dispatchers.IO) {
+133-        withTimeout(DEFAULT_TIMEOUT) {
+134-            try {
+135-                val cleanUrl = cleanUrl(url)
+136-                Log.d(TAG, "Processing URL: $cleanUrl")
+137-
+--
+142-                    VideoPlatform.YOUTUBE -> fetchYoutubeInfo(cleanUrl)
+143-                    VideoPlatform.BILIBILI -> fetchBilibiliInfo(cleanUrl)
+144-                    VideoPlatform.DOUYIN -> fetchDouyinInfo(cleanUrl)
+145-                    VideoPlatform.TIKTOK -> fetchTiktokInfo(cleanUrl)
+146-                    VideoPlatform.DIRECT -> Result.success(
+147:                        VideoDownloadInfo(
+148-                            title = "直接视频链接",
+149-                            downloadUrl = cleanUrl,
+150-                            cover = null,
+151-                            duration = 0L,
+152-                            author = null,
+--
+181-     * 获取 YouTube 视频信息 - 改进版，使用 InnerTube API
+182-     * 基于 GitHub 研究：
+183-     * - ViMusic: https://github.com/vfsfitvnm/ViMusic (InnerTube 实现)
+184-     * - NewPipeExtractor: https://github.com/TeamNewPipe/NewPipeExtractor
+185-     */
+186:    private suspend fun fetchYoutubeInfo(url: String): Result<VideoDownloadInfo> {
+187-        Log.d(TAG, "Fetching YouTube info for: $url")
+188-
+189-        \ 策略1: 尝试 InnerTube API
+190-        val innertubeResult = fetchYouTubeInnerTubeAPI(url)
+191-        if (innertubeResult.isSuccess) {
+--
+200-
+201-    /**
+202-     * 使用 YouTube InnerTube API 解析
+203-     * InnerTube 是 YouTube 的内部 RESTful API
+204-     */
+205:    private suspend fun fetchYouTubeInnerTubeAPI(url: String): Result<VideoDownloadInfo> = withContext(Dispatchers.IO) {
+206-        try {
+207-            val videoId = extractYoutubeVideoId(url)
+208-            if (videoId == null) {
+209-                return@withContext Result.failure(Exception("无法提取视频ID"))
+210-            }
+--
+244-                val format = formats.getJSONObject(0)
+245-                val videoUrl = format.optString("url")
+246-                val thumbnails = videoDetails?.optJSONObject("thumbnail")?.optJSONArray("thumbnails")
+247-                val cover = thumbnails?.optJSONObject(0)?.optString("url") ?: ""
+248-
+249:                return@withContext Result.success(VideoDownloadInfo(
+250-                    title = title,
+251-                    downloadUrl = videoUrl,
+252-                    cover = cover,
+253-                    duration = lengthSeconds,
+254-                    author = author,
+--
+265-    }
+266-
+267-    /**
+268-     * 使用第三方API解析（备用方案）
+269-     */
+270:    private suspend fun fetchYouTubeThirdPartyAPI(url: String): Result<VideoDownloadInfo> {
+271-        // 尝试多个第三方API
+272-        val apis = listOf(
+273-            YoutubeApiConfig("https://yt.lemnoslife.com/videosPart", "lemnoslife"),
+274-            YoutubeApiConfig("https://noembed.com/embed?url=$url", "noembed")
+275-        )
+--
+295-     * 使用指定 API 获取 YouTube 视频信息
+296-     */
+297-    private suspend fun fetchYoutubeInfoWithApi(
+298-        url: String,
+299-        api: YoutubeApiConfig
+300:    ): Result<VideoDownloadInfo> = withContext(Dispatchers.IO) {
+301-        try {
+302-            when (api.name) {
+303-                "lemnoslife" -> {
+304-                    // 使用 Lemnoslife API
+305-                    val videoId = extractYoutubeVideoId(url)
+--
+325-                    val video = items.getJSONObject(0)
+326-
+327-                    // 注意：这个 API 主要提供元数据，不提供下载链接
+328-                    // 实际下载需要使用其他方法
+329-                    Result.success(
+330:                        VideoDownloadInfo(
+331-                            title = video.optString("title", "YouTube 视频"),
+332-                            downloadUrl = url, // 返回原 URL，需要特殊处理
+333-                            cover = video.optJSONArray("thumbnails")
+334-                                ?.optJSONObject(0)
+335-                                ?.optString("url"),
+--
+357-                    val json = JSONObject(responseBody)
+358-                    val title = json.optString("title", "YouTube 视频")
+359-                    val author = json.optString("author_name")
+360-
+361-                    Result.success(
+362:                        VideoDownloadInfo(
+363-                            title = title,
+364-                            downloadUrl = url, // NoEmbed 不提供下载链接
+365-                            cover = json.optString("thumbnail_url"),
+366-                            duration = 0L,
+367-                            author = author,
+--
+412-     *
+413-     * 策略：
+414-     * 1. 优先使用 B站官方 API
+415-     * 2. 官方API失败后，尝试第三方API作为备用
+416-     */
+417:    private suspend fun fetchBilibiliInfo(url: String): Result<VideoDownloadInfo> {
+418-        Log.d(TAG, "Fetching Bilibili info for: $url")
+419-
+420-        \ 策略1: 尝试官方API
+421-        val officialResult = fetchBilibiliOfficialAPI(url)
+422-        if (officialResult.isSuccess) {
+--
+435-     *
+436-     * API 端点：
+437-     * - 视频信息: https://api.bilibili.com/x/web-interface/view?bvid={bvid}
+438-     * - 播放地址: https://api.bilibili.com/x/player/playurl?bvid={bvid}&cid={cid}
+439-     */
+440:    private suspend fun fetchBilibiliOfficialAPI(url: String): Result<VideoDownloadInfo> = withContext(Dispatchers.IO) {
+441-        try {
+442-            // 1. 提取 BV 号
+443-            val bvid = extractBVID(url)
+444-            if (bvid == null) {
+445-                return@withContext Result.failure(Exception("无法提取BV号"))
+--
+541-                }
+542-            }
+543-
+544-            if (videoUrl != null) {
+545-                Log.d(TAG, "Got video URL from official API, cookies used: ${cookie != null}, hasAudio: ${audioUrl != null}")
+546:                return@withContext Result.success(VideoDownloadInfo(
+547-                    title = title,
+548-                    downloadUrl = videoUrl,
+549-                    cover = cover,
+550-                    duration = duration.toLong(),
+551-                    author = author,
+--
+564-    }
+565-
+566-    /**
+567-     * 使用第三方API解析（备用方案）
+568-     */
+569:    private suspend fun fetchBilibiliThirdPartyAPI(url: String): Result<VideoDownloadInfo> {
+570-        Log.d(TAG, "Fetching Bilibili info for: $url")
+571-
+572-        // 尝试多个API（按优先级排序）
+573-        val apis = listOf(
+574-            \ API 1: xboba (稳定)
+--
+616-    }
+617-
+618-    /**
+619-     * 使用指定 API 获取 B站视频信息
+620-     */
+621:    private suspend fun fetchBilibiliInfoWithApi(api: BilibiliApiConfig): Result<VideoDownloadInfo> = withContext(Dispatchers.IO) {
+622-        try {
+623-            val request = Request.Builder()
+624-                .url(api.endpoint)
+625-                .header("User-Agent", getUserAgent())
+626-                .header("Referer", "https://www.bilibili.com/")
+--
+654-                    ?: data.optString("name")
+655-                    ?: "B站视频"
+656-
+657-                if (videoUrl.isNotEmpty() && videoUrl.startsWith("http")) {
+658-                    Log.d(TAG, "[${api.name}] Got video URL: $videoUrl")
+659:                    return@withContext Result.success(VideoDownloadInfo(
+660-                        title = title,
+661-                        downloadUrl = videoUrl,
+662-                        cover = data.optString("pic")
+663-                            ?: data.optString("cover")
+664-                            ?: data.optString("img"),
+--
+679-                ?: json.optString("download_url")
+680-
+681-            if (directUrl.startsWith("http")) {
+682-                val title = json.optString("title") ?: "B站视频"
+683-                Log.d(TAG, "[${api.name}] Got direct URL: $directUrl")
+684:                return@withContext Result.success(VideoDownloadInfo(
+685-                    title = title,
+686-                    downloadUrl = directUrl,
+687-                    cover = json.optString("pic") ?: json.optString("cover"),
+688-                    duration = json.optLong("duration", 0L) / 1000,
+689-                    author = json.optString("author")
+--
+700-
+701-                if (videoUrl?.startsWith("http") == true) {
+702-                    val title = nestedData?.optString("title")
+703-                        ?: json.optString("title")
+704-                        ?: "B站视频"
+705:                    return@withContext Result.success(VideoDownloadInfo(
+706-                        title = title,
+707-                        downloadUrl = videoUrl,
+708-                        cover = nestedData?.optString("pic") ?: json.optString("pic"),
+709-                        duration = nestedData?.optLong("duration", 0L)?.div(1000) ?: 0L
+710-                    ))
+--
+729-    /**
+730-     * 获取抖音视频信息 - 改进版，支持多种 API 和重试机制
+731-     * 参考 Electron 版本的浏览器内核解析方式
+732-     * 改进：增加更多备用 API，改进解析逻辑
+733-     */
+734:    private suspend fun fetchDouyinInfo(url: String): Result<VideoDownloadInfo> {
+735-        Log.d(TAG, "Fetching Douyin info for: $url")
+736-
+737-        // 尝试多个API（按优先级排序）- 基于GitHub研究添加更多备用
+738-        val apis = listOf(
+739-            \ API 1: pearktrue (稳定)
+--
+783-    }
+784-
+785-    /**
+786-     * 使用指定 API 获取抖音视频信息
+787-     */
+788:    private suspend fun fetchDouyinInfoWithApi(api: DouyinApiConfig): Result<VideoDownloadInfo> = withContext(Dispatchers.IO) {
+789-        try {
+790-            val request = Request.Builder()
+791-                .url(api.endpoint)
+792-                .header("User-Agent", getUserAgent())
+793-                .header("Referer", "https://www.douyin.com/")
+--
+846-                        ?: data.optString("thumb")
+847-                        ?: data.optString("origin_cover")
+848-                        ?: data.optString("dynamic_cover")
+849-                        ?: videoData.optString("cover")
+850-
+851:                    return@withContext Result.success(VideoDownloadInfo(
+852-                        title = title,
+853-                        downloadUrl = finalUrl,
+854-                        cover = cover,
+855-                        duration = videoData.optLong("duration", 0L),
+856-                        author = author
+--
+868-                val title = json.optString("title")
+869-                    ?: json.optString("desc")
+870-                    ?: json.optString("text")
+871-                    ?: "抖音视频"
+872-
+873:                return@withContext Result.success(VideoDownloadInfo(
+874-                    title = title,
+875-                    downloadUrl = finalUrl,
+876-                    cover = json.optString("cover") ?: json.optString("thumb"),
+877-                    duration = json.optLong("duration", 0L),
+878-                    author = json.optString("author") ?: json.optString("nickname")
+--
+890-
+891-    /**
+892-     * 获取 TikTok 视频信息 - 改进版
+893-     * TikTok 和抖音解析逻辑相似，尝试多个 API
+894-     */
+895:    private suspend fun fetchTiktokInfo(url: String): Result<VideoDownloadInfo> {
+896-        Log.d(TAG, "Fetching TikTok info for: $url")
+897-
+898-        // TikTok 可以使用与抖音类似的 API
+899-        val apis = listOf(
+900-            \ API 1: tikwm (专门用于 TikTok)
+--
+936-    }
+937-
+938-    /**
+939-     * 使用指定 API 获取 TikTok 视频信息
+940-     */
+941:    private suspend fun fetchTiktokInfoWithApi(api: TiktokApiConfig): Result<VideoDownloadInfo> = withContext(Dispatchers.IO) {
+942-        try {
+943-            val request = Request.Builder()
+944-                .url(api.endpoint)
+945-                .header("User-Agent", getUserAgent())
+946-                .header("Referer", "https://www.tiktok.com/")
+--
+964-                    val videoUrl = data.optString("play")
+965-                        ?: data.optString("hdplay")
+966-                        ?: data.optString("wmplay")
+967-
+968-                    if (videoUrl.startsWith("http")) {
+969:                        return@withContext Result.success(VideoDownloadInfo(
+970-                            title = data.optString("title") ?: "TikTok 视频",
+971-                            downloadUrl = videoUrl,
+972-                            cover = data.optString("cover") ?: data.optString("origin_cover"),
+973-                            duration = data.optLong("duration", 0L),
+974-                            author = data.optJSONObject("author")?.optString("nickname")
+--
+991-                val videoUrl = videoData.optString("play_addr")
+992-                    ?: videoData.optString("url")
+993-                    ?: data.optString("video_url")
+994-
+995-                if (videoUrl.isNotEmpty() && videoUrl.startsWith("http")) {
+996:                    return@withContext Result.success(VideoDownloadInfo(
+997-                        title = data.optString("desc") ?: data.optString("title") ?: "TikTok 视频",
+998-                        downloadUrl = videoUrl,
+999-                        cover = data.optString("cover") ?: data.optString("thumb"),
+1000-                        duration = videoData.optLong("duration", 0L),
+1001-                        author = data.optJSONObject("author")?.optString("nickname")
+--
+1004-            }
+1005-
+1006-            // 直接格式
+1007-            val directUrl = json.optString("url") ?: json.optString("video_url")
+1008-            if (directUrl.startsWith("http")) {
+1009:                return@withContext Result.success(VideoDownloadInfo(
+1010-                    title = json.optString("title") ?: "TikTok 视频",
+1011-                    downloadUrl = directUrl,
+1012-                    cover = json.optString("cover"),
+1013-                    duration = json.optLong("duration", 0L)
+1014-                ))
+--
+1054-    )
+1055-
+1056-    /**
+1057-     * 下载数据类
+1058-     */
+1059:    data class VideoDownloadInfo(
+1060-        val title: String,
+1061-        val downloadUrl: String,
+1062-        val cover: String? = null,
+1063-        val duration: Long = 0,
+1064-        val author: String? = null,

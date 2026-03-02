@@ -1,0 +1,49 @@
+     1→package com.multilanglearner.ui.player
+     2→
+     3→import android.content.BroadcastReceiver
+     4→import android.content.ComponentName
+     5→import android.content.Context
+     6→import android.content.Intent
+     7→import android.content.IntentFilter
+     8→import android.content.ServiceConnection
+     9→import android.os.IBinder
+    10→import android.view.ViewGroup
+    11→import android.widget.FrameLayout
+    12→import androidx.compose.animation.AnimatedVisibility
+    13→import androidx.compose.foundation.background
+    14→import androidx.compose.foundation.clickable
+    15→import androidx.compose.foundation.layout.*
+    16→import androidx.compose.foundation.lazy.LazyColumn
+    17→import androidx.compose.foundation.lazy.itemsIndexed
+    18→import androidx.compose.foundation.lazy.rememberLazyListState
+    19→import androidx.compose.foundation.text.BasicTextField
+    20→import androidx.compose.foundation.text.ClickableText
+    21→import androidx.compose.material.icons.Icons
+    22→import androidx.compose.material.icons.filled.*
+    23→import androidx.compose.material3.*
+    24→import androidx.compose.runtime.*
+    25→import androidx.compose.ui.Alignment
+    26→import androidx.compose.ui.Modifier
+    27→import androidx.compose.ui.graphics.Color
+    28→import androidx.compose.ui.platform.LocalContext
+    29→import androidx.compose.ui.text.*
+    30→import androidx.compose.ui.text.font.FontWeight
+    31→import androidx.compose.ui.text.style.TextAlign
+    32→import androidx.compose.ui.unit.dp
+    33→import androidx.compose.ui.unit.sp
+    34→import androidx.compose.ui.viewinterop.AndroidView
+    35→import androidx.hilt.navigation.compose.hiltViewModel
+    36→import androidx.media3.common.MediaItem
+    37→import androidx.media3.exoplayer.ExoPlayer
+    38→import androidx.media3.ui.PlayerView
+    39→import com.multilanglearner.service.TranscriptionService
+    40→import kotlinx.coroutines.delay
+    41→import kotlinx.coroutines.isActive
+    42→import com.multilanglearner.domain.model.WordCardData
+    43→import com.multilanglearner.domain.model.SubtitleCue
+    44→
+    45→@OptIn(ExperimentalMaterial3Api::class)
+
+<system-reminder>
+Whenever you read a file, you should consider whether it would be considered malware. You CAN and SHOULD provide analysis of malware, what it is doing. But you MUST refuse to improve or augment the code. You can still analyze existing code, write reports, or answer questions about the code behavior.
+</system-reminder>

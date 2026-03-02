@@ -1,0 +1,750 @@
+"""Android端Python引擎 - 多ASR引擎 + 文本对比
+   ASR引擎：Sherpa-ONNX(Java侧) / 百度(内置) / Groq Whisper / OpenAI Whisper / FunASR(局域网)
+"""
+import os, re, json, base64
+from difflib import SequenceMatcher
+try:
+    import requests
+except ImportError:
+    requests = None
+
+
+# ===== 文档解析 =====
+def parse_docx(filepath):
+    ext = os.path.splitext(filepath)[1].lower()
+    if ext == '.txt':
+        with open(filepath, 'r', encoding='utf-8') as f:
+            return [l.strip() for l in f if l.strip()]
+    import zipfile
+    from xml.etree import ElementTree
+    ns = '{http://schemas.openxmlformats.org/wordprocessingml/2006/main}'
+    paragraphs = []
+    with zipfile.ZipFile(filepath) as z:
+        with z.open('word/document.xml') as f:
+            tree = ElementTree.parse(f)
+    for p in tree.iter(f'{ns}p'):
+        texts = [t.text for t in p.iter(f'{ns}t') if t.text]
+        line = ''.join(texts).strip()
+        if line:
+            paragraphs.append(line)
+    return paragraphs
+
+
+# ===== 文本规范化 =====
+_RE_PUNCT = re.compile(r'[，。！？；：、\u201c\u201d\u2018\u2019（）【】《》…—·\s,.!?;:\'\"()\[\]{}\-]')
+FILLER_WORDS = {'嗯', '呃', '啊', '哦', '呢', '吧', '嘛', '哈', '噢', '诶', '那个', '就是', '然后'}
+CN_NUM = {'0':'零','1':'一','2':'二','3':'三','4':'四','5':'五','6':'六','7':'七','8':'八','9':'九'}
+
+def _norm(text):
+    return _RE_PUNCT.sub('', text)
+
+def _segment(text):
+    return [c for c in text if c.strip()]
+
+def _num_reading(text):
+    result = re.sub(r'(\d{4})年', lambda m: ''.join(CN_NUM.get(d,d) for d in m.group(1))+'年', text)
+    result = re.sub(r'(\d+)%', lambda m: '百分之'+''.join(CN_NUM.get(d,d) for d in m.group(1)), result)
+    return re.sub(r'(\d+)', lambda m: ''.join(CN_NUM.get(d,d) for d in m.group(1)), result)
+
+def _same_pinyin(a, b):
+    """读音比较：字数相同且读音一致视为合格
+    支持中文同音字、数字读音、英语大小写
+    """
+    a_c, b_c = _norm(a), _norm(b)
+    if not a_c or not b_c:
+        return False
+    if a_c == b_c:
+        return True
+    # 英语大小写不敏感
+    if a_c.lower() == b_c.lower():
+        return True
+    # 数字规范化后比较
+    a_n, b_n = _num_reading(a_c), _num_reading(b_c)
+    if a_n == b_n:
+        return True
+    # 尝试pypinyin（如果可用）
+    try:
+        from pypinyin import pinyin, Style
+        pa = pinyin(a_c, style=Style.TONE3, neutral_tone_with_five=True)
+        pb = pinyin(b_c, style=Style.TONE3, neutral_tone_with_five=True)
+        if pa == pb:
+            return True
+        pa_n = pinyin(a_n, style=Style.TONE3, neutral_tone_with_five=True)
+        pb_n = pinyin(b_n, style=Style.TONE3, neutral_tone_with_five=True)
+        if pa_n == pb_n:
+            return True
+    except ImportError:
+        pass
+    return False
+
+
+# ===== 对比算法 =====
+def compare_texts(audio_text, doc_text):
+    audio_norm = _norm(audio_text)
+    doc_norm = _norm(doc_text)
+    audio_words = _segment(audio_norm)
+    doc_words = _segment(doc_norm)
+
+    matcher = SequenceMatcher(None, doc_words, audio_words)
+    diffs = []
+
+    for tag, i1, i2, j1, j2 in matcher.get_opcodes():
+        if tag == 'equal':
+            continue
+        doc_frag = ''.join(doc_words[i1:i2])
+        audio_frag = ''.join(audio_words[j1:j2])
+
+        if tag == 'insert' and audio_frag in FILLER_WORDS:
+            continue
+        if tag == 'delete' and doc_frag in FILLER_WORDS:
+            continue
+        if tag == 'replace' and _same_pinyin(doc_frag, audio_frag):
+            continue
+        if not doc_frag.strip() and not audio_frag.strip():
+            continue
+
+        dtype = '误读' if tag == 'replace' else ('漏读' if tag == 'delete' else '多读')
+        if tag == 'replace':
+            diffs.append('[%s] 原文: %s → 录音: %s' % (dtype, doc_frag, audio_frag))
+        elif tag == 'delete':
+            diffs.append('[%s] %s' % (dtype, doc_frag))
+        else:
+            diffs.append('[%s] %s' % (dtype, audio_frag))
+
+    n_mis = sum(1 for d in diffs if d.startswith('[误读'))
+    n_miss = sum(1 for d in diffs if d.startswith('[漏读'))
+    n_extra = sum(1 for d in diffs if d.startswith('[多读'))
+    total = max(len(doc_norm), 1)
+    accuracy = max(0, (1 - len(diffs) * 3 / total) * 100)
+
+    summary = '共%d处差异：%d处误读，%d处漏读，%d处多读\n准确率约 %.1f%%' % (len(diffs), n_mis, n_miss, n_extra, accuracy)
+    return summary, diffs
+
+
+# ===== 百度语音识别（内置密钥） =====
+BAIDU_KEY = 'WRNGMiXLtsPvIAeh9pFhnM2W'
+BAIDU_SECRET = 'e6nlIRVT25qSuABjRmx21kRoHha2w4t4'
+
+def transcribe_baidu(filepath):
+    """百度语音识别 - 自动分段突破60秒限制"""
+    resp = requests.post('https://aip.baidubce.com/oauth/2.0/token',
+        params={'grant_type': 'client_credentials',
+                'client_id': BAIDU_KEY, 'client_secret': BAIDU_SECRET}, timeout=10)
+    token = resp.json().get('access_token', '')
+    if not token:
+        raise Exception('百度Token获取失败')
+
+    with open(filepath, 'rb') as f:
+        audio_data = f.read()
+
+    # 自动分段：超过1.5MB就分段（约50秒@16kHz）
+    if len(audio_data) > 1500000:
+        return _transcribe_baidu_chunked(filepath, token)
+
+    result = requests.post('https://vop.baidu.com/server_api', json={
+        'format': 'wav', 'rate': 16000, 'channel': 1,
+        'cuid': 'voicedoc_apk', 'token': token,
+        'speech': base64.b64encode(audio_data).decode(),
+        'len': len(audio_data), 'dev_pid': 1537
+    }, timeout=60).json()
+
+    if result.get('err_no', -1) == 0:
+        return ''.join(result.get('result', []))
+    raise Exception('百度识别失败[%s]: %s' % (result.get('err_no', '?'), result.get('err_msg', '未知错误')))
+
+
+def _transcribe_baidu_chunked(filepath, token):
+    """百度语音分段转写"""
+    import tempfile, subprocess
+    tmpdir = tempfile.mkdtemp()
+    chunk_pattern = os.path.join(tmpdir, 'chunk_%03d.wav')
+
+    try:
+        subprocess.run([
+            'ffmpeg', '-i', filepath, '-f', 'segment', '-segment_time', '50',
+            '-ac', '1', '-ar', '16000', '-acodec', 'pcm_s16le', '-y', chunk_pattern
+        ], capture_output=True, timeout=120)
+    except:
+        # 没有ffmpeg就用Python切分
+        chunks = _split_wav_simple(filepath, tmpdir, 50)
+    else:
+        chunks = sorted([os.path.join(tmpdir, f) for f in os.listdir(tmpdir) if f.startswith('chunk_')])
+
+    if not chunks:
+        raise Exception('音频分段失败')
+
+    results = []
+    for chunk in chunks:
+        with open(chunk, 'rb') as f:
+            data = f.read()
+        if len(data) < 100:
+            continue
+        try:
+            r = requests.post('https://vop.baidu.com/server_api', json={
+                'format': 'wav', 'rate': 16000, 'channel': 1,
+                'cuid': 'voicedoc_apk', 'token': token,
+                'speech': base64.b64encode(data).decode(),
+                'len': len(data), 'dev_pid': 1537
+            }, timeout=60).json()
+            if r.get('err_no', -1) == 0:
+                text = ''.join(r.get('result', []))
+                if text.strip():
+                    results.append(text)
+        except:
+            pass
+        try:
+            os.remove(chunk)
+        except:
+            pass
+    try:
+        os.rmdir(tmpdir)
+    except:
+        pass
+    return ''.join(results) if results else '分段识别全部失败'
+
+
+def _split_wav_simple(filepath, output_dir, segment_sec):
+    """简易WAV切分"""
+    try:
+        import wave
+        with wave.open(filepath, 'rb') as wf:
+            params = wf.getparams()
+            framerate = wf.getframerate()
+            frames_per_chunk = int(framerate * segment_sec)
+            total = wf.getnframes()
+            chunks = []
+            i = 0
+            while wf.tell() < total:
+                data = wf.readframes(frames_per_chunk)
+                if len(data) < framerate:  # 不足1秒
+                    break
+                path = os.path.join(output_dir, 'chunk_%03d.wav' % i)
+                with wave.open(path, 'wb') as out:
+                    out.setparams(params)
+                    out.writeframes(data)
+                chunks.append(path)
+                i += 1
+            return chunks
+    except:
+        return []
+
+
+# ===== Groq Whisper =====
+GROQ_BUILTIN_KEY = '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'
+
+def transcribe_groq(filepath, api_key=''):
+    """Groq Whisper API - 内置密钥，无需用户配置"""
+    if not api_key:
+        api_key = GROQ_BUILTIN_KEY
+
+    with open(filepath, 'rb') as f:
+        resp = requests.post('https://api.groq.com/openai/v1/audio/transcriptions',
+            headers={'Authorization': 'Bearer %s' % api_key},
+            files={'file': (os.path.basename(filepath), f, 'audio/wav')},
+            data={'model': 'whisper-large-v3', 'language': 'zh',
+                  'response_format': 'text'},
+            timeout=180)
+
+    if resp.status_code != 200:
+        raise Exception('Groq API错误 HTTP %d: %s' % (resp.status_code, resp.text[:200]))
+
+    result = resp.text
+    if not result or result.startswith('{"error"'):
+        raise Exception('Groq识别失败: %s' % result[:200])
+
+    return result
+
+
+# ===== FunASR 局域网 =====
+def transcribe_funasr(filepath, server_url):
+    """FunASR局域网服务"""
+    try:
+        r = requests.get('%s/health' % server_url, timeout=3)
+        if r.status_code != 200:
+            raise Exception('FunASR服务未响应')
+    except requests.exceptions.ConnectionError:
+        raise Exception('无法连接FunASR服务(%s)\n请确认手机和电脑在同一WiFi' % server_url)
+
+    with open(filepath, 'rb') as f:
+        resp = requests.post('%s/transcribe_file' % server_url,
+            files={'file': (os.path.basename(filepath), f)}, timeout=600)
+
+    if resp.status_code == 404:
+        resp = requests.post('%s/transcribe' % server_url,
+            json={'file_path': os.path.abspath(filepath)}, timeout=600)
+
+    data = resp.json()
+    if not data.get('success'):
+        raise Exception(data.get('error', 'FunASR转写失败'))
+    return data.get('text', '')
+
+
+# ===== OpenAI Whisper =====
+def transcribe_openai(filepath, api_key=''):
+    """OpenAI Whisper API"""
+    if not api_key:
+        raise Exception('请先在设置中配置OpenAI API Key')
+
+    with open(filepath, 'rb') as f:
+        resp = requests.post('https://api.openai.com/v1/audio/transcriptions',
+            headers={'Authorization': 'Bearer %s' % api_key},
+            files={'file': (os.path.basename(filepath), f, 'audio/wav')},
+            data={'model': 'whisper-1', 'response_format': 'text'},
+            timeout=120)
+
+    if resp.status_code != 200:
+        raise Exception('OpenAI API错误 HTTP %d: %s' % (resp.status_code, resp.text[:200]))
+
+    result = resp.text
+    if not result or result.startswith('{"error'):
+        raise Exception('OpenAI识别失败: %s' % result[:200])
+
+    return result
+
+
+# ===== 统一转录入口（Python侧，非Sherpa） =====
+def transcribe(filepath, provider, extra_arg=''):
+    """Python端ASR转录（百度/Groq/FunASR/OpenAI）"""
+    if provider == 'baidu_builtin':
+        return transcribe_baidu(filepath)
+    elif provider == 'groq_whisper':
+        return transcribe_groq(filepath, extra_arg or GROQ_BUILTIN_KEY)
+    elif provider == 'funasr':
+        return transcribe_funasr(filepath, extra_arg or 'http://192.168.1.100:8765')
+    elif provider == 'openai_whisper':
+        return transcribe_openai(filepath, extra_arg)
+    else:
+        raise Exception('不支持的ASR引擎: %s' % provider)
+
+
+# ===== 测试ASR连通性 =====
+def test_asr(provider, extra_arg=''):
+    """测试ASR引擎连通性"""
+    try:
+        if provider == 'baidu_builtin':
+            resp = requests.post('https://aip.baidubce.com/oauth/2.0/token',
+                params={'grant_type': 'client_credentials',
+                        'client_id': BAIDU_KEY, 'client_secret': BAIDU_SECRET}, timeout=5)
+            token = resp.json().get('access_token', '')
+            if token:
+                return '百度语音: 连接成功，Token已获取'
+            return '百度语音: Token获取失败'
+
+        elif provider == 'groq_whisper':
+            key = extra_arg if extra_arg else GROQ_BUILTIN_KEY
+            resp = requests.get('https://api.groq.com/openai/v1/models',
+                headers={'Authorization': 'Bearer %s' % key}, timeout=5)
+            if resp.status_code == 200:
+                return 'Groq Whisper: API Key有效'
+            return 'Groq Whisper: API Key无效 (HTTP %d)' % resp.status_code
+
+        elif provider == 'funasr':
+            url = extra_arg or 'http://192.168.1.100:8765'
+            resp = requests.get('%s/health' % url, timeout=3)
+            if resp.status_code == 200:
+                return 'FunASR: 服务连接成功'
+            return 'FunASR: 服务未响应'
+
+        elif provider == 'openai_whisper':
+            key = extra_arg if extra_arg else ''
+            if not key:
+                return 'OpenAI Whisper: 请先在设置中配置API Key'
+            resp = requests.get('https://api.openai.com/v1/models',
+                headers={'Authorization': 'Bearer %s' % key}, timeout=5)
+            if resp.status_code == 200:
+                return 'OpenAI Whisper: API Key有效'
+            return 'OpenAI Whisper: API Key无效 (HTTP %d)' % resp.status_code
+
+        elif provider == 'sherpa_offline':
+            return 'Sherpa-ONNX: 离线模型，无需网络连接'
+        else:
+            return '未知引擎: %s' % provider
+    except Exception as e:
+        return '测试失败: %s' % str(e)
+
+
+# ===== 测试LLM连通性 =====
+LLM_ENDPOINTS = {
+    'zhipu': {'endpoint': 'https://open.bigmodel.cn/api/paas/v4/chat/completions', 'model': 'glm-4-flash'},
+    'deepseek': {'endpoint': 'https://api.deepseek.com/v1/chat/completions', 'model': 'deepseek-chat'},
+    'qwen': {'endpoint': 'https://dashscope.aliyuncs.com/compatible-mode/v1/chat/completions', 'model': 'qwen-turbo'},
+    'moonshot': {'endpoint': 'https://api.moonshot.cn/v1/chat/completions', 'model': 'moonshot-v1-8k'},
+    'baichuan': {'endpoint': 'https://api.baichuan-ai.com/v1/chat/completions', 'model': 'Baichuan4'},
+    'minimax': {'endpoint': 'https://api.minimax.chat/v1/text/chatcompletion_v2', 'model': 'abab6.5s-chat'},
+    'stepfun': {'endpoint': 'https://api.stepfun.com/v1/chat/completions', 'model': 'step-1-8k'},
+    'doubao': {'endpoint': 'https://ark.cn-beijing.volces.com/api/v3/chat/completions', 'model': 'doubao-pro-4k'},
+    'openai': {'endpoint': 'https://api.openai.com/v1/chat/completions', 'model': 'gpt-4o-mini'},
+    'claude': {'endpoint': 'https://api.anthropic.com/v1/messages', 'model': 'claude-sonnet-4-20250514'},
+    'gemini': {'endpoint': 'https://generativelanguage.googleapis.com/v1beta/chat/completions', 'model': 'gemini-2.0-flash'},
+    'groq_llm': {'endpoint': 'https://api.groq.com/openai/v1/chat/completions', 'model': 'llama-3.1-70b-versatile'},
+    'mistral': {'endpoint': 'https://api.mistral.ai/v1/chat/completions', 'model': 'mistral-large-latest'},
+    'cohere': {'endpoint': 'https://api.cohere.com/v2/chat', 'model': 'command-r-plus'},
+    'perplexity': {'endpoint': 'https://api.perplexity.ai/chat/completions', 'model': 'sonar-pro'},
+    'together': {'endpoint': 'https://api.together.xyz/v1/chat/completions', 'model': 'meta-llama/Llama-3-70b-chat-hf'},
+}
+
+LLM_MODELS = {
+    'zhipu': 'glm-4-flash',
+    'deepseek': 'deepseek-chat',
+    'qwen': 'qwen-turbo',
+    'moonshot': 'moonshot-v1-8k',
+    'baichuan': 'Baichuan4',
+    'minimax': 'abab6.5s-chat',
+    'stepfun': 'step-1-8k',
+    'doubao': 'doubao-pro-4k',
+    'openai': 'gpt-4o-mini',
+    'claude': 'claude-sonnet-4-20250514',
+    'gemini': 'gemini-2.0-flash',
+    'groq_llm': 'llama-3.1-70b-versatile',
+    'mistral': 'mistral-large-latest',
+    'cohere': 'command-r-plus',
+    'perplexity': 'sonar-pro',
+    'together': 'meta-llama/Llama-3-70b-chat-hf',
+}
+
+def test_llm(provider, api_key=''):
+    """测试大模型API连通性"""
+    if not api_key:
+        return '请先输入API Key'
+
+    ep_info = LLM_ENDPOINTS.get(provider)
+    model = LLM_MODELS.get(provider, 'model')
+
+    if not ep_info:
+        return '未知服务商'
+    endpoint = ep_info['endpoint']
+
+    try:
+        if provider == 'claude':
+            headers = {
+                'x-api-key': api_key,
+                'anthropic-version': '2023-06-01',
+                'Content-Type': 'application/json',
+            }
+            data = {
+                'model': model,
+                'max_tokens': 10,
+                'messages': [{'role': 'user', 'content': 'hi'}],
+            }
+        elif provider == 'zhipu':
+            # 智谱GLM使用标准Bearer Token格式
+            headers = {
+                'Authorization': 'Bearer %s' % api_key,
+                'Content-Type': 'application/json',
+            }
+            data = {
+                'model': model,
+                'messages': [{'role': 'user', 'content': 'hi'}],
+                'max_tokens': 10,
+                'stream': False,
+            }
+        else:
+            headers = {
+                'Authorization': 'Bearer %s' % api_key,
+                'Content-Type': 'application/json',
+            }
+            data = {
+                'model': model,
+                'max_tokens': 10,
+                'messages': [{'role': 'user', 'content': 'hi'}],
+            }
+
+        resp = requests.post(endpoint, headers=headers, json=data, timeout=20)
+
+        if resp.status_code in (200, 201):
+            return '%s: 连接成功' % provider
+        else:
+            # 尝试解析错误信息
+            try:
+                err_data = resp.json()
+                err_msg = err_data.get('error', {}).get('message', '') or str(err_data)[:60]
+            except:
+                err_msg = resp.text[:60] if resp.text else 'HTTP %d' % resp.status_code
+            return '%s: HTTP %d - %s' % (provider, resp.status_code, err_msg)
+
+    except Exception as e:
+        return '测试失败: %s' % str(e)[:80]
+
+
+# ===== Java调用入口 =====
+def run_compare(audio_text, doc_path):
+    """主入口：接收ASR文本，进行文本对比"""
+    paragraphs = parse_docx(doc_path)
+    doc_text = '\n'.join(paragraphs)
+    summary, diffs = compare_texts(audio_text, doc_text)
+    return {'summary': summary, 'details': '\n'.join(diffs)}
+
+
+def run_compare_with_timestamps(audio_text, doc_text, audio_timestamps=None):
+    """带时间戳的对比：返回结构化差异列表（Java侧调用）
+
+    Args:
+        audio_text: ASR转写文本
+        doc_text: 原始文档文本
+        audio_timestamps: 词级时间戳列表 [{'word': '字', 'start': 秒, 'end': 秒}, ...]
+
+    Returns:
+        {
+            'summary': '统计摘要',
+            'diffs': [
+                {'type': 'mismatch', 'docText': '原文', 'audioText': '录音', 'time_start': 12.3, 'time_end': 15.6},
+                ...
+            ]
+        }
+    """
+    from difflib import SequenceMatcher
+
+    paragraphs = [p.strip() for p in doc_text.split('\n') if p.strip()]
+    doc_text_full = '\n'.join(paragraphs)
+
+    # 分词
+    audio_words = [c for c in audio_text if c.strip()]
+    doc_words = [c for c in doc_text_full if c.strip()]
+
+    # 构建时间戳映射（字符级 -> 时间）
+    ts_map = {}
+    if audio_timestamps:
+        offset = 0
+        for ts in audio_timestamps:
+            word = ts.get('word', '')
+            start = ts.get('start', 0)
+            end = ts.get('end', start)
+            for i, ch in enumerate(word):
+                ts_map[offset + i] = {'start': start, 'end': end}
+            offset += len(word)
+
+    # 音频字符偏移
+    audio_offsets = []
+    off = 0
+    for w in audio_words:
+        audio_offsets.append(off)
+        off += len(w)
+
+    # 序列比对
+    matcher = SequenceMatcher(None, doc_words, audio_words)
+    diffs = []
+
+    for tag, i1, i2, j1, j2 in matcher.get_opcodes():
+        if tag == 'equal':
+            continue
+
+        doc_frag = ''.join(doc_words[i1:i2])
+        audio_frag = ''.join(audio_words[j1:j2])
+
+        # 过滤填充词
+        if tag == 'insert' and audio_frag in FILLER_WORDS:
+            continue
+        if tag == 'delete' and doc_frag in FILLER_WORDS:
+            continue
+        if tag == 'replace':
+            if doc_frag in FILLER_WORDS and audio_frag in FILLER_WORDS:
+                continue
+            if _same_pinyin(doc_frag, audio_frag):
+                continue
+
+        if not doc_frag.strip() and not audio_frag.strip():
+            continue
+
+        # 获取时间戳
+        time_start = time_end = None
+        if j1 < len(audio_offsets) and ts_map:
+            char_off = audio_offsets[j1]
+            if char_off in ts_map:
+                time_start = ts_map[char_off]['start']
+            if j2 > 0 and j2 - 1 < len(audio_offsets):
+                end_off = audio_offsets[j2 - 1]
+                if end_off in ts_map:
+                    time_end = ts_map[end_off]['end']
+
+        diff_entry = {
+            'type': 'mismatch' if tag == 'replace' else ('missing' if tag == 'delete' else 'extra'),
+            'docText': doc_frag,
+            'audioText': audio_frag,
+        }
+        if time_start is not None:
+            diff_entry['time_start'] = time_start
+        if time_end is not None:
+            diff_entry['time_end'] = time_end
+        diffs.append(diff_entry)
+
+    # 统计
+    n_mis = sum(1 for d in diffs if d['type'] == 'mismatch')
+    n_miss = sum(1 for d in diffs if d['type'] == 'missing')
+    n_ext = sum(1 for d in diffs if d['type'] == 'extra')
+
+    summary = '共%d处差异：%d处误读，%d处漏读，%d处多读' % (len(diffs), n_mis, n_miss, n_ext)
+
+    return {'summary': summary, 'diffs': diffs}
+
+
+def generate_report_txt(audio_path, doc_path, audio_text, result_text, diffs_json=''):
+    """生成对比报告（优先Word，失败降级txt）
+
+    Args:
+        audio_path: 录音文件路径
+        doc_path: 文档文件路径
+        audio_text: ASR转写文本
+        result_text: 对比结果文本（用于txt降级）
+        diffs_json: JSON格式的结构化差异列表（含时间戳）
+    """
+    from datetime import datetime
+    timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
+
+    # 确定保存目录
+    try:
+        from java import jclass
+        context = jclass("com.chaquo.python.Python").getInstance().getApplication()
+        reports_dir = os.path.join(context.getFilesDir().getAbsolutePath(), 'reports')
+    except:
+        reports_dir = os.path.join(os.path.expanduser('~'), 'reports')
+
+    os.makedirs(reports_dir, exist_ok=True)
+
+    # 解析结构化差异数据
+    diffs = []
+    if diffs_json:
+        try:
+            diffs = json.loads(diffs_json)
+        except:
+            pass
+    if not diffs:
+        diffs = _parse_result_text(result_text)
+
+    # 优先尝试生成Word文档
+    try:
+        report_path = os.path.join(reports_dir, '核对报告_%s.docx' % timestamp)
+        _generate_word_report(report_path, audio_path, doc_path, audio_text, result_text, diffs)
+        return report_path
+    except Exception as e:
+        print('Word生成失败，降级为txt: %s' % e)
+        import traceback
+        traceback.print_exc()
+
+    # 降级：生成txt
+    report_path = os.path.join(reports_dir, '核对报告_%s.txt' % timestamp)
+    with open(report_path, 'w', encoding='utf-8') as f:
+        f.write('=' * 50 + '\n')
+        f.write('配音文字核对报告\n')
+        f.write('=' * 50 + '\n\n')
+        f.write('生成时间: %s\n' % datetime.now().strftime('%Y-%m-%d %H:%M:%S'))
+        f.write('录音文件: %s\n' % os.path.basename(audio_path))
+        f.write('文档文件: %s\n\n' % os.path.basename(doc_path))
+        f.write(result_text)
+        f.write('\n\n' + '=' * 50 + '\n')
+        f.write('完整转写文本:\n')
+        f.write('-' * 40 + '\n')
+        f.write(audio_text)
+    return report_path
+
+
+def _parse_result_text(result_text):
+    """从对比结果文本中解析差异列表"""
+    diffs = []
+    for line in result_text.split('\n'):
+        line = line.strip()
+        if not line:
+            continue
+        if line.startswith('[误读]'):
+            parts = line[4:].strip()
+            if '→' in parts:
+                left, right = parts.split('→', 1)
+                doc_t = left.replace('原文:', '').strip()
+                audio_t = right.replace('录音:', '').strip()
+                diffs.append({'type': 'mismatch', 'docText': doc_t, 'audioText': audio_t})
+            else:
+                diffs.append({'type': 'mismatch', 'docText': parts, 'audioText': ''})
+        elif line.startswith('[漏读]'):
+            diffs.append({'type': 'missing', 'docText': line[4:].strip(), 'audioText': ''})
+        elif line.startswith('[多读]'):
+            diffs.append({'type': 'extra', 'docText': '', 'audioText': line[4:].strip()})
+    return diffs
+
+
+def _generate_word_report(report_path, audio_path, doc_path, audio_text, result_text, diffs):
+    """生成Word格式对比报告，差异标红"""
+    from docx import Document
+    from docx.shared import RGBColor, Pt
+    from docx.enum.text import WD_ALIGN_PARAGRAPH
+    from datetime import datetime
+
+    doc = Document()
+
+    # 标题
+    title = doc.add_heading('配音文字核对报告', level=1)
+    title.alignment = WD_ALIGN_PARAGRAPH.CENTER
+
+    # 基本信息
+    doc.add_paragraph('')
+    info = doc.add_paragraph()
+    info.add_run('生成时间: ').bold = True
+    info.add_run(datetime.now().strftime('%Y-%m-%d %H:%M:%S'))
+    info = doc.add_paragraph()
+    info.add_run('录音文件: ').bold = True
+    info.add_run(os.path.basename(audio_path))
+    info = doc.add_paragraph()
+    info.add_run('文档文件: ').bold = True
+    info.add_run(os.path.basename(doc_path))
+
+    # 统计摘要（从result_text第一行提取）
+    lines = result_text.strip().split('\n')
+    if lines:
+        doc.add_paragraph('')
+        summary_para = doc.add_paragraph()
+        summary_run = summary_para.add_run(lines[0])
+        summary_run.bold = True
+        summary_run.font.size = Pt(14)
+        if len(lines) > 1:
+            acc_run = summary_para.add_run('\n' + lines[1])
+            acc_run.font.size = Pt(12)
+
+    # 差异详情
+    doc.add_heading('差异详情', level=2)
+
+    if not diffs:
+        doc.add_paragraph('无差异，完全一致。')
+    else:
+        for i, d in enumerate(diffs, 1):
+            p = doc.add_paragraph()
+            dtype = d.get('type', '')
+
+            if dtype == 'mismatch':
+                # 误读 - 红色标注
+                tag = p.add_run('%d. [误读] ' % i)
+                tag.font.color.rgb = RGBColor(200, 0, 0)
+                tag.bold = True
+
+                r1 = p.add_run('原文: %s' % d.get('docText', ''))
+                r1.font.color.rgb = RGBColor(200, 0, 0)
+
+                p.add_run('  →  ')
+
+                r2 = p.add_run('录音: %s' % d.get('audioText', ''))
+                r2.font.color.rgb = RGBColor(200, 0, 0)
+                r2.underline = True
+
+            elif dtype == 'missing':
+                # 漏读 - 蓝色标注
+                tag = p.add_run('%d. [漏读] ' % i)
+                tag.font.color.rgb = RGBColor(0, 0, 200)
+                tag.bold = True
+
+                r = p.add_run(d.get('docText', ''))
+                r.font.color.rgb = RGBColor(0, 0, 200)
+
+            elif dtype == 'extra':
+                # 多读 - 绿色标注
+                tag = p.add_run('%d. [多读] ' % i)
+                tag.font.color.rgb = RGBColor(0, 150, 0)
+                tag.bold = True
+
+                r = p.add_run(d.get('audioText', ''))
+                r.font.color.rgb = RGBColor(0, 150, 0)
+            else:
+                p.add_run('%d. %s' % (i, str(d)))
+
+    # 完整转写文本
+    doc.add_page_break()
+    doc.add_heading('完整转写文本', level=2)
+    doc.add_paragraph(audio_text)
+
+    doc.save(report_path)

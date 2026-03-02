@@ -1,0 +1,11 @@
+C:\Users\Administrator\CourtAssistant\app\src\main\java\com\shanfuchun\courtassistant\ui\DocAdapter.kt:14:class DocAdapter(
+C:\Users\Administrator\CourtAssistant\app\src\main\java\com\shanfuchun\courtassistant\ui\DocAdapter.kt-15-    private val onShare: (DocumentRecord) -> Unit,
+C:\Users\Administrator\CourtAssistant\app\src\main\java\com\shanfuchun\courtassistant\ui\DocAdapter.kt-16-    private val onSelect: () -> Unit,
+C:\Users\Administrator\CourtAssistant\app\src\main\java\com\shanfuchun\courtassistant\ui\DocAdapter.kt-17-    private val onClick: (DocumentRecord) -> Unit = {}
+C:\Users\Administrator\CourtAssistant\app\src\main\java\com\shanfuchun\courtassistant\ui\DocAdapter.kt-18-) : ListAdapter<DocumentRecord, DocAdapter.VH>(DIFF) {
+C:\Users\Administrator\CourtAssistant\app\src\main\java\com\shanfuchun\courtassistant\ui\DocAdapter.kt-19-
+C:\Users\Administrator\CourtAssistant\app\src\main\java\com\shanfuchun\courtassistant\ui\DocAdapter.kt-20-    private val selected = mutableSetOf<Long>()
+C:\Users\Administrator\CourtAssistant\app\src\main\java\com\shanfuchun\courtassistant\ui\DocAdapter.kt-21-
+C:\Users\Administrator\CourtAssistant\app\src\main\java\com\shanfuchun\courtassistant\ui\DocAdapter.kt-22-    companion object {
+C:\Users\Administrator\CourtAssistant\app\src\main\java\com\shanfuchun\courtassistant\ui\DocAdapter.kt-23-        val DIFF = object : DiffUtil.ItemCallback<DocumentRecord>() {
+C:\Users\Administrator\CourtAssistant\app\src\main\java\com\shanfuchun\courtassistant\ui\DocAdapter.kt-24-            override fun areItemsTheSame(a: DocumentRecord, b: DocumentRecord) = a.id == b.id

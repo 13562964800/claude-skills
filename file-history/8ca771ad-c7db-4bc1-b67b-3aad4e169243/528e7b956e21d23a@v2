@@ -1,0 +1,33 @@
+package com.videodownload.app.engine
+
+import com.videodownload.app.data.model.Word
+import com.videodownload.app.repository.TranscriptionResult
+
+/**
+ * 转录引擎接口
+ */
+interface TranscriptionEngine {
+    /**
+     * 引擎名称
+     */
+    val name: String
+
+    /**
+     * 转录音频文件
+     *
+     * @param audioPath 音频文件路径
+     * @param language 语言代码（null 表示自动检测）
+     * @return 转录结果
+     */
+    suspend fun transcribe(audioPath: String, language: String?): TranscriptionResult
+
+    /**
+     * 检查引擎是否可用
+     */
+    fun isAvailable(): Boolean
+
+    /**
+     * 测试引擎连接
+     */
+    suspend fun test(apiKey: String?): com.videodownload.app.repository.TestResult
+}

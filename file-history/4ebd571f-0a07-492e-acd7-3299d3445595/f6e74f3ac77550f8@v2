@@ -1,0 +1,206 @@
+#!/usr/bin/env python3
+# -*- coding: utf-8 -*-
+"""
+生成缺失的插图
+"""
+
+import os
+
+# 插图配置：编号 -> (标题, 描述, 颜色方案)
+illustrations = {
+    201: ("儿童与ChatGPT", "儿童在电脑前与ChatGPT对话的场景", ["#667EEA", "#4FD1C5", "#FFD700"]),
+    202: ("GitHub导航", "GitHub界面导航图，标注关键按钮", ["#24292E", "#0366D6", "#FFD700"]),
+    203: ("工作流程", "Vibecoding工作流程示意图", ["#667EEA", "#4FD1C5", "#50C878"]),
+    204: ("Teachable Machine", "Teachable Machine界面截图", ["#4FD1C5", "#667EEA", "#FFD700"]),
+    205: ("创建仓库步骤", "创建GitHub仓库的步骤图解", ["#0366D6", "#50C878", "#FFD700"]),
+    206: ("AI工程师", "AI工程师工作场景", ["#667EEA", "#4FD1C5", "#FFD700"]),
+    207: ("数据科学家", "数据科学家分析数据", ["#4FD1C5", "#667EEA", "#50C878"]),
+    208: ("学习路径", "学习路径时间线", ["#667EEA", "#4FD1C5", "#50C878", "#FFD700"]),
+    209: ("学习资源", "学习资源图标集合", ["#4FD1C5", "#667EEA", "#50C878", "#FFD700"]),
+    210: ("未来教室", "未来教室场景", ["#667EEA", "#4FD1C5", "#FFD700"]),
+    211: ("AI改变世界", "AI改变世界的四个领域", ["#50C878", "#4FD1C5", "#667EEA", "#FFD700"]),
+}
+
+def generate_svg(num, title, description, colors):
+    """生成SVG内容"""
+
+    # 根据不同主题生成不同的SVG
+    if num == 125:  # 乐高积木
+        return f'''<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 800 450">
+  <defs>
+    <linearGradient id="bg{num}" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:{colors[0]};stop-opacity:0.1"/>
+      <stop offset="100%" style="stop-color:{colors[1]};stop-opacity:0.1"/>
+    </linearGradient>
+  </defs>
+  <rect width="800" height="450" fill="url(#bg{num})"/>
+
+  <!-- 乐高积木块 -->
+  <g transform="translate(200, 150)">
+    <rect x="0" y="0" width="120" height="80" rx="8" fill="{colors[0]}" opacity="0.9"/>
+    <circle cx="30" cy="20" r="12" fill="{colors[0]}" stroke="white" stroke-width="2"/>
+    <circle cx="90" cy="20" r="12" fill="{colors[0]}" stroke="white" stroke-width="2"/>
+    <text x="60" y="55" font-size="16" fill="white" text-anchor="middle" font-weight="bold">Hook</text>
+  </g>
+
+  <g transform="translate(350, 150)">
+    <rect x="0" y="0" width="120" height="80" rx="8" fill="{colors[1]}" opacity="0.9"/>
+    <circle cx="30" cy="20" r="12" fill="{colors[1]}" stroke="white" stroke-width="2"/>
+    <circle cx="90" cy="20" r="12" fill="{colors[1]}" stroke="white" stroke-width="2"/>
+    <text x="60" y="55" font-size="16" fill="white" text-anchor="middle" font-weight="bold">连接</text>
+  </g>
+
+  <g transform="translate(500, 150)">
+    <rect x="0" y="0" width="120" height="80" rx="8" fill="{colors[2]}" opacity="0.9"/>
+    <circle cx="30" cy="20" r="12" fill="{colors[2]}" stroke="white" stroke-width="2"/>
+    <circle cx="90" cy="20" r="12" fill="{colors[2]}" stroke="white" stroke-width="2"/>
+    <text x="60" y="55" font-size="16" fill="white" text-anchor="middle" font-weight="bold">功能</text>
+  </g>
+
+  <!-- 连接线 -->
+  <path d="M 320 190 L 350 190" stroke="{colors[0]}" stroke-width="4" fill="none"/>
+  <path d="M 470 190 L 500 190" stroke="{colors[1]}" stroke-width="4" fill="none"/>
+
+  <text x="400" y="320" font-size="32" fill="{colors[0]}" text-anchor="middle" font-weight="bold">{title}</text>
+</svg>'''
+
+    elif num == 143:  # Octocat
+        return f'''<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 800 450">
+  <defs>
+    <linearGradient id="bg{num}" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#F6F8FA;stop-opacity:1"/>
+      <stop offset="100%" style="stop-color:#E1E4E8;stop-opacity:1"/>
+    </linearGradient>
+  </defs>
+  <rect width="800" height="450" fill="url(#bg{num})"/>
+
+  <!-- Octocat 1 -->
+  <g transform="translate(150, 150)">
+    <circle cx="50" cy="50" r="45" fill="{colors[0]}"/>
+    <circle cx="35" cy="40" r="8" fill="white"/>
+    <circle cx="65" cy="40" r="8" fill="white"/>
+    <path d="M 30 65 Q 50 75 70 65" stroke="white" stroke-width="3" fill="none"/>
+    <text x="50" y="120" font-size="14" fill="{colors[0]}" text-anchor="middle">经典</text>
+  </g>
+
+  <!-- Octocat 2 -->
+  <g transform="translate(350, 150)">
+    <circle cx="50" cy="50" r="45" fill="{colors[1]}"/>
+    <circle cx="35" cy="40" r="8" fill="white"/>
+    <circle cx="65" cy="40" r="8" fill="white"/>
+    <path d="M 30 65 Q 50 75 70 65" stroke="white" stroke-width="3" fill="none"/>
+    <text x="50" y="120" font-size="14" fill="{colors[1]}" text-anchor="middle">酷炫</text>
+  </g>
+
+  <!-- Octocat 3 -->
+  <g transform="translate(550, 150)">
+    <circle cx="50" cy="50" r="45" fill="{colors[2]}"/>
+    <circle cx="35" cy="40" r="8" fill="white"/>
+    <circle cx="65" cy="40" r="8" fill="white"/>
+    <path d="M 30 65 Q 50 75 70 65" stroke="white" stroke-width="3" fill="none"/>
+    <text x="50" y="120" font-size="14" fill="{colors[2]}" text-anchor="middle">可爱</text>
+  </g>
+
+  <text x="400" y="320" font-size="32" fill="{colors[0]}" text-anchor="middle" font-weight="bold">{title}</text>
+</svg>'''
+
+    elif num == 144:  # 代码仓库
+        return f'''<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 800 450">
+  <defs>
+    <linearGradient id="bg{num}" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:{colors[0]};stop-opacity:0.1"/>
+      <stop offset="100%" style="stop-color:{colors[1]};stop-opacity:0.1"/>
+    </linearGradient>
+  </defs>
+  <rect width="800" height="450" fill="url(#bg{num})"/>
+
+  <!-- 房子形状 -->
+  <path d="M 250 200 L 400 100 L 550 200 L 550 350 L 250 350 Z" fill="{colors[0]}" opacity="0.9"/>
+  <path d="M 250 200 L 400 100 L 550 200" fill="{colors[1]}" opacity="0.8"/>
+
+  <!-- 门 -->
+  <rect x="360" y="270" width="80" height="80" rx="5" fill="{colors[2]}" opacity="0.9"/>
+
+  <!-- 窗户 -->
+  <rect x="280" y="230" width="50" height="50" rx="5" fill="white" opacity="0.8"/>
+  <rect x="470" y="230" width="50" height="50" rx="5" fill="white" opacity="0.8"/>
+
+  <!-- 代码符号 -->
+  <text x="400" y="320" font-size="24" fill="white" text-anchor="middle" font-family="monospace">&lt;/&gt;</text>
+
+  <text x="400" y="400" font-size="32" fill="{colors[0]}" text-anchor="middle" font-weight="bold">{title}</text>
+</svg>'''
+
+    elif num == 145:  # 公开vs私有
+        return f'''<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 800 450">
+  <defs>
+    <linearGradient id="bg{num}" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:{colors[0]};stop-opacity:0.1"/>
+      <stop offset="100%" style="stop-color:{colors[1]};stop-opacity:0.1"/>
+    </linearGradient>
+  </defs>
+  <rect width="800" height="450" fill="url(#bg{num})"/>
+
+  <!-- 左侧：公开仓库 -->
+  <g transform="translate(150, 150)">
+    <rect x="0" y="0" width="200" height="150" rx="10" fill="{colors[0]}" opacity="0.9"/>
+    <text x="100" y="40" font-size="24" fill="white" text-anchor="middle" font-weight="bold">🌍</text>
+    <text x="100" y="80" font-size="18" fill="white" text-anchor="middle">公开仓库</text>
+    <text x="100" y="110" font-size="14" fill="white" text-anchor="middle">所有人可见</text>
+  </g>
+
+  <!-- 右侧：私有仓库 -->
+  <g transform="translate(450, 150)">
+    <rect x="0" y="0" width="200" height="150" rx="10" fill="{colors[1]}" opacity="0.9"/>
+    <text x="100" y="40" font-size="24" fill="white" text-anchor="middle" font-weight="bold">🔒</text>
+    <text x="100" y="80" font-size="18" fill="white" text-anchor="middle">私有仓库</text>
+    <text x="100" y="110" font-size="14" fill="white" text-anchor="middle">仅自己可见</text>
+  </g>
+
+  <text x="400" y="370" font-size="32" fill="{colors[0]}" text-anchor="middle" font-weight="bold">{title}</text>
+</svg>'''
+
+    else:  # 通用模板
+        return f'''<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 800 450">
+  <defs>
+    <linearGradient id="bg{num}" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:{colors[0]};stop-opacity:0.1"/>
+      <stop offset="100%" style="stop-color:{colors[1]};stop-opacity:0.1"/>
+    </linearGradient>
+  </defs>
+  <rect width="800" height="450" fill="url(#bg{num})"/>
+
+  <g transform="translate(400, 225)">
+    <text x="0" y="-50" font-size="48" font-weight="bold" fill="{colors[0]}" text-anchor="middle">{title}</text>
+    <text x="0" y="10" font-size="18" fill="{colors[1]}" text-anchor="middle" opacity="0.8">{description[:40]}</text>
+  </g>
+
+  <circle cx="150" cy="150" r="30" fill="{colors[2]}" opacity="0.3">
+    <animate attributeName="r" values="30;35;30" dur="2s" repeatCount="indefinite"/>
+  </circle>
+  <circle cx="650" cy="300" r="25" fill="{colors[2]}" opacity="0.3">
+    <animate attributeName="r" values="25;30;25" dur="2.5s" repeatCount="indefinite"/>
+  </circle>
+</svg>'''
+
+def main():
+    output_dir = "C:/Users/Administrator/插图/新插图"
+    os.makedirs(output_dir, exist_ok=True)
+
+    print(f"开始生成 {len(illustrations)} 个插图...")
+
+    for num, (title, desc, colors) in illustrations.items():
+        filename = f"插图{num:02d}.svg" if num < 100 else f"插图{num}.svg"
+        filepath = os.path.join(output_dir, filename)
+
+        svg_content = generate_svg(num, title, desc, colors)
+
+        with open(filepath, 'w', encoding='utf-8') as f:
+            f.write(svg_content)
+
+        print(f"✓ 已生成: {filename}")
+
+    print(f"\n✅ 完成！已生成 {len(illustrations)} 个插图")
+
+if __name__ == "__main__":
+    main()

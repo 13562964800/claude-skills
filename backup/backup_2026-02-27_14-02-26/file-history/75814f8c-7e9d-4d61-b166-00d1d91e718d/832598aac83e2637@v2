@@ -1,0 +1,197 @@
+package com.courassistant.java.model;
+
+import java.util.List;
+
+/**
+ * 法院短信信息模型
+ * 包含短信内容、解析状态、关联的文档等
+ */
+public class CourtMessage {
+    private long id;
+    private String sender;               // 发送者号码
+    private String content;              // 短信内容
+    private long receiveTime;           // 接收时间
+    private boolean hasLink;             // 是否包含链接
+    private int parseStatus;             // 解析状态：0=待解析, 1=已解析, 2=解析失败
+    private String documentIds;          // 关联的文档ID列表，逗号分隔
+    private boolean hasSummons;          // 是否包含传票
+    private String courtName;            // 解析出的法院名称
+    private String partyName;            // 解析出的当事人名称
+    private String caseNo;               // 解析出的案号
+    private long hearingDate;            // 解析出的开庭时间
+    private long createdAt;
+
+    public CourtMessage() {
+        this.parseStatus = 0;
+        this.hasLink = false;
+        this.hasSummons = false;
+        this.createdAt = System.currentTimeMillis();
+    }
+
+    public CourtMessage(String sender, String content, long receiveTime) {
+        this();
+        this.sender = sender;
+        this.content = content;
+        this.receiveTime = receiveTime;
+    }
+
+    // Getters and Setters
+    public long getId() {
+        return id;
+    }
+
+    public void setId(long id) {
+        this.id = id;
+    }
+
+    public String getSender() {
+        return sender;
+    }
+
+    public void setSender(String sender) {
+        this.sender = sender;
+    }
+
+    public String getContent() {
+        return content;
+    }
+
+    public void setContent(String content) {
+        this.content = content;
+    }
+
+    public long getReceiveTime() {
+        return receiveTime;
+    }
+
+    public void setReceiveTime(long receiveTime) {
+        this.receiveTime = receiveTime;
+    }
+
+    public boolean isHasLink() {
+        return hasLink;
+    }
+
+    public void setHasLink(boolean hasLink) {
+        this.hasLink = hasLink;
+    }
+
+    public int getParseStatus() {
+        return parseStatus;
+    }
+
+    public void setParseStatus(int parseStatus) {
+        this.parseStatus = parseStatus;
+    }
+
+    public String getDocumentIds() {
+        return documentIds;
+    }
+
+    public void setDocumentIds(String documentIds) {
+        this.documentIds = documentIds;
+    }
+
+    public boolean isHasSummons() {
+        return hasSummons;
+    }
+
+    public void setHasSummons(boolean hasSummons) {
+        this.hasSummons = hasSummons;
+    }
+
+    public String getCourtName() {
+        return courtName;
+    }
+
+    public void setCourtName(String courtName) {
+        this.courtName = courtName;
+    }
+
+    public String getPartyName() {
+        return partyName;
+    }
+
+    public void setPartyName(String partyName) {
+        this.partyName = partyName;
+    }
+
+    public String getCaseNo() {
+        return caseNo;
+    }
+
+    public void setCaseNo(String caseNo) {
+        this.caseNo = caseNo;
+    }
+
+    public long getHearingDate() {
+        return hearingDate;
+    }
+
+    public void setHearingDate(long hearingDate) {
+        this.hearingDate = hearingDate;
+    }
+
+    public long getCreatedAt() {
+        return createdAt;
+    }
+
+    public void setCreatedAt(long createdAt) {
+        this.createdAt = createdAt;
+    }
+
+    /**
+     * 添加文档ID
+     */
+    public void addDocumentId(long docId) {
+        if (documentIds == null || documentIds.isEmpty()) {
+            documentIds = String.valueOf(docId);
+        } else {
+            documentIds += "," + docId;
+        }
+    }
+
+    /**
+     * 获取文档ID列表
+     */
+    public List<Long> getDocumentIdList() {
+        if (documentIds == null || documentIds.isEmpty()) {
+            return java.util.Collections.emptyList();
+        }
+        String[] parts = documentIds.split(",");
+        List<Long> ids = new java.util.ArrayList<>();
+        for (String part : parts) {
+            try {
+                ids.add(Long.parseLong(part.trim()));
+            } catch (NumberFormatException e) {
+                // 忽略无效的ID
+            }
+        }
+        return ids;
+    }
+
+    /**
+     * 生成去重键
+     * 用于判断短信是否重复（基于短信内容和接收时间）
+     */
+    public String getDedupKey() {
+        // 使用短信内容的哈希和接收时间生成去重键
+        return content + "_" + (receiveTime / 5000); // 5秒内的相同短信视为重复
+    }
+
+    @Override
+    public boolean equals(Object o) {
+        if (this == o) return true;
+        if (o == null || getClass() != o.getClass()) return false;
+        CourtMessage that = (CourtMessage) o;
+        return content != null && content.equals(that.content) &&
+                Math.abs(receiveTime - that.receiveTime) < 5000;
+    }
+
+    @Override
+    public int hashCode() {
+        int result = content != null ? content.hashCode() : 0;
+        result = 31 * result + (int) (receiveTime / 5000);
+        return result;
+    }
+}

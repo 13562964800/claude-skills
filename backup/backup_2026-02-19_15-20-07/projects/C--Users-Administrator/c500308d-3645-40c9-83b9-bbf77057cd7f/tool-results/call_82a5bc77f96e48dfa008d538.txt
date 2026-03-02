@@ -1,0 +1,101 @@
+diff --git a/app/src/main/java/com/court/assistant/viewmodel/MainViewModel.kt b/app/src/main/java/com/court/assistant/viewmodel/MainViewModel.kt
+index bffe0f2..561947e 100644
+--- a/app/src/main/java/com/court/assistant/viewmodel/MainViewModel.kt
++++ b/app/src/main/java/com/court/assistant/viewmodel/MainViewModel.kt
+@@ -9,22 +9,43 @@ import com.court.assistant.data.db.CourtSmsEntity
+ import com.court.assistant.data.db.PdfDocumentEntity
+ import com.court.assistant.pdf.PdfDownloadManager
+ import com.court.assistant.pdf.PdfParser
+-import com.court.assistant.pdf.DownloadResult
+ import com.court.assistant.sms.SmsParser
+ import com.court.assistant.sms.SmsReader
+-import kotlinx.coroutines.flow.*
++import kotlinx.coroutines.flow.Flow
++import kotlinx.coroutines.flow.MutableSharedFlow
++import kotlinx.coroutines.flow.MutableStateFlow
++import kotlinx.coroutines.flow.first
++import kotlinx.coroutines.flow.update
+ import kotlinx.coroutines.launch
++import java.io.File
++import java.text.SimpleDateFormat
++import java.util.Locale
+ 
+ data class SmsWithPdfs(
+     val sms: CourtSmsEntity,
+     val pdfs: List<PdfDocumentEntity>
+ )
+ 
++enum class FilterType { ALL, SUBPOENA_ONLY, WITH_PDFS }
++enum class SortType { DATE_DESC, DATE_ASC, COURT_NAME }
++
+ data class UiState(
+     val smsWithPdfs: List<SmsWithPdfs> = emptyList(),
++    val filteredSmsWithPdfs: List<SmsWithPdfs> = emptyList(),
+     val loading: Boolean = false,
+     val message: String? = null,
+-    val downloadCount: Int = 0
++    val downloadCount: Int = 0,
++    val lastDownloadedPdfId: Long? = null,
++    val selectionMode: Boolean = false,
++    val selectedPdfIds: Set<Long> = emptySet(),
++    val searchQuery: String = "",
++    val isSearchExpanded: Boolean = false,
++    val filterType: FilterType = FilterType.ALL,
++    val sortType: SortType = SortType.DATE_DESC,
++    val showFilterMenu: Boolean = false,
++    val syncing: Boolean = false,
++    val syncProgress: Int = 0,
++    val syncTotal: Int = 0
+ )
+ 
+ class MainViewModel(application: Application) : AndroidViewModel(application) {
+@@ -37,27 +58,38 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
+     private val pdfParser = PdfParser(application)
+ 
+     private val _uiState = MutableStateFlow(UiState())
+-    val uiState: StateFlow<UiState> = _uiState.asStateFlow()
+-
+-    private val _downloadEvent = MutableSharedFlow<String>()
+-    val downloadEvent: SharedFlow<String> = _downloadEvent.asSharedFlow()
++    val _downloadEvent = MutableSharedFlow<String>()
+ 
+     init {
+         viewModelScope.launch {
++            // 同时监听 SMS 和 PDF 的变化
+             repo.getAllSms().collect { smsList ->
+-                val withPdfs = smsList.map { sms ->
+-                    val pdfs = repo.getPdfsBySmsId(sms.id).first()
+-                    SmsWithPdfs(sms, pdfs)
+-                }
+-                _uiState.update { it.copy(smsWithPdfs = withPdfs, loading = false) }
++                refreshData()
+             }
+         }
+     }
+ 
++    private suspend fun refreshData() {
++        val smsList = repo.getAllSms().first()
++        val withPdfs = smsList.map { sms ->
++            val pdfs = repo.getPdfsBySmsId(sms.id).first()
++            SmsWithPdfs(sms, pdfs)
++        }
++        _uiState.update { state ->
++            val filtered = filterSms(withPdfs, state.searchQuery, state.filterType, state.sortType)
++            state.copy(
++                smsWithPdfs = withPdfs,
++                filteredSmsWithPdfs = filtered,
++                loading = false
++            )
++        }
++    }
++
+     fun loadSms() {
+         viewModelScope.launch {
+             _uiState.update { it.copy(loading = true) }
+             val rawList = smsReader.readCourtSms()
++            var addedCount = 0
+             for (raw in rawList) {
+                 val hash = raw.body.hashCode()
+                 if (repo.smsExists(hash)) continue
+@@ -79,14 +111,20 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
+warning: in the working copy of 'app/src/main/java/com/court/assistant/viewmodel/MainViewModel.kt', LF will be replaced by CRLF the next time Git touches it

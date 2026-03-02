@@ -1,0 +1,231 @@
+d:\llapk\app\src\main\java\com\multilanglearner\ui\player\PlayerViewModel.kt:14:import com.multilanglearner.data.network.FFmpegSegmentedTranscriptionService
+d:\llapk\app\src\main\java\com\multilanglearner\ui\player\PlayerViewModel.kt-15-import com.multilanglearner.data.repository.FavoriteRepository
+d:\llapk\app\src\main\java\com\multilanglearner\ui\player\PlayerViewModel.kt-16-import com.multilanglearner.data.store.AIConfigStore
+d:\llapk\app\src\main\java\com\multilanglearner\ui\player\PlayerViewModel.kt-17-import com.multilanglearner.domain.model.*
+d:\llapk\app\src\main\java\com\multilanglearner\ui\player\PlayerViewModel.kt-18-import com.multilanglearner.domain.util.VttParser
+d:\llapk\app\src\main\java\com\multilanglearner\ui\player\PlayerViewModel.kt-19-import com.multilanglearner.domain.util.WordAligner
+d:\llapk\app\src\main\java\com\multilanglearner\ui\player\PlayerViewModel.kt:20:import com.multilanglearner.service.TranscriptionService
+d:\llapk\app\src\main\java\com\multilanglearner\ui\player\PlayerViewModel.kt-21-import dagger.hilt.android.lifecycle.HiltViewModel
+d:\llapk\app\src\main\java\com\multilanglearner\ui\player\PlayerViewModel.kt-22-import kotlinx.coroutines.Dispatchers
+d:\llapk\app\src\main\java\com\multilanglearner\ui\player\PlayerViewModel.kt-23-import kotlinx.coroutines.delay
+d:\llapk\app\src\main\java\com\multilanglearner\ui\player\PlayerViewModel.kt-24-import kotlinx.coroutines.flow.*
+d:\llapk\app\src\main\java\com\multilanglearner\ui\player\PlayerViewModel.kt-25-import kotlinx.coroutines.isActive
+d:\llapk\app\src\main\java\com\multilanglearner\ui\player\PlayerViewModel.kt-26-import kotlinx.coroutines.launch
+d:\llapk\app\src\main\java\com\multilanglearner\ui\player\PlayerViewModel.kt-27-import kotlinx.serialization.json.Json
+d:\llapk\app\src\main\java\com\multilanglearner\ui\player\PlayerViewModel.kt-28-import java.io.File
+d:\llapk\app\src\main\java\com\multilanglearner\ui\player\PlayerViewModel.kt-29-import java.util.Locale
+d:\llapk\app\src\main\java\com\multilanglearner\ui\player\PlayerViewModel.kt-30-import javax.inject.Inject
+d:\llapk\app\src\main\java\com\multilanglearner\ui\player\PlayerViewModel.kt-31-
+d:\llapk\app\src\main\java\com\multilanglearner\ui\player\PlayerViewModel.kt-32-data class PlayerUiState(
+d:\llapk\app\src\main\java\com\multilanglearner\ui\player\PlayerViewModel.kt-33-    val subtitles: List<SubtitleCue> = emptyList(),
+d:\llapk\app\src\main\java\com\multilanglearner\ui\player\PlayerViewModel.kt-34-    val wordTimings: List<WordTimestamp> = emptyList(),
+d:\llapk\app\src\main\java\com\multilanglearner\ui\player\PlayerViewModel.kt-35-    val currentCueIndex: Int = -1,
+d:\llapk\app\src\main\java\com\multilanglearner\ui\player\PlayerViewModel.kt-36-    val currentPositionMs: Long = 0,
+d:\llapk\app\src\main\java\com\multilanglearner\ui\player\PlayerViewModel.kt-37-    val mode: String = "learn", // "learn" or "dictation"
+d:\llapk\app\src\main\java\com\multilanglearner\ui\player\PlayerViewModel.kt-38-    val currentLang: String = "en",
+d:\llapk\app\src\main\java\com\multilanglearner\ui\player\PlayerViewModel.kt-39-    val statusText: String = "加载中...",
+d:\llapk\app\src\main\java\com\multilanglearner\ui\player\PlayerViewModel.kt-40-    val isTranscribing: Boolean = false,
+d:\llapk\app\src\main\java\com\multilanglearner\ui\player\PlayerViewModel.kt-41-    // Transcription progress (for segmented transcription)
+d:\llapk\app\src\main\java\com\multilanglearner\ui\player\PlayerViewModel.kt-42-    val transcribeSegment: Int = 0,
+d:\llapk\app\src\main\java\com\multilanglearner\ui\player\PlayerViewModel.kt-43-    val transcribeTotalSegments: Int = 0,
+d:\llapk\app\src\main\java\com\multilanglearner\ui\player\PlayerViewModel.kt-44-    val transcribeProgress: Int = 0,
+d:\llapk\app\src\main\java\com\multilanglearner\ui\player\PlayerViewModel.kt-45-    val transcribeRemainingSeconds: Long = 0,
+d:\llapk\app\src\main\java\com\multilanglearner\ui\player\PlayerViewModel.kt-46-    // Word card
+d:\llapk\app\src\main\java\com\multilanglearner\ui\player\PlayerViewModel.kt-47-    val showWordCard: Boolean = false,
+d:\llapk\app\src\main\java\com\multilanglearner\ui\player\PlayerViewModel.kt-48-    val wordCardData: WordCardData? = null,
+d:\llapk\app\src\main\java\com\multilanglearner\ui\player\PlayerViewModel.kt-49-    val currentSentence: String = "",
+d:\llapk\app\src\main\java\com\multilanglearner\ui\player\PlayerViewModel.kt-50-    // AI analysis
+--
+d:\llapk\app\src\main\java\com\multilanglearner\ui\player\PlayerViewModel.kt:66:    private val ffmpegSegmentedService: FFmpegSegmentedTranscriptionService
+d:\llapk\app\src\main\java\com\multilanglearner\ui\player\PlayerViewModel.kt-67-) : AndroidViewModel(application) {
+d:\llapk\app\src\main\java\com\multilanglearner\ui\player\PlayerViewModel.kt-68-
+d:\llapk\app\src\main\java\com\multilanglearner\ui\player\PlayerViewModel.kt-69-    private val _uiState = MutableStateFlow(PlayerUiState())
+d:\llapk\app\src\main\java\com\multilanglearner\ui\player\PlayerViewModel.kt-70-    val uiState: StateFlow<PlayerUiState> = _uiState.asStateFlow()
+d:\llapk\app\src\main\java\com\multilanglearner\ui\player\PlayerViewModel.kt-71-
+d:\llapk\app\src\main\java\com\multilanglearner\ui\player\PlayerViewModel.kt-72-    private var tts: TextToSpeech? = null
+d:\llapk\app\src\main\java\com\multilanglearner\ui\player\PlayerViewModel.kt-73-    private val json = Json { ignoreUnknownKeys = true }
+d:\llapk\app\src\main\java\com\multilanglearner\ui\player\PlayerViewModel.kt-74-
+d:\llapk\app\src\main\java\com\multilanglearner\ui\player\PlayerViewModel.kt-75-    init {
+d:\llapk\app\src\main\java\com\multilanglearner\ui\player\PlayerViewModel.kt-76-        tts = TextToSpeech(application) { status ->
+d:\llapk\app\src\main\java\com\multilanglearner\ui\player\PlayerViewModel.kt-77-            if (status == TextToSpeech.SUCCESS) {
+d:\llapk\app\src\main\java\com\multilanglearner\ui\player\PlayerViewModel.kt-78-                tts?.language = Locale.US
+d:\llapk\app\src\main\java\com\multilanglearner\ui\player\PlayerViewModel.kt-79-            }
+d:\llapk\app\src\main\java\com\multilanglearner\ui\player\PlayerViewModel.kt-80-        }
+d:\llapk\app\src\main\java\com\multilanglearner\ui\player\PlayerViewModel.kt-81-    }
+d:\llapk\app\src\main\java\com\multilanglearner\ui\player\PlayerViewModel.kt-82-
+d:\llapk\app\src\main\java\com\multilanglearner\ui\player\PlayerViewModel.kt-83-    fun loadSubtitles(videoPath: String, subtitlePath: String?) {
+d:\llapk\app\src\main\java\com\multilanglearner\ui\player\PlayerViewModel.kt-84-        viewModelScope.launch(Dispatchers.IO) {
+d:\llapk\app\src\main\java\com\multilanglearner\ui\player\PlayerViewModel.kt-85-            // Try loading VTT subtitle
+d:\llapk\app\src\main\java\com\multilanglearner\ui\player\PlayerViewModel.kt-86-            val vttPath = subtitlePath ?: findExistingSubtitle(videoPath)
+d:\llapk\app\src\main\java\com\multilanglearner\ui\player\PlayerViewModel.kt-87-            if (vttPath != null) {
+d:\llapk\app\src\main\java\com\multilanglearner\ui\player\PlayerViewModel.kt-88-                val file = File(vttPath)
+d:\llapk\app\src\main\java\com\multilanglearner\ui\player\PlayerViewModel.kt-89-                if (file.exists()) {
+d:\llapk\app\src\main\java\com\multilanglearner\ui\player\PlayerViewModel.kt-90-                    val content = file.readText()
+d:\llapk\app\src\main\java\com\multilanglearner\ui\player\PlayerViewModel.kt-91-                    val subs = VttParser.parse(content)
+d:\llapk\app\src\main\java\com\multilanglearner\ui\player\PlayerViewModel.kt-92-                    if (subs.isNotEmpty()) {
+d:\llapk\app\src\main\java\com\multilanglearner\ui\player\PlayerViewModel.kt-93-                        _uiState.update { it.copy(
+d:\llapk\app\src\main\java\com\multilanglearner\ui\player\PlayerViewModel.kt-94-                            subtitles = subs,
+d:\llapk\app\src\main\java\com\multilanglearner\ui\player\PlayerViewModel.kt-95-                            statusText = "已加载 ${subs.size} 条字幕"
+d:\llapk\app\src\main\java\com\multilanglearner\ui\player\PlayerViewModel.kt-96-                        )}
+--
+d:\llapk\app\src\main\java\com\multilanglearner\ui\player\PlayerViewModel.kt:191:        val intent = Intent(context, TranscriptionService::class.java).apply {
+d:\llapk\app\src\main\java\com\multilanglearner\ui\player\PlayerViewModel.kt:192:            action = TranscriptionService.ACTION_START
+d:\llapk\app\src\main\java\com\multilanglearner\ui\player\PlayerViewModel.kt:193:            putExtra(TranscriptionService.EXTRA_VIDEO_PATH, videoPath)
+d:\llapk\app\src\main\java\com\multilanglearner\ui\player\PlayerViewModel.kt:194:            putExtra(TranscriptionService.EXTRA_VIDEO_NAME, videoName)
+d:\llapk\app\src\main\java\com\multilanglearner\ui\player\PlayerViewModel.kt-195-        }
+d:\llapk\app\src\main\java\com\multilanglearner\ui\player\PlayerViewModel.kt-196-        context.startForegroundService(intent)
+d:\llapk\app\src\main\java\com\multilanglearner\ui\player\PlayerViewModel.kt-197-
+d:\llapk\app\src\main\java\com\multilanglearner\ui\player\PlayerViewModel.kt-198-        // 保存旧字幕以备失败时恢复
+d:\llapk\app\src\main\java\com\multilanglearner\ui\player\PlayerViewModel.kt-199-        _oldSubtitles = oldSubtitles
+d:\llapk\app\src\main\java\com\multilanglearner\ui\player\PlayerViewModel.kt-200-        _oldWordTimings = oldWordTimings
+d:\llapk\app\src\main\java\com\multilanglearner\ui\player\PlayerViewModel.kt-201-    }
+d:\llapk\app\src\main\java\com\multilanglearner\ui\player\PlayerViewModel.kt-202-
+d:\llapk\app\src\main\java\com\multilanglearner\ui\player\PlayerViewModel.kt-203-    // 用于保存旧字幕的临时变量
+d:\llapk\app\src\main\java\com\multilanglearner\ui\player\PlayerViewModel.kt-204-    private var _oldSubtitles: List<SubtitleCue> = emptyList()
+d:\llapk\app\src\main\java\com\multilanglearner\ui\player\PlayerViewModel.kt-205-    private var _oldWordTimings: List<WordTimestamp> = emptyList()
+d:\llapk\app\src\main\java\com\multilanglearner\ui\player\PlayerViewModel.kt-206-
+d:\llapk\app\src\main\java\com\multilanglearner\ui\player\PlayerViewModel.kt-207-    /**
+d:\llapk\app\src\main\java\com\multilanglearner\ui\player\PlayerViewModel.kt-208-     * 处理服务发送的进度更新
+d:\llapk\app\src\main\java\com\multilanglearner\ui\player\PlayerViewModel.kt-209-     */
+d:\llapk\app\src\main\java\com\multilanglearner\ui\player\PlayerViewModel.kt-210-    fun onTranscriptionProgress(segment: Int, total: Int, progress: Int, message: String, remaining: Long) {
+d:\llapk\app\src\main\java\com\multilanglearner\ui\player\PlayerViewModel.kt-211-        val remainingText = if (remaining > 0) {
+d:\llapk\app\src\main\java\com\multilanglearner\ui\player\PlayerViewModel.kt-212-            "剩余 ${formatRemainingTime(remaining)}"
+d:\llapk\app\src\main\java\com\multilanglearner\ui\player\PlayerViewModel.kt-213-        } else {
+d:\llapk\app\src\main\java\com\multilanglearner\ui\player\PlayerViewModel.kt-214-            ""
+d:\llapk\app\src\main\java\com\multilanglearner\ui\player\PlayerViewModel.kt-215-        }
+d:\llapk\app\src\main\java\com\multilanglearner\ui\player\PlayerViewModel.kt-216-        _uiState.update { it.copy(
+d:\llapk\app\src\main\java\com\multilanglearner\ui\player\PlayerViewModel.kt-217-            transcribeSegment = segment,
+d:\llapk\app\src\main\java\com\multilanglearner\ui\player\PlayerViewModel.kt-218-            transcribeTotalSegments = total,
+d:\llapk\app\src\main\java\com\multilanglearner\ui\player\PlayerViewModel.kt-219-            transcribeProgress = progress,
+d:\llapk\app\src\main\java\com\multilanglearner\ui\player\PlayerViewModel.kt-220-            transcribeRemainingSeconds = remaining,
+d:\llapk\app\src\main\java\com\multilanglearner\ui\player\PlayerViewModel.kt-221-            statusText = if (total > 1) {
+d:\llapk\app\src\main\java\com\multilanglearner\ui\player\PlayerViewModel.kt-222-                "分段转录: $segment/$total 段 ($progress%)\n$message\n$remainingText"
+d:\llapk\app\src\main\java\com\multilanglearner\ui\player\PlayerViewModel.kt-223-            } else {
+d:\llapk\app\src\main\java\com\multilanglearner\ui\player\PlayerViewModel.kt-224-                "$message\n$remainingText"
+--
+d:\llapk\app\src\main\java\com\multilanglearner\ui\player\PlayerScreen.kt:40:import com.multilanglearner.service.TranscriptionService
+d:\llapk\app\src\main\java\com\multilanglearner\ui\player\PlayerScreen.kt-41-import com.multilanglearner.service.ServiceState
+d:\llapk\app\src\main\java\com\multilanglearner\ui\player\PlayerScreen.kt-42-import kotlinx.coroutines.delay
+d:\llapk\app\src\main\java\com\multilanglearner\ui\player\PlayerScreen.kt-43-import kotlinx.coroutines.isActive
+d:\llapk\app\src\main\java\com\multilanglearner\ui\player\PlayerScreen.kt-44-import kotlinx.coroutines.launch
+d:\llapk\app\src\main\java\com\multilanglearner\ui\player\PlayerScreen.kt-45-import com.multilanglearner.domain.model.WordCardData
+d:\llapk\app\src\main\java\com\multilanglearner\ui\player\PlayerScreen.kt-46-import com.multilanglearner.domain.model.SubtitleCue
+d:\llapk\app\src\main\java\com\multilanglearner\ui\player\PlayerScreen.kt-47-
+d:\llapk\app\src\main\java\com\multilanglearner\ui\player\PlayerScreen.kt-48-@OptIn(ExperimentalMaterial3Api::class)
+d:\llapk\app\src\main\java\com\multilanglearner\ui\player\PlayerScreen.kt-49-@Composable
+d:\llapk\app\src\main\java\com\multilanglearner\ui\player\PlayerScreen.kt-50-fun PlayerScreen(
+d:\llapk\app\src\main\java\com\multilanglearner\ui\player\PlayerScreen.kt-51-    videoPath: String,
+d:\llapk\app\src\main\java\com\multilanglearner\ui\player\PlayerScreen.kt-52-    subtitlePath: String?,
+d:\llapk\app\src\main\java\com\multilanglearner\ui\player\PlayerScreen.kt-53-    onBack: () -> Unit,
+d:\llapk\app\src\main\java\com\multilanglearner\ui\player\PlayerScreen.kt-54-    viewModel: PlayerViewModel = hiltViewModel()
+d:\llapk\app\src\main\java\com\multilanglearner\ui\player\PlayerScreen.kt-55-) {
+d:\llapk\app\src\main\java\com\multilanglearner\ui\player\PlayerScreen.kt-56-    val uiState by viewModel.uiState.collectAsState()
+d:\llapk\app\src\main\java\com\multilanglearner\ui\player\PlayerScreen.kt-57-    val context = LocalContext.current
+d:\llapk\app\src\main\java\com\multilanglearner\ui\player\PlayerScreen.kt-58-    val listState = rememberLazyListState()
+d:\llapk\app\src\main\java\com\multilanglearner\ui\player\PlayerScreen.kt-59-    val coroutineScope = rememberCoroutineScope()
+d:\llapk\app\src\main\java\com\multilanglearner\ui\player\PlayerScreen.kt-60-
+d:\llapk\app\src\main\java\com\multilanglearner\ui\player\PlayerScreen.kt-61-    // 注册转录服务广播接收器
+d:\llapk\app\src\main\java\com\multilanglearner\ui\player\PlayerScreen.kt-62-    val transcriptionReceiver = remember {
+d:\llapk\app\src\main\java\com\multilanglearner\ui\player\PlayerScreen.kt-63-        object : BroadcastReceiver() {
+d:\llapk\app\src\main\java\com\multilanglearner\ui\player\PlayerScreen.kt-64-            override fun onReceive(context: Context?, intent: Intent?) {
+d:\llapk\app\src\main\java\com\multilanglearner\ui\player\PlayerScreen.kt-65-                when (intent?.action) {
+d:\llapk\app\src\main\java\com\multilanglearner\ui\player\PlayerScreen.kt:66:                    TranscriptionService.ACTION_PROGRESS -> {
+d:\llapk\app\src\main\java\com\multilanglearner\ui\player\PlayerScreen.kt:67:                        val segment = intent.getIntExtra(TranscriptionService.EXTRA_SEGMENT, 0)
+d:\llapk\app\src\main\java\com\multilanglearner\ui\player\PlayerScreen.kt:68:                        val total = intent.getIntExtra(TranscriptionService.EXTRA_TOTAL, 0)
+d:\llapk\app\src\main\java\com\multilanglearner\ui\player\PlayerScreen.kt:69:                        val progress = intent.getIntExtra(TranscriptionService.EXTRA_PROGRESS, 0)
+d:\llapk\app\src\main\java\com\multilanglearner\ui\player\PlayerScreen.kt:70:                        val message = intent.getStringExtra(TranscriptionService.EXTRA_MESSAGE) ?: ""
+d:\llapk\app\src\main\java\com\multilanglearner\ui\player\PlayerScreen.kt:71:                        val remaining = intent.getLongExtra(TranscriptionService.EXTRA_REMAINING, 0)
+d:\llapk\app\src\main\java\com\multilanglearner\ui\player\PlayerScreen.kt-72-                        viewModel.onTranscriptionProgress(segment, total, progress, message, remaining)
+d:\llapk\app\src\main\java\com\multilanglearner\ui\player\PlayerScreen.kt-73-                    }
+d:\llapk\app\src\main\java\com\multilanglearner\ui\player\PlayerScreen.kt:74:                    TranscriptionService.ACTION_COMPLETED -> {
+d:\llapk\app\src\main\java\com\multilanglearner\ui\player\PlayerScreen.kt:75:                        val success = intent.getBooleanExtra(TranscriptionService.EXTRA_SUCCESS, false)
+d:\llapk\app\src\main\java\com\multilanglearner\ui\player\PlayerScreen.kt:76:                        val detectedLang = intent.getStringExtra(TranscriptionService.EXTRA_DETECTED_LANG) ?: ""
+d:\llapk\app\src\main\java\com\multilanglearner\ui\player\PlayerScreen.kt:77:                        val subtitleCount = intent.getIntExtra(TranscriptionService.EXTRA_SUBTITLE_COUNT, 0)
+d:\llapk\app\src\main\java\com\multilanglearner\ui\player\PlayerScreen.kt:78:                        val error = intent.getStringExtra(TranscriptionService.EXTRA_ERROR)
+d:\llapk\app\src\main\java\com\multilanglearner\ui\player\PlayerScreen.kt-79-                        viewModel.onTranscriptionCompleted(videoPath, success, detectedLang, subtitleCount, error)
+d:\llapk\app\src\main\java\com\multilanglearner\ui\player\PlayerScreen.kt-80-                    }
+d:\llapk\app\src\main\java\com\multilanglearner\ui\player\PlayerScreen.kt-81-                }
+d:\llapk\app\src\main\java\com\multilanglearner\ui\player\PlayerScreen.kt-82-            }
+d:\llapk\app\src\main\java\com\multilanglearner\ui\player\PlayerScreen.kt-83-        }
+d:\llapk\app\src\main\java\com\multilanglearner\ui\player\PlayerScreen.kt-84-    }
+d:\llapk\app\src\main\java\com\multilanglearner\ui\player\PlayerScreen.kt-85-
+d:\llapk\app\src\main\java\com\multilanglearner\ui\player\PlayerScreen.kt-86-    // 注册和注销广播接收器
+d:\llapk\app\src\main\java\com\multilanglearner\ui\player\PlayerScreen.kt-87-    DisposableEffect(Unit) {
+d:\llapk\app\src\main\java\com\multilanglearner\ui\player\PlayerScreen.kt:88:        val progressFilter = IntentFilter(TranscriptionService.ACTION_PROGRESS)
+d:\llapk\app\src\main\java\com\multilanglearner\ui\player\PlayerScreen.kt:89:        val completedFilter = IntentFilter(TranscriptionService.ACTION_COMPLETED)
+d:\llapk\app\src\main\java\com\multilanglearner\ui\player\PlayerScreen.kt-90-        context.registerReceiver(transcriptionReceiver, progressFilter)
+d:\llapk\app\src\main\java\com\multilanglearner\ui\player\PlayerScreen.kt-91-        context.registerReceiver(transcriptionReceiver, completedFilter)
+d:\llapk\app\src\main\java\com\multilanglearner\ui\player\PlayerScreen.kt-92-
+d:\llapk\app\src\main\java\com\multilanglearner\ui\player\PlayerScreen.kt-93-        onDispose {
+d:\llapk\app\src\main\java\com\multilanglearner\ui\player\PlayerScreen.kt-94-            context.unregisterReceiver(transcriptionReceiver)
+d:\llapk\app\src\main\java\com\multilanglearner\ui\player\PlayerScreen.kt-95-        }
+d:\llapk\app\src\main\java\com\multilanglearner\ui\player\PlayerScreen.kt-96-    }
+d:\llapk\app\src\main\java\com\multilanglearner\ui\player\PlayerScreen.kt-97-
+d:\llapk\app\src\main\java\com\multilanglearner\ui\player\PlayerScreen.kt-98-    // 绑定转录服务以检查状态
+d:\llapk\app\src\main\java\com\multilanglearner\ui\player\PlayerScreen.kt:99:    var serviceBinder: TranscriptionService.LocalBinder? = null
+d:\llapk\app\src\main\java\com\multilanglearner\ui\player\PlayerScreen.kt-100-    val serviceConnection = remember {
+d:\llapk\app\src\main\java\com\multilanglearner\ui\player\PlayerScreen.kt-101-        object : ServiceConnection {
+d:\llapk\app\src\main\java\com\multilanglearner\ui\player\PlayerScreen.kt-102-            override fun onServiceConnected(name: ComponentName?, service: IBinder?) {
+d:\llapk\app\src\main\java\com\multilanglearner\ui\player\PlayerScreen.kt:103:                val binder = service as TranscriptionService.LocalBinder
+d:\llapk\app\src\main\java\com\multilanglearner\ui\player\PlayerScreen.kt-104-                serviceBinder = binder
+d:\llapk\app\src\main\java\com\multilanglearner\ui\player\PlayerScreen.kt-105-                // 获取服务当前状态并同步到 UI
+d:\llapk\app\src\main\java\com\multilanglearner\ui\player\PlayerScreen.kt-106-                coroutineScope.launch {
+d:\llapk\app\src\main\java\com\multilanglearner\ui\player\PlayerScreen.kt-107-                    binder.getService().serviceState.collect { state ->
+d:\llapk\app\src\main\java\com\multilanglearner\ui\player\PlayerScreen.kt-108-                        when (state) {
+d:\llapk\app\src\main\java\com\multilanglearner\ui\player\PlayerScreen.kt-109-                            is ServiceState.Transcribing -> {
+d:\llapk\app\src\main\java\com\multilanglearner\ui\player\PlayerScreen.kt-110-                                viewModel.syncServiceState(
+d:\llapk\app\src\main\java\com\multilanglearner\ui\player\PlayerScreen.kt-111-                                    isServiceTranscribing = true,
+d:\llapk\app\src\main\java\com\multilanglearner\ui\player\PlayerScreen.kt-112-                                    segment = state.segment,
+d:\llapk\app\src\main\java\com\multilanglearner\ui\player\PlayerScreen.kt-113-                                    total = state.total,
+d:\llapk\app\src\main\java\com\multilanglearner\ui\player\PlayerScreen.kt-114-                                    progress = state.progress,
+d:\llapk\app\src\main\java\com\multilanglearner\ui\player\PlayerScreen.kt-115-                                    message = state.message,
+d:\llapk\app\src\main\java\com\multilanglearner\ui\player\PlayerScreen.kt-116-                                    remaining = 0
+d:\llapk\app\src\main\java\com\multilanglearner\ui\player\PlayerScreen.kt-117-                                )
+d:\llapk\app\src\main\java\com\multilanglearner\ui\player\PlayerScreen.kt-118-                            }
+d:\llapk\app\src\main\java\com\multilanglearner\ui\player\PlayerScreen.kt-119-                            is ServiceState.Idle,
+d:\llapk\app\src\main\java\com\multilanglearner\ui\player\PlayerScreen.kt-120-                            is ServiceState.Completed,
+d:\llapk\app\src\main\java\com\multilanglearner\ui\player\PlayerScreen.kt-121-                            is ServiceState.Error -> {
+d:\llapk\app\src\main\java\com\multilanglearner\ui\player\PlayerScreen.kt-122-                                // 服务不在转录状态，无需同步
+d:\llapk\app\src\main\java\com\multilanglearner\ui\player\PlayerScreen.kt-123-                            }
+d:\llapk\app\src\main\java\com\multilanglearner\ui\player\PlayerScreen.kt-124-                        }
+d:\llapk\app\src\main\java\com\multilanglearner\ui\player\PlayerScreen.kt-125-                    }
+d:\llapk\app\src\main\java\com\multilanglearner\ui\player\PlayerScreen.kt-126-                }
+d:\llapk\app\src\main\java\com\multilanglearner\ui\player\PlayerScreen.kt-127-            }
+d:\llapk\app\src\main\java\com\multilanglearner\ui\player\PlayerScreen.kt-128-
+d:\llapk\app\src\main\java\com\multilanglearner\ui\player\PlayerScreen.kt-129-            override fun onServiceDisconnected(name: ComponentName?) {
+d:\llapk\app\src\main\java\com\multilanglearner\ui\player\PlayerScreen.kt-130-                serviceBinder = null
+d:\llapk\app\src\main\java\com\multilanglearner\ui\player\PlayerScreen.kt-131-            }
+d:\llapk\app\src\main\java\com\multilanglearner\ui\player\PlayerScreen.kt-132-        }
+d:\llapk\app\src\main\java\com\multilanglearner\ui\player\PlayerScreen.kt-133-    }
+--
+d:\llapk\app\src\main\java\com\multilanglearner\ui\player\PlayerScreen.kt:136:        val intent = Intent(context, TranscriptionService::class.java)
+d:\llapk\app\src\main\java\com\multilanglearner\ui\player\PlayerScreen.kt-137-        context.bindService(intent, serviceConnection, Context.BIND_AUTO_CREATE)
+d:\llapk\app\src\main\java\com\multilanglearner\ui\player\PlayerScreen.kt-138-
+d:\llapk\app\src\main\java\com\multilanglearner\ui\player\PlayerScreen.kt-139-        onDispose {
+d:\llapk\app\src\main\java\com\multilanglearner\ui\player\PlayerScreen.kt-140-            serviceBinder?.let { context.unbindService(serviceConnection) }
+d:\llapk\app\src\main\java\com\multilanglearner\ui\player\PlayerScreen.kt-141-        }
+d:\llapk\app\src\main\java\com\multilanglearner\ui\player\PlayerScreen.kt-142-    }
+d:\llapk\app\src\main\java\com\multilanglearner\ui\player\PlayerScreen.kt-143-
+d:\llapk\app\src\main\java\com\multilanglearner\ui\player\PlayerScreen.kt-144-    // ExoPlayer
+d:\llapk\app\src\main\java\com\multilanglearner\ui\player\PlayerScreen.kt-145-    val exoPlayer = remember {
+d:\llapk\app\src\main\java\com\multilanglearner\ui\player\PlayerScreen.kt-146-        ExoPlayer.Builder(context).build().apply {
+d:\llapk\app\src\main\java\com\multilanglearner\ui\player\PlayerScreen.kt-147-            setMediaItem(MediaItem.fromUri(videoPath))
+d:\llapk\app\src\main\java\com\multilanglearner\ui\player\PlayerScreen.kt-148-            prepare()
+d:\llapk\app\src\main\java\com\multilanglearner\ui\player\PlayerScreen.kt-149-        }
+d:\llapk\app\src\main\java\com\multilanglearner\ui\player\PlayerScreen.kt-150-    }
+d:\llapk\app\src\main\java\com\multilanglearner\ui\player\PlayerScreen.kt-151-
+d:\llapk\app\src\main\java\com\multilanglearner\ui\player\PlayerScreen.kt-152-    // Load subtitles
+d:\llapk\app\src\main\java\com\multilanglearner\ui\player\PlayerScreen.kt-153-    LaunchedEffect(videoPath) {
+d:\llapk\app\src\main\java\com\multilanglearner\ui\player\PlayerScreen.kt-154-        viewModel.loadSubtitles(videoPath, subtitlePath)
+d:\llapk\app\src\main\java\com\multilanglearner\ui\player\PlayerScreen.kt-155-    }
+d:\llapk\app\src\main\java\com\multilanglearner\ui\player\PlayerScreen.kt-156-
+d:\llapk\app\src\main\java\com\multilanglearner\ui\player\PlayerScreen.kt-157-    // 30ms position polling (ported from renderer.js syncTimer)
+d:\llapk\app\src\main\java\com\multilanglearner\ui\player\PlayerScreen.kt-158-    LaunchedEffect(exoPlayer) {
+d:\llapk\app\src\main\java\com\multilanglearner\ui\player\PlayerScreen.kt-159-        while (isActive) {
+d:\llapk\app\src\main\java\com\multilanglearner\ui\player\PlayerScreen.kt-160-            if (exoPlayer.isPlaying) {
+d:\llapk\app\src\main\java\com\multilanglearner\ui\player\PlayerScreen.kt-161-                viewModel.updatePosition(exoPlayer.currentPosition)
+d:\llapk\app\src\main\java\com\multilanglearner\ui\player\PlayerScreen.kt-162-            }
+d:\llapk\app\src\main\java\com\multilanglearner\ui\player\PlayerScreen.kt-163-            delay(30)
+d:\llapk\app\src\main\java\com\multilanglearner\ui\player\PlayerScreen.kt-164-        }
+d:\llapk\app\src\main\java\com\multilanglearner\ui\player\PlayerScreen.kt-165-    }
+d:\llapk\app\src\main\java\com\multilanglearner\ui\player\PlayerScreen.kt-166-

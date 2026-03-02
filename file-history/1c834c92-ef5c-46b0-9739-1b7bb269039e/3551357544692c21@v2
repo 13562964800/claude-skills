@@ -1,0 +1,19 @@
+from app.skills.base import SkillAdapter, LLMRouter
+
+
+class LegalQAExtractorAdapter(SkillAdapter):
+    name = 'legal-qa-extractor'
+
+    def __init__(self):
+        self.router = LLMRouter(primary='qwen/qwen-max', fallback='zhipuai/glm-4')
+
+    def run(self, payload: dict) -> dict:
+        text = payload.get('text', '')
+        if not text:
+            return {'error': 'text required'}
+        api_keys = payload.get('_api_keys', {})
+        result = self.router.complete([
+            {'role': 'system', 'content': '从律师与客户沟通记录中提取法律问答对，严格脱敏，输出JSON数组。'},
+            {'role': 'user', 'content': text},
+        ], custom_keys=api_keys)
+        return {'qa_pairs': result}

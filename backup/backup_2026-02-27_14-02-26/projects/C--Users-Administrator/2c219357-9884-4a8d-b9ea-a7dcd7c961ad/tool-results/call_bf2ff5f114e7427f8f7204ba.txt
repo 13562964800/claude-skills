@@ -1,0 +1,372 @@
+74-    val filePath: String,
+75-    val fileSize: Long,
+76-    val status: DownloadStatus,
+77-    val createdAt: Long,
+78-    val completedAt: Long?
+79-)
+80-
+81-data class HomeUiState(
+82-    val url: String = "",
+83-    val selectedLang: String = "en",
+84:    val currentDownload: DownloadTask? = null,
+85:    val activeDownloads: Map<String, DownloadTask> = emptyMap(),  // 支持多个并发下载
+86-    val downloadQueue: List<DownloadTask> = emptyList(),
+87-    val downloadHistory: List<DownloadHistory> = emptyList(),
+88-    val videos: List<VideoEntity> = emptyList(),
+89-    val isProcessing: Boolean = false,
+90-    val showBilibiliLogin: Boolean = false,    // 显示B站登录对话框
+91-    val showYouTubeLogin: Boolean = false,    // 显示YouTube登录对话框
+92-    val showDouyinLogin: Boolean = false,     // 显示抖音登录对话框
+93-    val showTiktokLogin: Boolean = false,     // 显示TikTok登录对话框
+94-    val pendingDownloadUrl: String = "",      // 待下载的URL（登录后继续）
+95-    val showDuplicateDownloadConfirm: Boolean = false,  // 显示重复下载确认对话框
+--
+170-    fun setFontSize(size: String) { viewModelScope.launch { themeStore.setFontSize(size) } }
+171-
+172-    /**
+173-     * 下载视频 - 支持 B站、YouTube 等平台
+174-     * 支持最多3个并发下载
+175-     */
+176-    fun downloadVideo(onComplete: (String, String?) -> Unit) {
+177-        val url = _uiState.value.url.trim()
+178-
+179-        if (url.isBlank()) {
+180:            updateCurrentDownload(DownloadTask(url = url, title = "", errorMessage = "请输入视频链接"))
+181-            return
+182-        }
+183-
+184-        // 检查是否已存在相同视频（通过 URL 匹配）
+185-        val existingVideo = _uiState.value.videos.find { it.sourceUrl == url }
+186-        if (existingVideo != null) {
+187-            // 显示重复下载确认对话框
+188-            _uiState.update { it.copy(
+189-                showDuplicateDownloadConfirm = true,
+190-                duplicateVideoTitle = existingVideo.title
+--
+238-                url = url,
+239-                title = "正在解析...",
+240-                status = DownloadStatus.FETCHING_INFO
+241-            )
+242-
+243-            try {
+244-                // 添加到活跃下载
+245-                activeDownloadTasks[task.id] = task
+246-                // 保存当前 job 到 Map（需要在协程启动后）
+247-                activeDownloadJobs[task.id] = job
+248:                updateActiveDownloads()
+249-
+250-                // 获取视频信息
+251-                val result = videoDownloadService.getVideoInfo(url)
+252-
+253-                result.onSuccess { videoInfo ->
+254-                    // 检查是否需要Cookie但未配置
+255-                    val needsCookie = when (videoInfo.platform) {
+256-                        VideoDownloadService.VideoPlatform.BILIBILI -> true
+257-                        VideoDownloadService.VideoPlatform.YOUTUBE -> false  // YouTube通常不需要Cookie
+258-                        VideoDownloadService.VideoPlatform.DOUYIN -> false  // 抖音使用API解析
+--
+269-                    }
+270-
+271-                    if (needsCookie && !hasCookie) {
+272-                        // 需要登录获取Cookie，根据平台显示不同的登录对话框
+273-                        when (videoInfo.platform) {
+274-                            VideoDownloadService.VideoPlatform.BILIBILI -> {
+275-                                _uiState.update {
+276-                                    it.copy(
+277-                                        showBilibiliLogin = true,
+278-                                        pendingDownloadUrl = url,
+279:                                        currentDownload = task.copy(
+280-                                            title = "需要登录",
+281-                                            status = DownloadStatus.WAITING_FOR_AUTH
+282-                                        )
+283-                                    )
+284-                                }
+285-                            }
+286-                            VideoDownloadService.VideoPlatform.YOUTUBE -> {
+287-                                _uiState.update {
+288-                                    it.copy(
+289-                                        showYouTubeLogin = true,
+290-                                        pendingDownloadUrl = url,
+291:                                        currentDownload = task.copy(
+292-                                            title = "需要登录",
+293-                                            status = DownloadStatus.WAITING_FOR_AUTH
+294-                                        )
+295-                                    )
+296-                                }
+297-                            }
+298-                            VideoDownloadService.VideoPlatform.DOUYIN -> {
+299-                                _uiState.update {
+300-                                    it.copy(
+301-                                        showDouyinLogin = true,
+302-                                        pendingDownloadUrl = url,
+303:                                        currentDownload = task.copy(
+304-                                            title = "需要登录",
+305-                                            status = DownloadStatus.WAITING_FOR_AUTH
+306-                                        )
+307-                                    )
+308-                                }
+309-                            }
+310-                            VideoDownloadService.VideoPlatform.TIKTOK -> {
+311-                                _uiState.update {
+312-                                    it.copy(
+313-                                        showTiktokLogin = true,
+314-                                        pendingDownloadUrl = url,
+315:                                        currentDownload = task.copy(
+316-                                            title = "需要登录",
+317-                                            status = DownloadStatus.WAITING_FOR_AUTH
+318-                                        )
+319-                                    )
+320-                                }
+321-                            }
+322-                            else -> { /* 不应该到达这里 */ }
+323-                        }
+324-                        return@launch
+325-                    }
+326-
+327-                    // 更新任务信息
+328-                    val updatedTask = task.copy(
+329-                        title = videoInfo.title,
+330-                        status = DownloadStatus.DOWNLOADING
+331-                    )
+332:                    updateCurrentDownload(updatedTask)
+333-
+334-                    // 生成文件名
+335-                    val safeTitle = videoInfo.title.replace(Regex("[:*?\"<>|]"), "_").take(50)
+336-                    val outputFile = File(downloadsDir, "${safeTitle}_${System.currentTimeMillis()}.mp4")
+337-
+338-                    // 使用分段下载器下载，传递Cookie
+339-                    downloadWithSegmentedDownloader(url, videoInfo, safeTitle, outputFile, onComplete)
+340-                }.onFailure { error ->
+341-                    val failedTask = task.copy(
+342-                        status = DownloadStatus.FAILED,
+--
+445-        if (taskId != null) {
+446-            // 取消特定任务
+447-            activeDownloadJobs[taskId]?.cancel()
+448-            activeDownloadTasks[taskId]?.let { task ->
+449-                val cancelledTask = task.copy(
+450-                    status = DownloadStatus.CANCELLED,
+451-                    completedAt = System.currentTimeMillis()
+452-                )
+453-                activeDownloadTasks.remove(taskId)
+454-                activeDownloadJobs.remove(taskId)
+455:                updateActiveDownloads()
+456:                updateCurrentDownload(cancelledTask)
+457-                addToHistory(cancelledTask)
+458-
+459-                // 清理临时文件
+460-                if (task.totalBytes > 0) {
+461-                    val safeTitle = task.title.replace(Regex("[:*?\"<>|]"), "_").take(50)
+462-                    val outputFile = File(downloadsDir, "${safeTitle}_${task.createdAt}.mp4")
+463-                    segmentedDownloader.cancelDownload(outputFile)
+464-                }
+465-            }
+466-            // 处理队列中的下一个任务
+--
+477-
+478-                // 清理临时文件
+479-                if (task.totalBytes > 0) {
+480-                    val safeTitle = task.title.replace(Regex("[:*?\"<>|]"), "_").take(50)
+481-                    val outputFile = File(downloadsDir, "${safeTitle}_${task.createdAt}.mp4")
+482-                    segmentedDownloader.cancelDownload(outputFile)
+483-                }
+484-            }
+485-            activeDownloadJobs.clear()
+486-            activeDownloadTasks.clear()
+487:            updateActiveDownloads()
+488:            updateCurrentDownload(null)
+489-        }
+490-    }
+491-
+492-    /**
+493-     * 重试失败的下载
+494-     */
+495-    fun retryDownload(taskId: String, onComplete: (String, String?) -> Unit) {
+496-        val history = _downloadHistory.value.find { it.id == taskId }
+497-        if (history != null && history.status == DownloadStatus.FAILED) {
+498-            _uiState.update { it.copy(url = history.url) }
+--
+763-    /**
+764-     * 更新队列列表
+765-     */
+766-    private fun updateQueueList() {
+767-        _uiState.update { it.copy(downloadQueue = downloadQueue.values.toList()) }
+768-    }
+769-
+770-    /**
+771-     * 更新当前下载任务
+772-     */
+773:    private fun updateCurrentDownload(task: DownloadTask?) {
+774-        // 更新 UI 显示当前下载（用于主界面显示）
+775-        _uiState.update { it.copy(
+776:            currentDownload = task,
+777-            isProcessing = task != null && (task.status == DownloadStatus.FETCHING_INFO || task.status == DownloadStatus.DOWNLOADING)
+778-        ) }
+779-    }
+780-
+781-    /**
+782-     * 更新活跃下载列表
+783-     */
+784:    private fun updateActiveDownloads() {
+785:        _uiState.update { it.copy(activeDownloads = activeDownloadTasks.toMap()) }
+786-    }
+787-
+788-    /**
+789-     * 更新特定下载任务的进度
+790-     */
+791-    private fun updateActiveDownloadTask(taskId: String, task: DownloadTask) {
+792-        activeDownloadTasks[taskId] = task
+793:        updateActiveDownloads()
+794-        // 同时更新主显示（仅当主任务不存在或当前任务就是主任务时）
+795:        val currentMainTask = _uiState.value.currentDownload
+796-        if (currentMainTask == null) {
+797-            // 没有主任务，使用当前任务作为主任务
+798:            updateCurrentDownload(task)
+799-        } else if (currentMainTask.id == taskId) {
+800-            // 当前任务就是主任务，更新显示
+801:            updateCurrentDownload(task)
+802-        }
+803-        // 否则不更新主显示（让已完成的任务自然消失）
+804-    }
+805-
+806-    /**
+807-     * 下载完成回调
+808-     */
+809-    private fun onDownloadCompleted(taskId: String, task: DownloadTask, file: File, onComplete: (String, String?) -> Unit) {
+810-        viewModelScope.launch(Dispatchers.IO) {
+811-            // 立即清除下载状态（这样UI会立即更新）
+812-            withContext(Dispatchers.Main) {
+813:                updateCurrentDownload(null)
+814-            }
+815-
+816-            // 移除活跃任务
+817-            activeDownloadTasks.remove(taskId)
+818-            activeDownloadJobs.remove(taskId)
+819:            updateActiveDownloads()
+820-
+821-            // 保存到数据库
+822-            val entity = VideoEntity(
+823-                title = task.title,
+824-                filePath = file.absolutePath,
+825-                vttPath = null,
+826-                language = _uiState.value.selectedLang,
+827-                sourceUrl = task.url
+828-            )
+829-            videoRepository.insert(entity)
+--
+849-        }
+850-    }
+851-
+852-    /**
+853-     * 下载失败回调
+854-     */
+855-    private fun onDownloadFailed(taskId: String, task: DownloadTask, error: String) {
+856-        // 移除活跃任务
+857-        activeDownloadTasks.remove(taskId)
+858-        activeDownloadJobs.remove(taskId)
+859:        updateActiveDownloads()
+860-
+861-        val failedTask = task.copy(
+862-            status = DownloadStatus.FAILED,
+863-            errorMessage = error
+864-        )
+865-        addToHistory(failedTask)
+866-
+867-        // 处理队列中的下一个任务
+868-        processQueue()
+869-    }
+--
+1136-    }
+1137-
+1138-    /**
+1139-     * 取消登录对话框
+1140-     */
+1141-    fun dismissBilibiliLogin() {
+1142-        _uiState.update {
+1143-            it.copy(
+1144-                showBilibiliLogin = false,
+1145-                pendingDownloadUrl = "",
+1146:                currentDownload = if (it.currentDownload?.status == DownloadStatus.WAITING_FOR_AUTH) {
+1147-                    null
+1148-                } else {
+1149:                    it.currentDownload
+1150-                }
+1151-            )
+1152-        }
+1153-    }
+1154-
+1155-    // ========== YouTube ==========
+1156-
+1157-    fun onYouTubeCookiesExtracted(
+1158-        cookies: Map<String, String>,
+1159-        fullCookie: String = "",
+--
+1184-                downloadVideo(onComplete)
+1185-            }
+1186-        }
+1187-    }
+1188-
+1189-    fun dismissYouTubeLogin() {
+1190-        _uiState.update {
+1191-            it.copy(
+1192-                showYouTubeLogin = false,
+1193-                pendingDownloadUrl = "",
+1194:                currentDownload = if (it.currentDownload?.status == DownloadStatus.WAITING_FOR_AUTH) {
+1195-                    null
+1196-                } else {
+1197:                    it.currentDownload
+1198-                }
+1199-            )
+1200-        }
+1201-    }
+1202-
+1203-    // ========== 抖音 ==========
+1204-
+1205-    fun onDouyinCookiesExtracted(
+1206-        cookies: Map<String, String>,
+1207-        fullCookie: String = "",
+--
+1232-                downloadVideo(onComplete)
+1233-            }
+1234-        }
+1235-    }
+1236-
+1237-    fun dismissDouyinLogin() {
+1238-        _uiState.update {
+1239-            it.copy(
+1240-                showDouyinLogin = false,
+1241-                pendingDownloadUrl = "",
+1242:                currentDownload = if (it.currentDownload?.status == DownloadStatus.WAITING_FOR_AUTH) {
+1243-                    null
+1244-                } else {
+1245:                    it.currentDownload
+1246-                }
+1247-            )
+1248-        }
+1249-    }
+1250-
+1251-    // ========== TikTok ==========
+1252-
+1253-    fun onTiktokCookiesExtracted(
+1254-        cookies: Map<String, String>,
+1255-        fullCookie: String = "",
+--
+1280-                downloadVideo(onComplete)
+1281-            }
+1282-        }
+1283-    }
+1284-
+1285-    fun dismissTiktokLogin() {
+1286-        _uiState.update {
+1287-            it.copy(
+1288-                showTiktokLogin = false,
+1289-                pendingDownloadUrl = "",
+1290:                currentDownload = if (it.currentDownload?.status == DownloadStatus.WAITING_FOR_AUTH) {
+1291-                    null
+1292-                } else {
+1293:                    it.currentDownload
+1294-                }
+1295-            )
+1296-        }
+1297-    }
+1298-}

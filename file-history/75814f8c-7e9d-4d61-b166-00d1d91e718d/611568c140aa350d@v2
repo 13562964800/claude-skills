@@ -1,0 +1,469 @@
+package com.courassistant.java.utils;
+
+import android.content.Context;
+import android.util.Log;
+import android.widget.Toast;
+
+import androidx.annotation.NonNull;
+import androidx.annotation.StringRes;
+
+import java.io.IOException;
+import java.net.SocketTimeoutException;
+import java.net.UnknownHostException;
+
+/**
+ * 统一错误处理器
+ * 提供友好的错误提示和处理
+ *
+ * 宋氏美学，单夫纯律师 制作
+ */
+public class ErrorHandler {
+
+    private static final String TAG = "ErrorHandler";
+
+    /**
+     * 错误类型定义
+     */
+    public enum ErrorType {
+        NETWORK_ERROR("网络连接失败，请检查网络设置"),
+        TIMEOUT_ERROR("请求超时，请重试"),
+        PARSE_ERROR("数据解析失败"),
+        FILE_NOT_FOUND("文件不存在"),
+        PERMISSION_DENIED("权限被拒绝"),
+        STORAGE_ERROR("存储空间不足"),
+        DATABASE_ERROR("数据库操作失败"),
+        UNKNOWN_ERROR("未知错误");
+
+        private final String defaultMessage;
+
+        ErrorType(String defaultMessage) {
+            this.defaultMessage = defaultMessage;
+        }
+
+        public String getDefaultMessage() {
+            return defaultMessage;
+        }
+    }
+
+    /**
+     * 处理异常并显示友好提示
+     * @param context 上下文
+     * @param e 异常对象
+     * @param showToast 是否显示 Toast
+     * @return 用户友好的错误消息
+     */
+    public static String handleError(Context context, Throwable e, boolean showToast) {
+        if (e == null) {
+            return "未知错误";
+        }
+
+        String userMessage = getUserFriendlyMessage(context, e);
+
+        // 记录错误日志
+        logError(e);
+
+        // 显示 Toast 提示
+        if (showToast && context != null) {
+            Toast.makeText(context, userMessage, Toast.LENGTH_LONG).show();
+        }
+
+        return userMessage;
+    }
+
+    /**
+     * 获取用户友好的错误消息
+     */
+    public static String getUserFriendlyMessage(Context context, Throwable e) {
+        String message;
+
+        if (e instanceof UnknownHostException || e instanceof java.net.ConnectException) {
+            message = ErrorType.NETWORK_ERROR.getDefaultMessage();
+        } else if (e instanceof SocketTimeoutException) {
+            message = ErrorType.TIMEOUT_ERROR.getDefaultMessage();
+        } else if (e instanceof IOException) {
+            message = getIOErrorMessage((IOException) e);
+        } else if (e instanceof OutOfMemoryError) {
+            message = ErrorType.STORAGE_ERROR.getDefaultMessage();
+        } else if (e instanceof SecurityException) {
+            message = ErrorType.PERMISSION_DENIED.getDefaultMessage();
+        } else {
+            message = e.getMessage();
+            if (message == null || message.isEmpty()) {
+                message = ErrorType.UNKNOWN_ERROR.getDefaultMessage();
+            }
+        }
+
+        return message;
+    }
+
+    /**
+     * 处理 IO 异常
+     */
+    private static String getIOErrorMessage(IOException e) {
+        String message = e.getMessage();
+        if (message != null) {
+            if (message.contains("ENOENT") || message.contains("file not found")) {
+                return ErrorType.FILE_NOT_FOUND.getDefaultMessage();
+            } else if (message.contains("ENOSPC")) {
+                return ErrorType.STORAGE_ERROR.getDefaultMessage();
+            } else if (message.contains("EACCES")) {
+                return ErrorType.PERMISSION_DENIED.getDefaultMessage();
+            }
+        }
+        return ErrorType.DATABASE_ERROR.getDefaultMessage();
+    }
+
+    /**
+     * 记录错误日志
+     */
+    public static void logError(Throwable e) {
+        if (e == null) return;
+
+        String className = e.getClass().getSimpleName();
+        String message = e.getMessage();
+
+        Log.e(TAG, "===== 错误记录 =====");
+        Log.e(TAG, "类型: " + className);
+        Log.e(TAG, "消息: " + (message != null ? message : "无"));
+        Log.e(TAG, "====================");
+
+        // 记录堆栈跟踪（仅在 DEBUG 模式）
+        if (BuildConfig.DEBUG) {
+            Log.e(TAG, "堆栈:", e);
+        }
+    }
+
+    /**
+     * 记录警告日志
+     */
+    public static void logWarning(String message) {
+        Log.w(TAG, "⚠️  " + message);
+    }
+
+    /**
+     * 记录调试信息
+     */
+    public static void logDebug(String message) {
+        if (BuildConfig.DEBUG) {
+            Log.d(TAG, "🔍 " + message);
+        }
+    }
+
+    /**
+     * 显示错误对话框
+     */
+    public static void showErrorDialog(Context context, String title, String message) {
+        new androidx.appcompat.app.AlertDialog.Builder(context)
+                .setTitle(title)
+                .setMessage(message)
+                .setIcon(android.R.drawable.ic_dialog_alert)
+                .setPositiveButton("确定", null)
+                .show();
+    }
+
+    /**
+     * 显示带重试的错误对话框
+     */
+    public static void showErrorDialogWithRetry(
+            Context context,
+            String title,
+            String message,
+            OnRetryListener listener) {
+        new androidx.appcompat.app.AlertDialog.Builder(context)
+                .setTitle(title)
+                .setMessage(message)
+                .setIcon(android.R.drawable.ic_dialog_alert)
+                .setPositiveButton("重试", (dialog, which) -> {
+                    if (listener != null) {
+                        listener.onRetry();
+                    }
+                })
+                .setNegativeButton("取消", null)
+                .show();
+    }
+
+    /**
+     * 重试监听接口
+     */
+    public interface OnRetryListener {
+        void onRetry();
+    }
+
+    /**
+     * 网络错误处理
+     */
+    public static class NetworkErrorHandler {
+
+        /**
+         * 处理网络错误
+         */
+        public static void handleNetworkError(Context context, Throwable e) {
+            String message;
+
+            if (e instanceof UnknownHostException) {
+                message = "无法连接到服务器，请检查:\n" +
+                          "1. 网络连接是否正常\n" +
+                          "2. 服务器地址是否正确";
+            } else if (e instanceof SocketTimeoutException) {
+                message = "连接超时，请稍后重试";
+            } else if (e instanceof java.net.ConnectException) {
+                message = "网络连接失败，请检查网络设置";
+            } else {
+                message = "网络错误: " + e.getMessage();
+            }
+
+            Toast.makeText(context, message, Toast.LENGTH_LONG).show();
+            logError(e);
+        }
+
+        /**
+         * 检查网络是否可用
+         */
+        public static boolean isNetworkAvailable(Context context) {
+            android.net.ConnectivityManager cm =
+                    (android.net.ConnectivityManager) context.getSystemService(Context.CONNECTIVITY_SERVICE);
+            if (cm == null) return false;
+
+            android.net.NetworkInfo activeNetwork = cm.getActiveNetworkInfo();
+            return activeNetwork != null && activeNetwork.isConnectedOrConnecting();
+        }
+    }
+
+    /**
+     * 文件操作错误处理
+     */
+    public static class FileErrorHandler {
+
+        /**
+         * 处理文件操作错误
+         */
+        public static String handleFileError(Exception e) {
+            String message = e.getMessage();
+            if (message == null) return "文件操作失败";
+
+            if (message.contains("Permission denied")) {
+                return "没有文件访问权限";
+            } else if (message.contains("No space left")) {
+                return "存储空间不足，请清理后重试";
+            } else if (message.contains("File not found")) {
+                return "文件不存在";
+            } else if (message.contains("Directory not empty")) {
+                return "目录不为空";
+            }
+
+            return "文件操作失败";
+        }
+
+        /**
+         * 检查存储空间
+         */
+        public static boolean checkStorageSpace(long requiredBytes) {
+            long availableBytes = android.os.Environment.getExternalStorageDirectory().getFreeSpace();
+            return availableBytes >= requiredBytes;
+        }
+
+        /**
+         * 格式化文件大小
+         */
+        public static String formatFileSize(long bytes) {
+            if (bytes < 1024) {
+                return bytes + " B";
+            } else if (bytes < 1024 * 1024) {
+                return String.format("%.1f KB", bytes / 1024.0);
+            } else if (bytes < 1024 * 1024 * 1024) {
+                return String.format("%.1f MB", bytes / (1024.0 * 1024.0));
+            } else {
+                return String.format("%.1f GB", bytes / (1024.0 * 1024.0 * 1024.0));
+            }
+        }
+    }
+
+    /**
+     * 权限错误处理
+     */
+    public static class PermissionErrorHandler {
+
+        /**
+         * 处理权限错误
+         */
+        public static void handlePermissionError(Context context, String permission) {
+            String message = getPermissionDescription(permission);
+
+            new androidx.appcompat.app.AlertDialog.Builder(context)
+                    .setTitle("需要权限")
+                    .setMessage(message + "\n\n请在设置中授予权限。")
+                    .setPositiveButton("去设置", (dialog, which) -> {
+                        openAppSettings(context);
+                    })
+                    .setNegativeButton("取消", null)
+                    .show();
+        }
+
+        /**
+         * 获取权限描述
+         */
+        private static String getPermissionDescription(String permission) {
+            if (permission.contains("READ_SMS") || permission.contains("RECEIVE_SMS")) {
+                return "需要短信权限以接收法院通知";
+            } else if (permission.contains("READ_CALENDAR") || permission.contains("WRITE_CALENDAR")) {
+                return "需要日历权限以添加开庭提醒";
+            } else if (permission.contains("READ_EXTERNAL_STORAGE") || permission.contains("WRITE_EXTERNAL_STORAGE")) {
+                return "需要存储权限以保存文档";
+            } else {
+                return "需要应用权限";
+            }
+        }
+
+        /**
+         * 打开应用设置
+         */
+        private static void openAppSettings(Context context) {
+            Intent intent = new Intent(android.provider.Settings.ACTION_APPLICATION_DETAILS_SETTINGS);
+            intent.setData(android.net.Uri.fromParts("package", context.getPackageName(), null));
+            context.startActivity(intent);
+        }
+    }
+
+    /**
+     * 解析错误处理
+     */
+    public static class ParseErrorHandler {
+
+        /**
+         * 处理短信解析错误
+         */
+        public static void handleSmsParseError(Context context, String smsContent, Exception e) {
+            logWarning("短信解析失败: " + smsContent);
+            logError(e);
+
+            String message = "无法识别短信内容，可能不是法院短信";
+            Toast.makeText(context, message, Toast.LENGTH_SHORT).show();
+        }
+
+        /**
+         * 处理 PDF 解析错误
+         */
+        public static void handlePdfParseError(Context context, String filePath, Exception e) {
+            logWarning("PDF 解析失败: " + filePath);
+            logError(e);
+
+            String message;
+            if (e.getMessage() != null && e.getMessage().contains("encrypted")) {
+                message = "PDF 文件已加密，无法解析";
+            } else {
+                message = "PDF 文件格式不支持或已损坏";
+            }
+
+            Toast.makeText(context, message, Toast.LENGTH_LONG).show();
+        }
+
+        /**
+         * 处理日期解析错误
+         */
+        public static void handleDateParseError(Context context, String dateStr) {
+            logWarning("日期解析失败: " + dateStr);
+
+            String message = "无法识别日期格式，将使用当前时间";
+            Toast.makeText(context, message, Toast.LENGTH_SHORT).show();
+        }
+    }
+
+    /**
+     * 错误统计和上报
+     */
+    public static class ErrorStatistics {
+
+        private static int networkErrorCount = 0;
+        private static int parseErrorCount = 0;
+        private static int fileErrorCount = 0;
+
+        /**
+         * 记录错误
+         */
+        public static void recordError(ErrorType type) {
+            switch (type) {
+                case NETWORK_ERROR:
+                case TIMEOUT_ERROR:
+                    networkErrorCount++;
+                    break;
+                case PARSE_ERROR:
+                    parseErrorCount++;
+                    break;
+                case FILE_NOT_FOUND:
+                case DATABASE_ERROR:
+                    fileErrorCount++;
+                    break;
+            }
+
+            logWarning(String.format("错误统计: %s (%d)",
+                        type.name(), getErrorCount(type)));
+        }
+
+        /**
+         * 获取错误次数
+         */
+        private static int getErrorCount(ErrorType type) {
+            switch (type) {
+                case NETWORK_ERROR:
+                case TIMEOUT_ERROR:
+                    return networkErrorCount;
+                case PARSE_ERROR:
+                    return parseErrorCount;
+                case FILE_NOT_FOUND:
+                case DATABASE_ERROR:
+                    return fileErrorCount;
+                default:
+                    return 0;
+            }
+        }
+
+        /**
+         * 获取错误统计摘要
+         */
+        public static String getErrorSummary() {
+            return String.format(
+                    "网络错误: %d, 解析错误: %d, 文件错误: %d",
+                    networkErrorCount, parseErrorCount, fileErrorCount
+            );
+        }
+
+        /**
+         * 重置统计
+         */
+        public static void reset() {
+            networkErrorCount = 0;
+            parseErrorCount = 0;
+            fileErrorCount = 0;
+            Log.d(TAG, "错误统计已重置");
+        }
+    }
+
+    /**
+     * 用户反馈收集
+     */
+    public static class FeedbackCollector {
+
+        /**
+         * 收集用户反馈
+         */
+        public static void collectFeedback(Context context, String feedbackType, String content) {
+            Log.d(TAG, "收集用户反馈: " + feedbackType);
+            Log.d(TAG, "内容: " + content);
+
+            // TODO: 实现反馈上报逻辑
+            // 可以发送到服务器或保存到本地
+        }
+
+        /**
+         * 报告问题
+         */
+        public static void reportIssue(Context context, String issueDescription) {
+            Log.e(TAG, "用户报告问题: " + issueDescription);
+
+            String message = "问题已记录，感谢您的反馈！";
+            Toast.makeText(context, message, Toast.LENGTH_SHORT).show();
+
+            // 可以打开邮件客户端或 GitHub Issues
+        }
+    }
+}

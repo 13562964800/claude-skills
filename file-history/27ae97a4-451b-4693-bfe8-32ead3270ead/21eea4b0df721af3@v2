@@ -1,0 +1,12 @@
+package com.multilanglearner
+
+import android.app.Application
+import dagger.hilt.android.HiltAndroidApp
+
+@HiltAndroidApp
+class MainApplication : Application() {
+    override fun onCreate() {
+        super.onCreate()
+        android.util.Log.d("MultiLangLearner", "Application initialized")
+    }
+}

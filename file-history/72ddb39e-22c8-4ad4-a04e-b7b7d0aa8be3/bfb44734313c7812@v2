@@ -1,0 +1,112 @@
+package com.multilanglearner.ui.assistant
+
+import android.net.Uri
+import android.speech.tts.TextToSpeech
+import android.speech.tts.UtteranceProgressListener
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.*
+import androidx.compose.material3.*
+import androidx.compose.runtime.*
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.unit.dp
+import androidx.hilt.navigation.compose.hiltViewModel
+import com.multilanglearner.domain.util.TextSegmenter
+import java.io.File
+import java.io.FileReader
+import java.util.Locale
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun AssistantSheet(
+    onDismiss: () -> Unit,
+    viewModel: AssistantViewModel = hiltViewModel()
+) {
+    val uiState by viewModel.uiState.collectAsState()
+    val context = LocalContext.current
+    var tts by remember { mutableStateOf<TextToSpeech?>(null) }
+
+    // Document file picker launcher
+    val documentPickerLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.GetContent()
+    ) { uri: Uri? ->
+        uri?.let {
+            viewModel.uploadDocument(context, it)
+        }
+    }
+
+    LaunchedEffect(Unit) {
+        tts = TextToSpeech(context) { status ->
+            if (status == TextToSpeech.SUCCESS) {
+                tts?.language = Locale.CHINA
+                tts?.setSpeechRate(0.9f)
+            }
+        }
+    }
+
+    DisposableEffect(Unit) { onDispose { tts?.shutdown() } }
+
+    ModalBottomSheet(onDismissRequest = onDismiss) {
+        Column(modifier = Modifier.padding(16.dp).fillMaxWidth()) {
+            Text("🎙 智能语音助手", style = MaterialTheme.typography.titleLarge)
+            Spacer(Modifier.height(12.dp))
+
+            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                OutlinedButton(onClick = { documentPickerLauncher.launch("*/*") }) {
+                    Icon(Icons.Default.Description, null, Modifier.size(16.dp))
+                    Spacer(Modifier.width(4.dp))
+                    Text("上传文档")
+                }
+                Button(
+                    onClick = {
+                        val text = uiState.lectureText
+                        if (text.isNotBlank()) {
+                            // Segment and speak - ported from renderer.js speakLecture()
+                            val chunks = TextSegmenter.segment(text)
+                            var idx = 0
+                            fun speakNext() {
+                                if (idx >= chunks.size) return
+                                tts?.speak(chunks[idx], TextToSpeech.QUEUE_ADD, null, "lecture_$idx")
+                                idx++
+                            }
+                            tts?.setOnUtteranceProgressListener(object : UtteranceProgressListener() {
+                                override fun onStart(utteranceId: String?) {}
+                                override fun onDone(utteranceId: String?) { speakNext() }
+                                @Deprecated("Deprecated") override fun onError(utteranceId: String?) {}
+                            })
+                            speakNext()
+                        }
+                    },
+                    enabled = uiState.lectureText.isNotBlank()
+                ) {
+                    Icon(Icons.Default.VolumeUp, null, Modifier.size(16.dp))
+                    Spacer(Modifier.width(4.dp))
+                    Text("朗读讲稿")
+                }
+                OutlinedButton(onClick = { tts?.stop() }) {
+                    Icon(Icons.Default.Stop, null, Modifier.size(16.dp))
+                    Spacer(Modifier.width(4.dp))
+                    Text("停止")
+                }
+            }
+
+            if (uiState.lectureText.isNotBlank()) {
+                Spacer(Modifier.height(12.dp))
+                Card(modifier = Modifier.fillMaxWidth().heightIn(max = 300.dp)) {
+                    Text(
+                        uiState.lectureText,
+                        modifier = Modifier.padding(12.dp).verticalScroll(rememberScrollState()),
+                        style = MaterialTheme.typography.bodyMedium
+                    )
+                }
+            }
+
+            Spacer(Modifier.height(32.dp))
+        }
+    }
+}

@@ -1,0 +1,213 @@
+package com.shanfuchun.courtassistant.util.log
+
+import android.util.Log
+import android.util.Log.VERBOSE
+
+/**
+ * 日志管理工具类
+ *
+ * 统一管理所有日志输出，自动添加 TAG 前缀
+ * 提供：
+ * - d(): Debug 日志
+ * - e(): Error 日志
+ * - i(): Info 日志
+ * - w(): Warning 日志
+ */
+object Logger {
+
+    private const val DEFAULT_TAG = "CourtAssistant"
+    private const val isDebug: Boolean = true  // 默认开启调试日志
+
+    /**
+     * Debug 日志
+     * @param tag 标签
+     * @param message 消息内容
+     */
+    fun d(tag: String = DEFAULT_TAG, message: String) {
+        if (isDebug) {
+            Log.d(tag, message)
+        }
+    }
+
+    /**
+     * Debug 日志（格式化）
+     * @param tag 标签
+     * @param format 格式字符串
+     * @param args 参数
+     */
+    fun d(tag: String = DEFAULT_TAG, format: String, vararg args: Any) {
+        if (isDebug) {
+            Log.d(tag, String.format(format, *args))
+        }
+    }
+
+    /**
+     * Error 日志
+     * @param tag 标签
+     * @param message 消息内容
+     */
+    fun e(tag: String = DEFAULT_TAG, message: String) {
+        if (isDebug) {
+            Log.e(tag, message)
+        }
+    }
+
+    /**
+     * Error 日志（带异常）
+     * @param tag 标签
+     * @param message 消息内容
+     * @param throwable 异常对象
+     */
+    fun e(tag: String = DEFAULT_TAG, message: String, throwable: Throwable?) {
+        if (isDebug) {
+            Log.e(tag, message, throwable)
+        }
+    }
+
+    /**
+     * Error 日志（仅异常）
+     * @param tag 标签
+     * @param throwable 异常对象
+     */
+    fun e(tag: String = DEFAULT_TAG, throwable: Throwable?) {
+        if (isDebug) {
+            Log.e(tag, throwable?.message ?: "Unknown error", throwable)
+        }
+    }
+
+    /**
+     * Info 日志
+     * @param tag 标签
+     * @param message 消息内容
+     */
+    fun i(tag: String = DEFAULT_TAG, message: String) {
+        if (isDebug) {
+            Log.i(tag, message)
+        }
+    }
+
+    /**
+     * Warning 日志
+     * @param tag 标签
+     * @param message 消息内容
+     */
+    fun w(tag: String = DEFAULT_TAG, message: String) {
+        if (isDebug) {
+            Log.w(tag, message)
+        }
+    }
+
+    /**
+     * Warning 日志（带异常）
+     * @param tag 标签
+     * @param message 消息内容
+     * @param throwable 异常对象
+     */
+    fun w(tag: String = DEFAULT_TAG, message: String, throwable: Throwable?) {
+        if (isDebug) {
+            Log.w(tag, message, throwable)
+        }
+    }
+
+    /**
+     * Verbose 日志
+     * @param tag 标签
+     * @param message 消息内容
+     */
+    fun v(tag: String = DEFAULT_TAG, message: String) {
+        if (isDebug) {
+            Log.v(tag, message)
+        }
+    }
+
+    /**
+     * Assert 日志（What a Terrible Failure）
+     * @param tag 标签
+     * @param message 消息内容
+     */
+    fun wtf(tag: String = DEFAULT_TAG, message: String) {
+        if (isDebug) {
+            Log.wtf(tag, message)
+        }
+    }
+
+    /**
+     * Assert 日志（带异常）
+     * @param tag 标签
+     * @param message 消息内容
+     * @param throwable 异常对象
+     */
+    fun wtf(tag: String = DEFAULT_TAG, message: String, throwable: Throwable?) {
+        if (isDebug) {
+            Log.wtf(tag, message, throwable)
+        }
+    }
+
+    /**
+     * 格式化日志输出
+     * @param tag 标签
+     * @param format 格式字符串
+     * @param args 参数
+     */
+    fun format(tag: String = DEFAULT_TAG, format: String, vararg args: Any) {
+        if (isDebug) {
+            val message = try {
+                String.format(format, *args)
+            } catch (e: Exception) {
+                format
+            }
+            Log.d(tag, message)
+        }
+    }
+
+    /**
+     * JSON 格式化日志
+     * @param tag 标签
+     * @param json JSON 字符串
+     */
+    fun json(tag: String = DEFAULT_TAG, json: String) {
+        if (isDebug) {
+            val formattedJson = try {
+                formatJson(json)
+            } catch (e: Exception) {
+                json
+            }
+            formattedJson.split("\n").forEach { line ->
+                Log.d(tag, line)
+            }
+        }
+    }
+
+    /**
+     * 格式化 JSON 字符串
+     */
+    private fun formatJson(json: String): String {
+        return try {
+            val jsonObject = org.json.JSONObject(json)
+            jsonObject.toString(2)
+        } catch (e: Exception) {
+            json
+        }
+    }
+
+    /**
+     * 获取调用堆栈信息
+     * @param depth 堆栈深度（默认为调用者的上一级）
+     * @return 堆栈信息字符串
+     */
+    fun getStackTrace(depth: Int = 1): String {
+        if (!isDebug) return ""
+
+        return try {
+            val stackTrace = Thread.currentThread().stackTrace
+            if (stackTrace.size > depth + 1) {
+                val element = stackTrace[depth + 1]
+                "(${element.fileName}:${element.lineNumber}) ${element.methodName}"
+            } else {
+                ""
+            }
+        } catch (e: Exception) {
+            ""
+        }
+    }
+}

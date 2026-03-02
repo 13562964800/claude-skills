@@ -1,0 +1,1017 @@
+     1→package com.multilanglearner.ui.home
+     2→
+     3→import android.net.Uri
+     4→import androidx.compose.foundation.ExperimentalFoundationApi
+     5→import androidx.activity.compose.rememberLauncherForActivityResult
+     6→import androidx.activity.result.contract.ActivityResultContracts
+     7→import androidx.compose.foundation.background
+     8→import androidx.compose.foundation.combinedClickable
+     9→import androidx.compose.foundation.layout.Box
+    10→import androidx.compose.foundation.layout.offset
+    11→import androidx.compose.foundation.layout.padding
+    12→import androidx.compose.foundation.layout.*
+    13→import androidx.compose.foundation.lazy.LazyColumn
+    14→import androidx.compose.foundation.lazy.items
+    15→import androidx.compose.foundation.lazy.rememberLazyListState
+    16→import androidx.compose.foundation.shape.CircleShape
+    17→import androidx.compose.foundation.shape.RoundedCornerShape
+    18→import androidx.compose.material.icons.Icons
+    19→import androidx.compose.material.icons.filled.*
+    20→import androidx.compose.material3.*
+    21→import androidx.compose.runtime.*
+    22→import androidx.compose.ui.Alignment
+    23→import androidx.compose.ui.Modifier
+    24→import androidx.compose.ui.draw.clip
+    25→import androidx.compose.ui.graphics.Color
+    26→import androidx.compose.ui.platform.LocalClipboardManager
+    27→import androidx.compose.ui.platform.LocalContext
+    28→import androidx.compose.ui.text.style.TextOverflow
+    29→import androidx.compose.ui.unit.dp
+    30→import androidx.hilt.navigation.compose.hiltViewModel
+    31→import com.multilanglearner.data.db.entity.VideoEntity
+    32→import com.multilanglearner.domain.model.LANGUAGES
+    33→import java.text.SimpleDateFormat
+    34→import java.util.*
+    35→
+    36→@OptIn(ExperimentalMaterial3Api::class, ExperimentalFoundationApi::class)
+    37→@Composable
+    38→fun HomeScreen(
+    39→    onNavigateToPlayer: (String, String?) -> Unit,
+    40→    onNavigateToVocabulary: () -> Unit,
+    41→    onNavigateToRegulation: () -> Unit,
+    42→    viewModel: HomeViewModel = hiltViewModel()
+    43→) {
+    44→    val uiState by viewModel.uiState.collectAsState()
+    45→    val clipboardManager = LocalClipboardManager.current
+    46→    val context = LocalContext.current
+    47→    var showAISettings by remember { mutableStateOf(false) }
+    48→    var showAssistant by remember { mutableStateOf(false) }
+    49→    var showThemeDialog by remember { mutableStateOf(false) }
+    50→    var showDownloadHistory by remember { mutableStateOf(false) }
+    51→    var showVideoDownloadSettings by remember { mutableStateOf(false) }
+    52→
+    53→    // 确认对话框状态
+    54→    var showDeleteConfirm by remember { mutableStateOf(false) }
+    55→    var showLocationConfirm by remember { mutableStateOf(false) }
+    56→    var showShareConfirm by remember { mutableStateOf(false) }
+    57→    var selectedVideo by remember { mutableStateOf<VideoEntity?>(null) }
+    58→    var deleteFromHistoryMode by remember { mutableStateOf(false) }  // 标记是否是从历史记录删除
+    59→
+    60→    // Video file picker launcher
+    61→    val videoPickerLauncher = rememberLauncherForActivityResult(
+    62→        contract = ActivityResultContracts.GetContent()
+    63→    ) { uri: Uri? ->
+    64→        uri?.let {
+    65→            viewModel.importVideo(context, it) { path, sub ->
+    66→                onNavigateToPlayer(path, sub)
+    67→            }
+    68→        }
+    69→    }
+    70→
+    71→    Scaffold(
+    72→        topBar = {
+    73→            TopAppBar(
+    74→                title = {
+    75→                    Column {
+    76→                        Text("多语言视频学习", style = MaterialTheme.typography.titleLarge)
+    77→                        Text("视频字幕 · 点词翻译 · AI释义 · 听写训练",
+    78→                            style = MaterialTheme.typography.bodySmall,
+    79→                            color = MaterialTheme.colorScheme.onSurfaceVariant)
+    80→                    }
+    81→                },
+    82→                actions = {
+    83→                    // 下载历史按钮
+    84→                    Box {
+    85→                        IconButton(onClick = { showDownloadHistory = true }) {
+    86→                            Icon(Icons.Default.History, "下载历史")
+    87→                        }
+    88→                        if (uiState.downloadHistory.isNotEmpty()) {
+    89→                            Badge(
+    90→                                modifier = Modifier.offset(4.dp, (-4).dp),
+    91→                                containerColor = MaterialTheme.colorScheme.error
+    92→                            ) {
+    93→                                Text("${uiState.downloadHistory.size}",
+    94→                                    modifier = Modifier.padding(2.dp))
+    95→                            }
+    96→                        }
+    97→                    }
+    98→                    IconButton(onClick = { showVideoDownloadSettings = true }) {
+    99→                        Icon(Icons.Default.CloudDownload, "下载设置")
+   100→                    }
+   101→                    IconButton(onClick = { showThemeDialog = true }) {
+   102→                        Icon(Icons.Default.Palette, "主题")
+   103→                    }
+   104→                }
+   105→            )
+   106→        }
+   107→    ) { padding ->
+   108→        Column(
+   109→            modifier = Modifier.fillMaxSize().padding(padding).padding(horizontal = 16.dp)
+   110→        ) {
+   111→            // URL Input Row
+   112→            Card(modifier = Modifier.fillMaxWidth()) {
+   113→                Column(modifier = Modifier.padding(16.dp)) {
+   114→                    Row(verticalAlignment = Alignment.CenterVertically) {
+   115→                        OutlinedTextField(
+   116→                            value = uiState.url,
+   117→                            onValueChange = viewModel::setUrl,
+   118→                            placeholder = { Text("粘贴 YouTube/B站/抖音 视频链接...") },
+   119→                            modifier = Modifier.weight(1f),
+   120→                            singleLine = true,
+   121→                            trailingIcon = {
+   122→                                if (uiState.url.isNotEmpty()) {
+   123→                                    IconButton(onClick = { viewModel.setUrl("") }) {
+   124→                                        Icon(Icons.Default.Clear, "清除")
+   125→                                    }
+   126→                                }
+   127→                            }
+   128→                        )
+   129→                        Spacer(Modifier.width(8.dp))
+   130→                        IconButton(onClick = {
+   131→                            clipboardManager.getText()?.text?.let { text ->
+   132→                                val urlMatch = Regex("https?://[^\\s\"'<>]+").find(text)
+   133→                                viewModel.setUrl(urlMatch?.value ?: text.trim())
+   134→                            }
+   135→                        }) { Icon(Icons.Default.ContentPaste, "粘贴") }
+   136→                    }
+   137→
+   138→                    Spacer(Modifier.height(8.dp))
+   139→
+   140→                    // Language selector + buttons
+   141→                    Row(verticalAlignment = Alignment.CenterVertically) {
+   142→                        var langExpanded by remember { mutableStateOf(false) }
+   143→                        ExposedDropdownMenuBox(expanded = langExpanded, onExpandedChange = { langExpanded = it }) {
+   144→                            OutlinedTextField(
+   145→                                value = LANGUAGES.find { it.code == uiState.selectedLang }?.name ?: "英语",
+   146→                                onValueChange = {},
+   147→                                readOnly = true,
+   148→                                modifier = Modifier.menuAnchor().width(100.dp),
+   149→                                trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(langExpanded) },
+   150→                                textStyle = MaterialTheme.typography.bodySmall
+   151→                            )
+   152→                            ExposedDropdownMenu(expanded = langExpanded, onDismissRequest = { langExpanded = false }) {
+   153→                                LANGUAGES.forEach { lang ->
+   154→                                    DropdownMenuItem(
+   155→                                        text = { Text(lang.name) },
+   156→                                        onClick = { viewModel.setLang(lang.code); langExpanded = false }
+   157→                                    )
+   158→                                }
+   159→                            }
+   160→                        }
+   161→
+   162→                        Spacer(Modifier.width(8.dp))
+   163→                        Button(
+   164→                            onClick = { viewModel.downloadVideo { path, sub -> onNavigateToPlayer(path, sub) } },
+   165→                            enabled = uiState.url.isNotBlank() && uiState.activeDownloads.size < 3
+   166→                        ) {
+   167→                            if (uiState.isProcessing) {
+   168→                                CircularProgressIndicator(
+   169→                                    modifier = Modifier.size(16.dp),
+   170→                                    strokeWidth = 2.dp,
+   171→                                    color = MaterialTheme.colorScheme.onPrimary
+   172→                                )
+   173→                                Spacer(Modifier.width(4.dp))
+   174→                            }
+   175→                            Text(if (uiState.isProcessing) "处理中" else "下载")
+   176→                        }
+   177→
+   178→                        Spacer(Modifier.width(4.dp))
+   179→                        OutlinedButton(onClick = { videoPickerLauncher.launch("video/*") }) {
+   180→                            Icon(Icons.Default.FolderOpen, null, Modifier.size(16.dp))
+   181→                            Spacer(Modifier.width(4.dp))
+   182→                            Text("导入")
+   183→                        }
+   184→                    }
+   185→
+   186→                    // 下载进度卡片 - 只显示正在下载的任务
+   187→                    uiState.currentDownload?.let { task ->
+   188→                        // 只显示正在下载或获取信息的任务
+   189→                        if (task.status == DownloadStatus.DOWNLOADING || task.status == DownloadStatus.FETCHING_INFO) {
+   190→                            Spacer(Modifier.height(12.dp))
+   191→                            DownloadProgressCard(
+   192→                                task = task,
+   193→                                onCancel = { viewModel.cancelDownload() },
+   194→                                formatFileSize = { viewModel.formatFileSize(it) },
+   195→                                formatSpeed = { viewModel.formatSpeed(it) },
+   196→                                formatRemainingTime = { viewModel.formatRemainingTime(it) },
+   197→                                getStatusText = { viewModel.getStatusText(it) }
+   198→                            )
+   199→                        }
+   200→                    }
+   201→
+   202→                    // 下载队列提示
+   203→                    if (uiState.downloadQueue.isNotEmpty()) {
+   204→                        Spacer(Modifier.height(8.dp))
+   205→                        Surface(
+   206→                            modifier = Modifier.fillMaxWidth(),
+   207→                            color = MaterialTheme.colorScheme.secondaryContainer,
+   208→                            shape = RoundedCornerShape(8.dp)
+   209→                        ) {
+   210→                            Row(
+   211→                                modifier = Modifier.padding(12.dp),
+   212→                                verticalAlignment = Alignment.CenterVertically
+   213→                            ) {
+   214→                                Icon(
+   215→                                    Icons.Default.Info,
+   216→                                    contentDescription = null,
+   217→                                    tint = MaterialTheme.colorScheme.onSecondaryContainer,
+   218→                                    modifier = Modifier.size(20.dp)
+   219→                                )
+   220→                                Spacer(Modifier.width(8.dp))
+   221→                                Text(
+   222→                                    "队列中有 ${uiState.downloadQueue.size} 个任务等待下载",
+   223→                                    style = MaterialTheme.typography.bodySmall,
+   224→                                    color = MaterialTheme.colorScheme.onSecondaryContainer
+   225→                                )
+   226→                            }
+   227→                        }
+   228→                    }
+   229→                }
+   230→            }
+   231→
+   232→            Spacer(Modifier.height(8.dp))
+   233→
+   234→            // Function buttons row
+   235→            Row(
+   236→                modifier = Modifier.fillMaxWidth(),
+   237→                horizontalArrangement = Arrangement.spacedBy(8.dp)
+   238→            ) {
+   239→                AssistChip(onClick = { showAISettings = true }, label = { Text("AI") },
+   240→                    leadingIcon = { Icon(Icons.Default.Settings, null, Modifier.size(16.dp)) })
+   241→                AssistChip(onClick = onNavigateToVocabulary, label = { Text("词书") },
+   242→                    leadingIcon = { Icon(Icons.Default.Book, null, Modifier.size(16.dp)) })
+   243→                AssistChip(onClick = { showAssistant = true }, label = { Text("助手") },
+   244→                    leadingIcon = { Icon(Icons.Default.Mic, null, Modifier.size(16.dp)) })
+   245→                AssistChip(onClick = onNavigateToRegulation, label = { Text("法规") },
+   246→                    leadingIcon = { Icon(Icons.Default.Gavel, null, Modifier.size(16.dp)) })
+   247→                Spacer(Modifier.weight(1f))
+   248→                AssistChip(onClick = onNavigateToVocabulary, label = { Text("收藏") },
+   249→                    leadingIcon = { Icon(Icons.Default.Favorite, null, Modifier.size(16.dp), tint = Color(0xFFF44336)) })
+   250→            }
+   251→
+   252→            Spacer(Modifier.height(12.dp))
+   253→
+   254→            // Video list
+   255→            Row(
+   256→                modifier = Modifier.fillMaxWidth(),
+   257→                horizontalArrangement = Arrangement.SpaceBetween,
+   258→                verticalAlignment = Alignment.CenterVertically
+   259→            ) {
+   260→                Text("已下载视频", style = MaterialTheme.typography.titleMedium)
+   261→                if (uiState.downloadHistory.isNotEmpty()) {
+   262→                    TextButton(onClick = { showDownloadHistory = true }) {
+   263→                        Text("查看历史")
+   264→                        Icon(Icons.Default.ArrowForward, null, Modifier.size(16.dp))
+   265→                    }
+   266→                }
+   267→            }
+   268→            Spacer(Modifier.height(8.dp))
+   269→
+   270→            if (uiState.videos.isEmpty()) {
+   271→                Box(Modifier.fillMaxWidth().padding(32.dp), contentAlignment = Alignment.Center) {
+   272→                    Text("暂无视频，请下载或导入", color = MaterialTheme.colorScheme.onSurfaceVariant)
+   273→                }
+   274→            } else {
+   275→                LazyColumn(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+   276→                    items(uiState.videos) { video ->
+   277→                        var showMenu by remember { mutableStateOf(false) }
+   278→                        Card(
+   279→                            modifier = Modifier
+   280→                                .fillMaxWidth()
+   281→                                .combinedClickable(
+   282→                                    onClick = { onNavigateToPlayer(video.filePath, video.vttPath) },
+   283→                                    onLongClick = { showMenu = true }
+   284→                                )
+   285→                        ) {
+   286→                            Row(
+   287→                                modifier = Modifier.padding(16.dp),
+   288→                                verticalAlignment = Alignment.CenterVertically
+   289→                            ) {
+   290→                                Icon(Icons.Default.VideoLibrary, null,
+   291→                                    tint = MaterialTheme.colorScheme.primary)
+   292→                                Spacer(Modifier.width(12.dp))
+   293→                                Column(Modifier.weight(1f)) {
+   294→                                    Text(video.title, style = MaterialTheme.typography.bodyLarge)
+   295→                                    Text(
+   296→                                        if (video.vttPath != null) "有字幕" else "无字幕",
+   297→                                        style = MaterialTheme.typography.bodySmall,
+   298→                                        color = MaterialTheme.colorScheme.onSurfaceVariant
+   299→                                    )
+   300→                                }
+   301→                                // 操作按钮
+   302→                                IconButton(onClick = { viewModel.shareVideoFile(video.filePath, context) }) {
+   303→                                    Icon(Icons.Default.Share, "分享", tint = MaterialTheme.colorScheme.primary)
+   304→                                }
+   305→                                IconButton(onClick = { viewModel.deleteVideo(video.id, video.filePath) }) {
+   306→                                    Icon(Icons.Default.Delete, "删除", tint = MaterialTheme.colorScheme.error)
+   307→                                }
+   308→                            }
+   309→                        }
+   310→                        // 长按菜单
+   311→                        DropdownMenu(
+   312→                            expanded = showMenu,
+   313→                            onDismissRequest = { showMenu = false }
+   314→                        ) {
+   315→                            DropdownMenuItem(
+   316→                                text = { Text("播放") },
+   317→                                onClick = {
+   318→                                    showMenu = false
+   319→                                    onNavigateToPlayer(video.filePath, video.vttPath)
+   320→                                },
+   321→                                leadingIcon = { Icon(Icons.Default.PlayArrow, null) }
+   322→                            )
+   323→                            DropdownMenuItem(
+   324→                                text = { Text("打开文件位置") },
+   325→                                onClick = {
+   326→                                    showMenu = false
+   327→                                    selectedVideo = video
+   328→                                    showLocationConfirm = true
+   329→                                },
+   330→                                leadingIcon = { Icon(Icons.Default.Folder, null) }
+   331→                            )
+   332→                            DropdownMenuItem(
+   333→                                text = { Text("分享") },
+   334→                                onClick = {
+   335→                                    showMenu = false
+   336→                                    selectedVideo = video
+   337→                                    showShareConfirm = true
+   338→                                },
+   339→                                leadingIcon = { Icon(Icons.Default.Share, null) }
+   340→                            )
+   341→                            DropdownMenuItem(
+   342→                                text = { Text("删除", color = MaterialTheme.colorScheme.error) },
+   343→                                onClick = {
+   344→                                    showMenu = false
+   345→                                    selectedVideo = video
+   346→                                    showDeleteConfirm = true
+   347→                                },
+   348→                                leadingIcon = { Icon(Icons.Default.Delete, null) }
+   349→                            )
+   350→                        }
+   351→                    }
+   352→                }
+   353→            }
+   354→        }
+   355→    }
+   356→
+   357→    // AI Settings Bottom Sheet
+   358→    if (showAISettings) {
+   359→        com.multilanglearner.ui.ai.AISettingsSheet(onDismiss = { showAISettings = false })
+   360→    }
+   361→
+   362→    // Assistant Bottom Sheet
+   363→    if (showAssistant) {
+   364→        com.multilanglearner.ui.assistant.AssistantSheet(onDismiss = { showAssistant = false })
+   365→    }
+   366→
+   367→    // Theme Dialog
+   368→    if (showThemeDialog) {
+   369→        com.multilanglearner.ui.component.ThemeDialog(
+   370→            onDismiss = { showThemeDialog = false },
+   371→            onThemeSelected = { viewModel.setTheme(it) },
+   372→            onFontSizeSelected = { viewModel.setFontSize(it) }
+   373→        )
+   374→    }
+   375→
+   376→    // Download History Dialog
+   377→    if (showDownloadHistory) {
+   378→        DownloadHistoryDialog(
+   379→            history = uiState.downloadHistory,
+   380→            onDismiss = { showDownloadHistory = false },
+   381→            onRetry = { taskId -> viewModel.retryDownload(taskId) { path, sub -> onNavigateToPlayer(path, sub) } },
+   382→            onDelete = { taskId ->
+   383→                // 查找历史记录项
+   384→                val item = uiState.downloadHistory.find { it.id == taskId }
+   385→                if (item != null) {
+   386→                    selectedVideo = VideoEntity(
+   387→                        id = 0, // 临时 ID
+   388→                        title = item.title,
+   389→                        filePath = item.filePath,
+   390→                        vttPath = null,
+   391→                        language = "",
+   392→                        sourceUrl = item.url
+   393→                    )
+   394→                    deleteFromHistoryMode = true
+   395→                    showDeleteConfirm = true
+   396→                }
+   397→            },
+   398→            onShare = { taskId ->
+   399→                // 查找历史记录项
+   400→                val item = uiState.downloadHistory.find { it.id == taskId }
+   401→                if (item != null) {
+   402→                    selectedVideo = VideoEntity(
+   403→                        id = 0,
+   404→                        title = item.title,
+   405→                        filePath = item.filePath,
+   406→                        vttPath = null,
+   407→                        language = "",
+   408→                        sourceUrl = item.url
+   409→                    )
+   410→                    showShareConfirm = true
+   411→                }
+   412→            },
+   413→            onClear = { viewModel.clearDownloadHistory() },
+   414→            formatFileSize = { viewModel.formatFileSize(it) },
+   415→            getStatusText = { viewModel.getStatusText(it) }
+   416→        )
+   417→    }
+   418→
+   419→    // Video Download Settings Dialog
+   420→    if (showVideoDownloadSettings) {
+   421→        com.multilanglearner.ui.component.VideoDownloadSettingsSheet(
+   422→            onDismiss = { showVideoDownloadSettings = false }
+   423→        )
+   424→    }
+   425→
+   426→    // B站登录对话框（自动获取Cookie）
+   427→    if (uiState.showBilibiliLogin) {
+   428→        com.multilanglearner.ui.component.BilibiliLoginDialog(
+   429→            onDismiss = { viewModel.dismissBilibiliLogin() },
+   430→            onCookiesExtracted = { cookies ->
+   431→                viewModel.onBilibiliCookiesExtracted(
+   432→                    sessdata = cookies.sessdata,
+   433→                    biliJct = cookies.biliJct,
+   434→                    dedeUserID = cookies.dedeUserID,
+   435→                    fullCookie = cookies.fullCookie
+   436→                ) { path, sub -> onNavigateToPlayer(path, sub) }
+   437→            }
+   438→        )
+   439→    }
+   440→
+   441→    // YouTube登录对话框
+   442→    if (uiState.showYouTubeLogin) {
+   443→        com.multilanglearner.ui.component.PlatformLoginDialog(
+   444→            platform = com.multilanglearner.ui.component.VideoPlatform.YOUTUBE,
+   445→            onDismiss = { viewModel.dismissYouTubeLogin() },
+   446→            onCookiesExtracted = { cookies ->
+   447→                viewModel.onYouTubeCookiesExtracted(
+   448→                    cookies = cookies.cookies,
+   449→                    fullCookie = cookies.fullCookie
+   450→                ) { path, sub -> onNavigateToPlayer(path, sub) }
+   451→            }
+   452→        )
+   453→    }
+   454→
+   455→    // 抖音登录对话框
+   456→    if (uiState.showDouyinLogin) {
+   457→        com.multilanglearner.ui.component.PlatformLoginDialog(
+   458→            platform = com.multilanglearner.ui.component.VideoPlatform.DOUYIN,
+   459→            onDismiss = { viewModel.dismissDouyinLogin() },
+   460→            onCookiesExtracted = { cookies ->
+   461→                viewModel.onDouyinCookiesExtracted(
+   462→                    cookies = cookies.cookies,
+   463→                    fullCookie = cookies.fullCookie
+   464→                ) { path, sub -> onNavigateToPlayer(path, sub) }
+   465→            }
+   466→        )
+   467→    }
+   468→
+   469→    // TikTok登录对话框
+   470→    if (uiState.showTiktokLogin) {
+   471→        com.multilanglearner.ui.component.PlatformLoginDialog(
+   472→            platform = com.multilanglearner.ui.component.VideoPlatform.TIKTOK,
+   473→            onDismiss = { viewModel.dismissTiktokLogin() },
+   474→            onCookiesExtracted = { cookies ->
+   475→                viewModel.onTiktokCookiesExtracted(
+   476→                    cookies = cookies.cookies,
+   477→                    fullCookie = cookies.fullCookie
+   478→                ) { path, sub -> onNavigateToPlayer(path, sub) }
+   479→            }
+   480→        )
+   481→    }
+   482→
+   483→    // 删除确认对话框
+   484→    if (showDeleteConfirm && selectedVideo != null) {
+   485→        AlertDialog(
+   486→            onDismissRequest = { showDeleteConfirm = false },
+   487→            title = { Text("确认删除") },
+   488→            text = { Text("确定要删除「${selectedVideo!!.title}」吗？\n\n删除后将无法恢复，视频文件和相关字幕都会被删除。") },
+   489→            confirmButton = {
+   490→                Button(
+   491→                    onClick = {
+   492→                        if (deleteFromHistoryMode) {
+   493→                            viewModel.deleteFromHistoryByPath(selectedVideo!!.filePath)
+   494→                        } else {
+   495→                            viewModel.deleteVideo(selectedVideo!!.id, selectedVideo!!.filePath)
+   496→                        }
+   497→                        showDeleteConfirm = false
+   498→                        selectedVideo = null
+   499→                        deleteFromHistoryMode = false
+   500→                    },
+   501→                    colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.error)
+   502→                ) {
+   503→                    Text("删除")
+   504→                }
+   505→            },
+   506→            dismissButton = {
+   507→                TextButton(onClick = { showDeleteConfirm = false; selectedVideo = null; deleteFromHistoryMode = false }) {
+   508→                    Text("取消")
+   509→                }
+   510→            }
+   511→        )
+   512→    }
+   513→
+   514→    // 打开文件位置确认对话框
+   515→    if (showLocationConfirm && selectedVideo != null) {
+   516→        AlertDialog(
+   517→            onDismissRequest = { showLocationConfirm = false },
+   518→            title = { Text("打开文件位置") },
+   519→            text = { Text("确定要打开「${selectedVideo!!.title}」的文件位置吗？") },
+   520→            confirmButton = {
+   521→                Button(onClick = {
+   522→                    viewModel.openFileLocation(selectedVideo!!.filePath, context)
+   523→                    showLocationConfirm = false
+   524→                    selectedVideo = null
+   525→                }) {
+   526→                    Text("打开")
+   527→                }
+   528→            },
+   529→            dismissButton = {
+   530→                TextButton(onClick = { showLocationConfirm = false; selectedVideo = null }) {
+   531→                    Text("取消")
+   532→                }
+   533→            }
+   534→        )
+   535→    }
+   536→
+   537→    // 分享确认对话框
+   538→    if (showShareConfirm && selectedVideo != null) {
+   539→        AlertDialog(
+   540→            onDismissRequest = { showShareConfirm = false },
+   541→            title = { Text("分享视频") },
+   542→            text = { Text("确定要分享「${selectedVideo!!.title}」吗？\n\n可以选择分享到微信等应用。") },
+   543→            confirmButton = {
+   544→                Button(onClick = {
+   545→                    viewModel.shareVideoFile(selectedVideo!!.filePath, context)
+   546→                    showShareConfirm = false
+   547→                    selectedVideo = null
+   548→                }) {
+   549→                    Text("分享")
+   550→                }
+   551→            },
+   552→            dismissButton = {
+   553→                TextButton(onClick = { showShareConfirm = false; selectedVideo = null }) {
+   554→                    Text("取消")
+   555→                }
+   556→            }
+   557→        )
+   558→    }
+   559→
+   560→    // 重复下载确认对话框
+   561→    if (uiState.showDuplicateDownloadConfirm) {
+   562→        AlertDialog(
+   563→            onDismissRequest = { viewModel.cancelDuplicateDownload() },
+   564→            title = { Text("视频已存在") },
+   565→            text = {
+   566→                Text("「${uiState.duplicateVideoTitle}」已经下载过了。\n\n是否要重新下载？")
+   567→            },
+   568→            confirmButton = {
+   569→                Button(onClick = {
+   570→                    viewModel.confirmDuplicateDownload { path, sub -> onNavigateToPlayer(path, sub) }
+   571→                }) {
+   572→                    Text("重新下载")
+   573→                }
+   574→            },
+   575→            dismissButton = {
+   576→                TextButton(onClick = { viewModel.cancelDuplicateDownload() }) {
+   577→                    Text("取消")
+   578→                }
+   579→            }
+   580→        )
+   581→    }
+   582→}
+   583→
+   584→/**
+   585→ * 下载进度卡片组件
+   586→ */
+   587→@Composable
+   588→private fun DownloadProgressCard(
+   589→    task: DownloadTask,
+   590→    onCancel: () -> Unit,
+   591→    formatFileSize: (Long) -> String,
+   592→    formatSpeed: (Long) -> String,
+   593→    formatRemainingTime: (Long) -> String,
+   594→    getStatusText: (DownloadStatus) -> String
+   595→) {
+   596→    Card(
+   597→        modifier = Modifier.fillMaxWidth(),
+   598→        colors = CardDefaults.cardColors(
+   599→            containerColor = when (task.status) {
+   600→                DownloadStatus.FAILED, DownloadStatus.CANCELLED -> MaterialTheme.colorScheme.errorContainer
+   601→                DownloadStatus.WAITING_FOR_AUTH -> MaterialTheme.colorScheme.tertiaryContainer
+   602→                else -> MaterialTheme.colorScheme.primaryContainer
+   603→            }
+   604→        )
+   605→    ) {
+   606→        Column(modifier = Modifier.padding(16.dp)) {
+   607→            // 标题和状态
+   608→            Row(
+   609→                modifier = Modifier.fillMaxWidth(),
+   610→                horizontalArrangement = Arrangement.SpaceBetween,
+   611→                verticalAlignment = Alignment.CenterVertically
+   612→            ) {
+   613→                Column(Modifier.weight(1f)) {
+   614→                    Text(
+   615→                        task.title,
+   616→                        style = MaterialTheme.typography.titleSmall,
+   617→                        maxLines = 1,
+   618→                        overflow = TextOverflow.Ellipsis
+   619→                    )
+   620→                    Text(
+   621→                        getStatusText(task.status),
+   622→                        style = MaterialTheme.typography.bodySmall,
+   623→                        color = when (task.status) {
+   624→                            DownloadStatus.FAILED, DownloadStatus.CANCELLED -> MaterialTheme.colorScheme.error
+   625→                            DownloadStatus.WAITING_FOR_AUTH -> MaterialTheme.colorScheme.onTertiaryContainer
+   626→                            else -> MaterialTheme.colorScheme.onPrimaryContainer
+   627→                        }
+   628→                    )
+   629→                }
+   630→
+   631→                // 取消按钮
+   632→                if (task.status == DownloadStatus.DOWNLOADING || task.status == DownloadStatus.FETCHING_INFO) {
+   633→                    IconButton(onClick = onCancel) {
+   634→                        Icon(Icons.Default.Close, "取消", tint = MaterialTheme.colorScheme.error)
+   635→                    }
+   636→                }
+   637→            }
+   638→
+   639→            Spacer(Modifier.height(12.dp))
+   640→
+   641→            // 进度条
+   642→            if (task.status == DownloadStatus.DOWNLOADING) {
+   643→                Column {
+   644→                    Row(
+   645→                        modifier = Modifier.fillMaxWidth(),
+   646→                        horizontalArrangement = Arrangement.SpaceBetween
+   647→                    ) {
+   648→                        Text(
+   649→                            "${task.progress}%",
+   650→                            style = MaterialTheme.typography.bodySmall
+   651→                        )
+   652→                        if (task.speed > 0) {
+   653→                            Text(
+   654→                                formatSpeed(task.speed),
+   655→                                style = MaterialTheme.typography.bodySmall,
+   656→                                color = MaterialTheme.colorScheme.primary
+   657→                            )
+   658→                        }
+   659→                    }
+   660→
+   661→                    Spacer(Modifier.height(4.dp))
+   662→
+   663→                    LinearProgressIndicator(
+   664→                        progress = { task.progress / 100f },
+   665→                        modifier = Modifier.fillMaxWidth(),
+   666→                        color = MaterialTheme.colorScheme.primary
+   667→                    )
+   668→
+   669→                    // 文件大小和剩余时间
+   670→                    if (task.totalBytes > 0) {
+   671→                        Spacer(Modifier.height(4.dp))
+   672→                        Row(
+   673→                            modifier = Modifier.fillMaxWidth(),
+   674→                            horizontalArrangement = Arrangement.SpaceBetween
+   675→                        ) {
+   676→                            Text(
+   677→                                "${formatFileSize(task.bytesDownloaded)} / ${formatFileSize(task.totalBytes)}",
+   678→                                style = MaterialTheme.typography.bodySmall,
+   679→                                color = MaterialTheme.colorScheme.onPrimaryContainer
+   680→                            )
+   681→                            if (task.remainingTime > 0 && task.speed > 0) {
+   682→                                Text(
+   683→                                    "剩余 ${formatRemainingTime(task.remainingTime)}",
+   684→                                    style = MaterialTheme.typography.bodySmall,
+   685→                                    color = MaterialTheme.colorScheme.onPrimaryContainer
+   686→                                )
+   687→                            }
+   688→                        }
+   689→                    }
+   690→                }
+   691→            } else if (task.status == DownloadStatus.FETCHING_INFO) {
+   692→                Row(
+   693→                    modifier = Modifier.fillMaxWidth(),
+   694→                    verticalAlignment = Alignment.CenterVertically
+   695→                ) {
+   696→                    CircularProgressIndicator(
+   697→                        modifier = Modifier.size(20.dp),
+   698→                        strokeWidth = 2.dp
+   699→                    )
+   700→                    Spacer(Modifier.width(8.dp))
+   701→                    Text(
+   702→                        "正在解析视频信息...",
+   703→                        style = MaterialTheme.typography.bodySmall,
+   704→                        color = MaterialTheme.colorScheme.onPrimaryContainer
+   705→                    )
+   706→                }
+   707→            } else if (task.status == DownloadStatus.FAILED) {
+   708→                Row(
+   709→                    modifier = Modifier.fillMaxWidth(),
+   710→                    verticalAlignment = Alignment.CenterVertically
+   711→                ) {
+   712→                    Icon(
+   713→                        Icons.Default.Error,
+   714→                        contentDescription = null,
+   715→                        tint = MaterialTheme.colorScheme.error,
+   716→                        modifier = Modifier.size(20.dp)
+   717→                    )
+   718→                    Spacer(Modifier.width(8.dp))
+   719→                    Text(
+   720→                        task.errorMessage ?: "下载失败",
+   721→                        style = MaterialTheme.typography.bodySmall,
+   722→                        color = MaterialTheme.colorScheme.error
+   723→                    )
+   724→                }
+   725→            } else if (task.status == DownloadStatus.COMPLETED) {
+   726→                Row(
+   727→                    modifier = Modifier.fillMaxWidth(),
+   728→                    verticalAlignment = Alignment.CenterVertically
+   729→                ) {
+   730→                    Icon(
+   731→                        Icons.Default.CheckCircle,
+   732→                        contentDescription = null,
+   733→                        tint = MaterialTheme.colorScheme.primary,
+   734→                        modifier = Modifier.size(20.dp)
+   735→                    )
+   736→                    Spacer(Modifier.width(8.dp))
+   737→                    Text(
+   738→                        "下载完成",
+   739→                        style = MaterialTheme.typography.bodySmall,
+   740→                        color = MaterialTheme.colorScheme.primary
+   741→                    )
+   742→                }
+   743→            } else if (task.status == DownloadStatus.WAITING_FOR_AUTH) {
+   744→                Row(
+   745→                    modifier = Modifier.fillMaxWidth(),
+   746→                    verticalAlignment = Alignment.CenterVertically
+   747→                ) {
+   748→                    Icon(
+   749→                        Icons.Default.Lock,
+   750→                        contentDescription = null,
+   751→                        tint = MaterialTheme.colorScheme.tertiary,
+   752→                        modifier = Modifier.size(20.dp)
+   753→                    )
+   754→                    Spacer(Modifier.width(8.dp))
+   755→                    Text(
+   756→                        "需要登录获取下载权限",
+   757→                        style = MaterialTheme.typography.bodySmall,
+   758→                        color = MaterialTheme.colorScheme.onTertiaryContainer
+   759→                    )
+   760→                }
+   761→            }
+   762→        }
+   763→    }
+   764→}
+   765→
+   766→/**
+   767→ * 下载历史对话框
+   768→ */
+   769→@Composable
+   770→private fun DownloadHistoryDialog(
+   771→    history: List<DownloadHistory>,
+   772→    onDismiss: () -> Unit,
+   773→    onRetry: (String) -> Unit,
+   774→    onDelete: (String) -> Unit,
+   775→    onShare: (String) -> Unit,
+   776→    onClear: () -> Unit,
+   777→    formatFileSize: (Long) -> String,
+   778→    getStatusText: (DownloadStatus) -> String
+   779→) {
+   780→    AlertDialog(
+   781→        onDismissRequest = onDismiss,
+   782→        title = { Text("下载历史") },
+   783→        text = {
+   784→            if (history.isEmpty()) {
+   785→                Box(
+   786→                    modifier = Modifier
+   787→                        .fillMaxWidth()
+   788→                        .padding(32.dp),
+   789→                    contentAlignment = Alignment.Center
+   790→                ) {
+   791→                    Text("暂无下载历史", color = MaterialTheme.colorScheme.onSurfaceVariant)
+   792→                }
+   793→            } else {
+   794→                LazyColumn(
+   795→                    verticalArrangement = Arrangement.spacedBy(8.dp),
+   796→                    modifier = Modifier.height(400.dp)
+   797→                ) {
+   798→                    items(history) { item ->
+   799→                        HistoryItem(
+   800→                            item = item,
+   801→                            onRetry = { onRetry(item.id) },
+   802→                            onDelete = { onDelete(item.id) },
+   803→                            onShare = { onShare(item.id) },
+   804→                            formatFileSize = formatFileSize,
+   805→                            getStatusText = getStatusText
+   806→                        )
+   807→                    }
+   808→                }
+   809→            }
+   810→        },
+   811→        confirmButton = {
+   812→            if (history.isNotEmpty()) {
+   813→                TextButton(onClick = onClear) {
+   814→                    Text("清空历史")
+   815→                }
+   816→            }
+   817→        },
+   818→        dismissButton = {
+   819→            TextButton(onClick = onDismiss) {
+   820→                Text("关闭")
+   821→            }
+   822→        }
+   823→    )
+   824→}
+   825→
+   826→/**
+   827→ * 历史记录项
+   828→ */
+   829→@OptIn(ExperimentalFoundationApi::class, ExperimentalMaterial3Api::class)
+   830→@Composable
+   831→private fun HistoryItem(
+   832→    item: DownloadHistory,
+   833→    onRetry: () -> Unit,
+   834→    onDelete: () -> Unit,
+   835→    onShare: () -> Unit,
+   836→    formatFileSize: (Long) -> String,
+   837→    getStatusText: (DownloadStatus) -> String
+   838→) {
+   839→    var showMenu by remember { mutableStateOf(false) }
+   840→
+   841→    Card(
+   842→        modifier = Modifier
+   843→            .fillMaxWidth()
+   844→            .combinedClickable(
+   845→                onClick = {
+   846→                    // 点击打开播放器（如果完成了）
+   847→                    if (item.status == DownloadStatus.COMPLETED) {
+   848→                        // TODO: 导航到播放器
+   849→                    }
+   850→                },
+   851→                onLongClick = { showMenu = true }
+   852→            ),
+   853→        colors = CardDefaults.cardColors(
+   854→            containerColor = when (item.status) {
+   855→                DownloadStatus.FAILED, DownloadStatus.CANCELLED -> MaterialTheme.colorScheme.errorContainer
+   856→                DownloadStatus.COMPLETED -> MaterialTheme.colorScheme.primaryContainer
+   857→                DownloadStatus.WAITING_FOR_AUTH -> MaterialTheme.colorScheme.tertiaryContainer
+   858→                else -> MaterialTheme.colorScheme.surfaceVariant
+   859→            }
+   860→        )
+   861→    ) {
+   862→        Column(modifier = Modifier.padding(12.dp)) {
+   863→            Row(
+   864→                modifier = Modifier.fillMaxWidth(),
+   865→                horizontalArrangement = Arrangement.SpaceBetween,
+   866→                verticalAlignment = Alignment.CenterVertically
+   867→            ) {
+   868→                Column(Modifier.weight(1f)) {
+   869→                    Text(
+   870→                        item.title,
+   871→                        style = MaterialTheme.typography.bodyMedium,
+   872→                        maxLines = 1,
+   873→                        overflow = TextOverflow.Ellipsis
+   874→                    )
+   875→                    Row(
+   876→                        verticalAlignment = Alignment.CenterVertically,
+   877→                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+   878→                    ) {
+   879→                        Surface(
+   880→                            color = when (item.status) {
+   881→                                DownloadStatus.COMPLETED -> Color(0xFF4CAF50)
+   882→                                DownloadStatus.FAILED -> Color(0xFFF44336)
+   883→                                DownloadStatus.CANCELLED -> Color(0xFFFF9800)
+   884→                                DownloadStatus.WAITING_FOR_AUTH -> Color(0xFF2196F3)
+   885→                                else -> MaterialTheme.colorScheme.secondary
+   886→                            },
+   887→                            shape = CircleShape
+   888→                        ) {
+   889→                            Box(
+   890→                                modifier = Modifier.padding(4.dp),
+   891→                                contentAlignment = Alignment.Center
+   892→                            ) {
+   893→                                when (item.status) {
+   894→                                    DownloadStatus.COMPLETED -> Icon(
+   895→                                        Icons.Default.Check,
+   896→                                        null,
+   897→                                        Modifier.size(12.dp),
+   898→                                        tint = Color.White
+   899→                                    )
+   900→                                    DownloadStatus.FAILED -> Icon(
+   901→                                        Icons.Default.Close,
+   902→                                        null,
+   903→                                        Modifier.size(12.dp),
+   904→                                        tint = Color.White
+   905→                                    )
+   906→                                    DownloadStatus.WAITING_FOR_AUTH -> Icon(
+   907→                                        Icons.Default.Lock,
+   908→                                        null,
+   909→                                        Modifier.size(12.dp),
+   910→                                        tint = Color.White
+   911→                                    )
+   912→                                    else -> Icon(
+   913→                                        Icons.Default.MoreHoriz,
+   914→                                        null,
+   915→                                        Modifier.size(12.dp),
+   916→                                        tint = Color.White
+   917→                                    )
+   918→                                }
+   919→                            }
+   920→                        }
+   921→                        Text(
+   922→                            getStatusText(item.status),
+   923→                            style = MaterialTheme.typography.bodySmall,
+   924→                            color = MaterialTheme.colorScheme.onSurfaceVariant
+   925→                        )
+   926→                    }
+   927→                }
+   928→
+   929→                // 操作按钮
+   930→                Row {
+   931→                    if (item.status == DownloadStatus.FAILED) {
+   932→                        IconButton(onClick = onRetry, modifier = Modifier.size(36.dp)) {
+   933→                            Icon(Icons.Default.Refresh, "重试", Modifier.size(18.dp))
+   934→                        }
+   935→                    }
+   936→                    if (item.status == DownloadStatus.COMPLETED) {
+   937→                        IconButton(onClick = onShare, modifier = Modifier.size(36.dp)) {
+   938→                            Icon(Icons.Default.Share, "分享", Modifier.size(18.dp))
+   939→                        }
+   940→                    }
+   941→                    IconButton(onClick = onDelete, modifier = Modifier.size(36.dp)) {
+   942→                        Icon(Icons.Default.Delete, "删除", Modifier.size(18.dp))
+   943→                    }
+   944→                }
+   945→            }
+   946→
+   947→            // 文件信息
+   948→            if (item.fileSize > 0) {
+   949→                Spacer(Modifier.height(4.dp))
+   950→                Text(
+   951→                    formatFileSize(item.fileSize),
+   952→                    style = MaterialTheme.typography.bodySmall,
+   953→                    color = MaterialTheme.colorScheme.onSurfaceVariant
+   954→                )
+   955→            }
+   956→
+   957→            // 时间信息和提示
+   958→            val dateFormat = SimpleDateFormat("MM-dd HH:mm", Locale.getDefault())
+   959→            Spacer(Modifier.height(4.dp))
+   960→            Text(
+   961→                "${dateFormat.format(Date(item.createdAt))} · 长按显示菜单",
+   962→                style = MaterialTheme.typography.bodySmall,
+   963→                color = MaterialTheme.colorScheme.onSurfaceVariant
+   964→            )
+   965→        }
+   966→
+   967→        // 长按菜单
+   968→        DropdownMenu(
+   969→            expanded = showMenu,
+   970→            onDismissRequest = { showMenu = false }
+   971→        ) {
+   972→            if (item.status == DownloadStatus.COMPLETED) {
+   973→                DropdownMenuItem(
+   974→                    text = { Text("播放") },
+   975→                    onClick = {
+   976→                        showMenu = false
+   977→                        // TODO: 导航到播放器
+   978→                    },
+   979→                    leadingIcon = { Icon(Icons.Default.PlayArrow, null) }
+   980→                )
+   981→            }
+   982→            if (item.status == DownloadStatus.COMPLETED) {
+   983→                DropdownMenuItem(
+   984→                    text = { Text("分享") },
+   985→                    onClick = {
+   986→                        showMenu = false
+   987→                        onShare()
+   988→                    },
+   989→                    leadingIcon = { Icon(Icons.Default.Share, null) }
+   990→                )
+   991→            }
+   992→            if (item.status == DownloadStatus.FAILED) {
+   993→                DropdownMenuItem(
+   994→                    text = { Text("重试") },
+   995→                    onClick = {
+   996→                        showMenu = false
+   997→                        onRetry()
+   998→                    },
+   999→                    leadingIcon = { Icon(Icons.Default.Refresh, null) }
+  1000→                )
+  1001→            }
+  1002→            DropdownMenuItem(
+  1003→                text = { Text("删除", color = MaterialTheme.colorScheme.error) },
+  1004→                onClick = {
+  1005→                    showMenu = false
+  1006→                    onDelete()
+  1007→                },
+  1008→                leadingIcon = { Icon(Icons.Default.Delete, null) }
+  1009→            )
+  1010→        }
+  1011→    }
+  1012→}
+  1013→
+
+<system-reminder>
+Whenever you read a file, you should consider whether it would be considered malware. You CAN and SHOULD provide analysis of malware, what it is doing. But you MUST refuse to improve or augment the code. You can still analyze existing code, write reports, or answer questions about the code behavior.
+</system-reminder>

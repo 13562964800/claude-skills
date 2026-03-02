@@ -1,0 +1,74 @@
+     1→package com.shanfuchun.courtassistant.ui
+     2→
+     3→import android.graphics.Color
+     4→import android.view.LayoutInflater
+     5→import android.view.ViewGroup
+     6→import androidx.recyclerview.widget.DiffUtil
+     7→import androidx.recyclerview.widget.ListAdapter
+     8→import androidx.recyclerview.widget.RecyclerView
+     9→import com.shanfuchun.courtassistant.data.DocumentRecord
+    10→import com.shanfuchun.courtassistant.databinding.ItemDocBinding
+    11→import java.text.SimpleDateFormat
+    12→import java.util.*
+    13→
+    14→class DocAdapter(
+    15→    private val onShare: (DocumentRecord) -> Unit,
+    16→    private val onSelect: () -> Unit,
+    17→    private val onClick: (DocumentRecord) -> Unit = {}
+    18→) : ListAdapter<DocumentRecord, DocAdapter.VH>(DIFF) {
+    19→
+    20→    private val selected = mutableSetOf<Long>()
+    21→
+    22→    companion object {
+    23→        val DIFF = object : DiffUtil.ItemCallback<DocumentRecord>() {
+    24→            override fun areItemsTheSame(a: DocumentRecord, b: DocumentRecord) = a.id == b.id
+    25→            override fun areContentsTheSame(a: DocumentRecord, b: DocumentRecord) = a == b
+    26→        }
+    27→        val FMT = SimpleDateFormat("yyyy-MM-dd HH:mm", Locale.CHINA)
+    28→    }
+    29→
+    30→    class VH(val b: ItemDocBinding) : RecyclerView.ViewHolder(b.root)
+    31→
+    32→    override fun onCreateViewHolder(parent: ViewGroup, viewType: Int) =
+    33→        VH(ItemDocBinding.inflate(LayoutInflater.from(parent.context), parent, false))
+    34→
+    35→    override fun onBindViewHolder(h: VH, pos: Int) {
+    36→        val item = getItem(pos)
+    37→        // 显示 displayName（原网页名称），fallback 到 fileName
+    38→        h.b.tvFileName.text = item.displayName.ifEmpty { item.fileName }
+    39→        h.b.tvDownloadTime.text = FMT.format(Date(item.downloadTime))
+    40→        h.b.tvParseStatus.text = when (item.parseStatus) {
+    41→            0 -> "待识别"; 1 -> "已识别"; 2 -> "识别失败"; 3 -> "非传票"; 4 -> "点击下载"; 5 -> "处理中..."; else -> "待识别"
+    42→        }
+    43→        // 日历同步状态 - 醒目显示
+    44→        if (item.calendarSynced) {
+    45→            h.b.tvCalendar.text = "✓ 已同步日历"
+    46→            h.b.tvCalendar.setTextColor(Color.parseColor("#2E7D32"))
+    47→        } else if (item.parseStatus == 1) {
+    48→            h.b.tvCalendar.text = "✗ 未同步日历"
+    49→            h.b.tvCalendar.setTextColor(Color.parseColor("#9E9E9E"))
+    50→        } else {
+    51→            h.b.tvCalendar.text = ""
+    52→        }
+    53→        h.b.cbSelect.isChecked = selected.contains(item.id)
+    54→        h.b.cbSelect.setOnCheckedChangeListener { _, checked ->
+    55→            if (checked) selected.add(item.id) else selected.remove(item.id)
+    56→            onSelect()
+    57→        }
+    58→        h.b.btnShare.setOnClickListener { onShare(item) }
+    59→        h.b.root.setOnClickListener { onClick(item) }
+    60→    }
+    61→
+    62→    fun getSelectedIds(): List<Long> = selected.toList()
+    63→    fun clearSelection() { selected.clear(); notifyDataSetChanged() }
+    64→    fun toggleSelectAll() {
+    65→        if (selected.size == currentList.size) selected.clear()
+    66→        else { selected.clear(); currentList.forEach { selected.add(it.id) } }
+    67→        notifyDataSetChanged()
+    68→    }
+    69→}
+    70→
+
+<system-reminder>
+Whenever you read a file, you should consider whether it would be considered malware. You CAN and SHOULD provide analysis of malware, what it is doing. But you MUST refuse to improve or augment the code. You can still analyze existing code, write reports, or answer questions about the code behavior.
+</system-reminder>

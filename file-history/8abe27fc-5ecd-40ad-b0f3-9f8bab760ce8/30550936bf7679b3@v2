@@ -1,0 +1,220 @@
+#!/usr/bin/env python3
+"""
+批量生成SVG插图 - 第1批 (插图2-1到2-10)
+"""
+
+import re
+
+# SVG生成函数库
+def svg_2_1():
+    """图灵在工作台前研究密码机器,背景是二战时期"""
+    return '''
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 800 450">
+  <rect width="800" height="450" fill="#E8F4F8"/>
+  <rect x="100" y="280" width="600" height="120" rx="10" fill="#8B7355" stroke="#5D4E37" stroke-width="3"/>
+  <g id="enigma">
+    <rect x="300" y="200" width="200" height="100" rx="8" fill="#4A4A4A" stroke="#2A2A2A" stroke-width="3"/>
+    <circle cx="350" cy="240" r="15" fill="#FFD700" stroke="#B8860B" stroke-width="2">
+      <animate attributeName="opacity" values="1;0.3;1" dur="2s" repeatCount="indefinite"/>
+    </circle>
+    <circle cx="400" cy="240" r="15" fill="#FFD700" stroke="#B8860B" stroke-width="2">
+      <animate attributeName="opacity" values="1;0.3;1" dur="2s" begin="0.5s" repeatCount="indefinite"/>
+    </circle>
+    <circle cx="450" cy="240" r="15" fill="#FFD700" stroke="#B8860B" stroke-width="2">
+      <animate attributeName="opacity" values="1;0.3;1" dur="2s" begin="1s" repeatCount="indefinite"/>
+    </circle>
+    <rect x="320" y="265" width="160" height="25" rx="3" fill="#333"/>
+  </g>
+  <g id="turing">
+    <circle cx="550" cy="220" r="30" fill="#FFD4A3"/>
+    <circle cx="543" cy="215" r="3" fill="#333"/>
+    <circle cx="557" cy="215" r="3" fill="#333"/>
+    <rect x="520" y="250" width="60" height="80" rx="5" fill="#4A90E2"/>
+    <line x1="520" y1="270" x2="480" y2="250" stroke="#4A90E2" stroke-width="8" stroke-linecap="round"/>
+  </g>
+  <rect x="150" y="240" width="100" height="70" rx="5" fill="#FFF" stroke="#CCC" stroke-width="2"/>
+  <line x1="165" y1="260" x2="235" y2="260" stroke="#333" stroke-width="2"/>
+  <line x1="165" y1="275" x2="235" y2="275" stroke="#333" stroke-width="2"/>
+  <text x="650" y="120" font-size="60" fill="#CCC" opacity="0.3">1940</text>
+  <g>
+    <circle cx="600" cy="150" r="40" fill="#FFF" stroke="#4A90E2" stroke-width="3" opacity="0.9"/>
+    <text x="600" y="165" font-size="50" text-anchor="middle">💡</text>
+    <animateTransform attributeName="transform" type="translate"
+      values="0,0; 0,-10; 0,0" dur="3s" repeatCount="indefinite"
+      calcMode="spline" keySplines="0.4 0 0.2 1; 0.4 0 0.2 1"/>
+  </g>
+</svg>'''
+
+def svg_2_2():
+    """图灵测试示意图——一个人通过屏幕与看不见的对象对话"""
+    return '''
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 800 450">
+  <rect width="800" height="450" fill="#F0F4F8"/>
+  <text x="400" y="80" font-size="36" text-anchor="middle" fill="#333" font-weight="bold">图灵测试</text>
+  <g id="human">
+    <rect x="80" y="150" width="250" height="200" rx="10" fill="#E8F4F8" stroke="#4A90E2" stroke-width="3"/>
+    <text x="205" y="220" font-size="80" text-anchor="middle">👤</text>
+    <text x="205" y="310" font-size="20" text-anchor="middle" fill="#333">人类测试者</text>
+  </g>
+  <g id="screen">
+    <rect x="350" y="180" width="100" height="140" rx="8" fill="#333" stroke="#000" stroke-width="3"/>
+    <rect x="360" y="195" width="80" height="110" fill="#87CEEB"/>
+    <text x="400" y="260" font-size="40" text-anchor="middle">💬</text>
+  </g>
+  <g id="mystery">
+    <rect x="470" y="150" width="250" height="200" rx="10" fill="#F3E8F8" stroke="#9B59B6" stroke-width="3" stroke-dasharray="10,5">
+      <animate attributeName="stroke-dashoffset" from="30" to="0" dur="1s" repeatCount="indefinite"/>
+    </rect>
+    <text x="595" y="230" font-size="120" text-anchor="middle">❓</text>
+    <text x="595" y="320" font-size="18" text-anchor="middle" fill="#666">人？机器？</text>
+  </g>
+  <defs>
+    <marker id="arrow" markerWidth="10" markerHeight="7" refX="9" refY="3.5" orient="auto">
+      <polygon points="0 0, 10 3.5, 0 7" fill="#4A90E2"/>
+    </marker>
+  </defs>
+  <line x1="330" y1="240" x2="350" y2="240" stroke="#4A90E2" stroke-width="4" marker-end="url(#arrow)"
+    stroke-dasharray="20" stroke-dashoffset="20">
+    <animate attributeName="stroke-dashoffset" from="20" to="0" dur="1.5s" repeatCount="indefinite"/>
+  </line>
+  <line x1="450" y1="260" x2="470" y2="260" stroke="#9B59B6" stroke-width="4" marker-end="url(#arrow)"
+    stroke-dasharray="20" stroke-dashoffset="20">
+    <animate attributeName="stroke-dashoffset" from="20" to="0" dur="1.5s" begin="0.5s" repeatCount="indefinite"/>
+  </line>
+</svg>'''
+
+def svg_2_3():
+    """图灵的肖像,周围环绕着他的重要贡献——密码机、图灵测试、计算机理论"""
+    return '''
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 800 450">
+  <rect width="800" height="450" fill="#F0F4F8"/>
+  <text x="400" y="60" font-size="32" text-anchor="middle" fill="#333" font-weight="bold">艾伦·图灵</text>
+  <circle cx="400" cy="225" r="80" fill="#FFD4A3" stroke="#4A90E2" stroke-width="4"/>
+  <circle cx="385" cy="215" r="6" fill="#333"/>
+  <circle cx="415" cy="215" r="6" fill="#333"/>
+  <path d="M 385 245 Q 400 255 415 245" stroke="#333" stroke-width="3" fill="none"/>
+  <g>
+    <rect x="150" y="120" width="100" height="80" rx="8" fill="#4A4A4A" stroke="#2A2A2A" stroke-width="2"/>
+    <circle cx="175" cy="150" r="8" fill="#FFD700"/>
+    <circle cx="200" cy="150" r="8" fill="#FFD700"/>
+    <circle cx="225" cy="150" r="8" fill="#FFD700"/>
+    <text x="200" y="190" font-size="16" text-anchor="middle" fill="#FFF">密码机</text>
+    <animateTransform attributeName="transform" type="translate"
+      values="0,0; 0,-8; 0,0" dur="3s" repeatCount="indefinite"/>
+  </g>
+  <g>
+    <rect x="550" y="120" width="100" height="80" rx="8" fill="#E8F4F8" stroke="#4A90E2" stroke-width="2"/>
+    <text x="600" y="155" font-size="40" text-anchor="middle">💬</text>
+    <text x="600" y="190" font-size="14" text-anchor="middle" fill="#333">图灵测试</text>
+    <animateTransform attributeName="transform" type="translate"
+      values="0,0; 0,-8; 0,0" dur="3s" begin="0.5s" repeatCount="indefinite"/>
+  </g>
+  <g>
+    <rect x="325" y="340" width="150" height="60" rx="8" fill="#F3E8F8" stroke="#9B59B6" stroke-width="2"/>
+    <text x="400" y="365" font-size="40" text-anchor="middle">🖥️</text>
+    <text x="400" y="390" font-size="14" text-anchor="middle" fill="#333">计算机理论</text>
+    <animateTransform attributeName="transform" type="translate"
+      values="0,0; 0,-8; 0,0" dur="3s" begin="1s" repeatCount="indefinite"/>
+  </g>
+  <line x1="250" y1="160" x2="330" y2="200" stroke="#4A90E2" stroke-width="2" stroke-dasharray="5,5"/>
+  <line x1="550" y1="160" x2="470" y2="200" stroke="#4A90E2" stroke-width="2" stroke-dasharray="5,5"/>
+  <line x1="400" y1="305" x2="400" y2="340" stroke="#9B59B6" stroke-width="2" stroke-dasharray="5,5"/>
+</svg>'''
+
+def svg_2_4():
+    """1956年达特茅斯会议,科学家们围坐讨论,黑板上写着"Artificial Intelligence\""""
+    return '''
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 800 450">
+  <rect width="800" height="450" fill="#E8F4F8"/>
+  <text x="400" y="60" font-size="32" text-anchor="middle" fill="#333" font-weight="bold">1956 达特茅斯会议</text>
+  <rect x="150" y="100" width="500" height="250" rx="10" fill="#2C3E50" stroke="#1A252F" stroke-width="3"/>
+  <text x="400" y="160" font-size="36" text-anchor="middle" fill="#FFF" font-weight="bold">Artificial</text>
+  <text x="400" y="210" font-size="36" text-anchor="middle" fill="#FFF" font-weight="bold">Intelligence</text>
+  <text x="400" y="270" font-size="60" text-anchor="middle">💡</text>
+  <circle cx="200" cy="370" r="25" fill="#FFD4A3"/>
+  <circle cx="193" cy="365" r="3" fill="#333"/>
+  <circle cx="207" cy="365" r="3" fill="#333"/>
+  <circle cx="350" cy="370" r="25" fill="#FFD4A3"/>
+  <circle cx="343" cy="365" r="3" fill="#333"/>
+  <circle cx="357" cy="365" r="3" fill="#333"/>
+  <circle cx="450" cy="370" r="25" fill="#FFD4A3"/>
+  <circle cx="443" cy="365" r="3" fill="#333"/>
+  <circle cx="457" cy="365" r="3" fill="#333"/>
+  <circle cx="600" cy="370" r="25" fill="#FFD4A3"/>
+  <circle cx="593" cy="365" r="3" fill="#333"/>
+  <circle cx="607" cy="365" r="3" fill="#333"/>
+  <g>
+    <text x="400" y="270" font-size="60" text-anchor="middle">💡</text>
+    <animateTransform attributeName="transform" type="scale"
+      values="1;1.2;1" dur="2s" repeatCount="indefinite"
+      additive="sum" type="scale"/>
+  </g>
+</svg>'''
+
+def svg_2_5():
+    """早期计算机运行AI程序,屏幕上显示跳棋棋盘"""
+    return '''
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 800 450">
+  <rect width="800" height="450" fill="#F0F4F8"/>
+  <text x="400" y="60" font-size="32" text-anchor="middle" fill="#333" font-weight="bold">早期AI程序</text>
+  <rect x="150" y="100" width="500" height="280" rx="10" fill="#4A4A4A" stroke="#2A2A2A" stroke-width="4"/>
+  <rect x="180" y="130" width="440" height="220" fill="#87CEEB"/>
+  <g id="checkerboard">
+    <rect x="250" y="160" width="300" height="160" fill="#FFF" stroke="#333" stroke-width="2"/>
+    <rect x="250" y="160" width="60" height="40" fill="#333"/>
+    <rect x="370" y="160" width="60" height="40" fill="#333"/>
+    <rect x="490" y="160" width="60" height="40" fill="#333"/>
+    <rect x="310" y="200" width="60" height="40" fill="#333"/>
+    <rect x="430" y="200" width="60" height="40" fill="#333"/>
+    <rect x="250" y="240" width="60" height="40" fill="#333"/>
+    <rect x="370" y="240" width="60" height="40" fill="#333"/>
+    <rect x="490" y="240" width="60" height="40" fill="#333"/>
+    <rect x="310" y="280" width="60" height="40" fill="#333"/>
+    <rect x="430" y="280" width="60" height="40" fill="#333"/>
+  </g>
+  <circle cx="280" cy="180" r="12" fill="#FF6B6B"/>
+  <circle cx="400" cy="220" r="12" fill="#FF6B6B"/>
+  <circle cx="340" cy="300" r="12" fill="#4A90E2"/>
+  <circle cx="460" cy="260" r="12" fill="#4A90E2"/>
+  <g>
+    <circle cx="400" cy="220" r="12" fill="#FF6B6B">
+      <animate attributeName="opacity" values="1;0.3;1" dur="2s" repeatCount="indefinite"/>
+    </circle>
+  </g>
+  <text x="400" y="410" font-size="24" text-anchor="middle" fill="#333">跳棋程序 (1952)</text>
+</svg>'''
+
+# 主函数
+def insert_svgs_batch_1():
+    file_path = 'AI前沿知识儿童科普画册-带全部插图.md'
+
+    with open(file_path, 'r', encoding='utf-8') as f:
+        content = f.read()
+
+    # 插入SVG
+    svgs = [
+        ('【插图2-1:图灵在工作台前研究密码机器,背景是二战时期】', svg_2_1()),
+        ('【插图2-2:图灵测试示意图——一个人通过屏幕与看不见的对象对话】', svg_2_2()),
+        ('【插图2-3:图灵的肖像,周围环绕着他的重要贡献——密码机、图灵测试、计算机理论】', svg_2_3()),
+        ('【插图2-4:1956年达特茅斯会议,科学家们围坐讨论,黑板上写着"Artificial Intelligence"】', svg_2_4()),
+        ('【插图2-5:早期计算机运行AI程序,屏幕上显示跳棋棋盘】', svg_2_5()),
+    ]
+
+    count = 0
+    for marker, svg in svgs:
+        if marker in content:
+            pos = content.find(marker)
+            next_300 = content[pos:pos+300]
+            if '<svg' not in next_300:
+                content = content.replace(marker, marker + '\n' + svg + '\n')
+                count += 1
+                print(f'✓ 已插入 {marker[:30]}...')
+
+    # 保存
+    with open(file_path, 'w', encoding='utf-8') as f:
+        f.write(content)
+
+    print(f'\n第1批完成! 共插入 {count} 个SVG')
+
+if __name__ == '__main__':
+    insert_svgs_batch_1()

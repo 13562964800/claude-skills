@@ -1,0 +1,518 @@
+     1→package com.multilanglearner.service
+     2→
+     3→import android.app.Notification
+     4→import android.app.NotificationChannel
+     5→import android.app.NotificationManager
+     6→import android.app.PendingIntent
+     7→import android.app.Service
+     8→import android.content.Context
+     9→import android.content.Intent
+    10→import android.os.Binder
+    11→import android.os.Build
+    12→import android.os.IBinder
+    13→import android.util.Log
+    14→import androidx.core.app.NotificationCompat
+    15→import com.multilanglearner.R
+    16→import com.multilanglearner.data.network.FFmpegSegmentedTranscriptionService
+    17→import com.multilanglearner.data.network.WhisperResult
+    18→import com.multilanglearner.data.store.AIConfigStore
+    19→import com.multilanglearner.domain.model.WordTimestamp
+    20→import com.multilanglearner.domain.util.VttParser
+    21→import dagger.hilt.android.AndroidEntryPoint
+    22→import kotlinx.coroutines.*
+    23→import kotlinx.coroutines.flow.MutableStateFlow
+    24→import kotlinx.coroutines.flow.StateFlow
+    25→import kotlinx.coroutines.flow.asStateFlow
+    26→import kotlinx.coroutines.flow.first
+    27→import kotlinx.serialization.builtins.ListSerializer
+    28→import kotlinx.serialization.json.Json
+    29→import java.io.File
+    30→import javax.inject.Inject
+    31→
+    32→/**
+    33→ * 转录前台服务
+    34→ * 允许用户离开页面后继续转录
+    35→ */
+    36→@AndroidEntryPoint
+    37→class TranscriptionService : Service() {
+    38→    companion object {
+    39→        private const val TAG = "TranscriptionService"
+    40→        private const val CHANNEL_ID = "transcription_channel"
+    41→        private const val CHANNEL_NAME = "视频转录"
+    42→        private const val NOTIFICATION_ID = 1001
+    43→
+    44→        const val ACTION_START = "com.multilanglearner.ACTION_START_TRANSCRIPTION"
+    45→        const val ACTION_CANCEL = "com.multilanglearner.ACTION_CANCEL_TRANSCRIPTION"
+    46→        const val ACTION_OPEN = "com.multilanglearner.ACTION_OPEN_PLAYER"
+    47→
+    48→        const val EXTRA_VIDEO_PATH = "video_path"
+    49→        const val EXTRA_VIDEO_NAME = "video_name"
+    50→
+    51→        // 进度广播
+    52→        const val ACTION_PROGRESS = "com.multilanglearner.TRANSCRIPTION_PROGRESS"
+    53→        const val EXTRA_SEGMENT = "segment"
+    54→        const val EXTRA_TOTAL = "total"
+    55→        const val EXTRA_PROGRESS = "progress"
+    56→        const val EXTRA_MESSAGE = "message"
+    57→        const val EXTRA_REMAINING = "remaining"
+    58→
+    59→        // 队列状态广播
+    60→        const val ACTION_QUEUE_UPDATE = "com.multilanglearner.TRANSCRIPTION_QUEUE_UPDATE"
+    61→        const val EXTRA_QUEUE_SIZE = "queue_size"
+    62→        const val EXTRA_CURRENT_VIDEO = "current_video"
+    63→        const val EXTRA_QUEUE_LIST = "queue_list"
+    64→
+    65→        // 完成广播
+    66→        const val ACTION_COMPLETED = "com.multilanglearner.TRANSCRIPTION_COMPLETED"
+    67→        const val EXTRA_SUCCESS = "success"
+    68→        const val EXTRA_ERROR = "error"
+    69→        const val EXTRA_SUBTITLE_COUNT = "subtitle_count"
+    70→        const val EXTRA_DETECTED_LANG = "detected_lang"
+    71→        const val EXTRA_VTT_PATH = "vtt_path"
+    72→
+    73→        // 静态状态，供 ViewModel 在页面恢复时查询
+    74→        @Volatile var isRunning = false
+    75→            private set
+    76→        @Volatile var currentVideoName: String? = null
+    77→            private set
+    78→        @Volatile var currentProgress: Int = 0
+    79→            private set
+    80→        @Volatile var currentMessage: String = ""
+    81→            private set
+    82→    }
+    83→
+    84→    @Inject
+    85→    lateinit var ffmpegSegmentedService: FFmpegSegmentedTranscriptionService
+    86→
+    87→    @Inject
+    88→    lateinit var aiConfigStore: AIConfigStore
+    89→
+    90→    private val serviceScope = CoroutineScope(Dispatchers.IO + Job())
+    91→    private val activeJobs = mutableMapOf<String, Job>() // 支持并行转录
+    92→
+    93→    private var currentTranscriptionId: String? = null
+    94→
+    95→    // 用户是否明确触发转录（防止自动重复转录）
+    96→    private var userTriggered = false
+    97→
+    98→    // 转录状态：0=空闲, 1=转录中, 2=已完成, 3=失败, 4=取消
+    99→    private var transcriptionStatus = 0
+   100→
+   101→    // 服务状态
+   102→    private val _serviceState = MutableStateFlow<ServiceState>(ServiceState.Idle)
+   103→    val serviceState: StateFlow<ServiceState> = _serviceState.asStateFlow()
+   104→
+   105→    private val binder = LocalBinder()
+   106→
+   107→    inner class LocalBinder : Binder() {
+   108→        fun getService(): TranscriptionService = this@TranscriptionService
+   109→    }
+   110→
+   111→    override fun onBind(intent: Intent?): IBinder = binder
+   112→
+   113→    override fun onCreate() {
+   114→        super.onCreate()
+   115→        Log.d(TAG, "Service created")
+   116→        createNotificationChannel()
+   117→    }
+   118→
+   119→    override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
+   120→        when (intent?.action) {
+   121→            ACTION_START -> {
+   122→                val videoPath = intent.getStringExtra(EXTRA_VIDEO_PATH)
+   123→                val videoName = intent.getStringExtra(EXTRA_VIDEO_NAME) ?: "视频"
+   124→
+   125→                // 检查是否已有正在进行的转录
+   126→                if (transcriptionStatus == 1) {
+   127→                    Log.w(TAG, "Transcription already in progress, ignoring start request")
+   128→                    return START_NOT_STICKY
+   129→                }
+   130→
+   131→                if (videoPath != null) {
+   132→                    startTranscription(videoPath, videoName)
+   133→                }
+   134→            }
+   135→            ACTION_CANCEL -> {
+   136→                cancelTranscription()
+   137→            }
+   138→        }
+   139→        return START_STICKY
+   140→    }
+   141→
+   142→    /**
+   143→     * 开始转录
+   144→     */
+   145→    private fun startTranscription(videoPath: String, videoName: String) {
+   146→        Log.d(TAG, "Starting transcription for: $videoPath")
+   147→
+   148→        val transcriptionId = System.currentTimeMillis().toString()
+   149→
+   150→        // 只有用户明确触发才执行转录
+   151→        userTriggered = true
+   152→
+   153→        // 更新转录状态为转录中
+   154→        transcriptionStatus = 1
+   155→
+   156→        // 直接并行执行，不再排队
+   157→        executeTranscription(transcriptionId, videoPath, videoName)
+   158→    }
+   159→
+   160→    /**
+   161→     * 停止转录并重置用户触发标志
+   162→     */
+   163→    private fun resetUserTrigger() {
+   164→        userTriggered = false
+   165→        // 完成或取消后，状态改为空闲
+   166→        transcriptionStatus = 0
+   167→    }
+   168→
+   169→    /**
+   170→     * 标记转录失败
+   171→     */
+   172→    private fun markAsFailed() {
+   173→        transcriptionStatus = 3
+   174→    }
+   175→
+   176→    /**
+   177→     * 执行转录任务
+   178→     */
+   179→    private fun executeTranscription(
+   180→        transcriptionId: String,
+   181→        videoPath: String,
+   182→        videoName: String
+   183→    ) {
+   184→        currentTranscriptionId = transcriptionId
+   185→        isRunning = true
+   186→        currentVideoName = videoName
+   187→        currentProgress = 0
+   188→        currentMessage = "正在准备..."
+   189→
+   190→        // 启动前台服务
+   191→        startForeground(NOTIFICATION_ID, createProgressNotification(videoName, 0, 0, "正在准备..."))
+   192→
+   193→        val job = serviceScope.launch {
+   194→            try {
+   195→                _serviceState.value = ServiceState.Transcribing(0, 0, 0, "正在准备...")
+   196→
+   197→                val config = aiConfigStore.config.first()
+   198→                val videoFile = File(videoPath)
+   199→
+   200→                // 检查 API Key
+   201→                val hasGroqKey = config.groqApiKey.isNotBlank() ||
+   202→                                 (config.provider == "groq" && config.apiKey.isNotBlank())
+   203→
+   204→                if (!hasGroqKey) {
+   205→                    sendErrorBroadcast("❌ 请先配置 Groq API Key\n\n获取 API Key：https://console.groq.com/keys")
+   206→                    _serviceState.value = ServiceState.Error("请先配置 Groq API Key")
+   207→                    stopForeground(STOP_FOREGROUND_REMOVE)
+   208→                    stopSelf()
+   209→                    return@launch
+   210→                }
+   211→
+   212→                // 执行转录 - 使用用户指定的转录语言（如果设置了）
+   213→                val transcribeLang = config.transcribeLanguage.takeIf { it.isNotBlank() }
+   214→                val result = ffmpegSegmentedService.transcribeWithSegments(
+   215→                    videoFile,
+   216→                    config,
+   217→                    transcribeLang,
+   218→                    onProgress = { segment, total, progress, message, remainingSeconds ->
+   219→                        updateProgress(videoName, segment, total, progress, message)
+   220→                        sendProgressBroadcast(segment, total, progress, message, remainingSeconds)
+   221→                        _serviceState.value = ServiceState.Transcribing(
+   222→                            segment, total, progress, message
+   223→                        )
+   224→                    }
+   225→                )
+   226→
+   227→                // 转录完成
+   228→                if (result != null && result.success) {
+   229→                    val base = videoPath.substringBeforeLast(".")
+   230→                    val vttPath = base + ".vtt"
+   231→                    val wtsPath = base + ".wordts.json"
+   232→
+   233→                    // 如果字幕文件还不存在（可能是其他转录任务创建的），保存它们
+   234→                    if (!File(vttPath).exists()) {
+   235→                        saveSubtitles(result, vttPath, wtsPath)
+   236→                    }
+   237→
+   238→                    // 保存完成后立即停止服务，避免自动继续
+   239→                    sendCompletedBroadcast(true, result.detectedLang, result.text, videoPath, vttPath)
+   240→                    _serviceState.value = ServiceState.Completed(
+   241→                        result.detectedLang,
+   242→                        result.text
+   243→                    )
+   244→
+   245→                    updateNotificationComplete(videoName)
+   246→                    delay(3000) // 显示完成通知3秒
+   247→
+   248→                    // 重置用户触发标志，服务将停止
+   249→                    resetUserTrigger()
+   250→
+   251→                    // 移除已完成的任务
+   252→                    activeJobs.remove(transcriptionId)
+   253→                    if (activeJobs.isEmpty()) {
+   254→                        isRunning = false
+   255→                        currentVideoName = null
+   256→                        stopForeground(STOP_FOREGROUND_REMOVE)
+   257→                        stopSelf()
+   258→                    }
+   259→
+   260→                } else {
+   261→                    val error = result?.error ?: "未知错误"
+   262→                    sendErrorBroadcast(error)
+   263→                    _serviceState.value = ServiceState.Error(error)
+   264→
+   265→                    // 出错后也重置用户触发标志
+   266→                    resetUserTrigger()
+   267→
+   268→                    activeJobs.remove(transcriptionId)
+   269→                    if (activeJobs.isEmpty()) {
+   270→                        isRunning = false
+   271→                        currentVideoName = null
+   272→                        stopForeground(STOP_FOREGROUND_REMOVE)
+   273→                        stopSelf()
+   274→                    }
+   275→                }
+   276→
+   277→            } catch (e: Exception) {
+   278→                Log.e(TAG, "Transcription error", e)
+   279→                val error = "转录失败: ${e.message}"
+   280→                sendErrorBroadcast(error)
+   281→                _serviceState.value = ServiceState.Error(error)
+   282→
+   283→                activeJobs.remove(transcriptionId)
+   284→                if (activeJobs.isEmpty()) {
+   285→                    isRunning = false
+   286→                    currentVideoName = null
+   287→                    stopForeground(STOP_FOREGROUND_REMOVE)
+   288→                    stopSelf()
+   289→                }
+   290→            }
+   291→        }
+   292→        activeJobs[transcriptionId] = job
+   293→    }
+   294→
+   295→    /**
+   296→     * 取消转录
+   297→     */
+   298→    private fun cancelTranscription() {
+   299→        activeJobs.values.forEach { it.cancel() }
+   300→        activeJobs.clear()
+   301→        isRunning = false
+   302→        currentVideoName = null
+   303→        currentProgress = 0
+   304→        currentMessage = ""
+   305→        _serviceState.value = ServiceState.Idle
+   306→
+   307→        // 重置用户触发标志
+   308→        resetUserTrigger()
+   309→
+   310→        stopForeground(STOP_FOREGROUND_REMOVE)
+   311→        stopSelf()
+   312→        Log.d(TAG, "All transcriptions cancelled")
+   313→    }
+   314→
+   315→    /**
+   316→     * 保存字幕文件
+   317→     */
+   318→    private suspend fun saveSubtitles(
+   319→        result: WhisperResult,
+   320→        vttPath: String,
+   321→        wtsPath: String
+   322→    ) = withContext(Dispatchers.IO) {
+   323→        val vttBuilder = StringBuilder("WEBVTT\n\n")
+   324→        val allWordTimings = mutableListOf<WordTimestamp>()
+   325→
+   326→        if (result.words.isNotEmpty()) {
+   327→            var curWords = mutableListOf<WordTimestamp>()
+   328→            for (wt in result.words) {
+   329→                curWords.add(wt)
+   330→                if (wt.w.trim().matches(Regex(".*[.!?。！？]$")) && curWords.isNotEmpty()) {
+   331→                    val sentText = curWords.joinToString(" ") { it.w }
+   332→                    val sStart = curWords.first().s
+   333→                    val sEnd = curWords.last().e
+   334→                    vttBuilder.append("${VttParser.formatVtt(sStart)} --> ${VttParser.formatVtt(sEnd)}\n$sentText\n\n")
+   335→                    allWordTimings.addAll(curWords)
+   336→                    curWords = mutableListOf()
+   337→                }
+   338→            }
+   339→            if (curWords.isNotEmpty()) {
+   340→                val sentText = curWords.joinToString(" ") { it.w }
+   341→                val sStart = curWords.first().s
+   342→                val sEnd = curWords.last().e
+   343→                vttBuilder.append("${VttParser.formatVtt(sStart)} --> ${VttParser.formatVtt(sEnd)}\n$sentText\n\n")
+   344→                allWordTimings.addAll(curWords)
+   345→            }
+   346→        }
+   347→
+   348→        File(vttPath).writeText(vttBuilder.toString())
+   349→        if (allWordTimings.isNotEmpty()) {
+   350→            val json = Json { ignoreUnknownKeys = true }
+   351→            File(wtsPath).writeText(json.encodeToString(ListSerializer(WordTimestamp.serializer()), allWordTimings))
+   352→        }
+   353→
+   354→        Log.d(TAG, "Subtitles saved: ${allWordTimings.size} words")
+   355→    }
+   356→
+   357→    private fun updateProgress(videoName: String, segment: Int, total: Int, progress: Int, message: String) {
+   358→        val notification = createProgressNotification(videoName, segment, total, message)
+   359→        val notificationManager = getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
+   360→        notificationManager.notify(NOTIFICATION_ID, notification)
+   361→    }
+   362→
+   363→    private fun updateNotificationComplete(videoName: String) {
+   364→        val notification = createCompleteNotification(videoName)
+   365→        val notificationManager = getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
+   366→        notificationManager.notify(NOTIFICATION_ID, notification)
+   367→    }
+   368→
+   369→    private fun sendProgressBroadcast(segment: Int, total: Int, progress: Int, message: String, remaining: Long) {
+   370→        // 更新静态状态供页面恢复时查询
+   371→        currentProgress = progress
+   372→        currentMessage = message
+   373→
+   374→        val intent = Intent(ACTION_PROGRESS).apply {
+   375→            putExtra(EXTRA_SEGMENT, segment)
+   376→            putExtra(EXTRA_TOTAL, total)
+   377→            putExtra(EXTRA_PROGRESS, progress)
+   378→            putExtra(EXTRA_MESSAGE, message)
+   379→            putExtra(EXTRA_REMAINING, remaining)
+   380→        }
+   381→        sendBroadcast(intent)
+   382→    }
+   383→
+   384→    private fun sendCompletedBroadcast(success: Boolean, detectedLang: String, text: String, videoPath: String? = null, vttPath: String? = null) {
+   385→        val intent = Intent(ACTION_COMPLETED).apply {
+   386→            putExtra(EXTRA_SUCCESS, success)
+   387→            putExtra(EXTRA_DETECTED_LANG, detectedLang)
+   388→            // 计算字幕数量（粗略估计：按句子分割）
+   389→            val subtitleCount = text.split(Regex("[.!?。！？]")).filter { it.isNotBlank() }.size
+   390→            putExtra(EXTRA_SUBTITLE_COUNT, subtitleCount)
+   391→            videoPath?.let { putExtra(EXTRA_VIDEO_PATH, it) }
+   392→            vttPath?.let { putExtra(EXTRA_VTT_PATH, it) }
+   393→        }
+   394→        sendBroadcast(intent)
+   395→    }
+   396→
+   397→    private fun sendErrorBroadcast(error: String) {
+   398→        val intent = Intent(ACTION_COMPLETED).apply {
+   399→            putExtra(EXTRA_SUCCESS, false)
+   400→            putExtra(EXTRA_ERROR, error)
+   401→        }
+   402→        sendBroadcast(intent)
+   403→    }
+   404→
+   405→    /**
+   406→     * 创建通知渠道
+   407→     */
+   408→    private fun createNotificationChannel() {
+   409→        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+   410→            val channel = NotificationChannel(
+   411→                CHANNEL_ID,
+   412→                CHANNEL_NAME,
+   413→                NotificationManager.IMPORTANCE_LOW
+   414→            ).apply {
+   415→                description = "显示视频转录进度"
+   416→                setShowBadge(false)
+   417→            }
+   418→            val notificationManager = getSystemService(NotificationManager::class.java)
+   419→            notificationManager.createNotificationChannel(channel)
+   420→        }
+   421→    }
+   422→
+   423→    /**
+   424→     * 创建进度通知
+   425→     */
+   426→    private fun createProgressNotification(
+   427→        videoName: String,
+   428→        segment: Int,
+   429→        total: Int,
+   430→        message: String
+   431→    ): Notification {
+   432→        val openIntent = Intent(this, com.multilanglearner.MainActivity::class.java).apply {
+   433→            action = ACTION_OPEN
+   434→            flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP
+   435→        }
+   436→        val openPendingIntent = PendingIntent.getActivity(
+   437→            this, 0, openIntent,
+   438→            PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
+   439→        )
+   440→
+   441→        val cancelIntent = Intent(this, TranscriptionService::class.java).apply {
+   442→            action = ACTION_CANCEL
+   443→        }
+   444→        val cancelPendingIntent = PendingIntent.getService(
+   445→            this, 0, cancelIntent,
+   446→            PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
+   447→        )
+   448→
+   449→        val progressText = if (total > 1) {
+   450→            "分段 $segment/$total ($message)"
+   451→        } else {
+   452→            message
+   453→        }
+   454→
+   455→        return NotificationCompat.Builder(this, CHANNEL_ID)
+   456→            .setContentTitle("正在转录: $videoName")
+   457→            .setContentText(progressText)
+   458→            .setSmallIcon(android.R.drawable.ic_dialog_info)
+   459→            .setOngoing(true)
+   460→            .setAutoCancel(false)
+   461→            .setContentIntent(openPendingIntent)
+   462→            .addAction(android.R.drawable.ic_menu_close_clear_cancel, "取消", cancelPendingIntent)
+   463→            .setProgress(total, segment, false)
+   464→            .build()
+   465→    }
+   466→
+   467→    /**
+   468→     * 创建完成通知
+   469→     */
+   470→    private fun createCompleteNotification(videoName: String): Notification {
+   471→        val openIntent = Intent(this, com.multilanglearner.MainActivity::class.java).apply {
+   472→            action = ACTION_OPEN
+   473→            flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP
+   474→        }
+   475→        val openPendingIntent = PendingIntent.getActivity(
+   476→            this, 0, openIntent,
+   477→            PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
+   478→        )
+   479→
+   480→        return NotificationCompat.Builder(this, CHANNEL_ID)
+   481→            .setContentTitle("转录完成")
+   482→            .setContentText("$videoName 已完成转录")
+   483→            .setSmallIcon(android.R.drawable.ic_dialog_info)
+   484→            .setOngoing(false)
+   485→            .setAutoCancel(true)
+   486→            .setContentIntent(openPendingIntent)
+   487→            .build()
+   488→    }
+   489→
+   490→    override fun onDestroy() {
+   491→        super.onDestroy()
+   492→        activeJobs.values.forEach { it.cancel() }
+   493→        activeJobs.clear()
+   494→        serviceScope.cancel()
+   495→        Log.d(TAG, "Service destroyed")
+   496→    }
+   497→}
+   498→
+   499→/**
+   500→ * 服务状态
+   501→ */
+   502→sealed class ServiceState {
+   503→    object Idle : ServiceState()
+   504→    data class Transcribing(
+   505→        val segment: Int,
+   506→        val total: Int,
+   507→        val progress: Int,
+   508→        val message: String
+   509→    ) : ServiceState()
+   510→    data class Completed(
+   511→        val detectedLang: String,
+   512→        val text: String
+   513→    ) : ServiceState()
+   514→    data class Error(
+   515→        val error: String
+   516→    ) : ServiceState()
+   517→}
+   518→

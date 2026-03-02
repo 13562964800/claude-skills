@@ -1,0 +1,56 @@
+package com.ai.hotspot.domain.model
+
+/**
+ * 大模型提供商配置
+ * 国内3家 + 国外3家顶尖模型
+ */
+enum class LLMProvider(
+    val displayName: String,
+    val apiBaseUrl: String,
+    val requiresApiKey: Boolean = true
+) {
+    // 国内三大
+    DEEPSEEK("DeepSeek", "https://api.deepseek.com/v1/"),
+    QWEN("通义千问 (阿里)", "https://dashscope.aliyuncs.com/compatible-mode/v1/"),
+    ZHIPU("智谱AI", "https://open.bigmodel.cn/api/paas/v4/"),
+
+    // 国外三大
+    OPENAI("OpenAI", "https://api.openai.com/v1/"),
+    ANTHROPIC("Anthropic (Claude)", "https://api.anthropic.com/v1/"),
+    GOOGLE("Google (Gemini)", "https://generativelanguage.googleapis.com/v1beta/");
+
+    companion object {
+        val domesticProviders = listOf(DEEPSEEK, QWEN, ZHIPU)
+        val internationalProviders = listOf(OPENAI, ANTHROPIC, GOOGLE)
+    }
+}
+
+/**
+ * LLM配置数据类
+ */
+data class LLMConfig(
+    val provider: LLMProvider,
+    val apiKey: String,
+    val model: String,
+    val isEnabled: Boolean = true
+) {
+    companion object {
+        val defaultModels = mapOf(
+            LLMProvider.DEEPSEEK to "deepseek-chat",
+            LLMProvider.QWEN to "qwen-max",
+            LLMProvider.ZHIPU to "glm-4-plus",
+            LLMProvider.OPENAI to "gpt-4o",
+            LLMProvider.ANTHROPIC to "claude-sonnet-4-20250514",
+            LLMProvider.GOOGLE to "gemini-2.0-flash"
+        )
+
+        val displayModels = mapOf(
+            LLMProvider.DEEPSEEK to listOf("deepseek-chat", "deepseek-reasoner"),
+            LLMProvider.QWEN to listOf("qwen-max", "qwen-plus", "qwen-turbo"),
+            LLMProvider.ZHIPU to listOf("glm-4-plus", "glm-4-flash", "glm-4"),
+            LLMProvider.OPENAI to listOf("gpt-4o", "gpt-4o-mini", "o1-mini"),
+            LLMProvider.ANTHROPIC to listOf("claude-sonnet-4-20250514", "claude-opus-4-20250514", "claude-3-5-haiku-20241022"),
+            LLMProvider.GOOGLE to listOf("gemini-2.0-flash", "gemini-2.0-pro", "gemini-1.5-pro")
+        )
+    }
+}

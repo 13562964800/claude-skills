@@ -1,0 +1,80 @@
+package com.court.assistant
+
+import android.Manifest
+import android.content.pm.PackageManager
+import android.os.Build
+import android.os.Bundle
+import androidx.activity.ComponentActivity
+import androidx.activity.compose.setContent
+import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.material3.Surface
+import androidx.compose.ui.Modifier
+import androidx.core.content.ContextCompat
+import androidx.lifecycle.ViewModelProvider
+import com.court.assistant.ui.Navigation
+import com.court.assistant.ui.theme.CourtAssistantTheme
+import com.court.assistant.viewmodel.MainViewModel
+
+class MainActivity : ComponentActivity() {
+    private val permissionLauncher = registerForActivityResult(
+        ActivityResultContracts.RequestMultiplePermissions()
+    ) { permissions ->
+        // 检查所有权限是否已授予
+        val allGranted = permissions.all { it.value }
+        if (allGranted) {
+            // 权限已授予，安全加载短信
+            getViewModel()?.loadSms()
+        }
+    }
+
+    override fun onCreate(savedInstanceState: Bundle?) {
+        super.onCreate(savedInstanceState)
+
+        requestPermissions()
+
+        setContent {
+            CourtAssistantTheme {
+                Surface(modifier = Modifier.fillMaxSize()) {
+                    Navigation(viewModel = getViewModel()!!)
+                }
+            }
+        }
+    }
+
+    private fun getViewModel(): MainViewModel? {
+        try {
+            return ViewModelProvider(this)[MainViewModel::class.java]
+        } catch (e: Exception) {
+            android.util.Log.e("MainActivity", "Failed to create ViewModel", e)
+            return null
+        }
+    }
+
+    private fun requestPermissions() {
+        val basePermissions = arrayOf(
+            Manifest.permission.READ_SMS,
+            Manifest.permission.RECEIVE_SMS,
+            Manifest.permission.READ_CALENDAR,
+            Manifest.permission.WRITE_CALENDAR
+        )
+
+        // Android 13+ 需要通知权限
+        val needed = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+            basePermissions + Manifest.permission.POST_NOTIFICATIONS
+        } else {
+            basePermissions
+        }
+
+        val toRequest = needed.filter {
+            ContextCompat.checkSelfPermission(this, it) != PackageManager.PERMISSION_GRANTED
+        }.toTypedArray()
+
+        if (toRequest.isEmpty()) {
+            // 所有权限已授予
+            getViewModel()?.loadSms()
+        } else {
+            permissionLauncher.launch(toRequest)
+        }
+    }
+}

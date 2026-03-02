@@ -1,0 +1,162 @@
+#!/usr/bin/env python3
+"""
+AI科普画册SVG插图生成器
+为91个缺失的插图生成儿童友好的动态SVG代码
+"""
+
+import re
+
+# SVG模板库 - 儿童友好风格
+def generate_svg_turing_at_work():
+    """插图2-1: 图灵在工作台前研究密码机器,背景是二战时期"""
+    return '''
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 800 450">
+  <!-- Background - 二战时期氛围 -->
+  <rect width="800" height="450" fill="#E8F4F8"/>
+
+  <!-- 工作台 -->
+  <rect x="100" y="280" width="600" height="120" rx="10" fill="#8B7355" stroke="#5D4E37" stroke-width="3"/>
+
+  <!-- 密码机器 (Enigma风格) -->
+  <g id="enigma">
+    <rect x="300" y="200" width="200" height="100" rx="8" fill="#4A4A4A" stroke="#2A2A2A" stroke-width="3"/>
+    <circle cx="350" cy="240" r="15" fill="#FFD700" stroke="#B8860B" stroke-width="2"/>
+    <circle cx="400" cy="240" r="15" fill="#FFD700" stroke="#B8860B" stroke-width="2"/>
+    <circle cx="450" cy="240" r="15" fill="#FFD700" stroke="#B8860B" stroke-width="2"/>
+    <rect x="320" y="265" width="160" height="25" rx="3" fill="#333"/>
+  </g>
+
+  <!-- 图灵 (简化人物) -->
+  <g id="turing">
+    <!-- 头部 -->
+    <circle cx="550" cy="220" r="30" fill="#FFD4A3"/>
+    <!-- 眼睛 -->
+    <circle cx="543" cy="215" r="3" fill="#333"/>
+    <circle cx="557" cy="215" r="3" fill="#333"/>
+    <!-- 身体 -->
+    <rect x="520" y="250" width="60" height="80" rx="5" fill="#4A90E2"/>
+    <!-- 手臂 (指向机器) -->
+    <line x1="520" y1="270" x2="480" y2="250" stroke="#4A90E2" stroke-width="8" stroke-linecap="round"/>
+  </g>
+
+  <!-- 纸张和笔记 -->
+  <rect x="150" y="240" width="100" height="70" rx="5" fill="#FFF" stroke="#CCC" stroke-width="2"/>
+  <line x1="165" y1="260" x2="235" y2="260" stroke="#333" stroke-width="2"/>
+  <line x1="165" y1="275" x2="235" y2="275" stroke="#333" stroke-width="2"/>
+  <line x1="165" y1="290" x2="220" y2="290" stroke="#333" stroke-width="2"/>
+
+  <!-- 背景元素 - 二战符号 -->
+  <text x="650" y="120" font-size="60" fill="#CCC" opacity="0.3">1940</text>
+
+  <!-- 思考气泡 -->
+  <circle cx="600" cy="150" r="40" fill="#FFF" stroke="#4A90E2" stroke-width="3" opacity="0.9"/>
+  <text x="600" y="165" font-size="50" text-anchor="middle">💡</text>
+
+  <!-- 动画 - 机器按键闪烁 -->
+  <circle cx="350" cy="240" r="15" fill="#FFD700" stroke="#B8860B" stroke-width="2">
+    <animate attributeName="opacity" values="1;0.3;1" dur="2s" repeatCount="indefinite"/>
+  </circle>
+  <circle cx="400" cy="240" r="15" fill="#FFD700" stroke="#B8860B" stroke-width="2">
+    <animate attributeName="opacity" values="1;0.3;1" dur="2s" begin="0.5s" repeatCount="indefinite"/>
+  </circle>
+  <circle cx="450" cy="240" r="15" fill="#FFD700" stroke="#B8860B" stroke-width="2">
+    <animate attributeName="opacity" values="1;0.3;1" dur="2s" begin="1s" repeatCount="indefinite"/>
+  </circle>
+
+  <!-- 动画 - 思考气泡浮动 -->
+  <g>
+    <circle cx="600" cy="150" r="40" fill="#FFF" stroke="#4A90E2" stroke-width="3" opacity="0.9"/>
+    <text x="600" y="165" font-size="50" text-anchor="middle">💡</text>
+    <animateTransform attributeName="transform" type="translate"
+      values="0,0; 0,-10; 0,0" dur="3s" repeatCount="indefinite"
+      calcMode="spline" keySplines="0.4 0 0.2 1; 0.4 0 0.2 1"/>
+  </g>
+</svg>
+'''
+
+def generate_svg_turing_test():
+    """插图2-2: 图灵测试示意图——一个人通过屏幕与看不见的对象对话"""
+    return '''
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 800 450">
+  <!-- Background -->
+  <rect width="800" height="450" fill="#F0F4F8"/>
+
+  <!-- 左侧 - 人类测试者 -->
+  <g id="human">
+    <rect x="80" y="150" width="250" height="200" rx="10" fill="#E8F4F8" stroke="#4A90E2" stroke-width="3"/>
+    <text x="205" y="190" font-size="80" text-anchor="middle">👤</text>
+    <text x="205" y="280" font-size="24" text-anchor="middle" fill="#333">人类测试者</text>
+  </g>
+
+  <!-- 中间 - 电脑屏幕 -->
+  <g id="screen">
+    <rect x="350" y="180" width="100" height="140" rx="8" fill="#333" stroke="#000" stroke-width="3"/>
+    <rect x="360" y="195" width="80" height="110" fill="#87CEEB"/>
+    <!-- 对话气泡 -->
+    <text x="400" y="240" font-size="40" text-anchor="middle">💬</text>
+  </g>
+
+  <!-- 右侧 - 神秘对象 (问号) -->
+  <g id="mystery">
+    <rect x="470" y="150" width="250" height="200" rx="10" fill="#F3E8F8" stroke="#9B59B6" stroke-width="3" stroke-dasharray="10,5">
+      <animate attributeName="stroke-dashoffset" from="30" to="0" dur="1s" repeatCount="indefinite"/>
+    </rect>
+    <text x="595" y="230" font-size="120" text-anchor="middle">❓</text>
+    <text x="595" y="320" font-size="20" text-anchor="middle" fill="#666">人？还是机器？</text>
+  </g>
+
+  <!-- 箭头 - 对话流动 -->
+  <defs>
+    <marker id="arrow" markerWidth="10" markerHeight="7" refX="9" refY="3.5" orient="auto">
+      <polygon points="0 0, 10 3.5, 0 7" fill="#4A90E2"/>
+    </marker>
+  </defs>
+
+  <!-- 左到中 -->
+  <line x1="330" y1="240" x2="350" y2="240" stroke="#4A90E2" stroke-width="4" marker-end="url(#arrow)"
+    stroke-dasharray="20" stroke-dashoffset="20">
+    <animate attributeName="stroke-dashoffset" from="20" to="0" dur="1.5s" repeatCount="indefinite"/>
+  </line>
+
+  <!-- 中到右 -->
+  <line x1="450" y1="260" x2="470" y2="260" stroke="#9B59B6" stroke-width="4" marker-end="url(#arrow)"
+    stroke-dasharray="20" stroke-dashoffset="20">
+    <animate attributeName="stroke-dashoffset" from="20" to="0" dur="1.5s" begin="0.5s" repeatCount="indefinite"/>
+  </line>
+
+  <!-- 标题 -->
+  <text x="400" y="80" font-size="36" text-anchor="middle" fill="#333" font-weight="bold">图灵测试</text>
+</svg>
+'''
+
+# 继续添加更多SVG生成函数...
+
+def main():
+    """主函数 - 读取文件并插入SVG"""
+    file_path = 'AI前沿知识儿童科普画册-带全部插图.md'
+
+    with open(file_path, 'r', encoding='utf-8') as f:
+        content = f.read()
+
+    # 插入第一个SVG
+    marker_2_1 = '【插图2-1:图灵在工作台前研究密码机器,背景是二战时期】'
+    if marker_2_1 in content and '<svg' not in content[content.find(marker_2_1):content.find(marker_2_1)+500]:
+        svg_2_1 = generate_svg_turing_at_work()
+        content = content.replace(marker_2_1, marker_2_1 + '\n' + svg_2_1)
+        print('✓ 已插入插图2-1')
+
+    # 插入第二个SVG
+    marker_2_2 = '【插图2-2:图灵测试示意图——一个人通过屏幕与看不见的对象对话】'
+    if marker_2_2 in content and '<svg' not in content[content.find(marker_2_2):content.find(marker_2_2)+500]:
+        svg_2_2 = generate_svg_turing_test()
+        content = content.replace(marker_2_2, marker_2_2 + '\n' + svg_2_2)
+        print('✓ 已插入插图2-2')
+
+    # 保存文件
+    with open(file_path, 'w', encoding='utf-8') as f:
+        f.write(content)
+
+    print('\n生成完成!')
+
+if __name__ == '__main__':
+    main()

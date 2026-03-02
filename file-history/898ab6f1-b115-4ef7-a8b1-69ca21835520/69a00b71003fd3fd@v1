@@ -1,0 +1,24 @@
+const JavaScriptObfuscator = require('javascript-obfuscator');
+const fs = require('fs');
+const path = require('path');
+
+const files = ['main.js', 'renderer.js'];
+const outDir = path.join(__dirname, 'obfuscated');
+if (!fs.existsSync(outDir)) fs.mkdirSync(outDir);
+
+for (const file of files) {
+  const code = fs.readFileSync(path.join(__dirname, file), 'utf-8');
+  const result = JavaScriptObfuscator.obfuscate(code, {
+    compact: true,
+    controlFlowFlattening: true,
+    controlFlowFlatteningThreshold: 0.5,
+    stringArray: true,
+    stringArrayThreshold: 0.5,
+    stringArrayEncoding: ['base64'],
+    selfDefending: true,
+    deadCodeInjection: true,
+    deadCodeInjectionThreshold: 0.2
+  });
+  fs.writeFileSync(path.join(outDir, file), result.getObfuscatedCode());
+  console.log(`Obfuscated: ${file}`);
+}

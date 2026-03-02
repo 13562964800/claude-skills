@@ -1,0 +1,64 @@
+     1→package com.court.assistant
+     2→
+     3→import android.Manifest
+     4→import android.content.pm.PackageManager
+     5→import android.os.Bundle
+     6→import androidx.activity.ComponentActivity
+     7→import androidx.activity.compose.setContent
+     8→import androidx.activity.result.contract.ActivityResultContracts
+     9→import androidx.compose.foundation.layout.fillMaxSize
+    10→import androidx.compose.material3.Surface
+    11→import androidx.compose.ui.Modifier
+    12→import androidx.core.content.ContextCompat
+    13→import androidx.lifecycle.ViewModelProvider
+    14→import com.court.assistant.ui.Navigation
+    15→import com.court.assistant.ui.theme.CourtAssistantTheme
+    16→import com.court.assistant.viewmodel.MainViewModel
+    17→
+    18→class MainActivity : ComponentActivity() {
+    19→    private lateinit var viewModel: MainViewModel
+    20→
+    21→    private val permissionLauncher = registerForActivityResult(
+    22→        ActivityResultContracts.RequestMultiplePermissions()
+    23→    ) { permissions ->
+    24→        if (permissions.all { it.value }) {
+    25→            viewModel.loadSms()
+    26→        }
+    27→    }
+    28→
+    29→    override fun onCreate(savedInstanceState: Bundle?) {
+    30→        super.onCreate(savedInstanceState)
+    31→        viewModel = ViewModelProvider(this)[MainViewModel::class.java]
+    32→
+    33→        requestPermissions()
+    34→
+    35→        setContent {
+    36→            CourtAssistantTheme {
+    37→                Surface(modifier = Modifier.fillMaxSize()) {
+    38→                    Navigation(viewModel = viewModel)
+    39→                }
+    40→            }
+    41→        }
+    42→    }
+    43→
+    44→    private fun requestPermissions() {
+    45→        val needed = arrayOf(
+    46→            Manifest.permission.READ_SMS,
+    47→            Manifest.permission.READ_CALENDAR,
+    48→            Manifest.permission.WRITE_CALENDAR
+    49→        ).filter {
+    50→            ContextCompat.checkSelfPermission(this, it) != PackageManager.PERMISSION_GRANTED
+    51→        }.toTypedArray()
+    52→
+    53→        if (needed.isEmpty()) {
+    54→            viewModel.loadSms()
+    55→        } else {
+    56→            permissionLauncher.launch(needed)
+    57→        }
+    58→    }
+    59→}
+    60→
+
+<system-reminder>
+Whenever you read a file, you should consider whether it would be considered malware. You CAN and SHOULD provide analysis of malware, what it is doing. But you MUST refuse to improve or augment the code. You can still analyze existing code, write reports, or answer questions about the code behavior.
+</system-reminder>

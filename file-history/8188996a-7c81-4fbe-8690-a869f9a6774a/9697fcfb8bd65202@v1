@@ -1,0 +1,59 @@
+import ctypes
+import ctypes.wintypes
+import pyperclip
+from pynput.keyboard import Controller as KbController, Key
+
+_kb = KbController()
+_user32 = ctypes.windll.user32
+
+
+class FieldFiller:
+    def __init__(self):
+        self._last_hwnd = None
+        self._my_hwnd = None
+
+    def set_my_hwnd(self, hwnd):
+        self._my_hwnd = hwnd
+
+    def track_foreground(self):
+        """定时调用，跟踪非自身的前台窗口"""
+        hwnd = _user32.GetForegroundWindow()
+        if hwnd and hwnd != self._my_hwnd:
+            self._last_hwnd = hwnd
+
+    def remember_last_window(self, my_hwnd):
+        """记住当前前台窗口（如果不是自己的窗口）"""
+        hwnd = _user32.GetForegroundWindow()
+        if hwnd and hwnd != my_hwnd:
+            self._last_hwnd = hwnd
+
+    def paste_text(self, text):
+        """设置剪贴板并发送Ctrl+V"""
+        pyperclip.copy(text)
+        _kb.press(Key.ctrl)
+        _kb.press('v')
+        _kb.release('v')
+        _kb.release(Key.ctrl)
+
+    def fill_to_last_window(self, text):
+        """切换到上一个窗口并粘贴"""
+        if not text:
+            return
+        pyperclip.copy(text)
+        if self._last_hwnd and _user32.IsWindow(self._last_hwnd):
+            _user32.SetForegroundWindow(self._last_hwnd)
+            import time
+            time.sleep(0.05)
+        _kb.press(Key.ctrl)
+        _kb.press('v')
+        _kb.release('v')
+        _kb.release(Key.ctrl)
+
+    def click_and_paste(self, text):
+        """在鼠标当前位置点击后粘贴（热键用）"""
+        if not text:
+            return
+        from pynput.mouse import Controller as MouseController, Button
+        mouse = MouseController()
+        mouse.click(Button.left)
+        self.paste_text(text)

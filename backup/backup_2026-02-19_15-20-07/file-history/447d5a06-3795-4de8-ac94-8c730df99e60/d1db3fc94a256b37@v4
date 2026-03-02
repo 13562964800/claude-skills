@@ -1,0 +1,1099 @@
+const { app, BrowserWindow, ipcMain, dialog } = require('electron');
+const path = require('path');
+const { spawn } = require('child_process');
+const fs = require('fs');
+const https = require('https');
+const http = require('http');
+const crypto = require('crypto');
+
+// 百度翻译API配置
+const TRANSLATE_CONFIG_PATH = path.join(require('os').homedir(), '.clawdbot', 'translate_config.json');
+const BAIDU_LANG_MAP = { en:'en', ja:'jp', ko:'kor', fr:'fra', de:'de', ru:'ru', es:'spa', pt:'pt', it:'it', ar:'ara', th:'th', vi:'vie', id:'id', ms:'may', hi:'hi' };
+
+function loadTranslateConfig() {
+  try { return JSON.parse(fs.readFileSync(TRANSLATE_CONFIG_PATH, 'utf-8')); } catch(e) { return {}; }
+}
+
+function baiduTranslate(text, fromLang) {
+  return new Promise((resolve) => {
+    const cfg = loadTranslateConfig();
+    const appid = cfg.baidu_appid || '', key = cfg.baidu_key || '';
+    if (!appid || !key) { resolve(null); return; }
+    const salt = String(Math.floor(Math.random() * 90000) + 10000);
+    const sign = crypto.createHash('md5').update(appid + text + salt + key).digest('hex');
+    const params = new URLSearchParams({ q: text, from: BAIDU_LANG_MAP[fromLang] || 'auto', to: 'zh', appid, salt, sign });
+    https.get('https://fanyi-api.baidu.com/api/trans/vip/translate?' + params, (res) => {
+      let d = ''; res.on('data', c => d += c);
+      res.on('end', () => {
+        try {
+          const json = JSON.parse(d);
+          if (json.trans_result) resolve(json.trans_result.map(r => r.dst).join('\n'));
+          else resolve(null);
+        } catch(e) { resolve(null); }
+      });
+    }).on('error', () => resolve(null));
+  });
+}
+
+let mainWindow;
+let db = null;
+let userDb = null;
+let currentLangGlobal = 'en';
+
+const BIN_DIR = app.isPackaged
+  ? path.join(process.resourcesPath, 'bin')
+  : path.join('E:', '视频下载器具', 'bin');
+const YTDLP = path.join(BIN_DIR, 'yt-dlp.exe');
+const FFMPEG_DIR = BIN_DIR;
+const USER_DATA = app.isPackaged ? path.join(app.getPath('userData')) : __dirname;
+const DOWNLOADS = path.join(USER_DATA, 'downloads');
+const AI_CONFIG_FILE = path.join(USER_DATA, 'ai_config.json');
+
+// 6家AI预设 + 自定义
+const AI_PROVIDERS = {
+  openai:   { name: 'OpenAI',        baseUrl: 'https://api.openai.com/v1',              model: 'gpt-4o-mini' },
+  claude:   { name: 'Claude',        baseUrl: 'https://api.anthropic.com/v1',           model: 'claude-sonnet-4-20250514' },
+  groq:     { name: 'Groq',          baseUrl: 'https://api.groq.com/openai/v1',         model: 'llama-3.3-70b-versatile' },
+  deepseek: { name: 'DeepSeek(深度求索)', baseUrl: 'https://api.deepseek.com/v1',            model: 'deepseek-chat' },
+  qwen:     { name: 'Qwen(通义千问)',    baseUrl: 'https://dashscope.aliyuncs.com/compatible-mode/v1', model: 'qwen-plus' },
+  zhipu:    { name: 'Zhipu(智谱清言)',   baseUrl: 'https://open.bigmodel.cn/api/paas/v4',  model: 'glm-4-flash' },
+  custom:   { name: '自定义(OpenAI兼容)', baseUrl: '',                                       model: '' }
+};
+
+function loadAIConfig() {
+  try {
+    if (fs.existsSync(AI_CONFIG_FILE)) return JSON.parse(fs.readFileSync(AI_CONFIG_FILE, 'utf-8'));
+  } catch(e) {}
+  // 从环境变量读取
+  const envKey = process.env.ANTHROPIC_AUTH_TOKEN || process.env.OPENAI_API_KEY || '';
+  const envBase = process.env.ANTHROPIC_BASE_URL || '';
+  const envModel = process.env.ANTHROPIC_DEFAULT_MODEL || '';
+  if (envKey) {
+    return { provider: envBase ? 'custom' : 'claude', apiKey: envKey, baseUrl: envBase, model: envModel };
+  }
+  return { provider: 'deepseek', apiKey: '', baseUrl: '', model: '' };
+}
+function saveAIConfig(cfg) { fs.writeFileSync(AI_CONFIG_FILE, JSON.stringify(cfg, null, 2)); }
+
+// 通用AI调用 (OpenAI兼容格式, Claude单独处理)
+function callAI(prompt) {
+  return new Promise((resolve) => {
+    const cfg = loadAIConfig();
+    if (!cfg.apiKey) { resolve(null); return; }
+
+    const preset = AI_PROVIDERS[cfg.provider] || {};
+    const baseUrl = cfg.baseUrl || preset.baseUrl || '';
+    const model = cfg.model || preset.model || '';
+    if (!baseUrl) { resolve(null); return; }
+
+    const isClaude = cfg.provider === 'claude' || (model && model.toLowerCase().includes('claude'));
+    const urlObj = new URL(isClaude ? baseUrl + '/messages' : baseUrl + '/chat/completions');
+    const isHttps = urlObj.protocol === 'https:';
+
+    let body, headers;
+    if (isClaude) {
+      body = JSON.stringify({
+        model, max_tokens: 1024,
+        messages: [{ role: 'user', content: prompt }]
+      });
+      headers = {
+        'Content-Type': 'application/json',
+        'x-api-key': cfg.apiKey,
+        'anthropic-version': '2023-06-01'
+      };
+    } else {
+      body = JSON.stringify({
+        model, max_tokens: 1024,
+        messages: [
+          { role: 'system', content: '你是一个专业的多语言词典和语言学习助手。所有释义、翻译、解释必须使用准确的中文。对英语单词，请给出准确的中文对应词义，不要音译。' },
+          { role: 'user', content: prompt }
+        ]
+      });
+      headers = {
+        'Content-Type': 'application/json',
+        'Authorization': 'Bearer ' + cfg.apiKey
+      };
+    }
+
+    const opts = {
+      hostname: urlObj.hostname, port: urlObj.port || (isHttps ? 443 : 80),
+      path: urlObj.pathname, method: 'POST', headers
+    };
+
+    const client = isHttps ? https : http;
+    const req = client.request(opts, (res) => {
+      let data = '';
+      res.on('data', d => data += d);
+      res.on('end', () => {
+        try {
+          const json = JSON.parse(data);
+          if (isClaude) {
+            resolve(json.content?.[0]?.text || null);
+          } else {
+            resolve(json.choices?.[0]?.message?.content || null);
+          }
+        } catch(e) { resolve(null); }
+      });
+    });
+    req.on('error', () => resolve(null));
+    req.setTimeout(15000, () => { req.destroy(); resolve(null); });
+    req.write(body);
+    req.end();
+  });
+}
+
+const LANGUAGES = {
+  en: { name: '英语', sub: 'en', tts: 'en-US' },
+  ja: { name: '日语', sub: 'ja', tts: 'ja-JP' },
+  ko: { name: '韩语', sub: 'ko', tts: 'ko-KR' },
+  ru: { name: '俄语', sub: 'ru', tts: 'ru-RU' },
+  th: { name: '泰语', sub: 'th', tts: 'th-TH' },
+  vi: { name: '越南语', sub: 'vi', tts: 'vi-VN' },
+  ms: { name: '马来语', sub: 'ms', tts: 'ms-MY' },
+  id: { name: '印尼语', sub: 'id', tts: 'id-ID' },
+  ar: { name: '阿拉伯语', sub: 'ar', tts: 'ar-SA' },
+  pt: { name: '葡萄牙语', sub: 'pt', tts: 'pt-BR' },
+  es: { name: '西班牙语', sub: 'es', tts: 'es-ES' },
+  fr: { name: '法语', sub: 'fr', tts: 'fr-FR' },
+  de: { name: '德语', sub: 'de', tts: 'de-DE' },
+  hi: { name: '印地语', sub: 'hi', tts: 'hi-IN' }
+};
+
+function initDB() {
+  const dbPath = path.join(__dirname, 'stardict.db');
+  if (fs.existsSync(dbPath)) {
+    try {
+      const Database = require('better-sqlite3');
+      db = new Database(dbPath, { readonly: true });
+      db.pragma('journal_mode = WAL');
+    } catch (e) { console.error('ECDICT加载失败:', e.message); }
+  }
+}
+
+function initUserDB() {
+  try {
+    const Database = require('better-sqlite3');
+    userDb = new Database(path.join(USER_DATA, 'userdata.db'));
+    userDb.pragma('journal_mode = WAL');
+    userDb.exec(`CREATE TABLE IF NOT EXISTS favorites (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      word TEXT NOT NULL, lang TEXT NOT NULL DEFAULT 'en',
+      phonetic TEXT DEFAULT '', translation TEXT DEFAULT '',
+      context TEXT DEFAULT '', created_at INTEGER NOT NULL,
+      box TEXT DEFAULT ''
+    )`);
+    userDb.exec(`CREATE UNIQUE INDEX IF NOT EXISTS idx_fav_word_lang ON favorites(word, lang)`);
+    // 兼容旧表：添加 box 列
+    try { userDb.exec(`ALTER TABLE favorites ADD COLUMN box TEXT DEFAULT ''`); } catch(e) {}
+  } catch (e) { console.error('UserDB初始化失败:', e.message); }
+}
+
+function createWindow() {
+  mainWindow = new BrowserWindow({
+    width: 1100, height: 850, minWidth: 900, minHeight: 700,
+    backgroundColor: '#0a0a1a',
+    webPreferences: { nodeIntegration: true, contextIsolation: false, webSecurity: false, zoomFactor: 1.0 }
+  });
+  mainWindow.loadFile('index.html');
+  // 允许 Ctrl+滚轮缩放
+  mainWindow.webContents.on('zoom-changed', (_, dir) => {
+    const cur = mainWindow.webContents.getZoomLevel();
+    mainWindow.webContents.setZoomLevel(cur + (dir === 'in' ? 0.5 : -0.5));
+  });
+}
+
+app.whenReady().then(() => {
+  initDB();
+  initUserDB();
+  if (!fs.existsSync(DOWNLOADS)) fs.mkdirSync(DOWNLOADS, { recursive: true });
+  createWindow();
+});
+app.on('window-all-closed', () => { if (process.platform !== 'darwin') app.quit(); });
+
+// ===== IPC =====
+
+ipcMain.handle('get-languages', () => LANGUAGES);
+ipcMain.handle('get-ai-providers', () => AI_PROVIDERS);
+ipcMain.handle('get-ai-config', () => loadAIConfig());
+ipcMain.handle('save-ai-config', (_, cfg) => { saveAIConfig(cfg); return true; });
+ipcMain.handle('set-current-lang', (_, lang) => { currentLangGlobal = lang; });
+ipcMain.handle('test-ai-connection', async (_, cfg) => {
+  try {
+    // 临时保存配置再测试
+    saveAIConfig(cfg);
+    const result = await callAI('请回复"连接成功"四个字');
+    if (result) return { success: true, message: result.slice(0, 100) };
+    return { success: false, message: 'API 无响应，请检查 Key 和服务商设置' };
+  } catch(e) { return { success: false, message: e.message }; }
+});
+
+// 下载视频+字幕
+ipcMain.handle('download-video', async (_, url, lang) => {
+  const subLang = LANGUAGES[lang]?.sub || 'en';
+  return new Promise((resolve) => {
+    const infoArgs = ['--dump-json', '--no-playlist', url];
+    if (fs.existsSync(path.join(FFMPEG_DIR, 'ffmpeg.exe'))) infoArgs.unshift('--ffmpeg-location', FFMPEG_DIR);
+    const infoProc = spawn(YTDLP, infoArgs);
+    let infoOut = '';
+    infoProc.stdout.on('data', d => infoOut += d);
+    infoProc.on('close', (code) => {
+      let title = 'video_' + Date.now();
+      if (code === 0) { try { title = JSON.parse(infoOut).title || title; } catch(e) {} }
+      const safeName = title.replace(/[<>:"/\\|?*]/g, '_').substring(0, 60);
+      const outTemplate = path.join(DOWNLOADS, safeName + '.%(ext)s');
+      const args = [
+        '--ffmpeg-location', FFMPEG_DIR,
+        '-f', 'bestvideo[height<=720]+bestaudio/best[height<=720]/best',
+        '--merge-output-format', 'mp4',
+        '--write-sub', '--write-auto-sub', '--sub-lang', subLang,
+        '--sub-format', 'vtt', '--convert-subs', 'vtt',
+        '--no-playlist', '-o', outTemplate, url
+      ];
+      const proc = spawn(YTDLP, args);
+      let stderr = '', maxPercent = 0, streamCount = 0;
+      proc.stdout.on('data', (data) => {
+        const output = data.toString();
+        if (output.includes('Destination:')) streamCount++;
+        const matches = output.match(/(\d+\.?\d*)%/g);
+        if (matches) {
+          let percent = parseFloat(matches[matches.length - 1]);
+          if (streamCount >= 2) percent = 50 + percent / 2;
+          else if (streamCount === 1) percent = percent / 2;
+          if (percent > maxPercent) { maxPercent = percent; mainWindow.webContents.send('download-progress', { percent }); }
+        }
+        if (output.includes('Merging')) mainWindow.webContents.send('download-progress', { percent: 99 });
+      });
+      proc.stderr.on('data', d => stderr += d);
+      proc.on('close', (code2) => {
+        if (code2 !== 0) { resolve({ success: false, error: stderr || '下载失败' }); return; }
+        const videoFile = path.join(DOWNLOADS, safeName + '.mp4');
+        let subFile = null;
+        const possibleSubs = [
+          path.join(DOWNLOADS, safeName + '.' + subLang + '.vtt'),
+          path.join(DOWNLOADS, safeName + '.vtt'),
+        ];
+        try {
+          for (const f of fs.readdirSync(DOWNLOADS)) {
+            if (f.startsWith(safeName) && f.endsWith('.vtt')) possibleSubs.push(path.join(DOWNLOADS, f));
+          }
+        } catch(e) {}
+        for (const p of possibleSubs) { if (fs.existsSync(p)) { subFile = p; break; } }
+        resolve({ success: true, videoPath: fs.existsSync(videoFile) ? videoFile : null, subtitlePath: subFile, title: safeName });
+      });
+      proc.on('error', () => resolve({ success: false, error: 'yt-dlp未找到' }));
+    });
+  });
+});
+
+// ECDICT查词
+ipcMain.handle('lookup-word', (_, word) => {
+  if (!db) return null;
+  try {
+    return db.prepare('SELECT word, phonetic, translation, exchange FROM stardict WHERE word = ? COLLATE NOCASE').get(word.toLowerCase().trim()) || null;
+  } catch(e) { return null; }
+});
+
+// 在线翻译
+ipcMain.handle('translate-word', (_, word, fromLang) => {
+  return new Promise((resolve) => {
+    const url = `https://api.mymemory.translated.net/get?q=${encodeURIComponent(word)}&langpair=${fromLang}|zh`;
+    https.get(url, (res) => {
+      let data = '';
+      res.on('data', d => data += d);
+      res.on('end', () => {
+        try {
+          const json = JSON.parse(data);
+          resolve({
+            translation: json.responseData?.translatedText || null,
+            matches: (json.matches || []).slice(0, 3).map(m => ({ segment: m.segment, translation: m.translation }))
+          });
+        } catch(e) { resolve(null); }
+      });
+    }).on('error', () => resolve(null));
+  });
+});
+
+// 在线例句 (多语种)
+ipcMain.handle('fetch-examples', (_, word, lang) => {
+  if (lang === 'ja') {
+    // 日语: jisho.org API
+    return new Promise((resolve) => {
+      const url = `https://jisho.org/api/v1/search/words?keyword=${encodeURIComponent(word)}`;
+      https.get(url, (res) => {
+        let data = '';
+        res.on('data', d => data += d);
+        res.on('end', () => {
+          try {
+            const json = JSON.parse(data);
+            const entry = json.data?.[0];
+            if (!entry) { resolve(null); return; }
+            const reading = entry.japanese?.[0]?.reading || '';
+            const definitions = (entry.senses || []).slice(0, 5).map(s => ({
+              partOfSpeech: (s.parts_of_speech || []).join(', '),
+              definition: (s.english_definitions || []).join('; ')
+            }));
+            resolve({ phonetic: reading, definitions, examples: [] });
+          } catch(e) { resolve(null); }
+        });
+      }).on('error', () => resolve(null));
+    });
+  }
+  // 英语: dictionaryapi.dev
+  return new Promise((resolve) => {
+    const apiLang = lang === 'en' || !lang ? 'en' : lang;
+    const url = `https://api.dictionaryapi.dev/api/v2/entries/${apiLang}/${encodeURIComponent(word)}`;
+    https.get(url, (res) => {
+      let data = '';
+      res.on('data', d => data += d);
+      res.on('end', () => {
+        try {
+          const json = JSON.parse(data);
+          if (!Array.isArray(json)) { resolve(null); return; }
+          const entry = json[0], examples = [], definitions = [];
+          for (const meaning of (entry.meanings || [])) {
+            for (const def of (meaning.definitions || [])) {
+              definitions.push({ partOfSpeech: meaning.partOfSpeech, definition: def.definition });
+              if (def.example) examples.push(def.example);
+            }
+          }
+          resolve({
+            phonetic: entry.phonetic || '',
+            audio: entry.phonetics?.find(p => p.audio)?.audio || '',
+            definitions: definitions.slice(0, 5),
+            examples: examples.slice(0, 5)
+          });
+        } catch(e) { resolve(null); }
+      });
+    }).on('error', () => resolve(null));
+  });
+});
+
+// AI精准翻译单词为中文
+ipcMain.handle('ai-translate-word', async (_, word, context) => {
+  const langName = LANGUAGES[currentLangGlobal]?.name || '英语';
+  const prompt = `你是专业${langName}-中文翻译。将「${word}」翻译为准确的中文含义。${context ? '该词在句子中的用法: "' + context + '"。请根据上下文给出最贴切的释义。' : ''}只回复中文释义，不要其他内容。多个义项用/分隔。不要音译，给出真正的中文对应词。`;
+  return await callAI(prompt);
+});
+
+// AI智能释义 (根据上下文生成释义+例句)
+ipcMain.handle('ai-lookup', async (_, word, lang, context) => {
+  const langName = LANGUAGES[lang]?.name || lang;
+  const prompt = `请解释${langName}单词/词组「${word}」的含义。
+${context ? '该词出现在以下句子中: "' + context + '"' : ''}
+请用以下格式回答:
+【释义】中文释义(如有多个义项用序号标注)
+【发音】用国际音标标注发音
+【例句】给出2个实用例句(附中文翻译)
+【助记】一个简短的记忆技巧`;
+  const result = await callAI(prompt);
+  return result;
+});
+
+// AI智能分析字幕句子
+ipcMain.handle('ai-analyze-sentence', async (_, sentence, lang) => {
+  const langName = LANGUAGES[lang]?.name || lang;
+  const prompt = `请分析以下${langName}句子，帮助学习者理解:
+"${sentence}"
+请用以下格式简洁回答:
+【翻译】中文翻译
+【语法】关键语法点(1-2个)
+【重点词汇】列出2-3个重要词汇及释义`;
+  return await callAI(prompt);
+});
+
+// ===== 收藏夹 CRUD =====
+ipcMain.handle('fav-add', (_, word, lang, phonetic, translation, context) => {
+  if (!userDb) return false;
+  try {
+    userDb.prepare('INSERT OR REPLACE INTO favorites (word,lang,phonetic,translation,context,created_at) VALUES (?,?,?,?,?,?)').run(word, lang || 'en', phonetic || '', translation || '', context || '', Date.now());
+    return true;
+  } catch(e) { return false; }
+});
+ipcMain.handle('fav-remove', (_, word, lang) => {
+  if (!userDb) return false;
+  try { userDb.prepare('DELETE FROM favorites WHERE word=? AND lang=?').run(word, lang || 'en'); return true; } catch(e) { return false; }
+});
+ipcMain.handle('fav-check', (_, word, lang) => {
+  if (!userDb) return false;
+  try { return !!userDb.prepare('SELECT 1 FROM favorites WHERE word=? AND lang=?').get(word, lang || 'en'); } catch(e) { return false; }
+});
+ipcMain.handle('fav-list', (_, lang) => {
+  if (!userDb) return [];
+  try {
+    if (lang) return userDb.prepare('SELECT * FROM favorites WHERE lang=? ORDER BY created_at DESC').all(lang);
+    return userDb.prepare('SELECT * FROM favorites ORDER BY created_at DESC').all();
+  } catch(e) { return []; }
+});
+ipcMain.handle('fav-import', (_, words, lang) => {
+  if (!userDb) return 0;
+  let count = 0;
+  const stmt = userDb.prepare('INSERT OR IGNORE INTO favorites (word,lang,phonetic,translation,context,created_at) VALUES (?,?,\'\',\'\',\'\',?)');
+  for (const w of words) { if (w.trim()) { stmt.run(w.trim(), lang || 'en', Date.now()); count++; } }
+  return count;
+});
+
+// ===== 箱子/抽屉管理 =====
+ipcMain.handle('fav-set-box', (_, wordId, box) => {
+  if (!userDb) return false;
+  try { userDb.prepare('UPDATE favorites SET box=? WHERE id=?').run(box || '', wordId); return true; } catch(e) { return false; }
+});
+ipcMain.handle('fav-list-boxes', () => {
+  if (!userDb) return [];
+  try { return userDb.prepare("SELECT DISTINCT box FROM favorites WHERE box!='' ORDER BY box").all().map(r => r.box); } catch(e) { return []; }
+});
+ipcMain.handle('fav-batch-set-box', (_, ids, box) => {
+  if (!userDb) return false;
+  try {
+    const stmt = userDb.prepare('UPDATE favorites SET box=? WHERE id=?');
+    for (const id of ids) stmt.run(box || '', id);
+    return true;
+  } catch(e) { return false; }
+});
+
+// ===== AI: 分组单词 =====
+ipcMain.handle('ai-group-words', async (_, words) => {
+  const prompt = `将以下单词按语义分组，每组给一个中文主题名。单词列表：${words.join(', ')}
+请用JSON格式回复，格式为：[{"group":"主题名","words":["word1","word2"]}]
+只回复JSON，不要其他内容。`;
+  return await callAI(prompt);
+});
+
+// ===== AI: 场景描述 =====
+ipcMain.handle('ai-scene-desc', async (_, group, words) => {
+  const prompt = `为以下一组${group}相关的单词创作一个简短的场景描述（中英双语，2-3句话），自然地包含这些单词：${words.join(', ')}
+格式：
+英文场景：...
+中文翻译：...`;
+  return await callAI(prompt);
+});
+
+// ===== AI: 用词汇讲故事 =====
+ipcMain.handle('ai-story-with-words', async (_, group, words, translations) => {
+  const wordList = words.map((w, i) => `${w}(${translations[i] || ''})`).join(', ');
+  const prompt = `你是一位创意写作大师。请用以下"${group}"主题的词汇编写一个生动有趣的小故事（100-150字英文），要求：
+1. 自然地使用每个词汇：${wordList}
+2. 故事要有画面感，适合配插图
+3. 在故事后附上中文翻译
+4. 最后一行写：【画面描述】用一句话描述这个故事最适合画成图的场景（英文，用于AI绘图）
+
+只回复故事内容，不要其他说明。`;
+  return await callAI(prompt);
+});
+
+// ===== AI: 整理讲稿 =====
+ipcMain.handle('ai-lecture', async (_, text) => {
+  const prompt = `请将以下文本整理成一份清晰的讲稿，保留核心内容，分段落，加上适当的过渡语，使其适合朗读：\n\n${text.slice(0, 3000)}`;
+  return await callAI(prompt);
+});
+
+// ===== AI生成图片 (DALL-E / 智谱 / 通义) =====
+ipcMain.handle('ai-generate-image', async (_, prompt) => {
+  const cfg = loadAIConfig();
+  if (!cfg.apiKey) return null;
+
+  // 智谱: cogview
+  if (cfg.provider === 'zhipu') {
+    return await generateImageZhipu(cfg.apiKey, prompt);
+  }
+  // 通义: wanx
+  if (cfg.provider === 'qwen') {
+    return await generateImageQwen(cfg.apiKey, prompt);
+  }
+  // OpenAI DALL-E (也支持其他兼容接口)
+  return await generateImageDalle(cfg, prompt);
+});
+
+function generateImageDalle(cfg, prompt) {
+  return new Promise((resolve) => {
+    const baseUrl = cfg.provider === 'openai' ? 'https://api.openai.com/v1' : (cfg.baseUrl || 'https://api.openai.com/v1');
+    // 非OpenAI供应商若无图片能力则回退
+    const urlObj = new URL(baseUrl + '/images/generations');
+    const isHttps = urlObj.protocol === 'https:';
+    const body = JSON.stringify({ model: 'dall-e-3', prompt, n: 1, size: '1024x1024', response_format: 'b64_json' });
+    const opts = {
+      hostname: urlObj.hostname, port: urlObj.port || (isHttps ? 443 : 80),
+      path: urlObj.pathname, method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + cfg.apiKey }
+    };
+    const client = isHttps ? https : http;
+    const req = client.request(opts, (res) => {
+      let data = '';
+      res.on('data', d => data += d);
+      res.on('end', () => {
+        try {
+          const json = JSON.parse(data);
+          const b64 = json.data?.[0]?.b64_json;
+          if (b64) resolve('data:image/png;base64,' + b64);
+          else resolve(json.data?.[0]?.url || null);
+        } catch(e) { resolve(null); }
+      });
+    });
+    req.on('error', () => resolve(null));
+    req.setTimeout(60000, () => { req.destroy(); resolve(null); });
+    req.write(body);
+    req.end();
+  });
+}
+
+function generateImageZhipu(apiKey, prompt) {
+  return new Promise((resolve) => {
+    const body = JSON.stringify({ model: 'cogview-3-plus', prompt });
+    const opts = {
+      hostname: 'open.bigmodel.cn', port: 443,
+      path: '/api/paas/v4/images/generations', method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + apiKey }
+    };
+    const req = https.request(opts, (res) => {
+      let data = '';
+      res.on('data', d => data += d);
+      res.on('end', () => {
+        try {
+          const json = JSON.parse(data);
+          console.log('Zhipu image response:', JSON.stringify(json).slice(0, 200));
+          resolve(json.data?.[0]?.url || null);
+        } catch(e) { console.error('Zhipu image parse error:', e.message); resolve(null); }
+      });
+    });
+    req.on('error', () => resolve(null));
+    req.setTimeout(60000, () => { req.destroy(); resolve(null); });
+    req.write(body);
+    req.end();
+  });
+}
+
+function generateImageQwen(apiKey, prompt) {
+  return new Promise((resolve) => {
+    const body = JSON.stringify({ model: 'wanx-v1', input: { prompt }, parameters: { n: 1, size: '1024*1024' } });
+    const opts = {
+      hostname: 'dashscope.aliyuncs.com', port: 443,
+      path: '/api/v1/services/aigc/text2image/image-synthesis', method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + apiKey, 'X-DashScope-Async': 'enable' }
+    };
+    const req = https.request(opts, (res) => {
+      let data = '';
+      res.on('data', d => data += d);
+      res.on('end', async () => {
+        try {
+          const json = JSON.parse(data);
+          const taskId = json.output?.task_id;
+          if (!taskId) { resolve(null); return; }
+          // 轮询等待结果
+          for (let i = 0; i < 30; i++) {
+            await new Promise(r => setTimeout(r, 2000));
+            const result = await qwenCheckTask(apiKey, taskId);
+            if (result) { resolve(result); return; }
+          }
+          resolve(null);
+        } catch(e) { resolve(null); }
+      });
+    });
+    req.on('error', () => resolve(null));
+    req.setTimeout(60000, () => { req.destroy(); resolve(null); });
+    req.write(body);
+    req.end();
+  });
+}
+
+function qwenCheckTask(apiKey, taskId) {
+  return new Promise((resolve) => {
+    const opts = {
+      hostname: 'dashscope.aliyuncs.com', port: 443,
+      path: '/api/v1/tasks/' + taskId, method: 'GET',
+      headers: { 'Authorization': 'Bearer ' + apiKey }
+    };
+    const req = https.request(opts, (res) => {
+      let data = '';
+      res.on('data', d => data += d);
+      res.on('end', () => {
+        try {
+          const json = JSON.parse(data);
+          if (json.output?.task_status === 'SUCCEEDED') {
+            resolve(json.output.results?.[0]?.url || null);
+          } else if (json.output?.task_status === 'FAILED') { resolve(null); }
+          else resolve(null); // still running, return null to keep polling
+        } catch(e) { resolve(null); }
+      });
+    });
+    req.on('error', () => resolve(null));
+    req.end();
+  });
+}
+
+// ===== 读取文本文件 =====
+ipcMain.handle('read-file-text', async () => {
+  const result = await dialog.showOpenDialog(mainWindow, {
+    title: '选择文本文件', filters: [{ name: '文本文件', extensions: ['txt', 'md', 'text'] }], properties: ['openFile']
+  });
+  if (result.canceled || !result.filePaths.length) return null;
+  try { return fs.readFileSync(result.filePaths[0], 'utf-8'); } catch(e) { return null; }
+});
+
+// ===== 法规库 =====
+ipcMain.handle('get-regulations', () => {
+  try {
+    const regPath = app.isPackaged ? path.join(process.resourcesPath, 'regulations.json') : path.join(__dirname, 'regulations.json');
+    return JSON.parse(fs.readFileSync(regPath, 'utf-8'));
+  } catch(e) { return {}; }
+});
+
+// 列出已下载视频
+ipcMain.handle('list-videos', () => {
+  try {
+    const files = fs.readdirSync(DOWNLOADS);
+    return files.filter(f => f.endsWith('.mp4')).map(f => {
+      const name = f.replace('.mp4', '');
+      const subFile = files.find(s => s.startsWith(name) && s.endsWith('.vtt'));
+      return { name, videoPath: path.join(DOWNLOADS, f), subtitlePath: subFile ? path.join(DOWNLOADS, subFile) : null };
+    });
+  } catch(e) { return []; }
+});
+
+ipcMain.handle('read-subtitle', (_, filePath) => {
+  try { return fs.readFileSync(filePath, 'utf-8'); } catch(e) { return null; }
+});
+
+ipcMain.handle('read-word-timestamps', (_, vttPath) => {
+  try {
+    const wtsPath = vttPath.replace(/\.vtt$/, '.wordts.json');
+    if (fs.existsSync(wtsPath)) return JSON.parse(fs.readFileSync(wtsPath, 'utf-8'));
+  } catch(e) {}
+  return null;
+});
+
+ipcMain.handle('delete-subtitle', (_, videoPath) => {
+  try {
+    const base = videoPath.replace(/\.[^.]+$/, '');
+    for (const ext of ['.vtt', '.wordts.json']) {
+      const f = base + ext;
+      if (fs.existsSync(f)) fs.unlinkSync(f);
+    }
+    return true;
+  } catch(e) { return false; }
+});
+
+ipcMain.handle('import-video', async () => {
+  const result = await dialog.showOpenDialog(mainWindow, {
+    title: '选择视频文件',
+    filters: [{ name: '视频文件', extensions: ['mp4', 'mkv', 'avi', 'mov', 'webm', 'wmv'] }],
+    properties: ['openFile']
+  });
+  if (result.canceled || !result.filePaths.length) return null;
+  const src = result.filePaths[0];
+  const dest = path.join(DOWNLOADS, path.basename(src));
+  sendSubtitleStatus('文件导入中...');
+  if (src !== dest && !fs.existsSync(dest)) fs.copyFileSync(src, dest);
+  sendSubtitleStatus('字幕文件检测中...');
+  // 检查同名字幕文件
+  for (const ext of ['.vtt', '.srt']) {
+    const subSrc = src.replace(/\.[^.]+$/, ext);
+    const subDest = path.join(DOWNLOADS, path.basename(subSrc));
+    if (fs.existsSync(subSrc) && !fs.existsSync(subDest)) fs.copyFileSync(subSrc, subDest);
+  }
+  const subFile = ['.vtt', '.srt'].map(e => dest.replace(/\.[^.]+$/, e)).find(f => fs.existsSync(f));
+  sendSubtitleStatus(subFile ? '已找到字幕文件，加载中...' : '未找到字幕文件，稍后将自动识别');
+  return { videoPath: dest, subtitlePath: subFile || null, name: path.basename(dest, path.extname(dest)) };
+});
+
+// 检查已有字幕文件（避免重复转录）
+ipcMain.handle('check-existing-subtitle', (_, videoPath) => {
+  const base = videoPath.replace(/\.[^.]+$/, '');
+  for (const ext of ['.vtt', '.srt']) {
+    const p = base + ext;
+    if (fs.existsSync(p)) return p;
+  }
+  // 也检查带语言后缀的
+  try {
+    const dir = path.dirname(videoPath);
+    const name = path.basename(videoPath).replace(/\.[^.]+$/, '');
+    for (const f of fs.readdirSync(dir)) {
+      if (f.startsWith(name) && f.endsWith('.vtt')) return path.join(dir, f);
+    }
+  } catch(e) {}
+  return null;
+});
+
+// 语音识别生成字幕 (调用本地 funasr 服务)
+const FUNASR_PYTHON = path.join(require('os').homedir(), 'funasr-venv', 'Scripts', 'python.exe');
+const FUNASR_SERVER = path.join(require('os').homedir(), '.clawdbot', 'skills', 'funasr-transcribe', 'scripts', 'server.py');
+let funasrProcess = null;
+
+function checkFunasr() {
+  return new Promise((resolve) => {
+    const req = http.request({ hostname: '127.0.0.1', port: 8765, path: '/health', method: 'GET', timeout: 3000 }, (res) => {
+      let d = ''; res.on('data', c => d += c);
+      res.on('end', () => resolve(true));
+    });
+    req.on('error', () => resolve(false));
+    req.on('timeout', () => { req.destroy(); resolve(false); });
+    req.end();
+  });
+}
+
+function sendSubtitleStatus(msg) {
+  if (mainWindow && !mainWindow.isDestroyed()) mainWindow.webContents.send('subtitle-status', msg);
+}
+
+async function ensureFunasr() {
+  if (await checkFunasr()) return true;
+  sendSubtitleStatus('正在启动语音识别服务...');
+  // 启动服务
+  if (fs.existsSync(FUNASR_PYTHON) && fs.existsSync(FUNASR_SERVER)) {
+    funasrProcess = spawn(FUNASR_PYTHON, [FUNASR_SERVER], { stdio: 'ignore', detached: true });
+    funasrProcess.unref();
+    // 等待服务就绪，最多60秒
+    for (let i = 0; i < 60; i++) {
+      await new Promise(r => setTimeout(r, 1000));
+      if (await checkFunasr()) {
+        sendSubtitleStatus('语音识别服务已就绪');
+        return true;
+      }
+      sendSubtitleStatus(`正在启动语音识别服务... (${i + 1}s)`);
+    }
+  }
+  sendSubtitleStatus('语音识别服务启动失败');
+  return false;
+}
+
+function transcribeFile(filePath) {
+  return new Promise((resolve) => {
+    const data = JSON.stringify({ file_path: filePath });
+    const req = http.request({
+      hostname: '127.0.0.1', port: 8765, path: '/transcribe',
+      method: 'POST', headers: { 'Content-Type': 'application/json' }
+    }, (res) => {
+      let body = '';
+      res.on('data', d => body += d);
+      res.on('end', () => {
+        try { resolve(JSON.parse(body)); } catch(e) { resolve(null); }
+      });
+    });
+    req.on('error', () => resolve(null));
+    req.setTimeout(600000, () => { req.destroy(); resolve(null); });
+    req.write(data);
+    req.end();
+  });
+}
+
+const SEGMENT_DURATION = 600; // 10分钟一段
+const FOREGROUND_LIMIT = 2400; // 40分钟前台转录
+
+// 通过Python调用Groq Whisper（绕过Node.js https被Groq拒绝的问题）
+function transcribeGroqPython(audioPath) {
+  return new Promise((resolve) => {
+    const tc = loadTranslateConfig();
+    if (!tc.groq_key) { resolve(null); return; }
+    const script = `
+import sys, json, requests, pathlib
+f = pathlib.Path(sys.argv[1])
+key = sys.argv[2]
+data = {"model": "whisper-large-v3", "response_format": "verbose_json"}
+with open(f, "rb") as fh:
+    r = requests.post("https://api.groq.com/openai/v1/audio/transcriptions",
+        headers={"Authorization": f"Bearer {key}"},
+        files={"file": (f.name, fh, "application/octet-stream")},
+        data=data, timeout=300)
+if r.status_code == 200:
+    j = r.json()
+    segs = j.get("segments", [])
+    ts = [[int(s.get("start",0)*1000), int(s.get("end",0)*1000)] for s in segs]
+    print(json.dumps({"success": True, "text": j.get("text",""), "timestamp": ts, "detectedLang": j.get("language","")}))
+else:
+    print(json.dumps({"success": False, "error": r.text[:200]}))
+`;
+    const p = spawn('python', ['-c', script, audioPath, tc.groq_key]);
+    let out = '';
+    p.stdout.on('data', d => out += d);
+    p.stderr.on('data', () => {});
+    p.on('close', () => {
+      try { resolve(JSON.parse(out)); } catch(e) { resolve(null); }
+    });
+    p.on('error', () => resolve(null));
+  });
+}
+
+let detectedLanguage = null; // 自动检测到的语言
+
+// Whisper API 转录（支持所有语言，自动检测）
+function transcribeWhisper(audioPath) {
+  return new Promise((resolve) => {
+    const cfg = loadAIConfig();
+    if (!cfg.apiKey) { resolve(null); return; }
+
+    // Groq 和 OpenAI 支持 Whisper
+    let hostname, apiPath, apiKey;
+    if (cfg.provider === 'groq') {
+      hostname = 'api.groq.com'; apiPath = '/openai/v1/audio/transcriptions'; apiKey = cfg.apiKey;
+    } else if (cfg.provider === 'openai') {
+      hostname = 'api.openai.com'; apiPath = '/v1/audio/transcriptions'; apiKey = cfg.apiKey;
+    } else {
+      // 其他供应商不支持 Whisper，尝试用 OpenAI 兼容格式
+      const baseUrl = cfg.baseUrl || AI_PROVIDERS[cfg.provider]?.baseUrl || '';
+      if (!baseUrl) { resolve(null); return; }
+      try {
+        const u = new URL(baseUrl);
+        hostname = u.hostname; apiPath = u.pathname.replace(/\/+$/, '') + '/audio/transcriptions'; apiKey = cfg.apiKey;
+      } catch(e) { resolve(null); return; }
+    }
+
+    const boundary = '----FormBoundary' + Date.now();
+    const audioData = fs.readFileSync(audioPath);
+    const model = cfg.provider === 'groq' ? 'whisper-large-v3' : 'whisper-1';
+
+    // multipart/form-data（不传language，让Whisper自动检测）
+    const parts = [];
+    parts.push(`--${boundary}\r\nContent-Disposition: form-data; name="file"; filename="audio.wav"\r\nContent-Type: audio/wav\r\n\r\n`);
+    parts.push(audioData);
+    parts.push(`\r\n--${boundary}\r\nContent-Disposition: form-data; name="model"\r\n\r\n${model}`);
+    parts.push(`\r\n--${boundary}\r\nContent-Disposition: form-data; name="response_format"\r\n\r\nverbose_json`);
+    parts.push(`\r\n--${boundary}--\r\n`);
+
+    const body = Buffer.concat(parts.map(p => typeof p === 'string' ? Buffer.from(p) : p));
+
+    const req = https.request({
+      hostname, port: 443, path: apiPath, method: 'POST',
+      headers: {
+        'Content-Type': `multipart/form-data; boundary=${boundary}`,
+        'Content-Length': body.length,
+        'Authorization': 'Bearer ' + apiKey
+      }
+    }, (res) => {
+      let data = '';
+      res.on('data', d => data += d);
+      res.on('end', () => {
+        try {
+          const json = JSON.parse(data);
+          if (json.text) {
+            const words = json.words || json.segments || [];
+            const timestamp = words.map(w => [Math.round((w.start || 0) * 1000), Math.round((w.end || 0) * 1000)]);
+            resolve({ success: true, text: json.text, timestamp, detectedLang: json.language || null });
+          } else { resolve(null); }
+        } catch(e) { resolve(null); }
+      });
+    });
+    req.on('error', () => resolve(null));
+    req.setTimeout(300000, () => { req.destroy(); resolve(null); });
+    req.write(body);
+    req.end();
+  });
+}
+
+ipcMain.handle('generate-subtitle', async (_, videoPath) => {
+  // 已有字幕则直接返回
+  const vttPath = videoPath.replace(/\.[^.]+$/, '.vtt');
+  if (fs.existsSync(vttPath)) {
+    const content = fs.readFileSync(vttPath, 'utf-8');
+    if (content.includes('-->')) return vttPath;
+  }
+
+  // 检查 Whisper API 是否可用（Groq 或 OpenAI）
+  const whisperAvailable = (() => {
+    const cfg = loadAIConfig();
+    return cfg.apiKey && (cfg.provider === 'groq' || cfg.provider === 'openai');
+  })();
+  // 也检查 Groq key 在 translate_config 中
+  const groqKeyAvailable = (() => {
+    const tc = loadTranslateConfig();
+    return !!tc.groq_key;
+  })();
+
+  sendSubtitleStatus('正在分析视频...');
+  const ffprobe = path.join(FFMPEG_DIR, 'ffprobe.exe');
+  const ffmpeg = path.join(FFMPEG_DIR, 'ffmpeg.exe');
+
+  const duration = await new Promise((resolve) => {
+    const p = spawn(ffprobe, ['-v', 'quiet', '-print_format', 'json', '-show_format', videoPath]);
+    let out = '';
+    p.stdout.on('data', d => out += d);
+    p.on('close', () => {
+      try { resolve(parseFloat(JSON.parse(out).format.duration) || 0); } catch(e) { resolve(0); }
+    });
+    p.on('error', () => resolve(0));
+  });
+  if (!duration) return null;
+
+  const durationMin = Math.ceil(duration / 60);
+  const segCount = Math.ceil(duration / SEGMENT_DURATION);
+  const fgSegCount = Math.ceil(Math.min(duration, FOREGROUND_LIMIT) / SEGMENT_DURATION);
+  const tmpDir = path.join(DOWNLOADS, '_tmp_segments');
+  if (!fs.existsSync(tmpDir)) fs.mkdirSync(tmpDir, { recursive: true });
+
+  // 转录指定范围的段落，返回 {vttText, allText}
+  async function transcribeRange(startSeg, endSeg) {
+    let allText = '', vtt = '', wordTimings = [];
+    let segTimes = [];
+    const totalSegs = endSeg - startSeg;
+    for (let i = startSeg; i < endSeg; i++) {
+      const segStart = Date.now();
+      const startSec = i * SEGMENT_DURATION;
+      const segFile = path.join(tmpDir, `seg_${i}.wav`);
+      const done = i - startSeg;
+      const remaining = endSeg - i;
+
+      let etaStr = '';
+      if (segTimes.length > 0) {
+        const avgMs = segTimes.reduce((a,b)=>a+b,0) / segTimes.length;
+        const etaMin = Math.ceil(avgMs * remaining / 60000);
+        const etaSec = Math.ceil(avgMs * remaining / 1000);
+        etaStr = etaSec < 120 ? `，预计剩余 ${etaSec} 秒` : `，预计剩余 ${etaMin} 分钟`;
+      }
+      const progressStr = `[${done}/${totalSegs}]`;
+
+      sendSubtitleStatus(`${progressStr} 正在提取音频 ${i + 1}/${segCount}（${durationMin}分钟${etaStr}）`);
+      const extractOk = await new Promise((resolve) => {
+        const p = spawn(ffmpeg, ['-y', '-ss', String(startSec), '-t', String(SEGMENT_DURATION), '-i', videoPath, '-vn', '-ar', '16000', '-ac', '1', '-f', 'wav', segFile]);
+        p.on('close', code => resolve(code === 0));
+        p.on('error', () => resolve(false));
+      });
+      if (!extractOk) continue;
+
+      sendSubtitleStatus(`${progressStr} 正在转录片段 ${i + 1}/${segCount}（${durationMin}分钟${etaStr}）`);
+
+      let result;
+      // 第一段：用Groq自动检测语言
+      if (i === 0 && groqKeyAvailable) {
+        sendSubtitleStatus(`${progressStr} 正在检测语言并转录...`);
+        result = await transcribeGroqPython(segFile);
+        if (result && result.success && result.detectedLang) {
+          detectedLanguage = result.detectedLang;
+          const langName = LANGUAGES[detectedLanguage]?.name || detectedLanguage;
+          sendSubtitleStatus(`检测到语言: ${langName}，继续转录...`);
+        }
+      }
+      // Groq 可用且非中文：用 Groq Python
+      if (!result && groqKeyAvailable && detectedLanguage !== 'zh') {
+        result = await transcribeGroqPython(segFile);
+        if (result && result.detectedLang && !detectedLanguage) detectedLanguage = result.detectedLang;
+      }
+      // Groq 不可用或中文：用 funasr
+      if (!result || !result.success) {
+        if (!detectedLanguage || detectedLanguage === 'zh' || detectedLanguage === 'chinese') {
+          const ok = await ensureFunasr();
+          if (ok) result = await transcribeFile(segFile);
+        } else if (whisperAvailable) {
+          result = await transcribeWhisper(segFile);
+        }
+      }
+      try { fs.unlinkSync(segFile); } catch(e) {}
+      segTimes.push(Date.now() - segStart);
+
+      if (!result || !result.success || !result.text) continue;
+
+      const text = result.text;
+      const timestamps = result.timestamp || [];
+
+      if (timestamps.length > 0) {
+        const noSpace = text.replace(/\s/g, '');
+        let sentences = [];
+        let lastPos = 0, charCount = 0;
+        for (let j = 0; j < text.length; j++) {
+          if (/\s/.test(text[j])) continue;
+          charCount++;
+          if (/[.!?。！？]/.test(text[j])) {
+            const s = text.slice(lastPos, j + 1).trim();
+            const charEnd = charCount;
+            const charStart = charEnd - s.replace(/\s/g, '').length;
+            if (s) sentences.push({ text: s, charStart, charEnd });
+            lastPos = j + 1;
+          }
+        }
+        if (lastPos < text.length) {
+          const s = text.slice(lastPos).trim();
+          if (s) sentences.push({ text: s, charStart: charCount - s.replace(/\s/g, '').length, charEnd: charCount });
+        }
+        if (!sentences.length) sentences.push({ text, charStart: 0, charEnd: noSpace.length });
+
+        const totalChars = noSpace.length;
+        const totalTs = timestamps.length;
+
+        for (const sent of sentences) {
+          const tsStart = Math.floor(sent.charStart / totalChars * totalTs);
+          const tsEnd = Math.min(Math.floor(sent.charEnd / totalChars * totalTs), totalTs - 1);
+          const startMs = timestamps[tsStart] ? timestamps[tsStart][0] : 0;
+          const endMs = timestamps[tsEnd] ? timestamps[tsEnd][1] : startMs + 1000;
+          const start = fmtVTT(startSec + startMs / 1000);
+          const end = fmtVTT(startSec + endMs / 1000);
+          vtt += `${start} --> ${end}\n${sent.text}\n\n`;
+
+          // 生成逐词时间戳
+          const words = sent.text.split(/(\s+)/).filter(w => !/^\s*$/.test(w));
+          let charPos = sent.charStart;
+          for (const w of words) {
+            const wLen = w.replace(/\s/g, '').length;
+            const wTsStart = Math.floor(charPos / totalChars * totalTs);
+            const wTsEnd = Math.min(Math.floor((charPos + wLen) / totalChars * totalTs), totalTs - 1);
+            const wStartMs = timestamps[wTsStart] ? timestamps[wTsStart][0] : 0;
+            const wEndMs = timestamps[wTsEnd] ? timestamps[wTsEnd][1] : wStartMs + 200;
+            wordTimings.push({
+              w, s: +(startSec + wStartMs / 1000).toFixed(3), e: +(startSec + wEndMs / 1000).toFixed(3)
+            });
+            charPos += wLen;
+          }
+        }
+      } else {
+        const sentences = (text.match(/[^.!?。！？]+[.!?。！？]+/g) || [text]).map(s => s.trim()).filter(s => s.length > 0);
+        if (!sentences.length) { allText += text; continue; }
+        const segDur = Math.min(SEGMENT_DURATION, duration - startSec);
+        const totalLen = sentences.reduce((a, s) => a + s.length, 0);
+        let t = startSec;
+        for (const s of sentences) {
+          const seg = (s.length / totalLen) * segDur;
+          const start = fmtVTT(t);
+          t += seg;
+          const end = fmtVTT(t);
+          vtt += `${start} --> ${end}\n${s}\n\n`;
+        }
+      }
+      allText += text;
+    }
+
+    // 字幕保持原语种显示，用户点击词汇时再翻译
+
+    return { vttText: vtt, allText, wordTimings };
+  }
+
+  // 前台转录前40分钟
+  const fg = await transcribeRange(0, fgSegCount);
+
+  if (!fg.allText) {
+    try { fs.rmSync(tmpDir, { recursive: true }); } catch(e) {}
+    sendSubtitleStatus('语音识别失败');
+    return null;
+  }
+
+  // 先写入前台部分
+  let fullVtt = 'WEBVTT\n\n' + fg.vttText;
+  fs.writeFileSync(vttPath, fullVtt, 'utf-8');
+  const wtsPath = vttPath.replace(/\.vtt$/, '.wordts.json');
+  let allWordTimings = fg.wordTimings || [];
+  fs.writeFileSync(wtsPath, JSON.stringify(allWordTimings), 'utf-8');
+
+  if (fgSegCount < segCount) {
+    sendSubtitleStatus(`前 ${Math.ceil(FOREGROUND_LIMIT/60)} 分钟字幕已就绪，剩余部分后台转录中...`);
+    // 后台继续转录剩余部分
+    (async () => {
+      const bg = await transcribeRange(fgSegCount, segCount);
+      if (bg.vttText) {
+        fullVtt += bg.vttText;
+        fs.writeFileSync(vttPath, fullVtt, 'utf-8');
+        allWordTimings = allWordTimings.concat(bg.wordTimings || []);
+        fs.writeFileSync(wtsPath, JSON.stringify(allWordTimings), 'utf-8');
+      }
+      try { fs.rmSync(tmpDir, { recursive: true }); } catch(e) {}
+      sendSubtitleStatus(`全部转录完成，共 ${segCount} 段`);
+      // 通知前端刷新字幕
+      if (mainWindow && !mainWindow.isDestroyed()) {
+        mainWindow.webContents.send('subtitle-updated', vttPath);
+      }
+    })();
+  } else {
+    try { fs.rmSync(tmpDir, { recursive: true }); } catch(e) {}
+    sendSubtitleStatus(`转录完成，共 ${segCount} 段`);
+  }
+
+  return vttPath;
+});
+
+function fmtVTT(sec) {
+  const h = Math.floor(sec / 3600), m = Math.floor((sec % 3600) / 60), s = sec % 60;
+  return String(h).padStart(2,'0') + ':' + String(m).padStart(2,'0') + ':' + s.toFixed(3).padStart(6,'0');
+}

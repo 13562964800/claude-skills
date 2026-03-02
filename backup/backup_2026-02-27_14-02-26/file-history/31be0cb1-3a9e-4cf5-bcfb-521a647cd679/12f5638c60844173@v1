@@ -1,0 +1,11 @@
+@echo off
+rem Moltbot Gateway (v2026.1.27-beta.1)
+set HOME=C:\Users\Administrator
+set PATH=C:\Users\Administrator\bin;C:\Program Files\Git\mingw64\bin;C:\Program Files\Git\usr\local\bin;C:\Program Files\Git\usr\bin;C:\Program Files\Git\usr\bin;C:\Program Files\Git\mingw64\bin;C:\Program Files\Git\usr\bin;C:\Users\Administrator\bin;C:\Python314\Scripts;C:\Python314;C:\Windows\system32;C:\Windows;C:\Windows\System32\Wbem;C:\Windows\System32\WindowsPowerShell\v1.0;C:\Windows\System32\OpenSSH;C:\Program Files\dotnet;C:\Program Files (x86)\Print Conductor;C:\WINDOWS\system32;C:\WINDOWS;C:\WINDOWS\System32\Wbem;C:\WINDOWS\System32\WindowsPowerShell\v1.0;C:\WINDOWS\System32\OpenSSH;C:\Program Files\Git\cmd;C:\ProgramData\chocolatey\bin;C:\Program Files\nodejs;C:\Users\Administrator\AppData\Local\Microsoft\WindowsApps;C:\Program Files (x86)\Print Conductor;C:\Users\Administrator\AppData\Local\Microsoft\WindowsApps;C:\Users\Administrator\AppData\Roaming\npm;C:\Program Files\Git\usr\bin\vendor_perl;C:\Program Files\Git\usr\bin\core_perl
+set CLAWDBOT_GATEWAY_PORT=18789
+set CLAWDBOT_GATEWAY_TOKEN=moltbot-local-token-12345
+set CLAWDBOT_SYSTEMD_UNIT=moltbot-gateway.service
+set CLAWDBOT_SERVICE_MARKER=moltbot
+set CLAWDBOT_SERVICE_KIND=gateway
+set CLAWDBOT_SERVICE_VERSION=2026.1.27-beta.1
+"C:\Program Files\nodejs\node.exe" C:\Users\Administrator\AppData\Roaming\npm\node_modules\moltbot\dist\index.js gateway --port 18789

@@ -1,0 +1,65 @@
+"""FunASR服务端补丁 - 添加文件上传接口，供手机远程调用
+
+使用方法：在电脑上运行此脚本，手机通过WiFi连接即可调用
+    python funasr_server_patch.py
+
+或者将 /transcribe_file 路由添加到已有的 FunASR server.py 中
+"""
+import os, sys, tempfile
+from flask import Flask, request, jsonify
+
+app = Flask(__name__)
+
+# 复用已有的FunASR服务
+FUNASR_URL = 'http://localhost:8765'
+
+
+@app.route('/health')
+def health():
+    return jsonify({'status': 'ok'})
+
+
+@app.route('/transcribe_file', methods=['POST'])
+def transcribe_file():
+    """接收手机上传的音频文件并转录"""
+    if 'file' not in request.files:
+        return jsonify({'success': False, 'error': '未收到文件'}), 400
+
+    f = request.files['file']
+    # 保存到临时文件
+    tmp = tempfile.NamedTemporaryFile(suffix='_' + f.filename, delete=False)
+    f.save(tmp.name)
+    tmp.close()
+
+    try:
+        import requests as req
+        # 转发给本地FunASR服务
+        resp = req.post(f'{FUNASR_URL}/transcribe',
+                        json={'file_path': os.path.abspath(tmp.name)}, timeout=600)
+        return jsonify(resp.json())
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)}), 500
+    finally:
+        try:
+            os.remove(tmp.name)
+        except:
+            pass
+
+
+@app.route('/transcribe', methods=['POST'])
+def transcribe_proxy():
+    """代理转发到FunASR"""
+    import requests as req
+    data = request.get_json()
+    resp = req.post(f'{FUNASR_URL}/transcribe', json=data, timeout=600)
+    return jsonify(resp.json())
+
+
+if __name__ == '__main__':
+    import socket
+    hostname = socket.gethostname()
+    local_ip = socket.gethostbyname(hostname)
+    print(f'FunASR文件上传代理已启动')
+    print(f'手机请连接: http://{local_ip}:8766')
+    print(f'确保电脑FunASR服务已在 {FUNASR_URL} 运行')
+    app.run(host='0.0.0.0', port=8766, debug=False)

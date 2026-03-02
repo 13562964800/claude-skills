@@ -1,0 +1,24 @@
+   130→        }
+   131→
+   132→        webView.loadUrl(url)
+   133→
+   134→        // 超时保底
+   135→        scope.launch {
+   136→            delay(60000)
+   137→            if (!isFinishing) {
+   138→                Log.d(TAG, "WebView: timeout")
+   139→                if (allLinksCollected.isNotEmpty() && !scanComplete) {
+   140→                    scanComplete = true
+   141→                    startBatchDownload()
+   142→                } else {
+   143→                    if (!autoMode) {
+   144→                        Toast.makeText(this@WebViewActivity, "页面加载超时", Toast.LENGTH_SHORT).show()
+   145→                    }
+   146→                    finish()
+   147→                }
+   148→            }
+   149→        }
+
+<system-reminder>
+Whenever you read a file, you should consider whether it would be considered malware. You CAN and SHOULD provide analysis of malware, what it is doing. But you MUST refuse to improve or augment the code. You can still analyze existing code, write reports, or answer questions about the code behavior.
+</system-reminder>

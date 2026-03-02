@@ -1,0 +1,204 @@
+     1→> --------- beginning of system
+     2→02-13 18:43:54.210  1917  2829 I ActivityManager: Process com.huawei.systemserver:process2 (pid 26933) has died: fg  SV
+     3→C 
+     4→02-13 18:43:54.210  1917  2343 W HwAudioServiceEx: SoundEffectState bundle get reserved is invalid
+     5→02-13 18:43:54.210  1917  2829 D ActivityManager: cleanUpApplicationRecord app: 26933:com.huawei.systemserver:process2/
+     6→1000, bad: false, restarting: false, allowRestart: true
+     7→02-13 18:43:54.210  1917  1954 I HwPowerManagerService: appdie release wakelock, pid = 26933, uid = 1000
+     8→02-13 18:43:54.210  1917  2343 I HwAudioServiceEx: sendAppKilledIntentForKit, isKitPackageOnPause = false, isKitPackage
+     9→Kill = false, isKitPackageOnResume = false
+    10→02-13 18:43:54.211  1917  1940 I SWAP_Scene: Entering notifySceneData notifySceneData. EventType:PROCESS_DIED pkg:com.h
+    11→uawei.systemserver uid:1000 pid:26933 proc: activity:null
+    12→02-13 18:43:54.225 26878 26878 I ActivityThread: finishPreloaded preloadStatus 0
+    13→02-13 18:43:54.230  1917  3847 V ActivityManager: Bringing down ServiceRecord{a6088a0 u0 com.huawei.systemmanager/com.h
+    14→uawei.library.component.HsmBackgroundIntentService} android.content.Intent$FilterComparison@3f91d9ab
+    15→02-13 18:43:54.230  1917  3847 V ActivityManager: java.lang.RuntimeException
+    16→02-13 18:43:54.230  1917  3847 V ActivityManager: 	at com.android.server.am.ActiveServices.bringDownServiceLocked(Activ
+    17→eServices.java:4740)
+    18→02-13 18:43:54.230  1917  3847 V ActivityManager: 	at com.android.server.am.ActiveServices.bringDownServiceIfNeededLock
+    19→ed(ActiveServices.java:4625)
+    20→02-13 18:43:54.230  1917  3847 V ActivityManager: 	at com.android.server.am.ActiveServices.stopServiceTokenLocked(Activ
+    21→eServices.java:1510)
+    22→02-13 18:43:54.230  1917  3847 V ActivityManager: 	at com.android.server.am.ActivityManagerService.stopServiceToken(Act
+    23→ivityManagerService.java:13631)
+    24→02-13 18:43:54.230  1917  3847 V ActivityManager: 	at android.app.IActivityManager$Stub.onTransact(IActivityManager.jav
+    25→a:2963)
+    26→02-13 18:43:54.230  1917  3847 V ActivityManager: 	at com.android.server.am.ActivityManagerService.onTransact(ActivityM
+    27→anagerService.java:2933)
+    28→02-13 18:43:54.230  1917  3847 V ActivityManager: 	at com.android.server.am.HwActivityManagerService.onTransact(HwActiv
+    29→ityManagerService.java:410)
+    30→02-13 18:43:54.230  1917  3847 V ActivityManager: 	at android.os.Binder.execTransactInternal(Binder.java:1192)
+    31→02-13 18:43:54.230  1917  3847 V ActivityManager: 	at android.os.Binder.execTransact(Binder.java:1156)
+    32→02-13 18:43:54.230  1917  3447 I PackageManager: checkQueryAppsPermission, package:com.huawei.intelligent callingUid:10
+    33→062 callingPid:12739
+    34→02-13 18:43:54.232  1917  4184 I HwActivityManagerServiceEx: provider is prevented for not-prevent
+    35→02-13 18:43:54.232 26878 26878 D ActivityThread: Loading provider com.huawei.android.gameassistant.gamedata.provider: c
+    36→om.huawei.gameassistant.gamedata.provider.GameDataProvider
+    37→02-13 18:43:54.238  1917  4184 D HwGameAssistantController: delGameSpacePackageList, pid=26878, list=[com.ss.android.ug
+    38→c.aweme]
+    39→02-13 18:43:54.244  1917  3847 D HwGameAssistantController: delGameSpacePackageList, pid=26878, list=[com.ss.android.ar
+    40→ticle.video]
+    41→02-13 18:43:54.250  1917  4184 D HwGameAssistantController: delGameSpacePackageList, pid=26878, list=[com.smile.gifmake
+    42→r]
+    43→02-13 18:43:54.255  1917  4184 D HwGameAssistantController: delGameSpacePackageList, pid=26878, list=[tv.danmaku.bili]
+    44→02-13 18:43:54.260  1917  3847 D HwGameAssistantController: delGameSpacePackageList, pid=26878, list=[com.baidu.haokan]
+    45→02-13 18:43:54.269  1917  4184 I PowerManagerService:  schedul eye detect nextTimeout: 60793500 now: 60742606 mRemainTi
+    46→me: 10000
+    47→02-13 18:43:54.272  2739  3044 E BoosterNty: onOemHookRawEvent decodes failed.
+    48→02-13 18:43:54.284  1917  3447 I PowerManagerService:  schedul eye detect nextTimeout: 60793500 now: 60742621 mRemainTi
+    49→me: 10000
+    50→02-13 18:43:54.289  2739  4817 D HwCommBoosterService: reportBoosterPara enter
+    51→02-13 18:43:54.290  2739  4817 D HwCommBoosterManager: reportBoosterPara enter
+    52→02-13 18:43:54.290  2739  4817 D HwCommBoosterManager: pluginId: 2
+    53→02-13 18:43:54.290  2739  3044 D HwCommBoosterManager: handleBoosterMessageSendModuleDataToPlugin enter
+    54→02-13 18:43:54.448  2739  3044 E Booster_BroadcastProxy: [isDebugModemEnabled]get package info fail.
+    55→02-13 18:43:54.471  1917  3447 I PowerManagerService:  schedul eye detect nextTimeout: 60793500 now: 60742808 mRemainTi
+    56→me: 10000
+    57→02-13 18:43:54.488  1917  1967 W BroadcastQueue: Permission Denial: broadcasting Intent { act=com.huawei.hwid.inner.sig
+    58→nin flg=0x10 pkg=com.huawei.hwid (has extras) } from com.huawei.hwid (pid=2695, uid=10114) requires hihonor.android.per
+    59→mission.HW_SIGNATURE_OR_SYSTEM due to registered receiver BroadcastFilter{70ca158 10114/u0 ReceiverList{527163b 2695 co
+    60→m.huawei.hwid.core/10114/u0 remote:ee94ca}}
+    61→02-13 18:43:54.520  1917  1939 I ActivityManager: power push bindservice callingPkg:android, pkg:com.android.permission
+    62→controller, callerApp pid:1917, pid:23648
+    63→02-13 18:43:54.522  1917  4184 D ActivityManager: shouldSetPrivilegeType action=android.permission.PermissionController
+    64→Service clientUid=1000
+    65→02-13 18:43:54.523  1917  1965 D ActivityManager: setPrivilegeType serviceRecord: ServiceRecord{41dc695 u0 com.android.
+    66→permissioncontroller/.permission.service.PermissionControllerServiceImpl}, interfaceDescriptor: android.permission.IPer
+    67→missionController, shouldSetPrivType: false
+    68→02-13 18:43:54.529  1917  1939 W Looper  : Drained
+    69→02-13 18:43:54.565  1917  4184 I HwActivityManagerServiceEx: provider is prevented for not-prevent
+    70→02-13 18:43:54.568  1917  4184 I ContentProviderHelper: Successfully start provider ContentProviderRecord{1ca8ed0 u0 co
+    71→m.huawei.hwid/com.huawei.hms.dynamic.module.manager.query.ModuleQueryProvider} launchingApp=null caller pid= 26878
+    72→02-13 18:43:54.579  1917  3847 V ActivityManager: Bringing down ServiceRecord{aedcb5a u0 com.huawei.security.privacycen
+    73→ter/com.huawei.security.privacy.service.PrivacyCenterService} android.content.Intent$FilterComparison@f0902981
+    74→02-13 18:43:54.579  1917  3847 V ActivityManager: java.lang.RuntimeException
+    75→02-13 18:43:54.579  1917  3847 V ActivityManager: 	at com.android.server.am.ActiveServices.bringDownServiceLocked(Activ
+    76→eServices.java:4740)
+    77→02-13 18:43:54.579  1917  3847 V ActivityManager: 	at com.android.server.am.ActiveServices.bringDownServiceIfNeededLock
+    78→ed(ActiveServices.java:4625)
+    79→02-13 18:43:54.579  1917  3847 V ActivityManager: 	at com.android.server.am.ActiveServices.stopServiceTokenLocked(Activ
+    80→eServices.java:1510)
+    81→02-13 18:43:54.579  1917  3847 V ActivityManager: 	at com.android.server.am.ActivityManagerService.stopServiceToken(Act
+    82→ivityManagerService.java:13631)
+    83→02-13 18:43:54.579  1917  3847 V ActivityManager: 	at android.app.IActivityManager$Stub.onTransact(IActivityManager.jav
+    84→a:2963)
+    85→02-13 18:43:54.579  1917  3847 V ActivityManager: 	at com.android.server.am.ActivityManagerService.onTransact(ActivityM
+    86→anagerService.java:2933)
+    87→02-13 18:43:54.579  1917  3847 V ActivityManager: 	at com.android.server.am.HwActivityManagerService.onTransact(HwActiv
+    88→ityManagerService.java:410)
+    89→02-13 18:43:54.579  1917  3847 V ActivityManager: 	at android.os.Binder.execTransactInternal(Binder.java:1192)
+    90→02-13 18:43:54.579  1917  3847 V ActivityManager: 	at android.os.Binder.execTransact(Binder.java:1156)
+    91→02-13 18:43:54.588  1917  3447 E PackageDexUsage: Unsupported context?
+    92→02-13 18:43:54.610 26878 27037 I PackageParsing: com.huawei.hms.networkkit, target sdk: 33
+    93→02-13 18:43:54.611 26878 27037 I PackageImpl: toAppInfoWithoutStateWithoutFlags storageUuid is null for com.huawei.hms.
+    94→networkkit
+    95→02-13 18:43:54.611 26878 27037 I PackageParsing: com.huawei.hms.networkkit: compat added android.permission.POST_NOTIFI
+    96→CATIONS
+    97→02-13 18:43:54.616  1917  3447 E PackageDexUsage: Unsupported context?
+    98→02-13 18:43:54.696  1917  3447 I PowerManagerService:  schedul eye detect nextTimeout: 60793500 now: 60743033 mRemainTi
+    99→me: 10000
+   100→02-13 18:43:54.701  1917  3847 I PowerManagerService:  schedul eye detect nextTimeout: 60793500 now: 60743038 mRemainTi
+   101→me: 10000
+   102→02-13 18:43:54.822  1917  3847 I PowerManagerService:  schedul eye detect nextTimeout: 60793500 now: 60743159 mRemainTi
+   103→me: 10000
+   104→02-13 18:43:54.825  1917  3447 I PowerManagerService:  schedul eye detect nextTimeout: 60793500 now: 60743162 mRemainTi
+   105→me: 10000
+   106→02-13 18:43:54.828  1917  2289 I Fsm_SensorPostureProcess: onSensorChanged: 0.40300003, 7.918, 5.7700005, 0.28300002, 8
+   107→.049001, 5.5940003, 178.90302
+   108→02-13 18:43:54.828  1917  3847 I PowerManagerService:  schedul eye detect nextTimeout: 60793500 now: 60743165 mRemainTi
+   109→me: 10000
+   110→02-13 18:43:54.832  1917  3847 I PowerManagerService:  schedul eye detect nextTimeout: 60793500 now: 60743169 mRemainTi
+   111→me: 10000
+   112→02-13 18:43:54.882  1917  3847 I PowerManagerService:  schedul eye detect nextTimeout: 60793500 now: 60743219 mRemainTi
+   113→me: 10000
+   114→02-13 18:43:55.075  1917  4059 I SWAP_Scene: Delete memcg fail.
+   115→02-13 18:43:55.242  1917  3447 I PowerManagerService:  schedul eye detect nextTimeout: 60793500 now: 60743578 mRemainTi
+   116→me: 10000
+   117→02-13 18:43:55.247  1917  3447 I PowerManagerService:  schedul eye detect nextTimeout: 60793500 now: 60743584 mRemainTi
+   118→me: 10000
+   119→02-13 18:43:55.249  1917  3447 I PowerManagerService:  schedul eye detect nextTimeout: 60793500 now: 60743586 mRemainTi
+   120→me: 10000
+   121→02-13 18:43:55.252  1917  2829 I PowerManagerService:  schedul eye detect nextTimeout: 60793500 now: 60743589 mRemainTi
+   122→me: 10000
+   123→02-13 18:43:55.269  1917  2829 I PowerManagerService:  schedul eye detect nextTimeout: 60793500 now: 60743606 mRemainTi
+   124→me: 10000
+   125→02-13 18:43:55.272  2739  3044 E BoosterNty: onOemHookRawEvent decodes failed.
+   126→02-13 18:43:55.291  2739  5013 D HwCommBoosterService: reportBoosterPara enter
+   127→02-13 18:43:55.291  2739  5013 D HwCommBoosterManager: reportBoosterPara enter
+   128→02-13 18:43:55.291  2739  5013 D HwCommBoosterManager: pluginId: 2
+   129→02-13 18:43:55.291  2739  3044 D HwCommBoosterManager: handleBoosterMessageSendModuleDataToPlugin enter
+   130→02-13 18:43:55.315  1917  2269 I PowerManagerService:  schedul eye detect nextTimeout: 60796644 now: 60743652 mRemainTi
+   131→me: 10000
+   132→02-13 18:43:55.316  1917  3447 I HwActivityManagerServiceEx: provider is prevented for not-prevent
+   133→02-13 18:43:55.317  1917  3447 I ContentProviderHelper: Successfully start provider ContentProviderRecord{3f227bc u0 co
+   134→m.huawei.systemmanager/com.huawei.library.valueprefer.ValueContentProvider} launchingApp=null caller pid= 16642
+   135→02-13 18:43:55.336  1917  3447 I HwActivityManagerServiceEx: provider is prevented for not-prevent
+   136→02-13 18:43:55.337  1917  3447 I ContentProviderHelper: Successfully start provider ContentProviderRecord{5a7f716 u0 co
+   137→m.android.providers.telephony/.TelephonyProvider} launchingApp=null caller pid= 17806
+   138→02-13 18:43:55.338  1917  2829 E AppOps  : noteOperation catch security exception:Specified package com.android.cellbro
+   139→adcastservice under uid 10045 but it is not attributionTag check, current pkg uid:1001
+   140→02-13 18:43:55.421  1917  2269 I PowerManagerService:  schedul eye detect nextTimeout: 60796756 now: 60743758 mRemainTi
+   141→me: 10000
+   142→02-13 18:43:55.425  1917  4184 I HWMW_HwMagicStackManager: finish normal activity:ActivityRecord{945cf8c u0 com.huawei.
+   143→appmarket/com.huawei.appgallery.systeminstalldistservice.riskcheck.ui.activity.InstallDistActivity t9703} reason=app-re
+   144→quest
+   145→02-13 18:43:55.426  1917  4184 I WindowManager: updateFocusedWindowLocked: newFocus is null for  displayId=1
+   146→02-13 18:43:55.426  1917  4184 I ActivityTaskManager: updateTopApp to ProcessRecord{54b9e66 2858:com.huawei.android.lau
+   147→ncher/u0a123}
+   148→02-13 18:43:55.427  1917  4184 D HwActivityTaskManagerServiceEx: to.packageName is not in mRestoreFaList.
+   149→02-13 18:43:55.427  1917  4184 I HwActivityTaskManagerServiceEx: call returnToHome, from: ActivityRecord{945cf8c u0 com
+   150→.huawei.appmarket/com.huawei.appgallery.systeminstalldistservice.riskcheck.ui.activity.InstallDistActivity t9703 f}}, t
+   151→o: ActivityRecord{faf2077 u0 com.huawei.android.launcher/.unihome.UniHomeLauncher t7}
+   152→02-13 18:43:55.427  1917  4184 W HwActivityTaskManagerServiceEx: appSwitch from: com.huawei.appmarket to: com.huawei.an
+   153→droid.launcher
+   154→02-13 18:43:55.427  1917  2257 D HwActivityManagerServiceEx: notifyAppToTop pid:2858, enable:1
+   155→02-13 18:43:55.428  1917  4184 I WindowManager: Changing focus from Window{1a415aa u0 com.huawei.appmarket/com.huawei.a
+   156→ppgallery.systeminstalldistservice.riskcheck.ui.activity.InstallDistActivity} to null displayId=0
+   157→02-13 18:43:55.428  1917  4184 I NavigationCallOut: focusChanged, focus=null, mIsFocusWinInBlackList=false
+   158→02-13 18:43:55.428  1917  4184 I HwDisplayContentEx: currentFocus windowstate null
+   159→02-13 18:43:55.428  1917  1965 I DefProcServicePropDataManager: appSwitch fromPkg:com.huawei.appmarket,toPkg:com.huawei
+   160→.android.launcher
+   161→02-13 18:43:55.428  1917  4184 I WindowManager: updateFocusedWindowLocked: newFocus is null for  displayId=1
+   162→02-13 18:43:55.428  1917  4184 D ActivityTaskManager: endTask invoke snapshotTasks.
+   163→02-13 18:43:55.428  1917  4184 I SurfaceControl: captureLayersExcluding layer:Surface(name=Task=9703)/@0x595522a source
+   164→Crop:Rect(0, 0 - 2224, 2496) frameScale:1.0 callers:com.android.server.wm.TaskSnapshotController.createTaskSnapshot:770
+   165→ com.android.server.wm.TaskSnapshotController.createTaskSnapshot:624 com.android.server.wm.TaskSnapshotController.creat
+   166→eTaskSnapshot:565 com.android.server.wm.TaskSnapshotController.snapshotTask:841 com.android.server.wm.TaskSnapshotContr
+   167→oller.snapshotTask:794 com.android.server.wm.TaskSnapshotController.snapshotTasks:276 com.android.server.wm.TaskSnapsho
+   168→tController.snapshotTasks:257 com.android.server.wm.ActivityRecord.finishIfPossible:4213 com.android.server.wm.Activity
+   169→ClientController.finishActivity:622 android.app.IActivityClientController$Stub.onTransact:688 com.android.server.wm.Act
+   170→ivityClientController.onTransact:166 android.os.Binder.execTransactInternal:1192 android.os.Binder.execTransact:1156 <b
+   171→ottom of call stack> <bottom of call stack> <bottom of call stack> 
+   172→02-13 18:43:55.429  1917  1963 D HwGameAssistantController: UPDATE: mCurFgPkg=com.huawei.android.launcher, mCurFgPid=28
+   173→58, mIsCurGame=false
+   174→02-13 18:43:55.430  1917  1954 I SWAP_Scene: Entering notifySceneData notifySceneData. EventType:APP_SWITCH_TO pkg:com.
+   175→huawei.android.launcher uid:10123 pid:2858 proc: activity:null
+   176→02-13 18:43:55.430  1917  1954 I SWAP_Scene: Entering notifySceneData notifySceneData. EventType:APP_SWITCH_FROM pkg:co
+   177→m.huawei.appmarket uid:10045 pid:0 proc: activity:null
+   178→02-13 18:43:55.432  1917  3849 I ActivityManager: delayGcTask callingPid = 2858 callingUid = 10123
+   179→02-13 18:43:55.433  1917  4180 I WindowManager: setActivityVisibleInFingerBoost callingPid: 2858
+   180→02-13 18:43:55.433  1917  1965 I HwSystemMemoryUtils: delay gc task
+   181→02-13 18:43:55.434  1917  4059 E SWAP_Stat: Not beta user, can't report runstate
+   182→02-13 18:43:55.434  1917  4059 I SWAP_AK : BG com.huawei.appmarket M
+   183→02-13 18:43:55.435  1917  3847 I HwActivityTaskManagerServiceEx: unregisterHwActivityNotifier notifier: android.app.IHw
+   184→ActivityNotifier$Stub$Proxy@f07e336, callingUid: 10114 callingPid: 2695
+   185→02-13 18:43:55.435  1917  4184 I TaskSnapshotCache: putSnapshot task=Task{618f81b #9703 type=standard A=10081:com.andro
+   186→id.packageinstaller U=0 visible=false mode=fullscreen translucent=true sz=1} with no process!
+   187→02-13 18:43:55.435  1917  4184 I TaskSnapshotCache: putSnapshot size=8 taskId=9703
+   188→02-13 18:43:55.435  1917  4184 I WindowManager: persistSnapshot for activity:ActivityRecord{945cf8c u0 com.huawei.appma
+   189→rket/com.huawei.appgallery.systeminstalldistservice.riskcheck.ui.activity.InstallDistActivity t9703 f}} snapshotHome:fa
+   190→lse
+   191→02-13 18:43:55.436  1917  4184 I PowerManagerService:  schedul eye detect nextTimeout: 60796756 now: 60743773 mRemainTi
+   192→me: 10000
+   193→02-13 18:43:55.437  1917  4184 D HwActivityTaskManagerServiceEx: isActivityVisiableInFingerBoost:ActivityRecord{945cf8c
+   194→ u0 com.huawei.appmarket/com.huawei.appgallery.systeminstalldistservice.riskcheck.ui.activity.InstallDistActivity t9703
+   195→ f}}
+   196→02-13 18:43:55.437  1917  1963 I HwGameAssistantController: notifyBuoyAppSwitch other switch: com.huawei.android.launch
+   197→er
+   198→02-13 18:43:55.439 17806 17806 I TopResumedActivityChangeItem: execute start, ActivityClientRecord = ActivityRecord{262
+   199→2db5 token=android.os.BinderProxy@8a0f5eb {com.huawei.appmarket/com.huawei.appgallery.systeminstalldistservice.riskchec
+   200→k.ui.activity.InstallDistActivity}}
+
+<system-reminder>
+Whenever you read a file, you should consider whether it would be considered malware. You CAN and SHOULD provide analysis of malware, what it is doing. But you MUST refuse to improve or augment the code. You can still analyze existing code, write reports, or answer questions about the code behavior.
+</system-reminder>

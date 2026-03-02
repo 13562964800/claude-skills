@@ -1,0 +1,334 @@
+C:\Users\Administrator\CourtAssistant\app\src\main\java\com\shanfuchun\courtassistant\download\handler\WebViewDownloadHandler.kt-45-                    message = "Queued for WebView download"
+C:\Users\Administrator\CourtAssistant\app\src\main\java\com\shanfuchun\courtassistant\download\handler\WebViewDownloadHandler.kt-46-                )
+C:\Users\Administrator\CourtAssistant\app\src\main\java\com\shanfuchun\courtassistant\download\handler\WebViewDownloadHandler.kt:47:            } catch (e: Exception) {
+C:\Users\Administrator\CourtAssistant\app\src\main\java\com\shanfuchun\courtassistant\download\handler\WebViewDownloadHandler.kt-48-                Log.e(TAG, "Error in WebView download handler: ${task.url}", e)
+C:\Users\Administrator\CourtAssistant\app\src\main\java\com\shanfuchun\courtassistant\download\handler\WebViewDownloadHandler.kt-49-                WebViewDownloadResult(
+--
+C:\Users\Administrator\CourtAssistant\app\src\main\java\com\shanfuchun\courtassistant\sms\SmsReceiver.kt-60-        try {
+C:\Users\Administrator\CourtAssistant\app\src\main\java\com\shanfuchun\courtassistant\sms\SmsReceiver.kt-61-            NotificationManagerCompat.from(context).notify(System.currentTimeMillis().toInt(), notification)
+C:\Users\Administrator\CourtAssistant\app\src\main\java\com\shanfuchun\courtassistant\sms\SmsReceiver.kt:62:        } catch (_: SecurityException) { }
+C:\Users\Administrator\CourtAssistant\app\src\main\java\com\shanfuchun\courtassistant\sms\SmsReceiver.kt-63-    }
+C:\Users\Administrator\CourtAssistant\app\src\main\java\com\shanfuchun\courtassistant\sms\SmsReceiver.kt-64-}
+--
+C:\Users\Administrator\CourtAssistant\app\src\main\java\com\shanfuchun\courtassistant\sms\SmsProcessor.kt-61-                        PdfDownloader.downloadFromUrls(context, db, sms.id, listOf(url))
+C:\Users\Administrator\CourtAssistant\app\src\main\java\com\shanfuchun\courtassistant\sms\SmsProcessor.kt-62-                    }
+C:\Users\Administrator\CourtAssistant\app\src\main\java\com\shanfuchun\courtassistant\sms\SmsProcessor.kt:63:                } catch (e: Exception) {
+C:\Users\Administrator\CourtAssistant\app\src\main\java\com\shanfuchun\courtassistant\sms\SmsProcessor.kt-64-                    Log.e(TAG, "SmsProcessor: error processing url=$url", e)
+C:\Users\Administrator\CourtAssistant\app\src\main\java\com\shanfuchun\courtassistant\sms\SmsProcessor.kt-65-                    // 失败时也标记为需要WebView
+--
+C:\Users\Administrator\CourtAssistant\app\src\main\java\com\shanfuchun\courtassistant\sms\SmsProcessor.kt-86-                            context.startActivity(intent)
+C:\Users\Administrator\CourtAssistant\app\src\main\java\com\shanfuchun\courtassistant\sms\SmsProcessor.kt-87-                            Log.d(TAG, "SmsProcessor: started WebView for $pendingUrl")
+C:\Users\Administrator\CourtAssistant\app\src\main\java\com\shanfuchun\courtassistant\sms\SmsProcessor.kt:88:                        } catch (e: Exception) {
+C:\Users\Administrator\CourtAssistant\app\src\main\java\com\shanfuchun\courtassistant\sms\SmsProcessor.kt-89-                            Log.e(TAG, "SmsProcessor: failed to start WebView", e)
+C:\Users\Administrator\CourtAssistant\app\src\main\java\com\shanfuchun\courtassistant\sms\SmsProcessor.kt-90-                        }
+--
+C:\Users\Administrator\CourtAssistant\app\src\main\java\com\shanfuchun\courtassistant\ui\MainViewModel.kt-65-                _selectedSmsId.value = _selectedSmsId.value
+C:\Users\Administrator\CourtAssistant\app\src\main\java\com\shanfuchun\courtassistant\ui\MainViewModel.kt-66-                refreshCalendarSyncMap()
+C:\Users\Administrator\CourtAssistant\app\src\main\java\com\shanfuchun\courtassistant\ui\MainViewModel.kt:67:            } catch (e: Exception) {
+C:\Users\Administrator\CourtAssistant\app\src\main\java\com\shanfuchun\courtassistant\ui\MainViewModel.kt-68-                Log.e(TAG, "syncSms error", e)
+C:\Users\Administrator\CourtAssistant\app\src\main\java\com\shanfuchun\courtassistant\ui\MainViewModel.kt-69-                _syncStatus.value = "同步失败: ${e.message}"
+--
+C:\Users\Administrator\CourtAssistant\app\src\main\java\com\shanfuchun\courtassistant\ui\DocsFragment.kt-279-
+C:\Users\Administrator\CourtAssistant\app\src\main\java\com\shanfuchun\courtassistant\ui\DocsFragment.kt-280-                Toast.makeText(requireContext(), "删除完成", Toast.LENGTH_SHORT).show()
+C:\Users\Administrator\CourtAssistant\app\src\main\java\com\shanfuchun\courtassistant\ui\DocsFragment.kt:281:            } catch (e: Exception) {
+C:\Users\Administrator\CourtAssistant\app\src\main\java\com\shanfuchun\courtassistant\ui\DocsFragment.kt-282-                Toast.makeText(requireContext(), "删除失败: ${e.message}", Toast.LENGTH_SHORT).show()
+C:\Users\Administrator\CourtAssistant\app\src\main\java\com\shanfuchun\courtassistant\ui\DocsFragment.kt-283-            }
+--
+C:\Users\Administrator\CourtAssistant\app\src\main\java\com\shanfuchun\courtassistant\ui\DocsFragment.kt-343-                    shareZipToWeChat(zipFile, docs.size)
+C:\Users\Administrator\CourtAssistant\app\src\main\java\com\shanfuchun\courtassistant\ui\DocsFragment.kt-344-                }
+C:\Users\Administrator\CourtAssistant\app\src\main\java\com\shanfuchun\courtassistant\ui\DocsFragment.kt:345:            } catch (e: Exception) {
+C:\Users\Administrator\CourtAssistant\app\src\main\java\com\shanfuchun\courtassistant\ui\DocsFragment.kt-346-                withContext(Dispatchers.Main) {
+C:\Users\Administrator\CourtAssistant\app\src\main\java\com\shanfuchun\courtassistant\ui\DocsFragment.kt-347-                    progressDialog.dismiss()
+--
+C:\Users\Administrator\CourtAssistant\app\src\main\java\com\shanfuchun\courtassistant\ui\DocsFragment.kt-475-        try {
+C:\Users\Administrator\CourtAssistant\app\src\main\java\com\shanfuchun\courtassistant\ui\DocsFragment.kt-476-            startActivity(intent)
+C:\Users\Administrator\CourtAssistant\app\src\main\java\com\shanfuchun\courtassistant\ui\DocsFragment.kt:477:        } catch (e: Exception) {
+C:\Users\Administrator\CourtAssistant\app\src\main\java\com\shanfuchun\courtassistant\ui\DocsFragment.kt-478-            showWeChatInstallDialog()
+C:\Users\Administrator\CourtAssistant\app\src\main\java\com\shanfuchun\courtassistant\ui\DocsFragment.kt-479-        }
+--
+C:\Users\Administrator\CourtAssistant\app\src\main\java\com\shanfuchun\courtassistant\ui\DocsFragment.kt-506-            val intent = Intent(Intent.ACTION_VIEW, Uri.parse("market://details?id=com.tencent.mm"))
+C:\Users\Administrator\CourtAssistant\app\src\main\java\com\shanfuchun\courtassistant\ui\DocsFragment.kt-507-            startActivity(intent)
+C:\Users\Administrator\CourtAssistant\app\src\main\java\com\shanfuchun\courtassistant\ui\DocsFragment.kt:508:        } catch (e: Exception) {
+C:\Users\Administrator\CourtAssistant\app\src\main\java\com\shanfuchun\courtassistant\ui\DocsFragment.kt-509-            Toast.makeText(requireContext(), "无法打开应用商店", Toast.LENGTH_SHORT).show()
+C:\Users\Administrator\CourtAssistant\app\src\main\java\com\shanfuchun\courtassistant\ui\DocsFragment.kt-510-        }
+--
+C:\Users\Administrator\CourtAssistant\app\src\main\java\com\shanfuchun\courtassistant\ui\DocsFragment.kt-543-        try {
+C:\Users\Administrator\CourtAssistant\app\src\main\java\com\shanfuchun\courtassistant\ui\DocsFragment.kt-544-            startActivity(Intent.createChooser(intent, "分享到 $appName"))
+C:\Users\Administrator\CourtAssistant\app\src\main\java\com\shanfuchun\courtassistant\ui\DocsFragment.kt:545:        } catch (e: Exception) {
+C:\Users\Administrator\CourtAssistant\app\src\main\java\com\shanfuchun\courtassistant\ui\DocsFragment.kt-546-            Toast.makeText(requireContext(), "分享失败", Toast.LENGTH_SHORT).show()
+C:\Users\Administrator\CourtAssistant\app\src\main\java\com\shanfuchun\courtassistant\ui\DocsFragment.kt-547-        }
+--
+C:\Users\Administrator\CourtAssistant\app\src\main\java\com\shanfuchun\courtassistant\ui\DocsFragment.kt-570-        try {
+C:\Users\Administrator\CourtAssistant\app\src\main\java\com\shanfuchun\courtassistant\ui\DocsFragment.kt-571-            startActivity(intent)
+C:\Users\Administrator\CourtAssistant\app\src\main\java\com\shanfuchun\courtassistant\ui\DocsFragment.kt:572:        } catch (e: Exception) {
+C:\Users\Administrator\CourtAssistant\app\src\main\java\com\shanfuchun\courtassistant\ui\DocsFragment.kt-573-            Toast.makeText(requireContext(), "无法打开PDF", Toast.LENGTH_SHORT).show()
+C:\Users\Administrator\CourtAssistant\app\src\main\java\com\shanfuchun\courtassistant\ui\DocsFragment.kt-574-        }
+--
+C:\Users\Administrator\CourtAssistant\app\src\main\java\com\shanfuchun\courtassistant\ui\SettingsFragment.kt-103-                    }
+C:\Users\Administrator\CourtAssistant\app\src\main\java\com\shanfuchun\courtassistant\ui\SettingsFragment.kt-104-                    startActivity(Intent.createChooser(intent, "导出日历"))
+C:\Users\Administrator\CourtAssistant\app\src\main\java\com\shanfuchun\courtassistant\ui\SettingsFragment.kt:105:                } catch (e: Exception) {
+C:\Users\Administrator\CourtAssistant\app\src\main\java\com\shanfuchun\courtassistant\ui\SettingsFragment.kt-106-                    Toast.makeText(requireContext(), "导出失败: ${e.message}", Toast.LENGTH_SHORT).show()
+C:\Users\Administrator\CourtAssistant\app\src\main\java\com\shanfuchun\courtassistant\ui\SettingsFragment.kt-107-                }
+--
+C:\Users\Administrator\CourtAssistant\app\src\main\java\com\shanfuchun\courtassistant\ui\WebViewActivity.kt-181-                                        handlePdfDownload(pdfUrl)
+C:\Users\Administrator\CourtAssistant\app\src\main\java\com\shanfuchun\courtassistant\ui\WebViewActivity.kt-182-                                    }
+C:\Users\Administrator\CourtAssistant\app\src\main\java\com\shanfuchun\courtassistant\ui\WebViewActivity.kt:183:                                } catch (e: Exception) {
+C:\Users\Administrator\CourtAssistant\app\src\main\java\com\shanfuchun\courtassistant\ui\WebViewActivity.kt-184-                                    Log.e(TAG, "Error parsing console message", e)
+C:\Users\Administrator\CourtAssistant\app\src\main\java\com\shanfuchun\courtassistant\ui\WebViewActivity.kt-185-                                }
+--
+C:\Users\Administrator\CourtAssistant\app\src\main\java\com\shanfuchun\courtassistant\ui\WebViewActivity.kt-424-                }
+C:\Users\Administrator\CourtAssistant\app\src\main\java\com\shanfuchun\courtassistant\ui\WebViewActivity.kt-425-            }
+C:\Users\Administrator\CourtAssistant\app\src\main\java\com\shanfuchun\courtassistant\ui\WebViewActivity.kt:426:        } catch (e: Exception) {
+C:\Users\Administrator\CourtAssistant\app\src\main\java\com\shanfuchun\courtassistant\ui\WebViewActivity.kt-427-            Log.e(TAG, "Error parsing scan click result", e)
+C:\Users\Administrator\CourtAssistant\app\src\main\java\com\shanfuchun\courtassistant\ui\WebViewActivity.kt-428-        }
+--
+C:\Users\Administrator\CourtAssistant\app\src\main\java\com\shanfuchun\courtassistant\ui\WebViewActivity.kt-476-                }
+C:\Users\Administrator\CourtAssistant\app\src\main\java\com\shanfuchun\courtassistant\ui\WebViewActivity.kt-477-            }
+C:\Users\Administrator\CourtAssistant\app\src\main\java\com\shanfuchun\courtassistant\ui\WebViewActivity.kt:478:        } catch (e: Exception) {
+C:\Users\Administrator\CourtAssistant\app\src\main\java\com\shanfuchun\courtassistant\ui\WebViewActivity.kt-479-            Log.e(TAG, "Error parsing scan result", e)
+C:\Users\Administrator\CourtAssistant\app\src\main\java\com\shanfuchun\courtassistant\ui\WebViewActivity.kt-480-        }
+--
+C:\Users\Administrator\CourtAssistant\app\src\main\java\com\shanfuchun\courtassistant\ui\WebViewActivity.kt-550-                    }
+C:\Users\Administrator\CourtAssistant\app\src\main\java\com\shanfuchun\courtassistant\ui\WebViewActivity.kt-551-                }
+C:\Users\Administrator\CourtAssistant\app\src\main\java\com\shanfuchun\courtassistant\ui\WebViewActivity.kt:552:            } catch (e: Exception) {
+C:\Users\Administrator\CourtAssistant\app\src\main\java\com\shanfuchun\courtassistant\ui\WebViewActivity.kt-553-                Log.e(TAG, "Error in downloadAndSavePdf", e)
+C:\Users\Administrator\CourtAssistant\app\src\main\java\com\shanfuchun\courtassistant\ui\WebViewActivity.kt-554-                handler.post {
+--
+C:\Users\Administrator\CourtAssistant\app\src\main\java\com\shanfuchun\courtassistant\ui\WebViewActivity.kt-577-        val response = try {
+C:\Users\Administrator\CourtAssistant\app\src\main\java\com\shanfuchun\courtassistant\ui\WebViewActivity.kt-578-            client.newCall(request).execute()
+C:\Users\Administrator\CourtAssistant\app\src\main\java\com\shanfuchun\courtassistant\ui\WebViewActivity.kt:579:        } catch (e: Exception) {
+C:\Users\Administrator\CourtAssistant\app\src\main\java\com\shanfuchun\courtassistant\ui\WebViewActivity.kt-580-            Log.e(TAG, "HTTP request failed", e)
+C:\Users\Administrator\CourtAssistant\app\src\main\java\com\shanfuchun\courtassistant\ui\WebViewActivity.kt-581-            return null
+--
+C:\Users\Administrator\CourtAssistant\app\src\main\java\com\shanfuchun\courtassistant\ui\WebViewActivity.kt-606-                null
+C:\Users\Administrator\CourtAssistant\app\src\main\java\com\shanfuchun\courtassistant\ui\WebViewActivity.kt-607-            }
+C:\Users\Administrator\CourtAssistant\app\src\main\java\com\shanfuchun\courtassistant\ui\WebViewActivity.kt:608:        } catch (e: Exception) {
+C:\Users\Administrator\CourtAssistant\app\src\main\java\com\shanfuchun\courtassistant\ui\WebViewActivity.kt-609-            Log.e(TAG, "Download file save failed", e)
+C:\Users\Administrator\CourtAssistant\app\src\main\java\com\shanfuchun\courtassistant\ui\WebViewActivity.kt-610-            null
+--
+C:\Users\Administrator\CourtAssistant\app\src\main\java\com\shanfuchun\courtassistant\ui\WebViewActivity.kt-620-                baseUri.resolve(href).toString()
+C:\Users\Administrator\CourtAssistant\app\src\main\java\com\shanfuchun\courtassistant\ui\WebViewActivity.kt-621-            }
+C:\Users\Administrator\CourtAssistant\app\src\main\java\com\shanfuchun\courtassistant\ui\WebViewActivity.kt:622:        } catch (e: Exception) {
+C:\Users\Administrator\CourtAssistant\app\src\main\java\com\shanfuchun\courtassistant\ui\WebViewActivity.kt-623-            href
+C:\Users\Administrator\CourtAssistant\app\src\main\java\com\shanfuchun\courtassistant\ui\WebViewActivity.kt-624-        }
+--
+C:\Users\Administrator\CourtAssistant\app\src\main\java\com\shanfuchun\courtassistant\ui\WebViewActivity.kt-638-            val name = path.substringAfterLast("/")
+C:\Users\Administrator\CourtAssistant\app\src\main\java\com\shanfuchun\courtassistant\ui\WebViewActivity.kt-639-            if (name.isNotBlank() && name.length < 100) name else "document.pdf"
+C:\Users\Administrator\CourtAssistant\app\src\main\java\com\shanfuchun\courtassistant\ui\WebViewActivity.kt:640:        } catch (e: Exception) {
+C:\Users\Administrator\CourtAssistant\app\src\main\java\com\shanfuchun\courtassistant\ui\WebViewActivity.kt-641-            "document.pdf"
+C:\Users\Administrator\CourtAssistant\app\src\main\java\com\shanfuchun\courtassistant\ui\WebViewActivity.kt-642-        }
+--
+C:\Users\Administrator\CourtAssistant\app\src\main\java\com\shanfuchun\courtassistant\util\share\WeChatShareUtil.kt-41-            return try {
+C:\Users\Administrator\CourtAssistant\app\src\main\java\com\shanfuchun\courtassistant\util\share\WeChatShareUtil.kt-42-                context.packageManager.getPackageInfo(WECHAT_PACKAGE_NAME, 0) != null
+C:\Users\Administrator\CourtAssistant\app\src\main\java\com\shanfuchun\courtassistant\util\share\WeChatShareUtil.kt:43:            } catch (e: PackageManager.NameNotFoundException) {
+C:\Users\Administrator\CourtAssistant\app\src\main\java\com\shanfuchun\courtassistant\util\share\WeChatShareUtil.kt-44-                false
+C:\Users\Administrator\CourtAssistant\app\src\main\java\com\shanfuchun\courtassistant\util\share\WeChatShareUtil.kt-45-            }
+--
+C:\Users\Administrator\CourtAssistant\app\src\main\java\com\shanfuchun\courtassistant\util\share\WeChatShareUtil.kt-52-            return try {
+C:\Users\Administrator\CourtAssistant\app\src\main\java\com\shanfuchun\courtassistant\util\share\WeChatShareUtil.kt-53-                context.packageManager.getPackageInfo(packageName, 0) != null
+C:\Users\Administrator\CourtAssistant\app\src\main\java\com\shanfuchun\courtassistant\util\share\WeChatShareUtil.kt:54:            } catch (e: PackageManager.NameNotFoundException) {
+C:\Users\Administrator\CourtAssistant\app\src\main\java\com\shanfuchun\courtassistant\util\share\WeChatShareUtil.kt-55-                false
+C:\Users\Administrator\CourtAssistant\app\src\main\java\com\shanfuchun\courtassistant\util\share\WeChatShareUtil.kt-56-            }
+--
+C:\Users\Administrator\CourtAssistant\app\src\main\java\com\shanfuchun\courtassistant\util\share\WeChatShareUtil.kt-160-            shareToTarget(targets[0], uri)
+C:\Users\Administrator\CourtAssistant\app\src\main\java\com\shanfuchun\courtassistant\util\share\WeChatShareUtil.kt-161-            true
+C:\Users\Administrator\CourtAssistant\app\src\main\java\com\shanfuchun\courtassistant\util\share\WeChatShareUtil.kt:162:        } catch (e: Exception) {
+C:\Users\Administrator\CourtAssistant\app\src\main\java\com\shanfuchun\courtassistant\util\share\WeChatShareUtil.kt-163-            e.printStackTrace()
+C:\Users\Administrator\CourtAssistant\app\src\main\java\com\shanfuchun\courtassistant\util\share\WeChatShareUtil.kt-164-            Toast.makeText(context, "分享失败: ${e.message}", Toast.LENGTH_SHORT).show()
+--
+C:\Users\Administrator\CourtAssistant\app\src\main\java\com\shanfuchun\courtassistant\util\share\WeChatShareUtil.kt-177-            }
+C:\Users\Administrator\CourtAssistant\app\src\main\java\com\shanfuchun\courtassistant\util\share\WeChatShareUtil.kt-178-            true
+C:\Users\Administrator\CourtAssistant\app\src\main\java\com\shanfuchun\courtassistant\util\share\WeChatShareUtil.kt:179:        } catch (e: Exception) {
+C:\Users\Administrator\CourtAssistant\app\src\main\java\com\shanfuchun\courtassistant\util\share\WeChatShareUtil.kt-180-            e.printStackTrace()
+C:\Users\Administrator\CourtAssistant\app\src\main\java\com\shanfuchun\courtassistant\util\share\WeChatShareUtil.kt-181-            withContext(Dispatchers.Main) {
+--
+C:\Users\Administrator\CourtAssistant\app\src\main\java\com\shanfuchun\courtassistant\util\share\WeChatShareUtil.kt-221-            )
+C:\Users\Administrator\CourtAssistant\app\src\main\java\com\shanfuchun\courtassistant\util\share\WeChatShareUtil.kt-222-            context.startActivity(intent)
+C:\Users\Administrator\CourtAssistant\app\src\main\java\com\shanfuchun\courtassistant\util\share\WeChatShareUtil.kt:223:        } catch (e: ActivityNotFoundException) {
+C:\Users\Administrator\CourtAssistant\app\src\main\java\com\shanfuchun\courtassistant\util\share\WeChatShareUtil.kt-224-            Toast.makeText(context, "未找到${target.appName}", Toast.LENGTH_SHORT).show()
+C:\Users\Administrator\CourtAssistant\app\src\main\java\com\shanfuchun\courtassistant\util\share\WeChatShareUtil.kt:225:        } catch (e: Exception) {
+C:\Users\Administrator\CourtAssistant\app\src\main\java\com\shanfuchun\courtassistant\util\share\WeChatShareUtil.kt-226-            Toast.makeText(context, "分享失败: ${e.message}", Toast.LENGTH_SHORT).show()
+C:\Users\Administrator\CourtAssistant\app\src\main\java\com\shanfuchun\courtassistant\util\share\WeChatShareUtil.kt-227-        }
+--
+C:\Users\Administrator\CourtAssistant\app\src\main\java\com\shanfuchun\courtassistant\util\share\WeChatShareUtil.kt-267-                context.startActivity(intent)
+C:\Users\Administrator\CourtAssistant\app\src\main\java\com\shanfuchun\courtassistant\util\share\WeChatShareUtil.kt-268-                true
+C:\Users\Administrator\CourtAssistant\app\src\main\java\com\shanfuchun\courtassistant\util\share\WeChatShareUtil.kt:269:            } catch (e: Exception) {
+C:\Users\Administrator\CourtAssistant\app\src\main\java\com\shanfuchun\courtassistant\util\share\WeChatShareUtil.kt-270-                false
+C:\Users\Administrator\CourtAssistant\app\src\main\java\com\shanfuchun\courtassistant\util\share\WeChatShareUtil.kt-271-            }
+--
+C:\Users\Administrator\CourtAssistant\app\src\main\java\com\shanfuchun\courtassistant\util\share\WeChatShareUtil.kt-285-                context.startActivity(intent)
+C:\Users\Administrator\CourtAssistant\app\src\main\java\com\shanfuchun\courtassistant\util\share\WeChatShareUtil.kt-286-                true
+C:\Users\Administrator\CourtAssistant\app\src\main\java\com\shanfuchun\courtassistant\util\share\WeChatShareUtil.kt:287:            } catch (e: Exception) {
+C:\Users\Administrator\CourtAssistant\app\src\main\java\com\shanfuchun\courtassistant\util\share\WeChatShareUtil.kt-288-                false
+C:\Users\Administrator\CourtAssistant\app\src\main\java\com\shanfuchun\courtassistant\util\share\WeChatShareUtil.kt-289-            }
+--
+C:\Users\Administrator\CourtAssistant\app\src\main\java\com\shanfuchun\courtassistant\service\PdfParser.kt-75-                        val uri = FileProvider.getUriForFile(context, "${context.packageName}.fileprovider", file)
+C:\Users\Administrator\CourtAssistant\app\src\main\java\com\shanfuchun\courtassistant\service\PdfParser.kt-76-                        uri.toString()
+C:\Users\Administrator\CourtAssistant\app\src\main\java\com\shanfuchun\courtassistant\service\PdfParser.kt:77:                    } catch (_: Exception) { doc.filePath }
+C:\Users\Administrator\CourtAssistant\app\src\main\java\com\shanfuchun\courtassistant\service\PdfParser.kt-78-                    CalendarHelper.syncHearing(context, db, info, docId, "document", pdfFilePath = pdfUri)
+C:\Users\Administrator\CourtAssistant\app\src\main\java\com\shanfuchun\courtassistant\service\PdfParser.kt-79-                } else false
+C:\Users\Administrator\CourtAssistant\app\src\main\java\com\shanfuchun\courtassistant\service\PdfParser.kt-80-
+C:\Users\Administrator\CourtAssistant\app\src\main\java\com\shanfuchun\courtassistant\service\PdfParser.kt-81-                db.documentDao().update(doc.copy(parseStatus = 1, calendarSynced = synced))
+C:\Users\Administrator\CourtAssistant\app\src\main\java\com\shanfuchun\courtassistant\service\PdfParser.kt:82:            } catch (e: Exception) {
+C:\Users\Administrator\CourtAssistant\app\src\main\java\com\shanfuchun\courtassistant\service\PdfParser.kt-83-                db.documentDao().update(doc.copy(parseStatus = 2))
+C:\Users\Administrator\CourtAssistant\app\src\main\java\com\shanfuchun\courtassistant\service\PdfParser.kt-84-            }
+--
+C:\Users\Administrator\CourtAssistant\app\src\main\java\com\shanfuchun\courtassistant\service\PdfParser.kt-91-                PDFTextStripper().getText(doc).trim()
+C:\Users\Administrator\CourtAssistant\app\src\main\java\com\shanfuchun\courtassistant\service\PdfParser.kt-92-            }
+C:\Users\Administrator\CourtAssistant\app\src\main\java\com\shanfuchun\courtassistant\service\PdfParser.kt:93:        } catch (_: Exception) { "" }
+C:\Users\Administrator\CourtAssistant\app\src\main\java\com\shanfuchun\courtassistant\service\PdfParser.kt-94-    }
+C:\Users\Administrator\CourtAssistant\app\src\main\java\com\shanfuchun\courtassistant\service\PdfParser.kt-95-
+--
+C:\Users\Administrator\CourtAssistant\app\src\main\java\com\shanfuchun\courtassistant\service\PdfParser.kt-108-            pdDoc.close()
+C:\Users\Administrator\CourtAssistant\app\src\main\java\com\shanfuchun\courtassistant\service\PdfParser.kt-109-            sb.toString().trim()
+C:\Users\Administrator\CourtAssistant\app\src\main\java\com\shanfuchun\courtassistant\service\PdfParser.kt:110:        } catch (_: Exception) { "" }
+C:\Users\Administrator\CourtAssistant\app\src\main\java\com\shanfuchun\courtassistant\service\PdfParser.kt-111-    }
+C:\Users\Administrator\CourtAssistant\app\src\main\java\com\shanfuchun\courtassistant\service\PdfParser.kt-112-
+--
+C:\Users\Administrator\CourtAssistant\app\src\main\java\com\shanfuchun\courtassistant\service\PdfDownloader.kt-61-                        }
+C:\Users\Administrator\CourtAssistant\app\src\main\java\com\shanfuchun\courtassistant\service\PdfDownloader.kt-62-                    }
+C:\Users\Administrator\CourtAssistant\app\src\main\java\com\shanfuchun\courtassistant\service\PdfDownloader.kt:63:                } catch (e: Exception) {
+C:\Users\Administrator\CourtAssistant\app\src\main\java\com\shanfuchun\courtassistant\service\PdfDownloader.kt-64-                    Log.e(TAG, "PdfDownloader: error processing url=$url", e)
+C:\Users\Administrator\CourtAssistant\app\src\main\java\com\shanfuchun\courtassistant\service\PdfDownloader.kt-65-                    savePendingUrl(db, smsId, url)
+--
+C:\Users\Administrator\CourtAssistant\app\src\main\java\com\shanfuchun\courtassistant\service\PdfDownloader.kt-84-                val href = link.attr("abs:href").ifEmpty { link.attr("href") }
+C:\Users\Administrator\CourtAssistant\app\src\main\java\com\shanfuchun\courtassistant\service\PdfDownloader.kt-85-                if (href.isBlank()) continue
+C:\Users\Administrator\CourtAssistant\app\src\main\java\com\shanfuchun\courtassistant\service\PdfDownloader.kt:86:                val resolved = try { baseUri.resolve(href).toString() } catch (_: Exception) { href }
+C:\Users\Administrator\CourtAssistant\app\src\main\java\com\shanfuchun\courtassistant\service\PdfDownloader.kt-87-                val text = link.text().trim()
+C:\Users\Administrator\CourtAssistant\app\src\main\java\com\shanfuchun\courtassistant\service\PdfDownloader.kt-88-                val title = link.attr("title").trim()
+--
+C:\Users\Administrator\CourtAssistant\app\src\main\java\com\shanfuchun\courtassistant\service\PdfDownloader.kt-106-                val src = el.attr("abs:src").ifEmpty { el.attr("src").ifEmpty { el.attr("data") } }
+C:\Users\Administrator\CourtAssistant\app\src\main\java\com\shanfuchun\courtassistant\service\PdfDownloader.kt-107-                if (src.isBlank()) continue
+C:\Users\Administrator\CourtAssistant\app\src\main\java\com\shanfuchun\courtassistant\service\PdfDownloader.kt:108:                val resolved = try { baseUri.resolve(src).toString() } catch (_: Exception) { src }
+C:\Users\Administrator\CourtAssistant\app\src\main\java\com\shanfuchun\courtassistant\service\PdfDownloader.kt-109-                if (resolved.lowercase().let { it.contains(".pdf") || it.contains("pdf") }) {
+C:\Users\Administrator\CourtAssistant\app\src\main\java\com\shanfuchun\courtassistant\service\PdfDownloader.kt-110-                    val name = el.attr("title").ifEmpty { "嵌入文档" }
+--
+C:\Users\Administrator\CourtAssistant\app\src\main\java\com\shanfuchun\courtassistant\service\PdfDownloader.kt-123-                            if (pdfUrl.startsWith("http")) pdfUrl
+C:\Users\Administrator\CourtAssistant\app\src\main\java\com\shanfuchun\courtassistant\service\PdfDownloader.kt-124-                            else baseUri.resolve(pdfUrl).toString()
+C:\Users\Administrator\CourtAssistant\app\src\main\java\com\shanfuchun\courtassistant\service\PdfDownloader.kt:125:                        } catch (_: Exception) { pdfUrl }
+C:\Users\Administrator\CourtAssistant\app\src\main\java\com\shanfuchun\courtassistant\service\PdfDownloader.kt-126-                        if (resolved.lowercase().contains(".pdf")) {
+C:\Users\Administrator\CourtAssistant\app\src\main\java\com\shanfuchun\courtassistant\service\PdfDownloader.kt-127-                            val name = extractNameFromUrl(resolved)
+--
+C:\Users\Administrator\CourtAssistant\app\src\main\java\com\shanfuchun\courtassistant\service\PdfDownloader.kt-131-                }
+C:\Users\Administrator\CourtAssistant\app\src\main\java\com\shanfuchun\courtassistant\service\PdfDownloader.kt-132-            }
+C:\Users\Administrator\CourtAssistant\app\src\main\java\com\shanfuchun\courtassistant\service\PdfDownloader.kt:133:        } catch (e: Exception) {
+C:\Users\Administrator\CourtAssistant\app\src\main\java\com\shanfuchun\courtassistant\service\PdfDownloader.kt-134-            Log.d(TAG, "PdfDownloader: Jsoup failed for $pageUrl: ${e.message}")
+C:\Users\Administrator\CourtAssistant\app\src\main\java\com\shanfuchun\courtassistant\service\PdfDownloader.kt-135-        }
+--
+C:\Users\Administrator\CourtAssistant\app\src\main\java\com\shanfuchun\courtassistant\service\PdfDownloader.kt-146-                "文档"
+C:\Users\Administrator\CourtAssistant\app\src\main\java\com\shanfuchun\courtassistant\service\PdfDownloader.kt-147-            }
+C:\Users\Administrator\CourtAssistant\app\src\main\java\com\shanfuchun\courtassistant\service\PdfDownloader.kt:148:        } catch (e: Exception) {
+C:\Users\Administrator\CourtAssistant\app\src\main\java\com\shanfuchun\courtassistant\service\PdfDownloader.kt-149-            "文档"
+C:\Users\Administrator\CourtAssistant\app\src\main\java\com\shanfuchun\courtassistant\service\PdfDownloader.kt-150-        }
+--
+C:\Users\Administrator\CourtAssistant\app\src\main\java\com\shanfuchun\courtassistant\service\PdfDownloader.kt-184-                    )
+C:\Users\Administrator\CourtAssistant\app\src\main\java\com\shanfuchun\courtassistant\service\PdfDownloader.kt-185-                }
+C:\Users\Administrator\CourtAssistant\app\src\main\java\com\shanfuchun\courtassistant\service\PdfDownloader.kt:186:            } catch (e: Exception) {
+C:\Users\Administrator\CourtAssistant\app\src\main\java\com\shanfuchun\courtassistant\service\PdfDownloader.kt-187-                Log.e(TAG, "Error saving pending URL", e)
+C:\Users\Administrator\CourtAssistant\app\src\main\java\com\shanfuchun\courtassistant\service\PdfDownloader.kt-188-            }
+--
+C:\Users\Administrator\CourtAssistant\app\src\main\java\com\shanfuchun\courtassistant\service\PdfDownloader.kt-215-                return false
+C:\Users\Administrator\CourtAssistant\app\src\main\java\com\shanfuchun\courtassistant\service\PdfDownloader.kt-216-            }
+C:\Users\Administrator\CourtAssistant\app\src\main\java\com\shanfuchun\courtassistant\service\PdfDownloader.kt:217:        } catch (e: Exception) {
+C:\Users\Administrator\CourtAssistant\app\src\main\java\com\shanfuchun\courtassistant\service\PdfDownloader.kt-218-            // HEAD failed, try download anyway
+C:\Users\Administrator\CourtAssistant\app\src\main\java\com\shanfuchun\courtassistant\service\PdfDownloader.kt-219-            return downloadPdf(context, db, smsId, url, displayName) > 0
+--
+C:\Users\Administrator\CourtAssistant\app\src\main\java\com\shanfuchun\courtassistant\service\PdfDownloader.kt-248-
+C:\Users\Administrator\CourtAssistant\app\src\main\java\com\shanfuchun\courtassistant\service\PdfDownloader.kt-249-    private fun extractFileName(url: String): String {
+C:\Users\Administrator\CourtAssistant\app\src\main\java\com\shanfuchun\courtassistant\service\PdfDownloader.kt:250:        val path = try { URI(url).path } catch (_: Exception) { null } ?: return "document.pdf"
+C:\Users\Administrator\CourtAssistant\app\src\main\java\com\shanfuchun\courtassistant\service\PdfDownloader.kt-251-        val name = path.substringAfterLast("/")
+C:\Users\Administrator\CourtAssistant\app\src\main\java\com\shanfuchun\courtassistant\service\PdfDownloader.kt-252-        return if (name.isNotBlank() && name.length < 100) name else "document.pdf"
+--
+C:\Users\Administrator\CourtAssistant\app\src\main\java\com\shanfuchun\courtassistant\util\log\Logger.kt-154-            val message = try {
+C:\Users\Administrator\CourtAssistant\app\src\main\java\com\shanfuchun\courtassistant\util\log\Logger.kt-155-                String.format(format, *args)
+C:\Users\Administrator\CourtAssistant\app\src\main\java\com\shanfuchun\courtassistant\util\log\Logger.kt:156:            } catch (e: Exception) {
+C:\Users\Administrator\CourtAssistant\app\src\main\java\com\shanfuchun\courtassistant\util\log\Logger.kt-157-                format
+C:\Users\Administrator\CourtAssistant\app\src\main\java\com\shanfuchun\courtassistant\util\log\Logger.kt-158-            }
+--
+C:\Users\Administrator\CourtAssistant\app\src\main\java\com\shanfuchun\courtassistant\util\log\Logger.kt-170-            val formattedJson = try {
+C:\Users\Administrator\CourtAssistant\app\src\main\java\com\shanfuchun\courtassistant\util\log\Logger.kt-171-                formatJson(json)
+C:\Users\Administrator\CourtAssistant\app\src\main\java\com\shanfuchun\courtassistant\util\log\Logger.kt:172:            } catch (e: Exception) {
+C:\Users\Administrator\CourtAssistant\app\src\main\java\com\shanfuchun\courtassistant\util\log\Logger.kt-173-                json
+C:\Users\Administrator\CourtAssistant\app\src\main\java\com\shanfuchun\courtassistant\util\log\Logger.kt-174-            }
+--
+C:\Users\Administrator\CourtAssistant\app\src\main\java\com\shanfuchun\courtassistant\util\log\Logger.kt-186-            val jsonObject = org.json.JSONObject(json)
+C:\Users\Administrator\CourtAssistant\app\src\main\java\com\shanfuchun\courtassistant\util\log\Logger.kt-187-            jsonObject.toString(2)
+C:\Users\Administrator\CourtAssistant\app\src\main\java\com\shanfuchun\courtassistant\util\log\Logger.kt:188:        } catch (e: Exception) {
+C:\Users\Administrator\CourtAssistant\app\src\main\java\com\shanfuchun\courtassistant\util\log\Logger.kt-189-            json
+C:\Users\Administrator\CourtAssistant\app\src\main\java\com\shanfuchun\courtassistant\util\log\Logger.kt-190-        }
+--
+C:\Users\Administrator\CourtAssistant\app\src\main\java\com\shanfuchun\courtassistant\util\log\Logger.kt-207-                ""
+C:\Users\Administrator\CourtAssistant\app\src\main\java\com\shanfuchun\courtassistant\util\log\Logger.kt-208-            }
+C:\Users\Administrator\CourtAssistant\app\src\main\java\com\shanfuchun\courtassistant\util\log\Logger.kt:209:        } catch (e: Exception) {
+C:\Users\Administrator\CourtAssistant\app\src\main\java\com\shanfuchun\courtassistant\util\log\Logger.kt-210-            ""
+C:\Users\Administrator\CourtAssistant\app\src\main\java\com\shanfuchun\courtassistant\util\log\Logger.kt-211-        }
+--
+C:\Users\Administrator\CourtAssistant\app\src\main\java\com\shanfuchun\courtassistant\util\date\DateUtils.kt-140-        return try {
+C:\Users\Administrator\CourtAssistant\app\src\main\java\com\shanfuchun\courtassistant\util\date\DateUtils.kt-141-            SimpleDateFormat(pattern, Locale.CHINA).parse(dateStr)
+C:\Users\Administrator\CourtAssistant\app\src\main\java\com\shanfuchun\courtassistant\util\date\DateUtils.kt:142:        } catch (e: Exception) {
+C:\Users\Administrator\CourtAssistant\app\src\main\java\com\shanfuchun\courtassistant\util\date\DateUtils.kt-143-            null
+C:\Users\Administrator\CourtAssistant\app\src\main\java\com\shanfuchun\courtassistant\util\date\DateUtils.kt-144-        }
+--
+C:\Users\Administrator\CourtAssistant\app\src\main\java\com\shanfuchun\courtassistant\util\network\NetworkHelper.kt-72-                networkInfo?.isConnected == true
+C:\Users\Administrator\CourtAssistant\app\src\main\java\com\shanfuchun\courtassistant\util\network\NetworkHelper.kt-73-            }
+C:\Users\Administrator\CourtAssistant\app\src\main\java\com\shanfuchun\courtassistant\util\network\NetworkHelper.kt:74:        } catch (e: Exception) {
+C:\Users\Administrator\CourtAssistant\app\src\main\java\com\shanfuchun\courtassistant\util\network\NetworkHelper.kt-75-            false
+C:\Users\Administrator\CourtAssistant\app\src\main\java\com\shanfuchun\courtassistant\util\network\NetworkHelper.kt-76-        }
+--
+C:\Users\Administrator\CourtAssistant\app\src\main\java\com\shanfuchun\courtassistant\util\network\NetworkHelper.kt-99-                connectivityManager.activeNetworkInfo?.type == ConnectivityManager.TYPE_WIFI
+C:\Users\Administrator\CourtAssistant\app\src\main\java\com\shanfuchun\courtassistant\util\network\NetworkHelper.kt-100-            }
+C:\Users\Administrator\CourtAssistant\app\src\main\java\com\shanfuchun\courtassistant\util\network\NetworkHelper.kt:101:        } catch (e: Exception) {
+C:\Users\Administrator\CourtAssistant\app\src\main\java\com\shanfuchun\courtassistant\util\network\NetworkHelper.kt-102-            false
+C:\Users\Administrator\CourtAssistant\app\src\main\java\com\shanfuchun\courtassistant\util\network\NetworkHelper.kt-103-        }
+--
+C:\Users\Administrator\CourtAssistant\app\src\main\java\com\shanfuchun\courtassistant\util\network\NetworkHelper.kt-118-                connectivityManager.activeNetworkInfo?.type == ConnectivityManager.TYPE_MOBILE
+C:\Users\Administrator\CourtAssistant\app\src\main\java\com\shanfuchun\courtassistant\util\network\NetworkHelper.kt-119-            }
+C:\Users\Administrator\CourtAssistant\app\src\main\java\com\shanfuchun\courtassistant\util\network\NetworkHelper.kt:120:        } catch (e: Exception) {
+C:\Users\Administrator\CourtAssistant\app\src\main\java\com\shanfuchun\courtassistant\util\network\NetworkHelper.kt-121-            false
+C:\Users\Administrator\CourtAssistant\app\src\main\java\com\shanfuchun\courtassistant\util\network\NetworkHelper.kt-122-        }
+--
+C:\Users\Administrator\CourtAssistant\app\src\main\java\com\shanfuchun\courtassistant\util\network\NetworkHelper.kt-150-            connection.requestMethod = "HEAD"
+C:\Users\Administrator\CourtAssistant\app\src\main\java\com\shanfuchun\courtassistant\util\network\NetworkHelper.kt-151-            connection.responseCode == HttpURLConnection.HTTP_OK
+C:\Users\Administrator\CourtAssistant\app\src\main\java\com\shanfuchun\courtassistant\util\network\NetworkHelper.kt:152:        } catch (e: Exception) {
+C:\Users\Administrator\CourtAssistant\app\src\main\java\com\shanfuchun\courtassistant\util\network\NetworkHelper.kt-153-            false
+C:\Users\Administrator\CourtAssistant\app\src\main\java\com\shanfuchun\courtassistant\util\network\NetworkHelper.kt-154-        }
+--
+C:\Users\Administrator\CourtAssistant\app\src\main\java\com\shanfuchun\courtassistant\util\network\NetworkHelper.kt-224-                    connection.disconnect()
+C:\Users\Administrator\CourtAssistant\app\src\main\java\com\shanfuchun\courtassistant\util\network\NetworkHelper.kt-225-                    if (cont.isActive) cont.resume(reachable)
+C:\Users\Administrator\CourtAssistant\app\src\main\java\com\shanfuchun\courtassistant\util\network\NetworkHelper.kt:226:                } catch (e: Exception) {
+C:\Users\Administrator\CourtAssistant\app\src\main\java\com\shanfuchun\courtassistant\util\network\NetworkHelper.kt-227-                    if (cont.isActive) cont.resume(false)
+C:\Users\Administrator\CourtAssistant\app\src\main\java\com\shanfuchun\courtassistant\util\network\NetworkHelper.kt-228-                }
+C:\Users\Administrator\CourtAssistant\app\src\main\java\com\shanfuchun\courtassistant\util\network\NetworkHelper.kt-229-            }.start()
+C:\Users\Administrator\CourtAssistant\app\src\main\java\com\shanfuchun\courtassistant\util\network\NetworkHelper.kt:230:        } catch (e: Exception) {
+C:\Users\Administrator\CourtAssistant\app\src\main\java\com\shanfuchun\courtassistant\util\network\NetworkHelper.kt-231-            if (cont.isActive) cont.resume(false)
+C:\Users\Administrator\CourtAssistant\app\src\main\java\com\shanfuchun\courtassistant\util\network\NetworkHelper.kt-232-        }
+--
+C:\Users\Administrator\CourtAssistant\app\src\main\java\com\shanfuchun\courtassistant\util\file\UriUtils.kt-143-        return try {
+C:\Users\Administrator\CourtAssistant\app\src\main\java\com\shanfuchun\courtassistant\util\file\UriUtils.kt-144-            context.contentResolver.openInputStream(uri)?.use { true } ?: false
+C:\Users\Administrator\CourtAssistant\app\src\main\java\com\shanfuchun\courtassistant\util\file\UriUtils.kt:145:        } catch (e: Exception) {
+C:\Users\Administrator\CourtAssistant\app\src\main\java\com\shanfuchun\courtassistant\util\file\UriUtils.kt-146-            false
+C:\Users\Administrator\CourtAssistant\app\src\main\java\com\shanfuchun\courtassistant\util\file\UriUtils.kt-147-        }
+--
+C:\Users\Administrator\CourtAssistant\app\src\main\java\com\shanfuchun\courtassistant\util\file\UriUtils.kt-184-            )
+C:\Users\Administrator\CourtAssistant\app\src\main\java\com\shanfuchun\courtassistant\util\file\UriUtils.kt-185-            true
+C:\Users\Administrator\CourtAssistant\app\src\main\java\com\shanfuchun\courtassistant\util\file\UriUtils.kt:186:        } catch (e: Exception) {
+C:\Users\Administrator\CourtAssistant\app\src\main\java\com\shanfuchun\courtassistant\util\file\UriUtils.kt-187-            false
+C:\Users\Administrator\CourtAssistant\app\src\main\java\com\shanfuchun\courtassistant\util\file\UriUtils.kt-188-        }
+--
+C:\Users\Administrator\CourtAssistant\app\src\main\java\com\shanfuchun\courtassistant\util\file\FileUtils.kt-170-            }
+C:\Users\Administrator\CourtAssistant\app\src\main\java\com\shanfuchun\courtassistant\util\file\FileUtils.kt-171-            true
+C:\Users\Administrator\CourtAssistant\app\src\main\java\com\shanfuchun\courtassistant\util\file\FileUtils.kt:172:        } catch (e: IOException) {
+C:\Users\Administrator\CourtAssistant\app\src\main\java\com\shanfuchun\courtassistant\util\file\FileUtils.kt-173-            e.printStackTrace()
+C:\Users\Administrator\CourtAssistant\app\src\main\java\com\shanfuchun\courtassistant\util\file\FileUtils.kt-174-            false
+--
+C:\Users\Administrator\CourtAssistant\app\src\main\java\com\shanfuchun\courtassistant\util\file\FileUtils.kt-239-            val digest = md.digest()
+C:\Users\Administrator\CourtAssistant\app\src\main\java\com\shanfuchun\courtassistant\util\file\FileUtils.kt-240-            digest.joinToString("") { "%02x".format(it) }
+C:\Users\Administrator\CourtAssistant\app\src\main\java\com\shanfuchun\courtassistant\util\file\FileUtils.kt:241:        } catch (e: Exception) {
+C:\Users\Administrator\CourtAssistant\app\src\main\java\com\shanfuchun\courtassistant\util\file\FileUtils.kt-242-            e.printStackTrace()
+C:\Users\Administrator\CourtAssistant\app\src\main\java\com\shanfuchun\courtassistant\util\file\FileUtils.kt-243-            null
+--
+C:\Users\Administrator\CourtAssistant\app\src\main\java\com\shanfuchun\courtassistant\service\TextParser.kt-365-            cal.set(Calendar.MILLISECOND, 0)
+C:\Users\Administrator\CourtAssistant\app\src\main\java\com\shanfuchun\courtassistant\service\TextParser.kt-366-            return cal.timeInMillis
+C:\Users\Administrator\CourtAssistant\app\src\main\java\com\shanfuchun\courtassistant\service\TextParser.kt:367:        } catch (e: Exception) {
+C:\Users\Administrator\CourtAssistant\app\src\main\java\com\shanfuchun\courtassistant\service\TextParser.kt-368-            return 0
+C:\Users\Administrator\CourtAssistant\app\src\main\java\com\shanfuchun\courtassistant\service\TextParser.kt-369-        }

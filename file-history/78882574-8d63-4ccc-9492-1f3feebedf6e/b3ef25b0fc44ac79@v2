@@ -1,0 +1,767 @@
+# 转录系统优化设计文档
+
+**日期：** 2026-02-27
+**版本：** 1.0
+**状态：** 已批准
+
+## 目标
+
+优化安卓应用的音视频转录功能，实现：
+1. **云端转录速度提升 2-3倍**（立即见效）
+2. **集成本地离线转录**（保护隐私，降低成本）
+3. **智能模式切换**（根据场景自动选择最优方案）
+
+---
+
+## 整体架构
+
+### 转录系统架构图
+
+```
+用户触发转录
+    ↓
+转录模式选择
+    ├─→ 云端模式（Groq API）
+    │   ├─ 文件大小检测
+    │   ├─ 智能分段策略（10分钟/段）
+    │   ├─ 音频压缩（12kbps Opus）
+    │   └─ 并行转录（8个并发）
+    │
+    └─→ 本地模式（Sherpa-ONNX）
+        ├─ 模型加载（base 142MB）
+        ├─ 音频预处理（16kHz单声道）
+        └─ 本地推理转录
+```
+
+### 核心改进点
+
+#### 1. 云端优化（第一阶段 - 1-2天）
+- **分段时长**：5分钟 → 10分钟（减少API调用50%）
+- **并发数**：4个 → 8个（速度提升2倍）
+- **压缩码率**：16kbps → 12kbps（上传时间减少25%）
+- **智能策略**：根据网络速度动态调整分段大小
+
+#### 2. 本地转录（第二阶段 - 3-5天）
+- **引擎**：Sherpa-ONNX（专为移动端优化）
+- **模型**：base 模型 int8 量化版（约80MB）
+- **性能**：1-2倍实时速度（1分钟音频需30-60秒）
+- **离线**：完全离线，无需网络
+
+#### 3. 用户体验
+- AI设置中添加"转录模式"选项：云端/本地/自动
+- 自动模式：有网络且文件<100MB用云端，否则用本地
+- 显示预估时间和剩余时间
+
+---
+
+## 技术实现细节
+
+### 第一阶段：云端转录速度优化
+
+#### 1.1 分段策略优化
+
+**文件：** `FFmpegSegmentedTranscriptionService.kt`
+
+**改动参数：**
+```kotlin
+// 当前参数
+private const val SEGMENT_DURATION = 300L // 5分钟
+private const val MIN_SEGMENT_DURATION = 60L // 1分钟
+private const val OVERLAP_DURATION = 2L // 2秒
+
+// 优化后参数
+private const val SEGMENT_DURATION = 600L // 10分钟
+private const val MIN_SEGMENT_DURATION = 120L // 2分钟
+private const val OVERLAP_DURATION = 1L // 1秒
+```
+
+**效果：**
+- 30分钟视频：从6段 → 3段（减少50% API调用）
+- 60分钟视频：从12段 → 6段
+- 减少段间重叠损失
+
+#### 1.2 并发优化
+
+**改动参数：**
+```kotlin
+// 当前并发
+private const val PARALLEL_SEGMENTS = 4
+private const val API_REQUEST_INTERVAL_MS = 500L
+
+// 优化后并发
+private const val PARALLEL_SEGMENTS = 8 // 提升到8个
+private const val API_REQUEST_INTERVAL_MS = 300L // 减少到300ms
+```
+
+**效果：**
+- 转录速度提升 **2倍**
+- 需要监控 API 速率限制（429错误）
+
+#### 1.3 音频压缩优化
+
+**文件：** `FFmpegSegmentedTranscriptionService.kt`
+
+**当前压缩命令：**
+```kotlin
+append("-acodec libopus ")
+append("-b:a 16k ")
+append("-ac 1 ")
+append("-ar 16000 ")
+append("-application voip ")
+```
+
+**优化后压缩命令：**
+```kotlin
+append("-acodec libopus ")
+append("-b:a 12k ") // 降低到12kbps
+append("-ac 1 ")
+append("-ar 16000 ")
+append("-application voip ")
+append("-compression_level 10 ") // 最高压缩级别
+```
+
+**效果：**
+- 文件大小减少 **25%**
+- 上传时间减少 **25%**
+- 质量仍足够（语音识别对音质容忍度高）
+
+#### 1.4 智能分段策略
+
+**新增功能：** 根据网络速度动态调整分段时长
+
+```kotlin
+/**
+ * 根据网络速度计算最优分段时长
+ * @param networkSpeed 网络速度（bytes/s）
+ * @param fileSize 文件大小
+ * @param duration 视频时长
+ * @return 最优分段时长（秒）
+ */
+private fun calculateOptimalSegmentDuration(
+    networkSpeed: Long,
+    fileSize: Long,
+    duration: Double
+): Long {
+    return when {
+        networkSpeed > 1_000_000 -> 600L // 快速网络（>1MB/s）：10分钟
+        networkSpeed > 500_000 -> 480L // 中速网络（>500KB/s）：8分钟
+        networkSpeed > 200_000 -> 360L // 慢速网络（>200KB/s）：6分钟
+        else -> 300L // 极慢网络：5分钟（保持原策略）
+    }
+}
+
+/**
+ * 检测网络速度（简单实现）
+ */
+private suspend fun detectNetworkSpeed(): Long {
+    // 方案1: 上传小测试文件测速
+    // 方案2: 使用 ConnectivityManager 获取网络类型估算
+    // 方案3: 记录历史上传速度取平均值
+    return 1_000_000L // 默认假设1MB/s
+}
+```
+
+---
+
+### 第二阶段：Sherpa-ONNX 本地转录
+
+#### 2.1 依赖集成
+
+**文件：** `build.gradle.kts`
+
+```kotlin
+dependencies {
+    // 现有依赖...
+
+    // Sherpa-ONNX Android - 离线语音识别
+    implementation("com.k2fsa.sherpa:onnx:1.10.27")
+}
+```
+
+#### 2.2 模型文件管理
+
+**模型信息：**
+- **模型类型**：Whisper base int8 量化版
+- **文件大小**：约80MB（比原始142MB小45%）
+- **存储位置**：`context.filesDir/models/sherpa-onnx-whisper-base/`
+- **下载地址**：https://github.com/k2-fsa/sherpa-onnx/releases
+
+**模型文件结构：**
+```
+models/sherpa-onnx-whisper-base/
+├── whisper-base-encoder.int8.onnx  (~40MB)
+├── whisper-base-decoder.int8.onnx  (~40MB)
+└── tokens.txt                       (~1MB)
+```
+
+#### 2.3 核心实现
+
+**新增文件：** `SherpaOnnxTranscriptionService.kt`
+
+```kotlin
+package com.multilanglearner.data.network
+
+import android.content.Context
+import android.util.Log
+import com.multilanglearner.domain.model.WordTimestamp
+import dagger.hilt.android.qualifiers.ApplicationContext
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
+import sherpa_onnx.*
+import java.io.File
+import javax.inject.Inject
+import javax.inject.Singleton
+
+/**
+ * Sherpa-ONNX 本地转录服务
+ *
+ * 使用 Whisper base int8 模型进行离线语音识别
+ * 性能：1-2倍实时速度（1分钟音频需30-60秒）
+ */
+@Singleton
+class SherpaOnnxTranscriptionService @Inject constructor(
+    @ApplicationContext private val context: Context
+) {
+    companion object {
+        private const val TAG = "SherpaOnnxTranscription"
+        private const val MODEL_DIR = "models/sherpa-onnx-whisper-base"
+    }
+
+    private var recognizer: OfflineRecognizer? = null
+    private val modelDir = File(context.filesDir, MODEL_DIR)
+
+    /**
+     * 初始化识别器（首次使用时调用）
+     */
+    suspend fun initialize(): Boolean = withContext(Dispatchers.IO) {
+        try {
+            if (recognizer != null) return@withContext true
+
+            // 检查模型文件是否存在
+            if (!isModelDownloaded()) {
+                Log.e(TAG, "Model not downloaded")
+                return@withContext false
+            }
+
+            val config = OfflineRecognizerConfig(
+                featConfig = OfflineFeatureConfig(
+                    sampleRate = 16000,
+                    featureDim = 80
+                ),
+                modelConfig = OfflineModelConfig(
+                    whisper = OfflineWhisperModelConfig(
+                        encoder = File(modelDir, "whisper-base-encoder.int8.onnx").absolutePath,
+                        decoder = File(modelDir, "whisper-base-decoder.int8.onnx").absolutePath,
+                        language = "auto", // 自动检测语言
+                        task = "transcribe"
+                    ),
+                    tokens = File(modelDir, "tokens.txt").absolutePath,
+                    numThreads = 4, // 使用4线程并行
+                    provider = "cpu"
+                )
+            )
+
+            recognizer = OfflineRecognizer(config)
+            Log.d(TAG, "Sherpa-ONNX initialized successfully")
+            true
+        } catch (e: Exception) {
+            Log.e(TAG, "Failed to initialize Sherpa-ONNX", e)
+            false
+        }
+    }
+
+    /**
+     * 转录音频文件
+     */
+    suspend fun transcribe(
+        audioFile: File,
+        onProgress: (Int, String) -> Unit = { _, _ -> }
+    ): WhisperResult = withContext(Dispatchers.IO) {
+        try {
+            // 确保已初始化
+            if (recognizer == null && !initialize()) {
+                return@withContext WhisperResult(
+                    success = false,
+                    error = "模型未初始化，请先下载模型"
+                )
+            }
+
+            onProgress(10, "预处理音频...")
+
+            // 1. 使用 FFmpeg 转换音频为 16kHz 单声道 WAV
+            val wavFile = convertToWav(audioFile)
+            if (wavFile == null) {
+                return@withContext WhisperResult(
+                    success = false,
+                    error = "音频预处理失败"
+                )
+            }
+
+            onProgress(30, "加载音频数据...")
+
+            // 2. 读取 WAV 文件
+            val (samples, sampleRate) = readWave(wavFile)
+
+            onProgress(50, "本地转录中...")
+
+            // 3. 创建流并转录
+            val stream = recognizer!!.createStream()
+            stream.acceptWaveform(sampleRate, samples)
+
+            recognizer!!.decode(stream)
+
+            onProgress(90, "处理结果...")
+
+            val result = stream.result
+
+            // 4. 解析时间戳
+            val words = parseTimestamps(result.timestamps, result.text)
+
+            onProgress(100, "完成")
+
+            // 清理临时文件
+            wavFile.delete()
+
+            WhisperResult(
+                success = true,
+                text = result.text,
+                words = words,
+                detectedLang = result.lang ?: "unknown"
+            )
+
+        } catch (e: Exception) {
+            Log.e(TAG, "Transcription failed", e)
+            WhisperResult(
+                success = false,
+                error = "本地转录失败: ${e.message}"
+            )
+        }
+    }
+
+    /**
+     * 检查模型是否已下载
+     */
+    fun isModelDownloaded(): Boolean {
+        val encoder = File(modelDir, "whisper-base-encoder.int8.onnx")
+        val decoder = File(modelDir, "whisper-base-decoder.int8.onnx")
+        val tokens = File(modelDir, "tokens.txt")
+        return encoder.exists() && decoder.exists() && tokens.exists()
+    }
+
+    /**
+     * 获取模型大小（MB）
+     */
+    fun getModelSize(): Double {
+        if (!isModelDownloaded()) return 0.0
+        val totalBytes = modelDir.walkTopDown()
+            .filter { it.isFile }
+            .map { it.length() }
+            .sum()
+        return totalBytes / 1024.0 / 1024.0
+    }
+
+    /**
+     * 转换音频为 16kHz 单声道 WAV
+     */
+    private suspend fun convertToWav(inputFile: File): File? = withContext(Dispatchers.IO) {
+        try {
+            val outputFile = File(context.cacheDir, "temp_${System.currentTimeMillis()}.wav")
+
+            val command = buildString {
+                append("-hide_banner -y ")
+                append("-i \"${inputFile.absolutePath}\" ")
+                append("-ar 16000 ") // 16kHz
+                append("-ac 1 ") // 单声道
+                append("-f wav ") // WAV 格式
+                append("\"${outputFile.absolutePath}\"")
+            }
+
+            val session = com.arthenica.ffmpegkit.FFmpegKit.execute(command)
+
+            if (session.returnCode?.value == 0 && outputFile.exists()) {
+                outputFile
+            } else {
+                Log.e(TAG, "FFmpeg conversion failed: ${session.output}")
+                null
+            }
+        } catch (e: Exception) {
+            Log.e(TAG, "Audio conversion error", e)
+            null
+        }
+    }
+
+    /**
+     * 读取 WAV 文件
+     */
+    private fun readWave(file: File): Pair<FloatArray, Int> {
+        // 简化实现：使用 Android AudioTrack 或第三方库读取 WAV
+        // 这里返回示例数据，实际需要实现 WAV 解析
+        // 可以使用 javax.sound.sampled 或 Android MediaExtractor
+
+        // TODO: 实现 WAV 文件读取
+        return Pair(FloatArray(0), 16000)
+    }
+
+    /**
+     * 解析时间戳为 WordTimestamp 列表
+     */
+    private fun parseTimestamps(timestamps: String, text: String): List<WordTimestamp> {
+        // Sherpa-ONNX 返回的 timestamps 格式需要解析
+        // 格式示例: "0.00 0.50 Hello 0.50 1.00 world"
+
+        // TODO: 实现时间戳解析
+        return emptyList()
+    }
+
+    /**
+     * 释放资源
+     */
+    fun release() {
+        recognizer = null
+    }
+}
+```
+
+**新增文件：** `ModelManager.kt`
+
+```kotlin
+package com.multilanglearner.data.network
+
+import android.content.Context
+import android.util.Log
+import dagger.hilt.android.qualifiers.ApplicationContext
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
+import okhttp3.OkHttpClient
+import okhttp3.Request
+import java.io.File
+import java.io.FileOutputStream
+import javax.inject.Inject
+import javax.inject.Singleton
+
+/**
+ * 模型下载和管理服务
+ */
+@Singleton
+class ModelManager @Inject constructor(
+    @ApplicationContext private val context: Context
+) {
+    companion object {
+        private const val TAG = "ModelManager"
+        private const val MODEL_BASE_URL = "https://github.com/k2-fsa/sherpa-onnx/releases/download/asr-models/"
+        private const val MODEL_PACKAGE = "sherpa-onnx-whisper-base.int8.tar.bz2"
+    }
+
+    private val client = OkHttpClient.Builder()
+        .connectTimeout(30, java.util.concurrent.TimeUnit.SECONDS)
+        .readTimeout(300, java.util.concurrent.TimeUnit.SECONDS)
+        .build()
+
+    /**
+     * 下载模型
+     * @param onProgress 进度回调 (已下载字节, 总字节, 百分比)
+     */
+    suspend fun downloadModel(
+        onProgress: (Long, Long, Int) -> Unit = { _, _, _ -> }
+    ): Boolean = withContext(Dispatchers.IO) {
+        try {
+            val modelDir = File(context.filesDir, "models/sherpa-onnx-whisper-base")
+            modelDir.mkdirs()
+
+            val url = MODEL_BASE_URL + MODEL_PACKAGE
+            val request = Request.Builder().url(url).build()
+
+            Log.d(TAG, "Downloading model from: $url")
+
+            val response = client.newCall(request).execute()
+            if (!response.isSuccessful) {
+                Log.e(TAG, "Download failed: ${response.code}")
+                return@withContext false
+            }
+
+            val totalBytes = response.body?.contentLength() ?: 0L
+            val tempFile = File(context.cacheDir, MODEL_PACKAGE)
+
+            response.body?.byteStream()?.use { input ->
+                FileOutputStream(tempFile).use { output ->
+                    val buffer = ByteArray(8192)
+                    var bytesRead: Int
+                    var downloadedBytes = 0L
+
+                    while (input.read(buffer).also { bytesRead = it } != -1) {
+                        output.write(buffer, 0, bytesRead)
+                        downloadedBytes += bytesRead
+                        val progress = if (totalBytes > 0) {
+                            (downloadedBytes * 100 / totalBytes).toInt()
+                        } else 0
+                        onProgress(downloadedBytes, totalBytes, progress)
+                    }
+                }
+            }
+
+            Log.d(TAG, "Download complete, extracting...")
+
+            // 解压模型文件
+            // TODO: 实现 tar.bz2 解压（可使用 Apache Commons Compress）
+
+            tempFile.delete()
+
+            Log.d(TAG, "Model installed successfully")
+            true
+
+        } catch (e: Exception) {
+            Log.e(TAG, "Model download failed", e)
+            false
+        }
+    }
+
+    /**
+     * 删除模型
+     */
+    fun deleteModel(): Boolean {
+        val modelDir = File(context.filesDir, "models/sherpa-onnx-whisper-base")
+        return modelDir.deleteRecursively()
+    }
+}
+```
+
+#### 2.4 集成到转录服务
+
+**文件：** `TranscriptionService.kt`
+
+**改动：** 添加本地转录支持
+
+```kotlin
+@Inject
+lateinit var sherpaOnnxService: SherpaOnnxTranscriptionService
+
+private fun executeTranscription(
+    transcriptionId: String,
+    videoPath: String,
+    videoName: String
+) {
+    // ... 现有代码 ...
+
+    val job = serviceScope.launch {
+        try {
+            val config = aiConfigStore.config.first()
+            val videoFile = File(videoPath)
+
+            // 根据转录模式选择引擎
+            val transcriptionMode = config.transcriptionMode // "cloud" | "local" | "auto"
+
+            val useLocal = when (transcriptionMode) {
+                "local" -> true
+                "cloud" -> false
+                "auto" -> {
+                    // 自动选择：无网络或文件过大时使用本地
+                    !isNetworkAvailable() || videoFile.length() > 100 * 1024 * 1024
+                }
+                else -> false
+            }
+
+            val result = if (useLocal) {
+                // 本地转录
+                if (!sherpaOnnxService.isModelDownloaded()) {
+                    sendErrorBroadcast("本地模型未下载，请先下载模型")
+                    return@launch
+                }
+
+                sherpaOnnxService.transcribe(
+                    videoFile,
+                    onProgress = { progress, message ->
+                        updateProgress(videoName, progress, 100, progress, message)
+                        sendProgressBroadcast(progress, 100, progress, message, 0)
+                    }
+                )
+            } else {
+                // 云端转录（现有逻辑）
+                ffmpegSegmentedService.transcribeWithSegments(
+                    videoFile,
+                    config,
+                    transcribeLang,
+                    onProgress = { segment, total, progress, message, remainingSeconds ->
+                        updateProgress(videoName, segment, total, progress, message)
+                        sendProgressBroadcast(segment, total, progress, message, remainingSeconds)
+                    }
+                )
+            }
+
+            // ... 处理结果的现有代码 ...
+        } catch (e: Exception) {
+            // ... 错误处理 ...
+        }
+    }
+}
+
+private fun isNetworkAvailable(): Boolean {
+    val connectivityManager = getSystemService(Context.CONNECTIVITY_SERVICE) as ConnectivityManager
+    val network = connectivityManager.activeNetwork ?: return false
+    val capabilities = connectivityManager.getNetworkCapabilities(network) ?: return false
+    return capabilities.hasCapability(NetworkCapabilities.NET_CAPABILITY_INTERNET)
+}
+```
+
+#### 2.5 UI 改进
+
+**AI设置页面新增选项：**
+
+```kotlin
+// 转录模式选择
+var transcriptionMode by remember { mutableStateOf("auto") }
+
+Column {
+    Text("转录模式", style = MaterialTheme.typography.titleMedium)
+
+    RadioButton(
+        selected = transcriptionMode == "cloud",
+        onClick = { transcriptionMode = "cloud" }
+    )
+    Text("云端转录（快速，需网络）")
+
+    RadioButton(
+        selected = transcriptionMode == "local",
+        onClick = { transcriptionMode = "local" }
+    )
+    Text("本地转录（离线，隐私）")
+
+    RadioButton(
+        selected = transcriptionMode == "auto",
+        onClick = { transcriptionMode = "auto" }
+    )
+    Text("自动选择（推荐）")
+
+    Spacer(modifier = Modifier.height(16.dp))
+
+    // 本地模型状态
+    if (sherpaOnnxService.isModelDownloaded()) {
+        Text(
+            "本地模型：base (${String.format("%.1f", sherpaOnnxService.getModelSize())} MB) ✓已下载",
+            color = Color.Green
+        )
+    } else {
+        Button(onClick = { /* 触发下载 */ }) {
+            Text("下载本地模型 (~80MB)")
+        }
+    }
+}
+```
+
+---
+
+## 文件改动清单
+
+### 第一阶段：云端优化
+
+| 文件 | 改动类型 | 改动内容 |
+|------|----------|----------|
+| `FFmpegSegmentedTranscriptionService.kt` | 修改 | 调整分段参数、并发数、压缩码率 |
+| `FFmpegSegmentedTranscriptionService.kt` | 新增 | 网络速度检测、动态分段策略 |
+| `WhisperService.kt` | 修改 | 优化超时参数 |
+
+### 第二阶段：本地转录
+
+| 文件 | 改动类型 | 改动内容 |
+|------|----------|----------|
+| `build.gradle.kts` | 修改 | 添加 sherpa-onnx 依赖 |
+| `SherpaOnnxTranscriptionService.kt` | 新增 | 本地转录核心服务 |
+| `ModelManager.kt` | 新增 | 模型下载和管理 |
+| `TranscriptionService.kt` | 修改 | 支持本地/云端模式切换 |
+| `AIConfig.kt` | 修改 | 新增 transcriptionMode 字段 |
+| AI设置页面 | 修改 | 新增转录模式选项 UI |
+
+---
+
+## 实施计划
+
+### 第一阶段：云端速度优化（1-2天）
+
+**Day 1:**
+1. 修改 `FFmpegSegmentedTranscriptionService.kt` 参数
+2. 测试不同视频长度的转录速度
+3. 验证 API 速率限制处理
+
+**Day 2:**
+4. 实现网络速度检测
+5. 实现动态分段策略
+6. 全面测试和性能对比
+
+### 第二阶段：本地转录集成（3-5天）
+
+**Day 3:**
+1. 添加 sherpa-onnx 依赖
+2. 实现 `ModelManager.kt`
+3. 实现模型下载功能
+
+**Day 4:**
+4. 实现 `SherpaOnnxTranscriptionService.kt`
+5. 实现 WAV 文件读取
+6. 实现时间戳解析
+
+**Day 5:**
+7. 集成到 `TranscriptionService.kt`
+8. 实现 UI 转录模式选择
+9. 全面测试本地转录
+
+**Day 6-7（可选）:**
+10. 性能优化和 bug 修复
+11. 用户体验优化
+12. 文档更新
+
+---
+
+## 预期性能对比
+
+| 场景 | 优化前 | 优化后（云端） | 优化后（本地） |
+|------|--------|----------------|----------------|
+| 10分钟视频 | ~3-4分钟 | ~1-1.5分钟 | ~5-10分钟 |
+| 30分钟视频 | ~10-12分钟 | ~4-5分钟 | ~15-30分钟 |
+| 60分钟视频 | ~20-25分钟 | ~8-10分钟 | ~30-60分钟 |
+
+**速度提升：**
+- 云端转录：**2-3倍**
+- 本地转录：**1-2倍实时速度**
+
+**成本节省：**
+- 本地转录无 API 调用成本
+- 适合大量转录需求的用户
+
+---
+
+## 风险与缓解
+
+| 风险 | 影响 | 缓解措施 |
+|------|------|----------|
+| API 速率限制（429） | 云端转录失败 | 保留速率限制检测和重试机制 |
+| 本地模型下载失败 | 无法使用本地转录 | 提供多个下载源，支持断点续传 |
+| 本地转录性能不足 | 用户体验差 | 提供模型选择（tiny/base），显示预估时间 |
+| 内存占用过高 | 应用崩溃 | 限制并发数，及时释放资源 |
+
+---
+
+## 成功标准
+
+1. **云端转录速度提升 2倍以上**
+2. **本地转录功能可用，准确率 >90%**
+3. **自动模式智能切换无误**
+4. **无新增崩溃或严重 bug**
+5. **用户反馈积极**
+
+---
+
+## 后续优化方向
+
+1. **模型优化**：支持 tiny 模型（更快）和 small 模型（更准确）
+2. **实时转录**：支持录音时实时转录
+3. **多语言优化**：针对不同语言使用专门模型
+4. **GPU 加速**：使用 GPU 加速本地转录（需要 NNAPI 或 GPU Delegate）
+5. **云端备选**：集成其他云端 API（OpenAI Whisper、Azure Speech）
+
+---
+
+## 参考资料
+
+- [Sherpa-ONNX GitHub](https://github.com/k2-fsa/sherpa-onnx)
+- [Sherpa-ONNX Android 示例](https://github.com/k2-fsa/sherpa-onnx/tree/master/android)
+- [Groq API 文档](https://console.groq.com/docs/speech-to-text)
+- [FFmpeg Opus 编码文档](https://trac.ffmpeg.org/wiki/Encode/HighQualityAudio)

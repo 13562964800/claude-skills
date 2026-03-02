@@ -1,0 +1,342 @@
+package com.multilanglearner.ui.component
+
+import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.Help
+import androidx.compose.material.icons.filled.*
+import androidx.compose.material3.*
+import androidx.compose.runtime.*
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.text.input.PasswordVisualTransformation
+import androidx.compose.ui.unit.dp
+import androidx.hilt.navigation.compose.hiltViewModel
+import com.multilanglearner.ui.videodownload.VideoDownloadSettingsViewModel
+
+/**
+ * 视频下载设置底部弹窗
+ * 用于配置B站等平台的Cookie，解决下载403问题
+ */
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun VideoDownloadSettingsSheet(
+    onDismiss: () -> Unit,
+    viewModel: VideoDownloadSettingsViewModel = hiltViewModel()
+) {
+    val uiState by viewModel.uiState.collectAsState()
+    val scrollState = rememberScrollState()
+    var showCookieHelp by remember { mutableStateOf(false) }
+    var showBilibiliLogin by remember { mutableStateOf(false) }
+
+    ModalBottomSheet(onDismissRequest = onDismiss) {
+        Column(
+            modifier = Modifier
+                .padding(16.dp)
+                .fillMaxWidth()
+                .verticalScroll(scrollState)
+        ) {
+            // 标题
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.SpaceBetween,
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                Column {
+                    Text("视频下载设置", style = MaterialTheme.typography.titleLarge)
+                    Text(
+                        "配置Cookie可解决下载403错误",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
+                IconButton(onClick = { showCookieHelp = true }) {
+                    Icon(Icons.AutoMirrored.Filled.Help, "获取Cookie帮助")
+                }
+            }
+
+            Spacer(Modifier.height(16.dp))
+
+            // 启用Cookie认证开关
+            Card(
+                modifier = Modifier.fillMaxWidth(),
+                colors = CardDefaults.cardColors(
+                    containerColor = MaterialTheme.colorScheme.secondaryContainer
+                )
+            ) {
+                Row(
+                    modifier = Modifier.padding(16.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Column(modifier = Modifier.weight(1f)) {
+                        Text("启用Cookie认证", style = MaterialTheme.typography.titleSmall)
+                        Text(
+                            "解决B站会员视频、需登录视频的下载问题",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSecondaryContainer
+                        )
+                    }
+                    Switch(
+                        checked = uiState.enableCookieAuth,
+                        onCheckedChange = { viewModel.setEnableCookieAuth(it) }
+                    )
+                }
+            }
+
+            if (uiState.enableCookieAuth) {
+                Spacer(Modifier.height(16.dp))
+
+                // B站Cookie配置
+                Text("B站Cookie配置", style = MaterialTheme.typography.titleMedium)
+
+                Spacer(Modifier.height(8.dp))
+
+                // SESSDATA (必填)
+                var showSessdata by remember { mutableStateOf(false) }
+                OutlinedTextField(
+                    value = uiState.bilibiliSessdata,
+                    onValueChange = viewModel::setBilibiliSessdata,
+                    label = { Text("SESSDATA (必填)") },
+                    placeholder = { Text("从浏览器Cookie中复制") },
+                    modifier = Modifier.fillMaxWidth(),
+                    singleLine = true,
+                    visualTransformation = if (showSessdata) {
+                        androidx.compose.ui.text.input.VisualTransformation.None
+                    } else {
+                        PasswordVisualTransformation()
+                    },
+                    trailingIcon = {
+                        Row(
+                            modifier = Modifier.padding(end = 8.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            // 自动获取按钮
+                            TextButton(
+                                onClick = { showBilibiliLogin = true },
+                                modifier = Modifier.padding(end = 4.dp),
+                                contentPadding = PaddingValues(horizontal = 8.dp, vertical = 4.dp)
+                            ) {
+                                Icon(
+                                    Icons.Default.CloudDownload,
+                                    contentDescription = null,
+                                    modifier = Modifier.size(16.dp)
+                                )
+                                Spacer(Modifier.width(4.dp))
+                                Text("自动获取", style = MaterialTheme.typography.labelSmall)
+                            }
+                            IconButton(onClick = { showSessdata = !showSessdata }) {
+                                Icon(
+                                    if (showSessdata) Icons.Default.VisibilityOff
+                                    else Icons.Default.Visibility,
+                                    "显示/隐藏"
+                                )
+                            }
+                        }
+                    }
+                )
+
+                Spacer(Modifier.height(8.dp))
+
+                // bili_jct (可选)
+                var showBiliJct by remember { mutableStateOf(false) }
+                OutlinedTextField(
+                    value = uiState.bilibiliBiliJct,
+                    onValueChange = viewModel::setBilibiliBiliJct,
+                    label = { Text("bili_jct (可选)") },
+                    modifier = Modifier.fillMaxWidth(),
+                    singleLine = true,
+                    visualTransformation = if (showBiliJct) {
+                        androidx.compose.ui.text.input.VisualTransformation.None
+                    } else {
+                        PasswordVisualTransformation()
+                    },
+                    trailingIcon = {
+                        IconButton(onClick = { showBiliJct = !showBiliJct }) {
+                            Icon(
+                                if (showBiliJct) Icons.Default.VisibilityOff
+                                else Icons.Default.Visibility,
+                                "显示/隐藏"
+                            )
+                        }
+                    }
+                )
+
+                Spacer(Modifier.height(8.dp))
+
+                // DedeUserID (可选)
+                OutlinedTextField(
+                    value = uiState.bilibiliDedeuserid,
+                    onValueChange = viewModel::setBilibiliDedeuserid,
+                    label = { Text("DedeUserID (可选)") },
+                    modifier = Modifier.fillMaxWidth(),
+                    singleLine = true
+                )
+
+                Spacer(Modifier.height(12.dp))
+
+                // Cookie状态提示
+                Card(
+                    modifier = Modifier.fillMaxWidth(),
+                    colors = CardDefaults.cardColors(
+                        containerColor = if (uiState.hasValidCookie) {
+                            MaterialTheme.colorScheme.primaryContainer
+                        } else {
+                            MaterialTheme.colorScheme.errorContainer
+                        }
+                    )
+                ) {
+                    Row(
+                        modifier = Modifier.padding(12.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Icon(
+                            if (uiState.hasValidCookie) Icons.Default.CheckCircle
+                            else Icons.Default.Warning,
+                            contentDescription = null,
+                            tint = if (uiState.hasValidCookie) {
+                                MaterialTheme.colorScheme.primary
+                            } else {
+                                MaterialTheme.colorScheme.error
+                            },
+                            modifier = Modifier.size(20.dp)
+                        )
+                        Spacer(Modifier.width(8.dp))
+                        Text(
+                            if (uiState.hasValidCookie) "Cookie配置有效" else "请至少填写SESSDATA",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = if (uiState.hasValidCookie) {
+                                MaterialTheme.colorScheme.onPrimaryContainer
+                            } else {
+                                MaterialTheme.colorScheme.onErrorContainer
+                            }
+                        )
+                    }
+                }
+            }
+
+            Spacer(Modifier.height(16.dp))
+
+            // 保存按钮
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                OutlinedButton(
+                    onClick = {
+                        viewModel.clearCookies()
+                    },
+                    modifier = Modifier.weight(1f)
+                ) {
+                    Text("清除")
+                }
+                Button(
+                    onClick = {
+                        viewModel.save()
+                        onDismiss()
+                    },
+                    modifier = Modifier.weight(1f)
+                ) {
+                    Icon(Icons.Default.Save, null, modifier = Modifier.size(18.dp))
+                    Spacer(Modifier.width(4.dp))
+                    Text("保存")
+                }
+            }
+
+            Spacer(Modifier.height(16.dp))
+
+            // 提示信息
+            HorizontalDivider()
+            Spacer(Modifier.height(12.dp))
+
+            Text(
+                "重要提示",
+                style = MaterialTheme.typography.titleSmall,
+                color = MaterialTheme.colorScheme.primary
+            )
+            Spacer(Modifier.height(8.dp))
+            Text(
+                "• Cookie包含您的登录信息，请勿泄露给他人\n" +
+                "• Cookie有效期有限，过期后需重新配置\n" +
+                "• 会员视频仍需账号有相应权限\n" +
+                "• 如遇下载失败，优先使用「导入本地视频」",
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+
+            Spacer(Modifier.height(32.dp))
+        }
+    }
+
+    // Cookie获取帮助对话框
+    if (showCookieHelp) {
+        AlertDialog(
+            onDismissRequest = { showCookieHelp = false },
+            title = { Text("如何获取B站Cookie") },
+            text = {
+                Column(modifier = Modifier.verticalScroll(rememberScrollState())) {
+                    Text("方法一：使用浏览器开发者工具", style = MaterialTheme.typography.titleSmall)
+                    Text(
+                        "1. 在浏览器中登录 bilibili.com\n" +
+                        "2. 按 F12 打开开发者工具\n" +
+                        "3. 切换到 Application (应用) 标签\n" +
+                        "4. 左侧选择 Cookies → https://www.bilibili.com\n" +
+                        "5. 找到 SESSDATA 的值，复制填写",
+                        style = MaterialTheme.typography.bodySmall
+                    )
+
+                    Spacer(Modifier.height(12.dp))
+
+                    Text("方法二：使用浏览器插件", style = MaterialTheme.typography.titleSmall)
+                    Text(
+                        "1. 安装 \"EditThisCookie\" 等Cookie管理插件\n" +
+                        "2. 访问 bilibili.com 并登录\n" +
+                        "3. 点击插件图标，找到 SESSDATA 值",
+                        style = MaterialTheme.typography.bodySmall
+                    )
+
+                    Spacer(Modifier.height(12.dp))
+
+                    Text("方法三：自动获取（推荐）", style = MaterialTheme.typography.titleSmall)
+                    Text(
+                        "点击SESSDATA输入框右侧的「自动获取」按钮，\n" +
+                        "在弹出的页面中完成登录即可自动获取Cookie",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.primary
+                    )
+
+                    Spacer(Modifier.height(12.dp))
+
+                    Text("说明：", style = MaterialTheme.typography.titleSmall)
+                    Text(
+                        "• SESSDATA 是必填项，包含登录状态\n" +
+                        "• bili_jct 和 DedeUserID 可选，但建议填写\n" +
+                        "• Cookie有有效期，过期需重新获取",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
+            },
+            confirmButton = {
+                TextButton(onClick = { showCookieHelp = false }) {
+                    Text("知道了")
+                }
+            }
+        )
+    }
+
+    // B站登录对话框
+    if (showBilibiliLogin) {
+        BilibiliLoginDialog(
+            onDismiss = { showBilibiliLogin = false },
+            onCookiesExtracted = { cookies ->
+                // 自动填充获取到的Cookie
+                cookies.sessdata?.let { viewModel.setBilibiliSessdata(it) }
+                cookies.biliJct?.let { viewModel.setBilibiliBiliJct(it) }
+                cookies.dedeUserID?.let { viewModel.setBilibiliDedeuserid(it) }
+                // 自动启用Cookie认证
+                viewModel.setEnableCookieAuth(true)
+            }
+        )
+    }
+}

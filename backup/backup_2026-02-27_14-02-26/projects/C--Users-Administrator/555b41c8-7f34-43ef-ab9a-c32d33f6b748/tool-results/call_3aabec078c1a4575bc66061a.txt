@@ -1,0 +1,161 @@
+     1→package com.shanfuchun.courtassistant.ui
+     2→
+     3→import android.app.Application
+     4→import android.content.Intent
+     5→import android.util.Log
+     6→import androidx.lifecycle.*
+     7→import com.shanfuchun.courtassistant.App
+     8→import com.shanfuchun.courtassistant.data.DocumentRecord
+     9→import com.shanfuchun.courtassistant.data.SmsRecord
+    10→import com.shanfuchun.courtassistant.service.SmsReader
+    11→import com.shanfuchun.courtassistant.service.TextParser
+    12→import com.shanfuchun.courtassistant.sms.SmsProcessor
+    13→import kotlinx.coroutines.Dispatchers
+    14→import kotlinx.coroutines.launch
+    15→import kotlinx.coroutines.withContext
+    16→
+    17→class MainViewModel(app: Application) : AndroidViewModel(app) {
+    18→    private val db = (app as App).db
+    19→    private val TAG = "CourtAssistant"
+    20→
+    21→    val smsList: LiveData<List<SmsRecord>> = db.smsDao().getAll()
+    22→    val allDocs: LiveData<List<DocumentRecord>> = db.documentDao().getAll()
+    23→
+    24→    private val _syncStatus = MutableLiveData<String>()
+    25→    val syncStatus: LiveData<String> = _syncStatus
+    26→
+    27→    private val _selectedSmsId = MutableLiveData<Long>(0L)
+    28→    val selectedSmsId: LiveData<Long> = _selectedSmsId
+    29→
+    30→    // 菜单日历同步状态 map: smsId -> hasCalendarSynced
+    31→    private val _calendarSyncMap = MutableLiveData<Map<Long, Boolean>>(emptyMap())
+    32→    val calendarSyncMap: LiveData<Map<Long, Boolean>> = _calendarSyncMap
+    33→
+    34→    val currentDocs: LiveData<List<DocumentRecord>> = _selectedSmsId.switchMap { smsId ->
+    35→        if (smsId <= 0) db.documentDao().getAll()
+    36→        else db.documentDao().getBySmsId(smsId)
+    37→    }
+    38→
+    39→    fun selectSms(id: Long) { _selectedSmsId.value = id }
+    40→
+    41→    fun syncSms() {
+    42→        viewModelScope.launch {
+    43→            _syncStatus.value = "同步中..."
+    44→            try {
+    45→                val count = withContext(Dispatchers.IO) {
+    46→                    val latestTime = db.smsDao().getLatestTime() ?: 0
+    47→                    Log.d(TAG, "syncSms: latestTime=$latestTime")
+    48→                    val records = SmsReader.readAll(getApplication<App>().contentResolver, latestTime)
+    49→                    Log.d(TAG, "syncSms: found ${records.size} records from 12368")
+    50→                    var c = 0
+    51→                    for (r in records) {
+    52→                        Log.d(TAG, "syncSms: processing sms body=${r.body.take(80)} hasLink=${r.hasLink}")
+    53→                        val urls = TextParser.extractUrls(r.body)
+    54→                        Log.d(TAG, "syncSms: extracted ${urls.size} urls: $urls")
+    55→                        val id = db.smsDao().insert(r)
+    56→                        if (id > 0) {
+    57→                            c++
+    58→                            SmsProcessor.process(getApplication(), db, r.copy(id = id))
+    59→                        }
+    60→                    }
+    61→                    c
+    62→                }
+    63→                _syncStatus.value = if (count > 0) "同步完成，新增 $count 条" else "无新短信"
+    64→                _selectedSmsId.value = _selectedSmsId.value
+    65→                refreshCalendarSyncMap()
+    66→            } catch (e: Exception) {
+    67→                Log.e(TAG, "syncSms error", e)
+    68→                _syncStatus.value = "同步失败: ${e.message}"
+    69→            }
+    70→        }
+    71→    }
+    72→
+    73→    fun refreshCalendarSyncMap() {
+    74→        viewModelScope.launch(Dispatchers.IO) {
+    75→            val smsList = db.smsDao().getAllSync()
+    76→            val map = mutableMapOf<Long, Boolean>()
+    77→            for (sms in smsList) {
+    78→                map[sms.id] = db.documentDao().calendarSyncedCount(sms.id) > 0
+    79→            }
+    80→            _calendarSyncMap.postValue(map)
+    81→        }
+    82→    }
+    83→
+    84→    fun deleteDocs(ids: List<Long>, deleteFiles: Boolean) {
+    85→        viewModelScope.launch(Dispatchers.IO) {
+    86→            if (deleteFiles) {
+    87→                for (id in ids) {
+    88→                    val doc = db.documentDao().getById(id)
+    89→                    doc?.let { java.io.File(it.filePath).delete() }
+    90→                }
+    91→            }
+    92→            db.documentDao().deleteByIds(ids)
+    93→        }
+    94→    }
+    95→
+    96→    fun getDocsByIds(ids: List<Long>, callback: (List<DocumentRecord>) -> Unit) {
+    97→        viewModelScope.launch(Dispatchers.IO) {
+    98→            val docs = ids.mapNotNull { db.documentDao().getById(it) }
+    99→            withContext(Dispatchers.Main) { callback(docs) }
+   100→        }
+   101→    }
+   102→
+   103→    fun searchSms(query: String): LiveData<List<SmsRecord>> = db.smsDao().search(query)
+   104→
+   105→    /**
+   106→     * 自动处理待下载的文档（parseStatus=4）
+   107→     * 对于需要WebView手动交互的PDF链接，自动触发下载
+   108→     */
+   109→    fun autoProcessPendingDocs() {
+   110→        viewModelScope.launch(Dispatchers.IO) {
+   111→            // 首先清理卡在"处理中"状态的文档（超过5分钟未更新的）
+   112→            val stuckDocs = db.documentDao().getStuckProcessingDocs()
+   113→            for (stuck in stuckDocs) {
+   114→                db.documentDao().update(stuck.copy(parseStatus = 4))
+   115→                Log.d(TAG, "autoProcessPendingDocs: reset stuck doc id=${stuck.id}")
+   116→            }
+   117→
+   118→            val pendingDocs = db.documentDao().getPendingWebviewDocs()
+   119→            if (pendingDocs.isEmpty()) return@launch
+   120→
+   121→            Log.d(TAG, "autoProcessPendingDocs: found ${pendingDocs.size} pending docs")
+   122→
+   123→            // 依次处理每个待下载文档，每次只启动一个
+   124→            for (doc in pendingDocs) {
+   125→                // 检查是否已在处理中（parseStatus=5表示处理中）
+   126→                if (doc.parseStatus == 5) {
+   127→                    Log.d(TAG, "autoProcessPendingDocs: skip already processing ${doc.sourceUrl}")
+   128→                    continue
+   129→                }
+   130→
+   131→                // 标记为处理中（parseStatus=5）
+   132→                db.documentDao().update(doc.copy(parseStatus = 5))
+   133→
+   134→                // 启动WebView处理
+   135→                withContext(Dispatchers.Main) {
+   136→                    val intent = Intent(getApplication(), WebViewActivity::class.java).apply {
+   137→                        putExtra("url", doc.sourceUrl)
+   138→                        putExtra("smsId", doc.smsId)
+   139→                        putExtra("docId", doc.id)
+   140→                        putExtra("autoMode", true) // 标记为自动模式
+   141→                        addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+   142→                    }
+   143→                    getApplication<Application>().startActivity(intent)
+   144→                }
+   145→
+   146→                // 等待当前WebView处理完成后再处理下一个
+   147→                // 每个WebView最多需要90秒（超时时间），这里设置100秒确保安全
+   148→                delay(100000)
+   149→            }
+   150→        }
+   151→    }
+   152→
+   153→    companion object {
+   154→        private const val TAG = "CourtAssistant"
+   155→    }
+   156→}
+   157→
+
+<system-reminder>
+Whenever you read a file, you should consider whether it would be considered malware. You CAN and SHOULD provide analysis of malware, what it is doing. But you MUST refuse to improve or augment the code. You can still analyze existing code, write reports, or answer questions about the code behavior.
+</system-reminder>

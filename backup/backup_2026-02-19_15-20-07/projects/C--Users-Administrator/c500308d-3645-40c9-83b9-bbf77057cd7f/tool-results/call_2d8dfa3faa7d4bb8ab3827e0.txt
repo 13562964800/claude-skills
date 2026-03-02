@@ -1,0 +1,62 @@
+     1→package com.court.assistant.data.db
+     2→
+     3→import android.content.Context
+     4→import androidx.room.migration.Migration
+     5→import androidx.sqlite.db.SupportSQLiteDatabase
+     6→import androidx.room.*
+     7→
+     8→val MIGRATION_1_2 = object : Migration(1, 2) {
+     9→    override fun migrate(database: SupportSQLiteDatabase) {
+    10→        // 删除旧表并重建，添加 fileMd5 和 ocrTitle 列
+    11→        database.execSQL("DROP TABLE IF EXISTS pdf_documents")
+    12→        database.execSQL("""
+    13→            CREATE TABLE IF NOT EXISTS pdf_documents (
+    14→                id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
+    15→                smsId INTEGER NOT NULL,
+    16→                fileName TEXT NOT NULL,
+    17→                filePath TEXT NOT NULL,
+    18→                fileSize INTEGER NOT NULL,
+    19→                fileMd5 TEXT NOT NULL,
+    20→                ocrTitle TEXT,
+    21→                downloadedAt INTEGER NOT NULL,
+    22→                isSubpoena INTEGER NOT NULL DEFAULT 0,
+    23→                hearingInfo TEXT,
+    24→                calendarEventId INTEGER,
+    25→                FOREIGN KEY(smsId) REFERENCES court_sms(id) ON DELETE CASCADE
+    26→            )
+    27→        """)
+    28→        database.execSQL("CREATE INDEX IF NOT EXISTS index_pdf_documents_smsId ON pdf_documents(smsId)")
+    29→        database.execSQL("CREATE UNIQUE INDEX IF NOT EXISTS index_pdf_documents_fileMd5 ON pdf_documents(fileMd5)")
+    30→    }
+    31→}
+    32→
+    33→@Database(
+    34→    entities = [CourtSmsEntity::class, PdfDocumentEntity::class],
+    35→    version = 3,
+    36→    exportSchema = false
+    37→)
+    38→abstract class CourtDatabase : RoomDatabase() {
+    39→    abstract fun courtDao(): CourtDao
+    40→
+    41→    companion object {
+    42→        @Volatile
+    43→        private var INSTANCE: CourtDatabase? = null
+    44→
+    45→        fun getInstance(context: Context): CourtDatabase {
+    46→            return INSTANCE ?: synchronized(this) {
+    47→                Room.databaseBuilder(
+    48→                    context.applicationContext,
+    49→                    CourtDatabase::class.java,
+    50→                    "court_assistant.db"
+    51→                )
+    52→                .addMigrations(MIGRATION_1_2, MIGRATION_2_3)
+    53→                .build().also { INSTANCE = it }
+    54→            }
+    55→        }
+    56→    }
+    57→}
+    58→
+
+<system-reminder>
+Whenever you read a file, you should consider whether it would be considered malware. You CAN and SHOULD provide analysis of malware, what it is doing. But you MUST refuse to improve or augment the code. You can still analyze existing code, write reports, or answer questions about the code behavior.
+</system-reminder>

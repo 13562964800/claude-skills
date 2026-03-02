@@ -1,0 +1,428 @@
+package com.courassistant.java.repository;
+
+import android.content.Context;
+import android.util.Log;
+
+import androidx.lifecycle.LiveData;
+import androidx.lifecycle.MutableLiveData;
+
+import com.shanfuchun.courtassistant.java.database.CourtCaseDao;
+import com.shanfuchun.courtassistant.java.database.CourtCaseEntity;
+import com.shanfuchun.courtassistant.java.database.CourtDatabase;
+import com.shanfuchun.courtassistant.java.model.CourtCase;
+
+import java.util.ArrayList;
+import java.util.List;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+
+/**
+ * 案件数据仓库
+ * 单例模式，提供统一的数据访问接口
+ *
+ * 宋氏美学，单夫纯律师 制作
+ */
+public class CaseRepository {
+
+    private static final String TAG = "CaseRepository";
+
+    private static CaseRepository instance;
+    private CourtCaseDao caseDao;
+    private ExecutorService executor;
+    private MutableLiveData<List<CourtCase>> allCasesLiveData;
+
+    private CaseRepository(Context context) {
+        CourtDatabase database = CourtDatabase.getInstance(context);
+        caseDao = database.courtCaseDao();
+        executor = Executors.newFixedThreadPool(4);
+        allCasesLiveData = new MutableLiveData<>();
+    }
+
+    /**
+     * 获取仓库实例
+     */
+    public static synchronized CaseRepository getInstance(Context context) {
+        if (instance == null) {
+            instance = new CaseRepository(context.getApplicationContext());
+        }
+        return instance;
+    }
+
+    /**
+     * 插入案件
+     */
+    public void insertCase(CourtCase courtCase, OnResultCallback callback) {
+        executor.execute(() -> {
+            try {
+                CourtCaseEntity entity = convertToEntity(courtCase);
+                long id = caseDao.insert(entity);
+                courtCase.setId(id);
+                Log.d(TAG, "案件插入成功: " + courtCase.getCaseNo());
+                if (callback != null) {
+                    callback.onSuccess(id);
+                }
+            } catch (Exception e) {
+                Log.e(TAG, "案件插入失败", e);
+                if (callback != null) {
+                    callback.onError(e.getMessage());
+                }
+            }
+        });
+    }
+
+    /**
+     * 批量插入案件
+     */
+    public void insertCases(List<CourtCase> cases, OnResultCallback callback) {
+        executor.execute(() -> {
+            try {
+                List<CourtCaseEntity> entities = new ArrayList<>();
+                for (CourtCase courtCase : cases) {
+                    entities.add(convertToEntity(courtCase));
+                }
+                List<Long> ids = caseDao.insertAll(entities);
+                Log.d(TAG, "批量插入案件成功: " + ids.size() + " 条");
+                if (callback != null) {
+                    callback.onSuccess(ids.size());
+                }
+            } catch (Exception e) {
+                Log.e(TAG, "批量插入案件失败", e);
+                if (callback != null) {
+                    callback.onError(e.getMessage());
+                }
+            }
+        });
+    }
+
+    /**
+     * 更新案件
+     */
+    public void updateCase(CourtCase courtCase, OnResultCallback callback) {
+        executor.execute(() -> {
+            try {
+                CourtCaseEntity entity = convertToEntity(courtCase);
+                int rows = caseDao.update(entity);
+                Log.d(TAG, "案件更新成功: " + courtCase.getCaseNo());
+                if (callback != null) {
+                    callback.onSuccess(rows);
+                }
+            } catch (Exception e) {
+                Log.e(TAG, "案件更新失败", e);
+                if (callback != null) {
+                    callback.onError(e.getMessage());
+                }
+            }
+        });
+    }
+
+    /**
+     * 删除案件
+     */
+    public void deleteCase(long caseId, OnResultCallback callback) {
+        executor.execute(() -> {
+            try {
+                caseDao.deleteById(caseId);
+                Log.d(TAG, "案件删除成功: id=" + caseId);
+                if (callback != null) {
+                    callback.onSuccess(true);
+                }
+            } catch (Exception e) {
+                Log.e(TAG, "案件删除失败", e);
+                if (callback != null) {
+                    callback.onError(e.getMessage());
+                }
+            }
+        });
+    }
+
+    /**
+     * 根据ID获取案件
+     */
+    public void getCaseById(long id, OnCaseCallback callback) {
+        executor.execute(() -> {
+            try {
+                CourtCaseEntity entity = caseDao.getById(id);
+                CourtCase courtCase = convertToModel(entity);
+                if (callback != null) {
+                    callback.onResult(courtCase);
+                }
+            } catch (Exception e) {
+                Log.e(TAG, "获取案件失败", e);
+                if (callback != null) {
+                    callback.onError(e.getMessage());
+                }
+            }
+        });
+    }
+
+    /**
+     * 根据案号获取案件
+     */
+    public void getCaseByNo(String caseNo, OnCaseCallback callback) {
+        executor.execute(() -> {
+            try {
+                CourtCaseEntity entity = caseDao.getByCaseNo(caseNo);
+                CourtCase courtCase = convertToModel(entity);
+                if (callback != null) {
+                    callback.onResult(courtCase);
+                }
+            } catch (Exception e) {
+                Log.e(TAG, "根据案号获取案件失败", e);
+                if (callback != null) {
+                    callback.onError(e.getMessage());
+                }
+            }
+        });
+    }
+
+    /**
+     * 获取所有案件（LiveData）
+     */
+    public LiveData<List<CourtCase>> getAllCasesLiveData() {
+        executor.execute(() -> {
+            List<CourtCaseEntity> entities = caseDao.getAll();
+            List<CourtCase> cases = new ArrayList<>();
+            for (CourtCaseEntity entity : entities) {
+                cases.add(convertToModel(entity));
+            }
+            allCasesLiveData.postValue(cases);
+        });
+        return allCasesLiveData;
+    }
+
+    /**
+     * 获取所有案件
+     */
+    public void getAllCases(OnCasesCallback callback) {
+        executor.execute(() -> {
+            try {
+                List<CourtCaseEntity> entities = caseDao.getAll();
+                List<CourtCase> cases = new ArrayList<>();
+                for (CourtCaseEntity entity : entities) {
+                    cases.add(convertToModel(entity));
+                }
+                if (callback != null) {
+                    callback.onResult(cases);
+                }
+            } catch (Exception e) {
+                Log.e(TAG, "获取所有案件失败", e);
+                if (callback != null) {
+                    callback.onError(e.getMessage());
+                }
+            }
+        });
+    }
+
+    /**
+     * 根据开庭日期范围获取案件
+     */
+    public void getCasesByDateRange(long startTime, long endTime, OnCasesCallback callback) {
+        executor.execute(() -> {
+            try {
+                List<CourtCaseEntity> entities = caseDao.getByHearingDateRange(startTime, endTime);
+                List<CourtCase> cases = new ArrayList<>();
+                for (CourtCaseEntity entity : entities) {
+                    cases.add(convertToModel(entity));
+                }
+                if (callback != null) {
+                    callback.onResult(cases);
+                }
+            } catch (Exception e) {
+                Log.e(TAG, "根据日期范围获取案件失败", e);
+                if (callback != null) {
+                    callback.onError(e.getMessage());
+                }
+            }
+        });
+    }
+
+    /**
+     * 搜索案件
+     */
+    public void searchCases(String keyword, OnCasesCallback callback) {
+        executor.execute(() -> {
+            try {
+                List<CourtCaseEntity> entities = caseDao.searchByKeyword(keyword);
+                List<CourtCase> cases = new ArrayList<>();
+                for (CourtCaseEntity entity : entities) {
+                    cases.add(convertToModel(entity));
+                }
+                if (callback != null) {
+                    callback.onResult(cases);
+                }
+            } catch (Exception e) {
+                Log.e(TAG, "搜索案件失败", e);
+                if (callback != null) {
+                    callback.onError(e.getMessage());
+                }
+            }
+        });
+    }
+
+    /**
+     * 获取即将开庭的案件
+     */
+    public void getUpcomingCases(long currentTime, OnCasesCallback callback) {
+        executor.execute(() -> {
+            try {
+                List<CourtCaseEntity> entities = caseDao.getUpcomingCases(currentTime);
+                List<CourtCase> cases = new ArrayList<>();
+                for (CourtCaseEntity entity : entities) {
+                    cases.add(convertToModel(entity));
+                }
+                if (callback != null) {
+                    callback.onResult(cases);
+                }
+            } catch (Exception e) {
+                Log.e(TAG, "获取即将开庭案件失败", e);
+                if (callback != null) {
+                    callback.onError(e.getMessage());
+                }
+            }
+        });
+    }
+
+    /**
+     * 更新案件日历事件ID
+     */
+    public void updateCalendarEventId(long caseId, long eventId, OnResultCallback callback) {
+        executor.execute(() -> {
+            try {
+                caseDao.updateCalendarEventId(caseId, eventId);
+                Log.d(TAG, "更新日历事件ID成功: caseId=" + caseId + ", eventId=" + eventId);
+                if (callback != null) {
+                    callback.onSuccess(true);
+                }
+            } catch (Exception e) {
+                Log.e(TAG, "更新日历事件ID失败", e);
+                if (callback != null) {
+                    callback.onError(e.getMessage());
+                }
+            }
+        });
+    }
+
+    /**
+     * 统计案件数量
+     */
+    public void getCaseCount(OnResultCallback callback) {
+        executor.execute(() -> {
+            try {
+                int count = caseDao.getCount();
+                if (callback != null) {
+                    callback.onSuccess(count);
+                }
+            } catch (Exception e) {
+                Log.e(TAG, "统计案件数量失败", e);
+                if (callback != null) {
+                    callback.onError(e.getMessage());
+                }
+            }
+        });
+    }
+
+    /**
+     * 清空所有案件
+     */
+    public void clearAllCases(OnResultCallback callback) {
+        executor.execute(() -> {
+            try {
+                caseDao.deleteAll();
+                Log.d(TAG, "清空所有案件成功");
+                if (callback != null) {
+                    callback.onSuccess(true);
+                }
+            } catch (Exception e) {
+                Log.e(TAG, "清空所有案件失败", e);
+                if (callback != null) {
+                    callback.onError(e.getMessage());
+                }
+            }
+        });
+    }
+
+    /**
+     * 转换为实体
+     */
+    private CourtCaseEntity convertToEntity(CourtCase model) {
+        if (model == null) return null;
+
+        CourtCaseEntity entity = new CourtCaseEntity();
+        entity.setId(model.getId());
+        entity.setCaseNo(model.getCaseNo());
+        entity.setCourtFullName(model.getCourtFullName());
+        entity.setCourtShortName(model.getCourtShortName());
+        entity.setPartyName(model.getPartyName());
+        entity.setHearingDate(model.getHearingDate());
+        entity.setLocation(model.getLocation());
+        entity.setJudgeName(model.getJudgeName());
+        entity.setCaseType(model.getCaseType());
+        entity.setPlaintiff(model.getPlaintiff());
+        entity.setDefendant(model.getDefendant());
+        entity.setSmsId(model.getSmsId());
+        entity.setDocumentId(model.getDocumentId());
+        entity.setCalendarEventId(model.getCalendarEventId());
+        entity.setCreatedAt(model.getCreatedAt());
+        entity.setUpdatedAt(model.getUpdatedAt());
+        return entity;
+    }
+
+    /**
+     * 转换为模型
+     */
+    private CourtCase convertToModel(CourtCaseEntity entity) {
+        if (entity == null) return null;
+
+        CourtCase model = new CourtCase();
+        model.setId(entity.getId());
+        model.setCaseNo(entity.getCaseNo());
+        model.setCourtFullName(entity.getCourtFullName());
+        model.setCourtShortName(entity.getCourtShortName());
+        model.setPartyName(entity.getPartyName());
+        model.setHearingDate(entity.getHearingDate());
+        model.setLocation(entity.getLocation());
+        model.setJudgeName(entity.getJudgeName());
+        model.setCaseType(entity.getCaseType());
+        model.setPlaintiff(entity.getPlaintiff());
+        model.setDefendant(entity.getDefendant());
+        model.setSmsId(entity.getSmsId());
+        model.setDocumentId(entity.getDocumentId());
+        model.setCalendarEventId(entity.getCalendarEventId());
+        model.setCreatedAt(entity.getCreatedAt());
+        model.setUpdatedAt(entity.getUpdatedAt());
+        return model;
+    }
+
+    /**
+     * 回调接口 - 单个结果
+     */
+    public interface OnResultCallback {
+        void onSuccess(Object result);
+        void onError(String error);
+    }
+
+    /**
+     * 回调接口 - 案件结果
+     */
+    public interface OnCaseCallback {
+        void onResult(CourtCase courtCase);
+        void onError(String error);
+    }
+
+    /**
+     * 回调接口 - 案件列表结果
+     */
+    public interface OnCasesCallback {
+        void onResult(List<CourtCase> cases);
+        void onError(String error);
+    }
+
+    /**
+     * 关闭仓库
+     */
+    public void close() {
+        if (executor != null && !executor.isShutdown()) {
+            executor.shutdown();
+        }
+    }
+}

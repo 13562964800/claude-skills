@@ -1,0 +1,1753 @@
+"""配音文字核对宝 - Android APK版 主程序"""
+import os, sys, threading, json
+
+# 设置应用数据目录
+if hasattr(sys, '_MEIPASS'):
+    APP_DIR = sys._MEIPASS
+else:
+    APP_DIR = os.path.dirname(os.path.abspath(__file__))
+
+sys.path.insert(0, APP_DIR)
+
+from kivy.app import App
+from kivy.lang import Builder
+from kivy.clock import Clock
+from kivy.properties import StringProperty, NumericProperty, ListProperty, BooleanProperty
+from kivy.utils import platform
+
+from core.config import (
+    ASR_PROVIDERS, LLM_PROVIDERS,
+    ASR_MAP, ASR_MAP_REVERSE, LLM_MAP, LLM_MAP_REVERSE,
+    ASR_NAMES, LLM_NAMES,
+)
+
+KV = '''
+#:import dp kivy.metrics.dp
+
+BoxLayout:
+    orientation: 'vertical'
+    canvas.before:
+        Color:
+            rgba: 0.96, 0.96, 0.94, 1
+        Rectangle:
+            pos: self.pos
+            size: self.size
+
+    # 顶部标题栏
+    BoxLayout:
+        size_hint_y: None
+        height: dp(52)
+        padding: dp(12), 0
+        spacing: dp(8)
+        canvas.before:
+            Color:
+                rgba: 0.2, 0.6, 0.86, 1
+            Rectangle:
+                pos: self.pos
+                size: self.size
+
+        Label:
+            text: '配音文字核对宝'
+            font_size: dp(19)
+            bold: True
+            color: 1, 1, 1, 1
+            halign: 'left'
+            valign: 'center'
+            text_size: self.size
+
+        Button:
+            text: '返回' if sm.current != 'home' else '配置'
+            size_hint_x: None
+            width: dp(60)
+            font_size: dp(14)
+            background_color: 0.15, 0.5, 0.75, 1
+            background_normal: ''
+            on_release: sm.current = 'home' if sm.current != 'home' else 'settings'
+
+    # ScreenManager
+    ScreenManager:
+        id: sm
+
+        # ==================== 首页 ====================
+        Screen:
+            name: 'home'
+            ScrollView:
+                do_scroll_x: False
+                BoxLayout:
+                    orientation: 'vertical'
+                    size_hint_y: None
+                    height: self.minimum_height
+                    padding: dp(14)
+                    spacing: dp(10)
+
+                    # 微信导入区
+                    BoxLayout:
+                        size_hint_y: None
+                        height: dp(80)
+                        orientation: 'vertical'
+                        spacing: dp(4)
+                        padding: dp(10)
+                        canvas.before:
+                            Color:
+                                rgba: 0.88, 0.95, 0.88, 1
+                            RoundedRectangle:
+                                pos: self.pos
+                                size: self.size
+                                radius: [dp(8)]
+                        Label:
+                            text: '微信长按文件 → 分享 → 选择本应用 即可导入'
+                            font_size: dp(12)
+                            color: 0.2, 0.5, 0.2, 1
+                            text_size: self.size
+                            halign: 'center'
+                            valign: 'center'
+                            size_hint_y: 0.4
+                        Button:
+                            text: '从微信目录导入'
+                            size_hint_y: 0.6
+                            font_size: dp(14)
+                            background_color: 0.2, 0.7, 0.35, 1
+                            background_normal: ''
+                            on_release: app.scan_wechat_files()
+
+                    # 录音文件
+                    BoxLayout:
+                        size_hint_y: None
+                        height: dp(50)
+                        spacing: dp(8)
+                        Button:
+                            text: '选择录音'
+                            size_hint_x: 0.3
+                            font_size: dp(14)
+                            background_color: 0.2, 0.6, 0.86, 1
+                            background_normal: ''
+                            on_release: app.pick_audio()
+                        Label:
+                            text: app.audio_name or '未选择'
+                            font_size: dp(13)
+                            color: 0.3, 0.3, 0.3, 1
+                            text_size: self.size
+                            halign: 'left'
+                            valign: 'center'
+                            shorten: True
+
+                    # 文档文件
+                    BoxLayout:
+                        size_hint_y: None
+                        height: dp(50)
+                        spacing: dp(8)
+                        Button:
+                            text: '选择文档'
+                            size_hint_x: 0.3
+                            font_size: dp(14)
+                            background_color: 0.2, 0.6, 0.86, 1
+                            background_normal: ''
+                            on_release: app.pick_doc()
+                        Label:
+                            text: app.doc_name or '未选择'
+                            font_size: dp(13)
+                            color: 0.3, 0.3, 0.3, 1
+                            text_size: self.size
+                            halign: 'left'
+                            valign: 'center'
+                            shorten: True
+
+                    # ASR引擎快捷选择
+                    BoxLayout:
+                        size_hint_y: None
+                        height: dp(44)
+                        spacing: dp(8)
+                        Label:
+                            text: '识别引擎:'
+                            size_hint_x: 0.22
+                            font_size: dp(13)
+                            color: 0.3, 0.3, 0.3, 1
+                            halign: 'right'
+                            text_size: self.size
+                            valign: 'center'
+                        Spinner:
+                            id: home_asr_spinner
+                            text: app.asr_display
+                            values: app.asr_names
+                            size_hint_x: 0.78
+                            font_size: dp(13)
+                            on_text: app.on_asr_change(self.text)
+
+                    # 开始对比
+                    Button:
+                        text: '开始对比'
+                        size_hint_y: None
+                        height: dp(54)
+                        font_size: dp(18)
+                        bold: True
+                        background_color: 0.93, 0.26, 0.26, 1
+                        background_normal: ''
+                        on_release: app.start_compare()
+
+                    # 状态
+                    Label:
+                        text: app.status_text
+                        size_hint_y: None
+                        height: dp(34)
+                        font_size: dp(13)
+                        color: 0.4, 0.4, 0.4, 1
+                        text_size: self.size
+                        halign: 'center'
+                        valign: 'center'
+
+                    ProgressBar:
+                        value: app.progress
+                        max: 100
+                        size_hint_y: None
+                        height: dp(6)
+
+        # ==================== 设置页 ====================
+        Screen:
+            name: 'settings'
+            ScrollView:
+                do_scroll_x: False
+                BoxLayout:
+                    orientation: 'vertical'
+                    size_hint_y: None
+                    height: self.minimum_height
+                    padding: dp(14)
+                    spacing: dp(12)
+
+                    # ---- 语音转写配置标题 ----
+                    Label:
+                        text: '语音转写引擎'
+                        size_hint_y: None
+                        height: dp(32)
+                        font_size: dp(17)
+                        bold: True
+                        color: 0.15, 0.15, 0.15, 1
+                        halign: 'left'
+                        text_size: self.size
+                        valign: 'center'
+
+                    # ASR引擎选择
+                    BoxLayout:
+                        size_hint_y: None
+                        height: dp(44)
+                        spacing: dp(8)
+                        Label:
+                            text: '当前引擎:'
+                            size_hint_x: 0.25
+                            font_size: dp(13)
+                            color: 0.3, 0.3, 0.3, 1
+                            halign: 'right'
+                            text_size: self.size
+                            valign: 'center'
+                        Spinner:
+                            id: settings_asr_spinner
+                            text: app.asr_display
+                            values: app.asr_names
+                            size_hint_x: 0.75
+                            font_size: dp(13)
+                            on_text: app.on_asr_change(self.text)
+
+                    # ==== Card: 离线识别模型 ====
+                    BoxLayout:
+                        orientation: 'vertical'
+                        size_hint_y: None
+                        height: self.minimum_height
+                        padding: dp(12)
+                        spacing: dp(6)
+                        canvas.before:
+                            Color:
+                                rgba: 1, 1, 1, 1
+                            RoundedRectangle:
+                                pos: self.pos
+                                size: self.size
+                                radius: [dp(8)]
+
+                        Label:
+                            text: '离线识别模型 (Sherpa-ONNX)'
+                            size_hint_y: None
+                            height: dp(26)
+                            font_size: dp(15)
+                            bold: True
+                            color: 0.2, 0.5, 0.8, 1
+                            halign: 'left'
+                            text_size: self.size
+
+                        Label:
+                            text: 'Paraformer 中英文语音识别，无需联网，模型已内置APK'
+                            size_hint_y: None
+                            height: dp(20)
+                            font_size: dp(11)
+                            color: 0.5, 0.5, 0.5, 1
+                            halign: 'left'
+                            text_size: self.size
+
+                        BoxLayout:
+                            size_hint_y: None
+                            height: dp(34)
+                            spacing: dp(8)
+                            Label:
+                                text: app.model_status
+                                font_size: dp(13)
+                                color: (0.2, 0.65, 0.2, 1) if app.model_ready else (0.8, 0.3, 0.3, 1)
+                                halign: 'left'
+                                text_size: self.size
+                                valign: 'center'
+                            Button:
+                                text: '重新下载' if app.model_ready else '下载模型'
+                                size_hint_x: None
+                                width: dp(90)
+                                font_size: dp(12)
+                                background_color: (0.5, 0.5, 0.5, 1) if app.model_ready else (0.2, 0.65, 0.3, 1)
+                                background_normal: ''
+                                on_release: app.download_model_async()
+                                disabled: app.model_downloading
+
+                        ProgressBar:
+                            value: app.model_dl_progress
+                            max: 100
+                            size_hint_y: None
+                            height: dp(4) if app.model_downloading else 0
+                            opacity: 1 if app.model_downloading else 0
+
+                    # ==== Card: FunASR 局域网 ====
+                    BoxLayout:
+                        orientation: 'vertical'
+                        size_hint_y: None
+                        height: self.minimum_height
+                        padding: dp(12)
+                        spacing: dp(6)
+                        canvas.before:
+                            Color:
+                                rgba: 1, 1, 1, 1
+                            RoundedRectangle:
+                                pos: self.pos
+                                size: self.size
+                                radius: [dp(8)]
+
+                        Label:
+                            text: 'FunASR 局域网转录'
+                            size_hint_y: None
+                            height: dp(26)
+                            font_size: dp(15)
+                            bold: True
+                            color: 0.2, 0.5, 0.8, 1
+                            halign: 'left'
+                            text_size: self.size
+
+                        Label:
+                            text: '手机连接电脑上的FunASR服务，需在同一WiFi下'
+                            size_hint_y: None
+                            height: dp(20)
+                            font_size: dp(11)
+                            color: 0.5, 0.5, 0.5, 1
+                            halign: 'left'
+                            text_size: self.size
+
+                        BoxLayout:
+                            size_hint_y: None
+                            height: dp(38)
+                            spacing: dp(6)
+                            Label:
+                                text: '地址:'
+                                size_hint_x: 0.15
+                                font_size: dp(13)
+                                color: 0.3, 0.3, 0.3, 1
+                                halign: 'right'
+                                text_size: self.size
+                                valign: 'center'
+                            TextInput:
+                                id: funasr_ip_input
+                                text: app.funasr_server
+                                hint_text: '192.168.1.100:8765'
+                                size_hint_x: 0.55
+                                font_size: dp(13)
+                                multiline: False
+                                on_focus: if not self.focus: app.save_funasr_ip(self.text)
+                            Button:
+                                text: '测试'
+                                size_hint_x: 0.15
+                                font_size: dp(12)
+                                background_color: 0.2, 0.6, 0.86, 1
+                                background_normal: ''
+                                on_release: app.test_funasr()
+
+                        Label:
+                            text: app.funasr_test_result
+                            size_hint_y: None
+                            height: dp(22) if app.funasr_test_result else 0
+                            font_size: dp(12)
+                            color: 0.4, 0.4, 0.4, 1
+                            halign: 'left'
+                            text_size: self.size
+                            valign: 'center'
+
+                    # ==== Card: 云端API密钥 ====
+                    BoxLayout:
+                        orientation: 'vertical'
+                        size_hint_y: None
+                        height: self.minimum_height
+                        padding: dp(12)
+                        spacing: dp(6)
+                        canvas.before:
+                            Color:
+                                rgba: 1, 1, 1, 1
+                            RoundedRectangle:
+                                pos: self.pos
+                                size: self.size
+                                radius: [dp(8)]
+
+                        Label:
+                            text: '云端转写API密钥'
+                            size_hint_y: None
+                            height: dp(26)
+                            font_size: dp(15)
+                            bold: True
+                            color: 0.2, 0.5, 0.8, 1
+                            halign: 'left'
+                            text_size: self.size
+
+                        Label:
+                            text: '百度语音使用内置密钥，无需配置；Groq已内置密钥'
+                            size_hint_y: None
+                            height: dp(20)
+                            font_size: dp(11)
+                            color: 0.2, 0.6, 0.2, 1
+                            halign: 'left'
+                            text_size: self.size
+
+                        BoxLayout:
+                            size_hint_y: None
+                            height: dp(38)
+                            spacing: dp(6)
+                            Label:
+                                text: 'Groq Key:'
+                                size_hint_x: 0.28
+                                font_size: dp(12)
+                                color: 0.3, 0.3, 0.3, 1
+                                halign: 'right'
+                                text_size: self.size
+                                valign: 'center'
+                            TextInput:
+                                id: groq_key_input
+                                text: app.groq_key_display
+                                hint_text: '已内置密钥或输入自定义密钥'
+                                size_hint_x: 0.72
+                                font_size: dp(12)
+                                multiline: False
+                                password: True
+                                on_focus: if not self.focus: app.save_api_key('groq_whisper', self.text)
+
+                        BoxLayout:
+                            size_hint_y: None
+                            height: dp(38)
+                            spacing: dp(6)
+                            Label:
+                                text: 'OpenAI Key:'
+                                size_hint_x: 0.28
+                                font_size: dp(12)
+                                color: 0.3, 0.3, 0.3, 1
+                                halign: 'right'
+                                text_size: self.size
+                                valign: 'center'
+                            TextInput:
+                                id: openai_key_input
+                                text: app.openai_key
+                                hint_text: '输入OpenAI API密钥'
+                                size_hint_x: 0.72
+                                font_size: dp(12)
+                                multiline: False
+                                password: True
+                                on_focus: if not self.focus: app.save_api_key('openai_whisper', self.text)
+
+                        # ASR独立保存按钮
+                        Button:
+                            text: '保存ASR配置'
+                            size_hint_y: None
+                            height: dp(42)
+                            font_size: dp(14)
+                            background_color: 0.2, 0.6, 0.86, 1
+                            background_normal: ''
+                            on_release: app.save_asr_settings()
+
+                    # ---- 大模型配置标题 ----
+                    Label:
+                        text: '大模型配置'
+                        size_hint_y: None
+                        height: dp(32)
+                        font_size: dp(17)
+                        bold: True
+                        color: 0.15, 0.15, 0.15, 1
+                        halign: 'left'
+                        text_size: self.size
+                        valign: 'center'
+
+                    # ==== Card: LLM 大模型 ====
+                    BoxLayout:
+                        orientation: 'vertical'
+                        size_hint_y: None
+                        height: self.minimum_height
+                        padding: dp(12)
+                        spacing: dp(6)
+                        canvas.before:
+                            Color:
+                                rgba: 1, 1, 1, 1
+                            RoundedRectangle:
+                                pos: self.pos
+                                size: self.size
+                                radius: [dp(8)]
+
+                        Label:
+                            text: '选择大模型服务商'
+                            size_hint_y: None
+                            height: dp(26)
+                            font_size: dp(15)
+                            bold: True
+                            color: 0.2, 0.5, 0.8, 1
+                            halign: 'left'
+                            text_size: self.size
+
+                        Label:
+                            text: '用于智能纠错、内容总结等AI增强功能'
+                            size_hint_y: None
+                            height: dp(20)
+                            font_size: dp(11)
+                            color: 0.5, 0.5, 0.5, 1
+                            halign: 'left'
+                            text_size: self.size
+
+                        Spinner:
+                            id: llm_spinner
+                            text: app.llm_display
+                            values: app.llm_names
+                            size_hint_y: None
+                            height: dp(40)
+                            font_size: dp(13)
+                            on_text: app.on_llm_change(self.text)
+
+                        BoxLayout:
+                            size_hint_y: None
+                            height: dp(38)
+                            spacing: dp(6)
+                            Label:
+                                text: 'API Key:'
+                                size_hint_x: 0.22
+                                font_size: dp(12)
+                                color: 0.3, 0.3, 0.3, 1
+                                halign: 'right'
+                                text_size: self.size
+                                valign: 'center'
+                            TextInput:
+                                id: llm_key_input
+                                text: app.llm_key
+                                hint_text: '输入API密钥'
+                                size_hint_x: 0.78
+                                font_size: dp(12)
+                                multiline: False
+                                password: True
+                                on_focus: if not self.focus: app.save_llm_key(self.text)
+
+                        BoxLayout:
+                            size_hint_y: None
+                            height: dp(22)
+                            spacing: dp(4)
+                            Label:
+                                text: '模型:'
+                                size_hint_x: 0.15
+                                font_size: dp(11)
+                                color: 0.5, 0.5, 0.5, 1
+                                halign: 'right'
+                                text_size: self.size
+                                valign: 'center'
+                            Label:
+                                text: app.llm_model_name
+                                size_hint_x: 0.85
+                                font_size: dp(11)
+                                color: 0.4, 0.4, 0.4, 1
+                                halign: 'left'
+                                text_size: self.size
+                                valign: 'center'
+
+                        BoxLayout:
+                            size_hint_y: None
+                            height: dp(36)
+                            spacing: dp(8)
+                            Button:
+                                text: '测试连接'
+                                size_hint_x: 0.3
+                                font_size: dp(12)
+                                background_color: 0.2, 0.6, 0.86, 1
+                                background_normal: ''
+                                on_release: app.test_llm()
+                            Label:
+                                text: app.llm_test_result
+                                size_hint_x: 0.7
+                                font_size: dp(12)
+                                color: 0.4, 0.4, 0.4, 1
+                                halign: 'left'
+                                text_size: self.size
+                                valign: 'center'
+
+                        # LLM独立保存按钮
+                        Button:
+                            text: '保存大模型配置'
+                            size_hint_y: None
+                            height: dp(42)
+                            font_size: dp(14)
+                            background_color: 0.2, 0.6, 0.86, 1
+                            background_normal: ''
+                            on_release: app.save_llm_settings()
+
+                    # 完成并返回按钮
+                    Button:
+                        text: '完成并返回'
+                        size_hint_y: None
+                        height: dp(48)
+                        font_size: dp(16)
+                        background_color: 0.5, 0.5, 0.5, 1
+                        background_normal: ''
+                        on_release: app.return_from_settings()
+
+                    # 底部间距
+                    Widget:
+                        size_hint_y: None
+                        height: dp(20)
+
+        # ==================== 结果页 ====================
+        Screen:
+            name: 'result'
+            BoxLayout:
+                orientation: 'vertical'
+                padding: dp(12)
+                spacing: dp(8)
+
+                Label:
+                    text: app.result_summary
+                    size_hint_y: None
+                    height: dp(60)
+                    font_size: dp(15)
+                    color: 0.8, 0.2, 0.2, 1
+                    text_size: self.width, None
+                    halign: 'center'
+
+                # 搜索栏 + 新增按钮
+                BoxLayout:
+                    size_hint_y: None
+                    height: dp(40)
+                    spacing: dp(6)
+                    TextInput:
+                        id: search_input
+                        hint_text: '搜索差异内容...'
+                        multiline: False
+                        font_size: dp(13)
+                        size_hint_x: 0.6
+                        on_text: app.filter_diffs(self.text)
+                    Button:
+                        text: '清除'
+                        size_hint_x: 0.15
+                        font_size: dp(12)
+                        background_color: 0.5, 0.5, 0.5, 1
+                        background_normal: ''
+                        on_release: search_input.text = ''
+                    Button:
+                        text: '+ 新增'
+                        size_hint_x: 0.25
+                        font_size: dp(12)
+                        background_color: 0.2, 0.7, 0.35, 1
+                        background_normal: ''
+                        on_release: app.add_diff()
+
+                # 差异列表提示
+                Label:
+                    text: f'共 {len(app.diff_items)} 条差异  (红色=差异  蓝色=时间戳)'
+                    size_hint_y: None
+                    height: dp(22)
+                    font_size: dp(11)
+                    color: 0.45, 0.45, 0.45, 1
+                    halign: 'left'
+                    text_size: self.size
+
+                ScrollView:
+                    RecycleView:
+                        id: diff_rv
+                        viewclass: 'DiffItem'
+                        data: app.diff_items
+                        RecycleBoxLayout:
+                            orientation: 'vertical'
+                            default_size: None, dp(78)
+                            default_size_hint: 1, None
+                            size_hint_y: None
+                            height: self.minimum_height
+                            spacing: dp(4)
+
+                # 操作按钮区
+                BoxLayout:
+                    size_hint_y: None
+                    height: dp(44)
+                    spacing: dp(6)
+
+                    Button:
+                        text: '生成报告'
+                        size_hint_x: 1
+                        font_size: dp(13)
+                        background_color: 0.2, 0.5, 0.8, 1
+                        background_normal: ''
+                        on_release: app.generate_word_report()
+
+                    Button:
+                        text: '分享微信'
+                        size_hint_x: 1
+                        font_size: dp(13)
+                        background_color: 0.2, 0.7, 0.4, 1
+                        background_normal: ''
+                        on_release: app.share_to_wechat()
+
+                    Button:
+                        text: '返回'
+                        size_hint_x: 0.6
+                        font_size: dp(13)
+                        background_color: 0.5, 0.5, 0.5, 1
+                        background_normal: ''
+                        on_release: sm.current = 'home'
+
+
+<DiffItem@BoxLayout>:
+    diff_type: ''
+    diff_detail: ''
+    diff_timestamp: ''
+    diff_index: 0
+    orientation: 'horizontal'
+    padding: dp(8)
+    spacing: dp(4)
+    canvas.before:
+        Color:
+            rgba: 1, 0.95, 0.95, 1
+        RoundedRectangle:
+            pos: self.pos
+            size: self.size
+            radius: [dp(6)]
+    BoxLayout:
+        orientation: 'vertical'
+        spacing: dp(2)
+        BoxLayout:
+            size_hint_y: 0.35
+            spacing: dp(6)
+            Label:
+                text: root.diff_type
+                font_size: dp(12)
+                bold: True
+                color: 0.8, 0.1, 0.1, 1
+                halign: 'left'
+                text_size: self.size
+                size_hint_x: 0.5
+            Label:
+                text: root.diff_timestamp
+                font_size: dp(11)
+                color: 0, 0, 0.78, 1
+                halign: 'right'
+                text_size: self.size
+                size_hint_x: 0.5
+        Label:
+            text: root.diff_detail
+            font_size: dp(13)
+            color: 0.8, 0.05, 0.05, 1
+            halign: 'left'
+            text_size: self.size
+            size_hint_y: 0.65
+    BoxLayout:
+        orientation: 'vertical'
+        size_hint_x: None
+        width: dp(46)
+        spacing: dp(3)
+        padding: 0, dp(2)
+        Button:
+            text: '编辑'
+            font_size: dp(11)
+            background_color: 0.2, 0.6, 0.86, 1
+            background_normal: ''
+            on_release: app.edit_diff(root.diff_index)
+        Button:
+            text: '删除'
+            font_size: dp(11)
+            background_color: 0.85, 0.25, 0.25, 1
+            background_normal: ''
+            on_release: app.delete_diff(root.diff_index)
+'''
+
+
+class VoiceDocApp(App):
+    # --- 首页属性 ---
+    audio_path = StringProperty('')
+    audio_name = StringProperty('')
+    doc_path = StringProperty('')
+    doc_name = StringProperty('')
+    status_text = StringProperty('就绪')
+    progress = NumericProperty(0)
+    result_summary = StringProperty('')
+    diff_items = ListProperty([])
+
+    # --- 对比结果存储（用于生成报告） ---
+    _last_audio_text = ''
+    _last_doc_text = ''
+    _last_result = {}
+    _last_report_path = ''
+    _raw_diffs = []          # 原始差异数据，供增删改搜
+    _search_keyword = ''     # 当前搜索关键词
+    _imported_files = set()  # 已导入文件去重
+
+    # --- ASR 属性 ---
+    asr_provider = StringProperty('sherpa_offline')
+    asr_display = StringProperty('离线识别(内置)')
+    asr_names = ListProperty(ASR_NAMES)
+    funasr_server = StringProperty('http://192.168.1.100:8765')
+    funasr_test_result = StringProperty('')
+    groq_key = StringProperty('')
+    groq_key_display = StringProperty('已内置密钥')  # 显示用
+    openai_key = StringProperty('')
+
+    # --- Groq内置密钥 ---
+    GROQ_BUILTIN_KEY = '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'
+
+    # --- 离线模型属性 ---
+    model_ready = BooleanProperty(False)
+    model_status = StringProperty('检查中...')
+    model_downloading = BooleanProperty(False)
+    model_dl_progress = NumericProperty(0)
+
+    # --- LLM 属性 ---
+    llm_provider = StringProperty('zhipu')
+    llm_display = StringProperty('智谱GLM')
+    llm_names = ListProperty(LLM_NAMES)
+    llm_key = StringProperty('')
+    llm_model_name = StringProperty('glm-4-flash')
+    llm_test_result = StringProperty('')
+
+    def build(self):
+        self.title = '配音文字核对宝'
+        self._load_config()
+        root = Builder.load_string(KV)
+        Clock.schedule_once(lambda dt: self._check_intent(), 1)
+        Clock.schedule_once(lambda dt: self._check_model_status(), 2)
+        Clock.schedule_once(lambda dt: self._load_diffs(), 1.5)
+        # 定时轮询新的 Share Intent（前台运行时接收微信分享）
+        Clock.schedule_interval(lambda dt: self._check_intent(), 3)
+        return root
+
+    # ==================== 配置管理 ====================
+
+    def _config_path(self):
+        if platform == 'android':
+            from android.storage import app_storage_path
+            return os.path.join(app_storage_path(), 'config.json')
+        return os.path.join(os.path.expanduser('~'), '.voice-doc-compare', 'config_apk.json')
+
+    def _load_config(self):
+        self._config = {
+            'asr_provider': 'sherpa_offline',
+            'llm_provider': 'zhipu',
+            'asr_keys': {},
+            'llm_keys': {},
+        }
+        try:
+            with open(self._config_path(), 'r', encoding='utf-8') as f:
+                self._config.update(json.load(f))
+        except Exception:
+            pass
+
+        # 加载 ASR
+        self.asr_provider = self._config.get('asr_provider', 'sherpa_offline')
+        self.asr_display = ASR_MAP_REVERSE.get(self.asr_provider, '离线识别(内置)')
+        self.funasr_server = self._config.get('asr_keys', {}).get(
+            'funasr', {}).get('server_url', 'http://192.168.1.100:8765')
+
+        # Groq Key: 优先使用配置的，否则使用内置密钥
+        groq_saved = self._config.get('asr_keys', {}).get('groq_whisper', {}).get('key', '')
+        if groq_saved and groq_saved != self.GROQ_BUILTIN_KEY:
+            # 用户自定义了密钥
+            self.groq_key = groq_saved
+            self.groq_key_display = groq_saved[:8] + '...' if len(groq_saved) > 8 else groq_saved
+        else:
+            # 使用内置密钥
+            self.groq_key = self.GROQ_BUILTIN_KEY
+            self.groq_key_display = '已内置密钥'
+            # 保存内置密钥到配置
+            self._config.setdefault('asr_keys', {}).setdefault('groq_whisper', {})['key'] = self.GROQ_BUILTIN_KEY
+
+        self.openai_key = self._config.get('asr_keys', {}).get(
+            'openai_whisper', {}).get('key', '')
+
+        # 加载 LLM
+        self.llm_provider = self._config.get('llm_provider', 'zhipu')
+        self.llm_display = LLM_MAP_REVERSE.get(self.llm_provider, '智谱GLM')
+        llm_info = LLM_PROVIDERS.get(self.llm_provider, {})
+        self.llm_model_name = llm_info.get('default_model', 'glm-4-flash')
+        self.llm_key = self._config.get('llm_keys', {}).get(
+            self.llm_provider, {}).get('key', '')
+
+    def _save_config(self):
+        self._config['asr_provider'] = self.asr_provider
+        self._config['llm_provider'] = self.llm_provider
+        try:
+            d = os.path.dirname(self._config_path())
+            os.makedirs(d, exist_ok=True)
+            with open(self._config_path(), 'w', encoding='utf-8') as f:
+                json.dump(self._config, f, ensure_ascii=False, indent=2)
+        except Exception:
+            pass
+
+    # ==================== ASR 设置 ====================
+
+    def on_asr_change(self, text):
+        new_id = ASR_MAP.get(text)
+        if not new_id or new_id == self.asr_provider:
+            return
+        self.asr_provider = new_id
+        self.asr_display = text
+        self._save_config()
+
+    def save_funasr_ip(self, ip_text):
+        ip_text = ip_text.strip()
+        if not ip_text:
+            return
+        if not ip_text.startswith('http'):
+            if ':' not in ip_text:
+                ip_text = f'http://{ip_text}:8765'
+            else:
+                ip_text = f'http://{ip_text}'
+        self.funasr_server = ip_text
+        self._config.setdefault('asr_keys', {}).setdefault('funasr', {})['server_url'] = ip_text
+        self._save_config()
+
+    def save_api_key(self, provider, key):
+        key = key.strip()
+        self._config.setdefault('asr_keys', {}).setdefault(provider, {})['key'] = key
+        if provider == 'groq_whisper':
+            self.groq_key = key
+        elif provider == 'openai_whisper':
+            self.openai_key = key
+        self._save_config()
+
+    def test_funasr(self):
+        self.funasr_test_result = '正在测试...'
+        threading.Thread(target=self._test_funasr_thread, daemon=True).start()
+
+    def _test_funasr_thread(self):
+        import requests
+        url = self.funasr_server.rstrip('/')
+        try:
+            r = requests.get(f'{url}/health', timeout=5)
+            if r.status_code == 200:
+                self._update_ui(funasr_test_result='连接成功')
+            else:
+                self._update_ui(funasr_test_result=f'服务异常: HTTP {r.status_code}')
+        except requests.exceptions.ConnectionError:
+            self._update_ui(funasr_test_result='无法连接，请检查IP和WiFi')
+        except Exception as e:
+            self._update_ui(funasr_test_result=f'失败: {str(e)[:30]}')
+
+    # ==================== 离线模型管理 ====================
+
+    def _get_model_dir(self):
+        builtin = os.path.join(APP_DIR, 'models', 'paraformer')
+        if os.path.exists(os.path.join(builtin, 'model.int8.onnx')):
+            return builtin
+        if platform == 'android':
+            from android.storage import app_storage_path
+            return os.path.join(app_storage_path(), 'models', 'paraformer')
+        return os.path.join(os.path.expanduser('~'), '.sherpa-onnx', 'paraformer')
+
+    def _check_model_status(self):
+        model_dir = self._get_model_dir()
+        model_file = os.path.join(model_dir, 'model.int8.onnx')
+        if os.path.exists(model_file):
+            size_mb = os.path.getsize(model_file) // (1024 * 1024)
+            self.model_ready = True
+            self.model_status = f'已就绪 ({size_mb}MB)'
+        else:
+            self.model_ready = False
+            self.model_status = '未下载 (约80MB)'
+
+    def download_model_async(self):
+        if self.model_downloading:
+            return
+        self.model_downloading = True
+        self.model_dl_progress = 0
+        self.model_status = '正在下载...'
+        threading.Thread(target=self._download_model_thread, daemon=True).start()
+
+    def _download_model_thread(self):
+        try:
+            from core.model_download import download_model
+            model_dir = self._get_model_dir()
+
+            def progress_cb(msg):
+                # 解析百分比
+                import re
+                m = re.search(r'(\d+)%', msg)
+                if m:
+                    self._update_ui(model_dl_progress=int(m.group(1)), model_status=msg)
+                else:
+                    self._update_ui(model_status=msg)
+
+            download_model(model_dir, progress_cb)
+            self._update_ui(
+                model_ready=True,
+                model_status='下载完成',
+                model_downloading=False,
+                model_dl_progress=100,
+            )
+            Clock.schedule_once(lambda dt: self._check_model_status(), 1)
+        except Exception as e:
+            self._update_ui(
+                model_status=f'下载失败: {str(e)[:40]}',
+                model_downloading=False,
+            )
+
+    # ==================== LLM 设置 ====================
+
+    def on_llm_change(self, text):
+        new_id = LLM_MAP.get(text)
+        if not new_id or new_id == self.llm_provider:
+            return
+        # 保存旧的key
+        if self.llm_key:
+            self._config.setdefault('llm_keys', {}).setdefault(
+                self.llm_provider, {})['key'] = self.llm_key
+
+        self.llm_provider = new_id
+        self.llm_display = text
+        llm_info = LLM_PROVIDERS.get(new_id, {})
+        self.llm_model_name = llm_info.get('default_model', '')
+        self.llm_key = self._config.get('llm_keys', {}).get(new_id, {}).get('key', '')
+        self.llm_test_result = ''
+        self._save_config()
+
+    def save_llm_key(self, key):
+        key = key.strip()
+        self.llm_key = key
+        self._config.setdefault('llm_keys', {}).setdefault(
+            self.llm_provider, {})['key'] = key
+        self._save_config()
+
+    def test_llm(self):
+        if not self.llm_key:
+            self.llm_test_result = '请先输入API Key'
+            return
+        self.llm_test_result = '正在测试...'
+        threading.Thread(target=self._test_llm_thread, daemon=True).start()
+
+    def _test_llm_thread(self):
+        import requests
+        pid = self.llm_provider
+        key = self.llm_key
+        info = LLM_PROVIDERS.get(pid, {})
+        endpoint = info.get('endpoint', '')
+        model = info.get('default_model', '')
+
+        try:
+            if pid == 'claude':
+                headers = {
+                    'x-api-key': key,
+                    'anthropic-version': '2023-06-01',
+                    'Content-Type': 'application/json',
+                }
+                data = {
+                    'model': model,
+                    'max_tokens': 10,
+                    'messages': [{'role': 'user', 'content': 'hi'}],
+                }
+            elif pid == 'zhipu':
+                # 智谱GLM使用标准Bearer Token认证
+                # 智谱API Key格式通常为 xxx.yyy 形式
+                headers = {
+                    'Authorization': f'Bearer {key}',
+                    'Content-Type': 'application/json',
+                }
+                data = {
+                    'model': model,
+                    'messages': [{'role': 'user', 'content': 'hi'}],
+                    'max_tokens': 10,
+                    'stream': False,
+                }
+            else:
+                headers = {
+                    'Authorization': f'Bearer {key}',
+                    'Content-Type': 'application/json',
+                }
+                data = {
+                    'model': model,
+                    'max_tokens': 10,
+                    'messages': [{'role': 'user', 'content': 'hi'}],
+                }
+
+            resp = requests.post(endpoint, headers=headers, json=data, timeout=20)
+            if resp.status_code in (200, 201):
+                self._update_ui(llm_test_result='连接成功')
+            else:
+                # 解析错误信息
+                try:
+                    err_data = resp.json()
+                    err_msg = err_data.get('error', {}).get('message', '') or str(err_data)[:60]
+                except:
+                    err_msg = resp.text[:60] if resp.text else f'HTTP {resp.status_code}'
+                self._update_ui(llm_test_result=f'HTTP {resp.status_code}: {err_msg}')
+        except requests.exceptions.ConnectionError:
+            self._update_ui(llm_test_result='连接失败，请检查网络')
+        except requests.exceptions.Timeout:
+            self._update_ui(llm_test_result='连接超时，请重试')
+        except Exception as e:
+            self._update_ui(llm_test_result=f'失败: {str(e)[:40]}')
+
+    def save_asr_settings(self):
+        """单独保存ASR配置"""
+        try:
+            funasr_input = self.root.ids.get('funasr_ip_input')
+            if funasr_input:
+                self.save_funasr_ip(funasr_input.text)
+            groq_input = self.root.ids.get('groq_key_input')
+            if groq_input:
+                text = groq_input.text.strip()
+                # 如果用户输入为空或仍为默认文字，使用内置密钥
+                if not text or text == '已内置密钥':
+                    text = self.GROQ_BUILTIN_KEY
+                self.save_api_key('groq_whisper', text)
+            openai_input = self.root.ids.get('openai_key_input')
+            if openai_input:
+                self.save_api_key('openai_whisper', openai_input.text)
+        except Exception:
+            pass
+        self._save_config()
+        self.status_text = 'ASR配置已保存'
+
+    def save_llm_settings(self):
+        """单独保存LLM配置"""
+        try:
+            llm_input = self.root.ids.get('llm_key_input')
+            if llm_input:
+                self.save_llm_key(llm_input.text)
+        except Exception:
+            pass
+        self._save_config()
+        self.llm_test_result = '大模型配置已保存'
+
+    def return_from_settings(self):
+        """完成并返回首页"""
+        self.root.ids.sm.current = 'home'
+        self.status_text = '就绪'
+
+    # ==================== 文件选择 ====================
+
+    def pick_audio(self):
+        if platform == 'android':
+            self._android_pick('audio')
+        else:
+            self._desktop_pick('audio')
+
+    def pick_doc(self):
+        if platform == 'android':
+            self._android_pick('doc')
+        else:
+            self._desktop_pick('doc')
+
+    def _android_pick(self, file_type):
+        try:
+            from jnius import autoclass
+            Intent = autoclass('android.content.Intent')
+            PythonActivity = autoclass('org.kivy.android.PythonActivity')
+            intent = Intent(Intent.ACTION_GET_CONTENT)
+            if file_type == 'audio':
+                intent.setType('audio/*')
+            else:
+                intent.setType('application/*')
+            intent.addCategory(Intent.CATEGORY_OPENABLE)
+            PythonActivity.mActivity.startActivityForResult(intent, 1 if file_type == 'audio' else 2)
+        except Exception as e:
+            self.status_text = f'文件选择失败: {str(e)[:40]}'
+
+    def _desktop_pick(self, file_type):
+        try:
+            from plyer import filechooser
+            if file_type == 'audio':
+                paths = filechooser.open_file(title='选择录音',
+                    filters=[('音频', '*.wav', '*.mp3', '*.m4a', '*.flac')])
+            else:
+                paths = filechooser.open_file(title='选择文档',
+                    filters=[('文档', '*.docx', '*.txt')])
+            if paths:
+                p = paths[0]
+                if file_type == 'audio':
+                    self.audio_path = p
+                    self.audio_name = os.path.basename(p)
+                else:
+                    self.doc_path = p
+                    self.doc_name = os.path.basename(p)
+        except Exception:
+            pass
+
+    # ==================== 微信Intent ====================
+
+    def _check_intent(self):
+        if platform != 'android':
+            return
+        try:
+            from core.wechat_import import get_android_shared_files, classify_file, import_shared_file
+            files = get_android_shared_files()
+            if not files:
+                return
+            # 去重：跳过已导入的文件
+            new_files = [f for f in files if f not in self._imported_files]
+            if not new_files:
+                return
+            from android.storage import app_storage_path
+            data_dir = os.path.join(app_storage_path(), 'imports')
+            imported_any = False
+            for f in new_files:
+                self._imported_files.add(f)
+                local = import_shared_file(f, data_dir)
+                ftype = classify_file(local)
+                if ftype == 'audio':
+                    self.audio_path = local
+                    self.audio_name = os.path.basename(local)
+                    imported_any = True
+                elif ftype == 'doc':
+                    self.doc_path = local
+                    self.doc_name = os.path.basename(local)
+                    imported_any = True
+            if imported_any:
+                self.status_text = '已从微信导入文件'
+        except Exception as e:
+            self.status_text = f'导入失败: {str(e)[:40]}'
+
+    def scan_wechat_files(self):
+        """扫描微信目录，弹出文件选择列表"""
+        from kivy.uix.popup import Popup
+        from kivy.uix.boxlayout import BoxLayout as KBox
+        from kivy.uix.button import Button as KButton
+        from kivy.uix.label import Label as KLabel
+        from kivy.uix.scrollview import ScrollView
+        from kivy.metrics import dp
+
+        if platform == 'android':
+            from core.wechat_import import scan_wechat_dirs, classify_file
+            found = scan_wechat_dirs(max_files=15)
+        else:
+            # 桌面端：扫描用户下载目录作为演示
+            from core.wechat_import import scan_wechat_dirs
+            found = scan_wechat_dirs(max_files=15)
+
+        all_files = []
+        for fpath, mtime in found.get('audio', []):
+            all_files.append(('audio', fpath, mtime))
+        for fpath, mtime in found.get('doc', []):
+            all_files.append(('doc', fpath, mtime))
+        all_files.sort(key=lambda x: x[2], reverse=True)
+
+        content = KBox(orientation='vertical', spacing=dp(4), padding=dp(8))
+
+        if not all_files:
+            content.add_widget(KLabel(
+                text='未在微信目录中找到音频或文档文件\n\n请先从微信保存文件到手机',
+                font_size=dp(14), halign='center',
+                text_size=(dp(280), None)))
+        else:
+            scroll = ScrollView()
+            file_list = KBox(orientation='vertical', size_hint_y=None,
+                             spacing=dp(3), padding=dp(2))
+            file_list.bind(minimum_height=file_list.setter('height'))
+
+            popup_ref = [None]  # 用于在回调中关闭 popup
+
+            for ftype, fpath, mtime in all_files:
+                fname = os.path.basename(fpath)
+                tag = '🎵' if ftype == 'audio' else '📄'
+                from datetime import datetime
+                time_str = datetime.fromtimestamp(mtime).strftime('%m-%d %H:%M')
+                btn = KButton(
+                    text=f'{tag} {fname}  ({time_str})',
+                    size_hint_y=None, height=dp(42),
+                    font_size=dp(12), halign='left',
+                    background_color=(0.2, 0.6, 0.86, 1) if ftype == 'audio' else (0.2, 0.7, 0.4, 1),
+                    background_normal='',
+                )
+                btn.text_size = (dp(300), None)
+                # 绑定选择事件
+                btn.bind(on_release=lambda inst, ft=ftype, fp=fpath: self._on_wechat_file_selected(ft, fp, popup_ref))
+                file_list.add_widget(btn)
+
+            scroll.add_widget(file_list)
+            content.add_widget(scroll)
+
+        popup = Popup(
+            title='从微信目录选择文件',
+            content=content,
+            size_hint=(0.92, 0.7),
+            auto_dismiss=True,
+        )
+        if all_files:
+            popup_ref[0] = popup
+        popup.open()
+
+    def _on_wechat_file_selected(self, ftype, fpath, popup_ref):
+        """用户从微信目录选择了文件"""
+        if ftype == 'audio':
+            self.audio_path = fpath
+            self.audio_name = os.path.basename(fpath)
+            self.status_text = f'已选择录音: {self.audio_name}'
+        elif ftype == 'doc':
+            self.doc_path = fpath
+            self.doc_name = os.path.basename(fpath)
+            self.status_text = f'已选择文档: {self.doc_name}'
+        if popup_ref and popup_ref[0]:
+            popup_ref[0].dismiss()
+
+    # ==================== 对比流程 ====================
+
+    def start_compare(self):
+        if not self.audio_path or not self.doc_path:
+            self.status_text = '请先选择录音和文档'
+            return
+        self.status_text = '正在处理...'
+        self.progress = 0
+        threading.Thread(target=self._do_compare, daemon=True).start()
+
+    def _update_ui(self, **kwargs):
+        def _do(dt):
+            for k, v in kwargs.items():
+                setattr(self, k, v)
+        Clock.schedule_once(_do)
+
+    def _do_compare(self):
+        try:
+            from core.transcribe import transcribe_audio
+            from core.compare import compare_texts
+            from core.docx_util import parse_docx, parse_txt
+
+            # 步骤1: 转录
+            self._update_ui(status_text='正在转写录音...', progress=10)
+            keys = dict(self._config.get('asr_keys', {}).get(self.asr_provider, {}))
+            if self.asr_provider == 'funasr':
+                keys['server_url'] = self.funasr_server
+            # Groq使用内置密钥
+            if self.asr_provider == 'groq_whisper' and not keys.get('key'):
+                keys['key'] = self.GROQ_BUILTIN_KEY
+            audio_text, timestamps = transcribe_audio(
+                self.audio_path, self.asr_provider, keys,
+                progress_cb=lambda m: self._update_ui(status_text=m)
+            )
+            self._update_ui(progress=50, status_text='转写完成')
+
+            # 步骤2: 解析文档
+            self._update_ui(status_text='正在解析文档...', progress=55)
+            ext = os.path.splitext(self.doc_path)[1].lower()
+            if ext == '.txt':
+                paragraphs = parse_txt(self.doc_path)
+            else:
+                paragraphs = parse_docx(self.doc_path)
+            doc_text = '\n'.join(paragraphs)
+
+            # 步骤3: 对比
+            self._update_ui(status_text='正在对比内容...', progress=70)
+            result = compare_texts(audio_text, doc_text, word_timestamps=timestamps)
+            self._update_ui(progress=95)
+
+            # 保存结果供报告生成使用
+            self._last_audio_text = audio_text
+            self._last_doc_text = doc_text
+            self._last_result = result
+            self._last_report_path = ''
+
+            # 保存原始差异数据（用于增删改搜）
+            self._raw_diffs = [dict(d) for d in result['diffs']]
+            self._save_diffs()
+
+            # 构建结果显示
+            self._rebuild_diff_items()
+
+            self._update_ui(
+                progress=100,
+                status_text='对比完成',
+                result_summary=result['summary'],
+            )
+            Clock.schedule_once(lambda dt: setattr(self.root.ids.sm, 'current', 'result'))
+
+        except Exception as e:
+            import traceback
+            traceback.print_exc()
+            self._update_ui(status_text=f'错误: {str(e)[:60]}', progress=0)
+
+    # ==================== 差异数据持久化 ====================
+
+    def _diffs_json_path(self):
+        """获取差异数据JSON存储路径"""
+        try:
+            if platform == 'android':
+                from android.storage import app_storage_path
+                base = app_storage_path()
+            else:
+                base = os.path.expanduser('~')
+        except Exception:
+            base = os.path.expanduser('~')
+        d = os.path.join(base, 'reports')
+        os.makedirs(d, exist_ok=True)
+        return os.path.join(d, 'last_diffs.json')
+
+    def _save_diffs(self):
+        """保存差异数据到JSON"""
+        data = {
+            'audio_path': self.audio_path,
+            'doc_path': self.doc_path,
+            'accuracy': self._last_result.get('accuracy', 0),
+            'summary': self._last_result.get('summary', ''),
+            'audio_text': self._last_audio_text,
+            'doc_text': self._last_doc_text,
+            'diffs': self._raw_diffs,
+        }
+        try:
+            with open(self._diffs_json_path(), 'w', encoding='utf-8') as f:
+                json.dump(data, f, ensure_ascii=False, indent=2)
+        except Exception:
+            pass
+
+    def _load_diffs(self):
+        """从JSON加载上次的差异数据"""
+        try:
+            with open(self._diffs_json_path(), 'r', encoding='utf-8') as f:
+                data = json.load(f)
+            self._raw_diffs = data.get('diffs', [])
+            self._last_audio_text = data.get('audio_text', '')
+            self._last_doc_text = data.get('doc_text', '')
+            self._last_result = {
+                'diffs': self._raw_diffs,
+                'accuracy': data.get('accuracy', 0),
+                'summary': data.get('summary', ''),
+                'n_mismatch': sum(1 for d in self._raw_diffs if d.get('type') == 'mismatch'),
+                'n_missing': sum(1 for d in self._raw_diffs if d.get('type') == 'missing_in_audio'),
+                'n_extra': sum(1 for d in self._raw_diffs if d.get('type') == 'extra_in_audio'),
+            }
+            self.audio_path = data.get('audio_path', '')
+            self.audio_name = os.path.basename(self.audio_path) if self.audio_path else ''
+            self.doc_path = data.get('doc_path', '')
+            self.doc_name = os.path.basename(self.doc_path) if self.doc_path else ''
+            self.result_summary = data.get('summary', '')
+            self._rebuild_diff_items()
+            return True
+        except Exception:
+            return False
+
+    # ==================== 差异列表显示与搜索 ====================
+
+    def _rebuild_diff_items(self, keyword=''):
+        """从原始差异数据重建UI显示列表，支持关键词过滤"""
+        items = []
+        type_labels = {
+            'mismatch': '误读',
+            'missing_in_audio': '漏读',
+            'extra_in_audio': '多读',
+        }
+        for i, d in enumerate(self._raw_diffs):
+            dtype = type_labels.get(d.get('type', ''), d.get('type', ''))
+            ts_text = ''
+            if 'time_start' in d and d['time_start'] is not None:
+                try:
+                    total_sec = int(float(d['time_start']))
+                    m, s = divmod(total_sec, 60)
+                    ts_text = f'第{m}分{s}秒'
+                except (ValueError, TypeError):
+                    pass
+            if d.get('type') == 'mismatch':
+                detail = f'原文: {d.get("docText", "")}  →  录音: {d.get("audioText", "")}'
+            elif d.get('type') == 'missing_in_audio':
+                detail = f'漏读: {d.get("docText", "")}'
+            else:
+                detail = f'多读: {d.get("audioText", "")}'
+
+            # 搜索过滤
+            if keyword:
+                kw = keyword.lower()
+                if (kw not in detail.lower()
+                        and kw not in dtype.lower()
+                        and kw not in ts_text.lower()):
+                    continue
+
+            items.append({
+                'diff_type': f'【{dtype}】',
+                'diff_detail': detail,
+                'diff_timestamp': ts_text,
+                'diff_index': i,
+            })
+
+        def _do(dt):
+            self.diff_items = items
+        Clock.schedule_once(_do)
+
+    def filter_diffs(self, keyword):
+        """搜索过滤差异列表"""
+        self._search_keyword = keyword.strip()
+        self._rebuild_diff_items(self._search_keyword)
+
+    # ==================== 差异点增删改 ====================
+
+    def edit_diff(self, index):
+        """编辑指定索引的差异"""
+        if index < 0 or index >= len(self._raw_diffs):
+            return
+        self._show_edit_popup(index)
+
+    def delete_diff(self, index):
+        """删除指定索引的差异"""
+        if index < 0 or index >= len(self._raw_diffs):
+            return
+        self._raw_diffs.pop(index)
+        # 更新统计
+        self._update_result_stats()
+        self._save_diffs()
+        self._rebuild_diff_items(self._search_keyword)
+        self._last_report_path = ''  # 标记需要重新生成报告
+
+    def add_diff(self):
+        """新增一个差异项"""
+        self._show_edit_popup(-1)
+
+    def _update_result_stats(self):
+        """更新差异统计信息"""
+        n_mismatch = sum(1 for d in self._raw_diffs if d.get('type') == 'mismatch')
+        n_missing = sum(1 for d in self._raw_diffs if d.get('type') == 'missing_in_audio')
+        n_extra = sum(1 for d in self._raw_diffs if d.get('type') == 'extra_in_audio')
+        total = n_mismatch + n_missing + n_extra
+        # 重新计算准确率
+        doc_len = max(len(self._last_doc_text.replace(' ', '').replace('\n', '')), 1)
+        diff_chars = sum(max(len(d.get('docText', '')), len(d.get('audioText', '')))
+                         for d in self._raw_diffs)
+        accuracy = max(0, (1 - diff_chars / doc_len) * 100)
+        summary = f'共{total}处差异：{n_mismatch}处误读，{n_missing}处漏读，{n_extra}处多读\n字准确率 {accuracy:.1f}%'
+        self._last_result.update({
+            'diffs': self._raw_diffs,
+            'accuracy': accuracy,
+            'summary': summary,
+            'n_mismatch': n_mismatch,
+            'n_missing': n_missing,
+            'n_extra': n_extra,
+        })
+        self._update_ui(result_summary=summary)
+
+    def _show_edit_popup(self, index):
+        """显示编辑/新增差异的弹窗"""
+        from kivy.uix.popup import Popup
+        from kivy.uix.boxlayout import BoxLayout as KBox
+        from kivy.uix.textinput import TextInput as KTextInput
+        from kivy.uix.button import Button as KButton
+        from kivy.uix.label import Label as KLabel
+        from kivy.uix.spinner import Spinner as KSpinner
+        from kivy.metrics import dp
+
+        is_new = (index == -1)
+        if is_new:
+            diff = {'type': 'mismatch', 'docText': '', 'audioText': '', 'time_start': 0}
+        else:
+            diff = dict(self._raw_diffs[index])
+
+        type_map = {'误读': 'mismatch', '漏读': 'missing_in_audio', '多读': 'extra_in_audio'}
+        type_reverse = {v: k for k, v in type_map.items()}
+        current_type_cn = type_reverse.get(diff.get('type', 'mismatch'), '误读')
+
+        content = KBox(orientation='vertical', spacing=dp(10), padding=dp(12))
+
+        # 类型选择
+        row_type = KBox(size_hint_y=None, height=dp(38), spacing=dp(6))
+        row_type.add_widget(KLabel(text='类型:', size_hint_x=0.25, font_size=dp(13)))
+        type_spinner = KSpinner(
+            text=current_type_cn,
+            values=['误读', '漏读', '多读'],
+            size_hint_x=0.75,
+            font_size=dp(13),
+        )
+        row_type.add_widget(type_spinner)
+        content.add_widget(row_type)
+
+        # 原文
+        row_doc = KBox(orientation='vertical', size_hint_y=None, height=dp(70), spacing=dp(2))
+        row_doc.add_widget(KLabel(text='原文内容:', size_hint_y=None, height=dp(20),
+                                   font_size=dp(12), halign='left', text_size=(dp(300), None)))
+        doc_input = KTextInput(text=diff.get('docText', ''), hint_text='输入原文',
+                                font_size=dp(13), multiline=True)
+        row_doc.add_widget(doc_input)
+        content.add_widget(row_doc)
+
+        # 录音文本
+        row_audio = KBox(orientation='vertical', size_hint_y=None, height=dp(70), spacing=dp(2))
+        row_audio.add_widget(KLabel(text='录音文本:', size_hint_y=None, height=dp(20),
+                                     font_size=dp(12), halign='left', text_size=(dp(300), None)))
+        audio_input = KTextInput(text=diff.get('audioText', ''), hint_text='输入录音识别文本',
+                                  font_size=dp(13), multiline=True)
+        row_audio.add_widget(audio_input)
+        content.add_widget(row_audio)
+
+        # 时间（秒）
+        row_time = KBox(size_hint_y=None, height=dp(38), spacing=dp(6))
+        row_time.add_widget(KLabel(text='时间(秒):', size_hint_x=0.3, font_size=dp(13)))
+        time_val = ''
+        if 'time_start' in diff and diff['time_start'] is not None:
+            try:
+                time_val = str(int(float(diff['time_start'])))
+            except (ValueError, TypeError):
+                time_val = ''
+        time_input = KTextInput(text=time_val, hint_text='如: 65',
+                                 font_size=dp(13), multiline=False,
+                                 input_filter='int', size_hint_x=0.7)
+        row_time.add_widget(time_input)
+        content.add_widget(row_time)
+
+        # 按钮栏
+        btn_row = KBox(size_hint_y=None, height=dp(44), spacing=dp(8))
+
+        popup = Popup(
+            title='新增差异' if is_new else '编辑差异',
+            content=content,
+            size_hint=(0.92, 0.72),
+            auto_dismiss=True,
+        )
+
+        def on_save(instance):
+            new_type = type_map.get(type_spinner.text, 'mismatch')
+            new_diff = {
+                'type': new_type,
+                'docText': doc_input.text.strip(),
+                'audioText': audio_input.text.strip(),
+                'confidence': diff.get('confidence', 1.0),
+                'position': diff.get('position', 0),
+            }
+            # 时间戳：用户输入的是秒数
+            try:
+                seconds = int(time_input.text.strip())
+                new_diff['time_start'] = seconds
+            except (ValueError, TypeError):
+                pass  # 不设置时间戳
+
+            if is_new:
+                self._raw_diffs.append(new_diff)
+            else:
+                self._raw_diffs[index] = new_diff
+
+            self._update_result_stats()
+            self._save_diffs()
+            self._rebuild_diff_items(self._search_keyword)
+            self._last_report_path = ''
+            popup.dismiss()
+
+        def on_cancel(instance):
+            popup.dismiss()
+
+        save_btn = KButton(text='保存', font_size=dp(14),
+                           background_color=(0.2, 0.6, 0.86, 1),
+                           background_normal='')
+        save_btn.bind(on_release=on_save)
+        btn_row.add_widget(save_btn)
+
+        cancel_btn = KButton(text='取消', font_size=dp(14),
+                             background_color=(0.5, 0.5, 0.5, 1),
+                             background_normal='')
+        cancel_btn.bind(on_release=on_cancel)
+        btn_row.add_widget(cancel_btn)
+
+        content.add_widget(btn_row)
+        popup.open()
+
+    # ==================== Word报告生成 ====================
+
+    def generate_word_report(self):
+        """生成Word对比报告"""
+        if not self._last_result:
+            self.status_text = '没有可用的对比结果'
+            return
+        self.status_text = '正在生成报告...'
+        threading.Thread(target=self._gen_report_thread, daemon=True).start()
+
+    def _gen_report_thread(self):
+        try:
+            from core.report_gen import generate_report
+            # 使用 _raw_diffs 作为数据源（支持用户编辑后重新生成）
+            result_for_report = dict(self._last_result)
+            result_for_report['diffs'] = self._raw_diffs
+            path = generate_report(
+                audio_path=self.audio_path,
+                doc_path=self.doc_path,
+                audio_text=self._last_audio_text,
+                doc_text=self._last_doc_text,
+                result=result_for_report,
+            )
+            self._last_report_path = path
+            self._update_ui(status_text=f'报告已保存: {os.path.basename(path)}')
+        except Exception as e:
+            import traceback
+            traceback.print_exc()
+            self._update_ui(status_text=f'报告生成失败: {str(e)[:50]}')
+
+    # ==================== 微信分享 ====================
+
+    def share_to_wechat(self):
+        """分享报告到微信"""
+        if not self._last_report_path:
+            # 先生成报告再分享
+            if not self._last_result:
+                self.status_text = '没有可用的对比结果'
+                return
+            self.status_text = '正在生成并分享...'
+            threading.Thread(target=self._gen_and_share_thread, daemon=True).start()
+        else:
+            self._do_share(self._last_report_path)
+
+    def _gen_and_share_thread(self):
+        try:
+            from core.report_gen import generate_report
+            result_for_report = dict(self._last_result)
+            result_for_report['diffs'] = self._raw_diffs
+            path = generate_report(
+                audio_path=self.audio_path,
+                doc_path=self.doc_path,
+                audio_text=self._last_audio_text,
+                doc_text=self._last_doc_text,
+                result=result_for_report,
+            )
+            self._last_report_path = path
+            Clock.schedule_once(lambda dt: self._do_share(path))
+        except Exception as e:
+            self._update_ui(status_text=f'生成报告失败: {str(e)[:50]}')
+
+    def _do_share(self, file_path):
+        """执行分享操作"""
+        if platform == 'android':
+            try:
+                from jnius import autoclass
+                Intent = autoclass('android.content.Intent')
+                PythonActivity = autoclass('org.kivy.android.PythonActivity')
+                Uri = autoclass('android.net.Uri')
+                File = autoclass('java.io.File')
+                FileProvider = autoclass('androidx.core.content.FileProvider')
+
+                activity = PythonActivity.mActivity
+                file_obj = File(file_path)
+
+                # 使用FileProvider获取content URI（Android 7.0+）
+                try:
+                    uri = FileProvider.getUriForFile(
+                        activity,
+                        activity.getPackageName() + '.fileprovider',
+                        file_obj
+                    )
+                except Exception:
+                    uri = Uri.fromFile(file_obj)
+
+                intent = Intent(Intent.ACTION_SEND)
+                intent.setType('application/vnd.openxmlformats-officedocument.wordprocessingml.document')
+                intent.putExtra(Intent.EXTRA_STREAM, uri)
+                intent.addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+
+                chooser = Intent.createChooser(intent, '分享核对报告')
+                activity.startActivity(chooser)
+                self.status_text = '已打开分享面板'
+            except Exception as e:
+                self.status_text = f'分享失败: {str(e)[:40]}'
+        else:
+            self.status_text = f'报告已保存: {file_path}'
+
+
+if __name__ == '__main__':
+    VoiceDocApp().run()

@@ -1,0 +1,146 @@
+package com.ai.hotspot.data.repository
+
+import com.ai.hotspot.data.local.dao.CustomRssDao
+import com.ai.hotspot.data.local.dao.HotspotDao
+import com.ai.hotspot.data.local.entity.CustomRssEntity
+import com.ai.hotspot.data.mapper.HotspotMapper.Companion.toDomain
+import com.ai.hotspot.data.mapper.HotspotMapper.Companion.toDomainList
+import com.ai.hotspot.data.mapper.HotspotMapper.Companion.toEntity
+import com.ai.hotspot.data.remote.api.GitHubApi
+import com.ai.hotspot.data.remote.api.parseRssXml
+import com.ai.hotspot.data.remote.rss.RssSource
+import com.ai.hotspot.domain.model.Category
+import com.ai.hotspot.domain.model.FilterState
+import com.ai.hotspot.domain.model.Hotspot
+import com.ai.hotspot.domain.model.Source
+import com.ai.hotspot.domain.repository.IHotspotRepository
+import io.ktor.client.*
+import io.ktor.client.request.*
+import io.ktor.client.statement.*
+import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.map
+import java.time.LocalDateTime
+import java.time.ZoneOffset
+import javax.inject.Inject
+import javax.inject.Singleton
+
+@Singleton
+class HotspotRepositoryImpl @Inject constructor(
+    private val dao: HotspotDao,
+    private val customRssDao: CustomRssDao,
+    private val httpClient: HttpClient,
+    private val gitHubApi: GitHubApi
+) : IHotspotRepository {
+
+    override fun getHotspots(filter: FilterState): Flow<List<Hotspot>> {
+        return when {
+            filter.showBookmarkedOnly -> dao.getBookmarked()
+            filter.showUnreadOnly -> dao.getUnread()
+            filter.sources.isNotEmpty() -> dao.getBySources(filter.sources.map { it.name })
+            filter.categories.isNotEmpty() -> dao.getByCategories(filter.categories.map { it.name })
+            filter.searchQuery.isNotEmpty() -> dao.search(filter.searchQuery)
+            else -> dao.getAllHotspots()
+        }.map { it.toDomainList() }
+    }
+
+    override suspend fun getHotspotById(id: String): Hotspot? {
+        return dao.getById(id)?.toDomain()
+    }
+
+    override suspend fun refreshHotspots(keywords: List<String>): Result<Unit> = runCatching {
+        val allHotspots = mutableListOf<Hotspot>()
+
+        // 1. 获取 GitHub Trending
+        gitHubApi.fetchTrendingRss().getOrNull()?.let { hotspots ->
+            allHotspots.addAll(hotspots)
+        }
+
+        // 2. 获取内置 RSS 源
+        RssSource.entries.forEach { source ->
+            fetchRssSource(source.url, source.defaultCategory).getOrNull()?.let { hotspots ->
+                allHotspots.addAll(hotspots)
+            }
+        }
+
+        // 3. 获取用户自定义 RSS 源
+        customRssDao.getEnabled().forEach { customRss ->
+            fetchRssSource(customRss.url, customRss.category).getOrNull()?.let { hotspots ->
+                allHotspots.addAll(hotspots)
+            }
+        }
+
+        // 4. 关键词过滤（如果设置了关键词）
+        val filtered = if (keywords.isNotEmpty()) {
+            allHotspots.filter { hotspot ->
+                val text = (hotspot.title + " " + hotspot.description).lowercase()
+                keywords.any { keyword ->
+                    text.contains(keyword.trim().lowercase())
+                }
+            }
+        } else {
+            allHotspots
+        }
+
+        // 5. 去重并保存到数据库
+        val uniqueHotspots = filtered
+            .distinctBy { it.url }
+            .map { hotspot ->
+                val existing = dao.getByUrl(hotspot.url)
+                if (existing != null) {
+                    hotspot.copy(
+                        isRead = existing.isRead,
+                        isBookmarked = existing.isBookmarked
+                    )
+                } else {
+                    hotspot
+                }
+            }
+
+        dao.insertAll(uniqueHotspots.map { it.toEntity() })
+
+        // 6. 清理旧数据
+        clearOldData(7)
+    }
+
+    private suspend fun fetchRssSource(url: String, defaultCategory: String): Result<List<Hotspot>> = runCatching {
+        val response = httpClient.get(url)
+        val xml = response.bodyAsText()
+        parseRssXml(xml, Source.RSS).map { hotspot ->
+            hotspot.copy(
+                category = try {
+                    Category.valueOf(defaultCategory)
+                } catch (e: Exception) {
+                    Category.NEWS
+                }
+            )
+        }
+    }
+
+    override suspend fun markAsRead(id: String) {
+        dao.markAsRead(id)
+    }
+
+    override suspend fun setBookmarked(id: String, bookmarked: Boolean) {
+        dao.setBookmarked(id, bookmarked)
+    }
+
+    override suspend fun clearOldData(daysToKeep: Int) {
+        val cutoffTime = LocalDateTime.now()
+            .minusDays(daysToKeep.toLong())
+            .toEpochSecond(ZoneOffset.UTC)
+        dao.deleteOlderThan(cutoffTime)
+    }
+
+    // 自定义 RSS 源管理
+    override fun getCustomRssSources(): Flow<List<CustomRssEntity>> {
+        return customRssDao.getAll()
+    }
+
+    override suspend fun addCustomRssSource(url: String, name: String, category: String) {
+        customRssDao.insert(CustomRssEntity(url = url, name = name, category = category))
+    }
+
+    override suspend fun deleteCustomRssSource(id: Long) {
+        customRssDao.deleteById(id)
+    }
+}

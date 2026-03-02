@@ -1,0 +1,41 @@
+package com.shanfuchun.courtassistant.sms
+
+import android.content.Context
+import android.util.Log
+import com.shanfuchun.courtassistant.data.AppDatabase
+import com.shanfuchun.courtassistant.data.SmsRecord
+import com.shanfuchun.courtassistant.service.CalendarHelper
+import com.shanfuchun.courtassistant.service.PdfDownloader
+import com.shanfuchun.courtassistant.service.TextParser
+
+object SmsProcessor {
+    private const val TAG = "CourtAssistant"
+
+    suspend fun process(context: Context, db: AppDatabase, sms: SmsRecord) {
+        Log.d(TAG, "SmsProcessor: processing sms id=${sms.id}")
+        val info = TextParser.parse(sms.body)
+        Log.d(TAG, "SmsProcessor: parsed info: time=${info.hearingTime} court=${info.courtName} case=${info.caseNo}")
+
+        // 回写 courtName/partyName 到短信记录
+        if (info.courtName.isNotEmpty() || info.partyName.isNotEmpty()) {
+            db.smsDao().update(sms.copy(courtName = info.courtName, partyName = info.partyName))
+        }
+
+        if (info.hearingTime > 0) {
+            val synced = CalendarHelper.syncHearing(context, db, info, sms.id, "sms", sms.body)
+            Log.d(TAG, "SmsProcessor: calendar synced=$synced")
+        }
+        val urls = TextParser.extractUrls(sms.body)
+        Log.d(TAG, "SmsProcessor: found ${urls.size} urls: $urls")
+        if (urls.isNotEmpty()) {
+            PdfDownloader.downloadFromUrls(context, db, sms.id, urls)
+        }
+        // 重新读取，避免覆盖 PdfParser 设置的 hasSummons
+        val updated = db.smsDao().getById(sms.id) ?: sms
+        db.smsDao().update(updated.copy(
+            parseStatus = 1,
+            courtName = info.courtName.ifEmpty { updated.courtName },
+            partyName = info.partyName.ifEmpty { updated.partyName }
+        ))
+    }
+}

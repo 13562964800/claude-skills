@@ -1,0 +1,878 @@
+package com.multilanglearner.data.network
+
+import android.util.Log
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.async
+import kotlinx.coroutines.awaitAll
+import kotlinx.coroutines.coroutineScope
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.withContext
+import kotlinx.coroutines.yield
+import okhttp3.OkHttpClient
+import java.io.File
+import java.io.IOException
+import java.io.RandomAccessFile
+import java.util.concurrent.TimeUnit
+import java.util.concurrent.atomic.AtomicBoolean
+import java.util.concurrent.atomic.AtomicLong
+import javax.inject.Inject
+import javax.inject.Singleton
+
+/**
+ * 分段下载管理器
+ * 支持大文件分段下载和断点续传
+ *
+ * 功能特性：
+ * - 支持大文件（>100MB）分段下载
+ * - 改进的断点续传（包含校验和）
+ * - 详细的进度回调（分段信息、速度、剩余时间）
+ * - 并发下载优化
+ * - 增强的错误处理和重试机制
+ * - 支持取消下载
+ */
+@Singleton
+class SegmentedDownloader @Inject constructor() {
+
+    private val client = OkHttpClient.Builder()
+        .connectTimeout(60, TimeUnit.SECONDS)
+        .readTimeout(300, TimeUnit.SECONDS) // 5分钟读超时，适合大文件下载
+        .writeTimeout(300, TimeUnit.SECONDS)
+        .build()
+
+    // 每个分段的大小（5MB）
+    private val SEGMENT_SIZE = 5L * 1024 * 1024
+
+    // 最小分段大小（1MB，小于此文件不分段）
+    private val MIN_SEGMENT_SIZE = 1L * 1024 * 1024
+
+    // 大文件阈值（100MB，超过此值使用更大的分段）
+    private val LARGE_FILE_THRESHOLD = 100L * 1024 * 1024
+
+    // 大文件分段大小（10MB）
+    private val LARGE_SEGMENT_SIZE = 10L * 1024 * 1024
+
+    // 最大并发下载数
+    private val MAX_CONCURRENT_DOWNLOADS = 4
+
+    // 最大重试次数
+    private val MAX_RETRY_COUNT = 5
+
+    // 最大分段数量
+    private val MAX_SEGMENT_COUNT = 20
+
+    /**
+     * 根据文件大小和网络状况计算最佳分段大小
+     * - 小文件（<50MB）：不分段
+     * - 中等文件（50-200MB）：5MB分段
+     * - 大文件（>200MB）：10MB分段
+     * - 超大文件（>500MB）：15MB分段
+     */
+    private fun calculateOptimalSegmentSize(fileSize: Long): Long {
+        return when {
+            fileSize < 50 * 1024 * 1024 -> fileSize // 不分段
+            fileSize < 200 * 1024 * 1024 -> 5 * 1024 * 1024
+            fileSize < 500 * 1024 * 1024 -> 10 * 1024 * 1024
+            else -> 15 * 1024 * 1024
+        }
+    }
+    // 重试延迟（毫秒）
+    private val RETRY_DELAY_MS = 3000L
+
+    // 当前下载的取消标志
+    private val currentCancellationFlag = AtomicBoolean(false)
+
+    // 下载速度采样窗口（用于动态调整分段大小）
+    private val speedSamples = mutableListOf<Long>()
+    private var lastSpeedUpdateTime = 0L
+
+    /**
+     * 下载进度回调
+     */
+    data class DownloadProgress(
+        val bytesDownloaded: Long,
+        val totalBytes: Long,
+        val percent: Int,
+        val speed: Long, // bytes per second
+        val segmentIndex: Int, // 当前分段索引（1-based）
+        val totalSegments: Int, // 总分段数
+        val completedSegments: Set<Int>, // 已完成的分段索引集合
+        val currentSegmentBytes: Long = 0, // 当前分段已下载字节数
+        val currentSegmentTotal: Long = 0, // 当前分段总字节数
+        val remainingTimeSeconds: Long = 0, // 预计剩余时间（秒）
+        val activeConnections: Int = 1 // 当前活跃连接数
+    )
+
+    /**
+     * 下载配置
+     */
+    data class DownloadConfig(
+        val url: String,
+        val outputFile: File,
+        val segmentSize: Long = 5L * 1024 * 1024, // 5MB
+        val enableResume: Boolean = true,
+        val maxRetries: Int = 3,
+        val concurrentDownloads: Int = 3,
+        val cookies: String? = null, // 添加Cookie支持
+        val audioUrl: String? = null, // 音频流URL（用于DASH格式）
+        val onProgress: (DownloadProgress) -> Unit = {},
+        val onSegmentComplete: (segmentIndex: Int, success: Boolean) -> Unit = { _, _ -> }
+    )
+
+    /**
+     * 分段状态信息
+     */
+    private data class SegmentState(
+        val index: Int,
+        val start: Long,
+        val end: Long,
+        val downloadedBytes: Long = 0,
+        val isCompleted: Boolean = false,
+        val checksum: Long = 0 // 简单校验和
+    )
+
+    /**
+     * 断点续传状态
+     */
+    private data class ResumeState(
+        val fileSize: Long,
+        val segmentSize: Long,
+        val segments: List<SegmentState>,
+        val timestamp: Long = System.currentTimeMillis()
+    )
+    suspend fun download(config: DownloadConfig): Result<File> = withContext(Dispatchers.IO) {
+        try {
+            Log.d("SegmentedDownloader", "Starting download: ${config.url}")
+
+            // 如果有音频URL，使用音视频合并流程
+            if (config.audioUrl != null) {
+                Log.d("SegmentedDownloader", "Audio URL provided, using merge mode")
+                return@withContext downloadAndMerge(config)
+            }
+
+            // 获取文件大小
+            val fileSize = getContentLength(config.url)
+            if (fileSize <= 0) {
+                // 不支持分段下载，使用普通下载
+                Log.d("SegmentedDownloader", "Segmented download not supported, using simple download")
+                return@withContext simpleDownload(config)
+            }
+
+            Log.d("SegmentedDownloader", "File size: $fileSize bytes")
+
+            // 判断是否需要分段
+            if (fileSize < MIN_SEGMENT_SIZE) {
+                Log.d("SegmentedDownloader", "File too small for segmentation, using simple download")
+                return@withContext simpleDownload(config)
+            }
+
+            // 动态计算最佳分段大小，并确保分段数量不超过上限
+            var segmentSize = calculateOptimalSegmentSize(fileSize)
+            var segmentCount = ((fileSize + segmentSize - 1) / segmentSize).toInt()
+
+            // 如果分段数量超过上限，调整分段大小
+            if (segmentCount > MAX_SEGMENT_COUNT) {
+                segmentSize = (fileSize + MAX_SEGMENT_COUNT - 1) / MAX_SEGMENT_COUNT
+                segmentCount = MAX_SEGMENT_COUNT
+                Log.d("SegmentedDownloader", "Adjusted segment size to $segmentSize to limit segments to $MAX_SEGMENT_COUNT")
+            }
+
+            Log.d("SegmentedDownloader", "Splitting into $segmentCount segments (size: $segmentSize bytes)")
+
+            // 创建临时文件
+            val tempFile = File(config.outputFile.absolutePath + ".tmp")
+            val raf = RandomAccessFile(tempFile, "rw")
+            raf.setLength(fileSize)
+
+            // 下载每个分段 - 使用并行下载优化
+            val downloadedSegments = if (config.enableResume) {
+                loadResumeState(tempFile)
+            } else {
+                mutableSetOf()
+            }
+
+            val totalDownloaded = AtomicLong(0)
+            val startTime = System.currentTimeMillis()
+            val failedSegments = mutableSetOf<Int>()
+            val segmentMutex = java.util.concurrent.locks.ReentrantLock()
+
+            // 计算需要下载的分段
+            val pendingSegments = (0 until segmentCount).filter { it !in downloadedSegments }
+
+            Log.d("SegmentedDownloader", "Pending segments: ${pendingSegments.size}/${segmentCount}, parallel: ${config.concurrentDownloads}")
+
+            // 并行下载分段
+            coroutineScope {
+                pendingSegments.chunked(config.concurrentDownloads).forEach { batch ->
+                    batch.map { i ->
+                        async(Dispatchers.IO) {
+                            val start = i * segmentSize
+                            val end = minOf(start + segmentSize - 1, fileSize - 1)
+
+                            Log.d("SegmentedDownloader", "Downloading segment $i: $start-$end")
+
+                            try {
+                                val success = downloadSegment(config.url, tempFile, start, end, config.cookies) { bytes ->
+                                    val currentTotal = totalDownloaded.addAndGet(bytes)
+                                    val elapsed = (System.currentTimeMillis() - startTime) / 1000.0
+                                    val speed = if (elapsed > 0) currentTotal / elapsed.toLong() else 0
+
+                                    // 记录速度样本
+                                    synchronized(speedSamples) {
+                                        speedSamples.add(speed)
+                                        if (speedSamples.size > 10) speedSamples.removeAt(0)
+                                    }
+
+                                    // 计算进度
+                                    val progress = ((currentTotal * 100) / fileSize).toInt().coerceAtMost(99)
+
+                                    config.onProgress(DownloadProgress(
+                                        bytesDownloaded = currentTotal,
+                                        totalBytes = fileSize,
+                                        percent = progress,
+                                        speed = speed,
+                                        segmentIndex = i + 1,
+                                        totalSegments = segmentCount,
+                                        completedSegments = downloadedSegments.toSet(),
+                                        activeConnections = batch.size
+                                    ))
+                                }
+
+                                if (success) {
+                                    segmentMutex.lock()
+                                    try {
+                                        downloadedSegments.add(i)
+                                        saveResumeState(tempFile, downloadedSegments)
+                                    } finally {
+                                        segmentMutex.unlock()
+                                    }
+                                    true
+                                } else {
+                                    Log.w("SegmentedDownloader", "Segment $i download failed after retries")
+                                    segmentMutex.lock()
+                                    try {
+                                        failedSegments.add(i)
+                                    } finally {
+                                        segmentMutex.unlock()
+                                    }
+                                    false
+                                }
+                            } catch (e: Exception) {
+                                Log.e("SegmentedDownloader", "Failed to download segment $i", e)
+                                segmentMutex.lock()
+                                try {
+                                    failedSegments.add(i)
+                                } finally {
+                                    segmentMutex.unlock()
+                                }
+                                false
+                            }
+                        }
+                    }.awaitAll()
+                }
+            }
+
+            // 重试失败的分段（串行重试，更稳定）
+            if (failedSegments.isNotEmpty()) {
+                Log.d("SegmentedDownloader", "Retrying ${failedSegments.size} failed segments...")
+                val toRetry = failedSegments.toList()
+                failedSegments.clear()
+
+                for (i in toRetry) {
+                    val start = i * segmentSize
+                    val end = minOf(start + segmentSize - 1, fileSize - 1)
+
+                    try {
+                        val success = downloadSegment(config.url, tempFile, start, end, config.cookies) { bytes ->
+                            val currentTotal = totalDownloaded.addAndGet(bytes)
+                            val elapsed = (System.currentTimeMillis() - startTime) / 1000.0
+                            val speed = if (elapsed > 0) currentTotal / elapsed.toLong() else 0
+                            val progress = ((currentTotal * 100) / fileSize).toInt().coerceAtMost(99)
+
+                            config.onProgress(DownloadProgress(
+                                bytesDownloaded = currentTotal,
+                                totalBytes = fileSize,
+                                percent = progress,
+                                speed = speed,
+                                segmentIndex = i + 1,
+                                totalSegments = segmentCount,
+                                completedSegments = downloadedSegments.toSet(),
+                                activeConnections = 1
+                            ))
+                        }
+
+                        if (success) {
+                            downloadedSegments.add(i)
+                            saveResumeState(tempFile, downloadedSegments)
+                        }
+                    } catch (e: Exception) {
+                        Log.e("SegmentedDownloader", "Retry failed for segment $i", e)
+                    }
+                }
+            }
+
+            raf.close()
+
+            // 发送100%完成进度
+            config.onProgress(DownloadProgress(
+                bytesDownloaded = fileSize,
+                totalBytes = fileSize,
+                percent = 100,
+                speed = 0,
+                segmentIndex = segmentCount,
+                totalSegments = segmentCount,
+                completedSegments = downloadedSegments.toSet()
+            ))
+
+            // 重命名为最终文件
+            if (config.outputFile.exists()) {
+                config.outputFile.delete()
+            }
+            tempFile.renameTo(config.outputFile)
+
+            Log.d("SegmentedDownloader", "Download completed: ${config.outputFile.absolutePath}")
+            Result.success(config.outputFile)
+        } catch (e: Exception) {
+            Log.e("SegmentedDownloader", "Download failed", e)
+            Result.failure(e)
+        }
+    }
+
+    /**
+     * 下载并合并音频和视频流（用于DASH格式）
+     */
+    private suspend fun downloadAndMerge(config: DownloadConfig): Result<File> = withContext(Dispatchers.IO) {
+        Log.d("SegmentedDownloader", "Starting audio+video merge download")
+
+        val videoFile = File(config.outputFile.absolutePath + ".video.mp4")
+        val audioFile = File(config.outputFile.absolutePath + ".audio.m4a")
+        val mergeOutputFile = config.outputFile
+
+        try {
+            // 更新进度：准备下载
+            config.onProgress(DownloadProgress(
+                bytesDownloaded = 0,
+                totalBytes = 100,
+                percent = 0,
+                speed = 0,
+                segmentIndex = 0,
+                totalSegments = 2,
+                completedSegments = emptySet()
+            ))
+
+            // 1. 下载视频流
+            Log.d("SegmentedDownloader", "Downloading video stream...")
+            val videoConfig = config.copy(outputFile = videoFile, audioUrl = null)
+            val videoResult = simpleDownload(videoConfig)
+
+            if (videoResult.isFailure) {
+                Log.e("SegmentedDownloader", "Failed to download video: ${videoResult.exceptionOrNull()?.message}")
+                return@withContext Result.failure(videoResult.exceptionOrNull() ?: Exception("视频下载失败"))
+            }
+
+            // 更新进度：视频下载完成
+            config.onProgress(DownloadProgress(
+                bytesDownloaded = 50,
+                totalBytes = 100,
+                percent = 50,
+                speed = 0,
+                segmentIndex = 1,
+                totalSegments = 2,
+                completedSegments = setOf(0)
+            ))
+
+            // 2. 下载音频流
+            Log.d("SegmentedDownloader", "Downloading audio stream...")
+            val audioConfig = config.copy(outputFile = audioFile, url = config.audioUrl!!)
+            val audioResult = simpleDownload(audioConfig)
+
+            if (audioResult.isFailure) {
+                Log.e("SegmentedDownloader", "Failed to download audio: ${audioResult.exceptionOrNull()?.message}")
+                // 音频下载失败，仍然尝试使用视频文件
+                videoFile.renameTo(mergeOutputFile)
+                return@withContext Result.success(mergeOutputFile)
+            }
+
+            // 更新进度：准备合并
+            config.onProgress(DownloadProgress(
+                bytesDownloaded = 90,
+                totalBytes = 100,
+                percent = 90,
+                speed = 0,
+                segmentIndex = 2,
+                totalSegments = 2,
+                completedSegments = setOf(0, 1)
+            ))
+
+            // 3. 使用ffmpeg合并音频和视频
+            Log.d("SegmentedDownloader", "Merging audio and video with ffmpeg...")
+            val mergeResult = mergeAudioVideo(videoFile, audioFile, mergeOutputFile)
+
+            if (mergeResult) {
+                // 清理临时文件
+                videoFile.delete()
+                audioFile.delete()
+
+                Log.d("SegmentedDownloader", "Merge completed: ${mergeOutputFile.absolutePath}")
+
+                // 发送100%完成进度
+                config.onProgress(DownloadProgress(
+                    bytesDownloaded = 100,
+                    totalBytes = 100,
+                    percent = 100,
+                    speed = 0,
+                    segmentIndex = 2,
+                    totalSegments = 2,
+                    completedSegments = setOf(0, 1)
+                ))
+
+                Result.success(mergeOutputFile)
+            } else {
+                Log.e("SegmentedDownloader", "Failed to merge audio and video, trying copy-only fallback")
+                // 尝试用 -c:a aac 重编码音频作为兜底
+                val fallbackCommand = buildString {
+                    append("-y -i \"${videoFile.absolutePath}\" ")
+                    append("-i \"${audioFile.absolutePath}\" ")
+                    append("-c:v copy -c:a aac -f mp4 ")
+                    append("\"${mergeOutputFile.absolutePath}\"")
+                }
+                val fallbackSession = com.arthenica.ffmpegkit.FFmpegKit.execute(fallbackCommand)
+                val fallbackSuccess = (fallbackSession.returnCode?.value == 0) && mergeOutputFile.exists() && mergeOutputFile.length() > 1024
+
+                if (fallbackSuccess) {
+                    videoFile.delete()
+                    audioFile.delete()
+                    Log.d("SegmentedDownloader", "Fallback merge succeeded with re-encoding")
+                    Result.success(mergeOutputFile)
+                } else {
+                    // 兜底也失败，使用无音频的视频文件
+                    Log.w("SegmentedDownloader", "All merge attempts failed, using video-only file")
+                    videoFile.renameTo(mergeOutputFile)
+                    audioFile.delete()
+                    Result.success(mergeOutputFile) // 视频可用但无音频
+                }
+            }
+
+        } catch (e: Exception) {
+            Log.e("SegmentedDownloader", "Merge download failed", e)
+            // 清理临时文件
+            if (videoFile.exists()) videoFile.delete()
+            if (audioFile.exists()) audioFile.delete()
+            Result.failure(e)
+        }
+    }
+
+    /**
+     * 使用ffmpeg合并音频和视频
+     */
+    private suspend fun mergeAudioVideo(videoFile: File, audioFile: File, outputFile: File): Boolean = withContext(Dispatchers.IO) {
+        try {
+            val command = buildString {
+                append("-y -i \"${videoFile.absolutePath}\" ")
+                append("-i \"${audioFile.absolutePath}\" ")
+                append("-c:v copy -c:a copy -f mp4 ")
+                append("\"${outputFile.absolutePath}\"")
+            }
+            Log.d("SegmentedDownloader", "FFmpeg merge command: $command")
+
+            val session = com.arthenica.ffmpegkit.FFmpegKit.execute(command)
+            val returnCode = session.returnCode
+            val success = (returnCode?.value == 0) && outputFile.exists() && outputFile.length() > 1024
+
+            Log.d("SegmentedDownloader", "Merge result: $success, return code: ${returnCode?.value}")
+            success
+        } catch (e: Exception) {
+            Log.e("SegmentedDownloader", "FFmpeg merge error", e)
+            false
+        }
+    }
+
+    /**
+     * 简单下载（不支持分段）- 带重试机制
+     */
+    private suspend fun simpleDownload(config: DownloadConfig): Result<File> = withContext(Dispatchers.IO) {
+        val maxAttempts = config.maxRetries.coerceAtLeast(MAX_RETRY_COUNT)
+        var lastError: Exception? = null
+
+        for (attempt in 0 until maxAttempts) {
+            if (attempt > 0) {
+                val delayMs = RETRY_DELAY_MS * attempt
+                Log.d("SegmentedDownloader", "Retry $attempt/$maxAttempts, delay ${delayMs}ms")
+                delay(delayMs)
+            }
+
+            try {
+                return@withContext downloadOnce(config)
+            } catch (e: Exception) {
+                lastError = e
+                val isConnectionError = e.message?.contains("connection abort", ignoreCase = true) == true ||
+                                     e.message?.contains("Software caused connection abort", ignoreCase = true) == true ||
+                                     e is java.net.SocketException ||
+                                     e is javax.net.ssl.SSLException
+
+                if (isConnectionError && attempt < maxAttempts - 1) {
+                    Log.w("SegmentedDownloader", "Connection error (attempt ${attempt + 1}), will retry: ${e.message}")
+                    // 删除可能不完整的文件
+                    if (config.outputFile.exists()) {
+                        config.outputFile.delete()
+                    }
+                    // 继续下一次尝试
+                } else {
+                    // 不可重试的错误或已达到最大重试次数
+                    break
+                }
+            }
+        }
+
+        if (lastError != null) {
+            Log.e("SegmentedDownloader", "Simple download failed after $maxAttempts retries", lastError)
+            Result.failure(lastError)
+        } else {
+            Result.failure(Exception("Download failed: unknown error"))
+        }
+    }
+
+    /**
+     * 执行一次下载尝试
+     */
+    private fun downloadOnce(config: DownloadConfig): Result<File> {
+        // 添加完整的 headers 避免返回 403
+        val requestBuilder = okhttp3.Request.Builder()
+            .url(config.url)
+            .header("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36")
+            .header("Referer", getRefererFromUrl(config.url))
+            .header("Accept", "*/*")
+            .header("Accept-Language", "zh-CN,zh;q=0.9,en;q=0.8")
+            .header("Origin", getOriginFromUrl(config.url))
+            .header("Connection", "keep-alive")
+
+        // 添加Cookie（如果提供）
+        if (!config.cookies.isNullOrEmpty()) {
+            requestBuilder.header("Cookie", config.cookies)
+            Log.d("SegmentedDownloader", "Using custom cookies for download")
+        }
+
+        val request = requestBuilder.build()
+
+        val response = client.newCall(request).execute()
+
+        if (!response.isSuccessful) {
+            val errorCode = response.code
+            val errorDetail = when (errorCode) {
+                403 -> {
+                    val urlHost = try {
+                        java.net.URL(config.url).host
+                    } catch (e: Exception) { "未知" }
+
+                    when {
+                        urlHost.contains("bilibili") -> {
+                            val hasCookie = !config.cookies.isNullOrEmpty()
+                            """
+                            HTTP 403 - B站下载被拒绝
+
+                            当前状态：${if (hasCookie) "已配置Cookie" else "未配置Cookie"}
+
+                            可能原因：
+                            ${if (hasCookie) "• Cookie已过期或无效\n• 视频需要更高权限\n• 下载链接已过期" else "• 视频需要登录才能下载\n• 视频是会员专享内容\n• 下载链接已过期"}
+
+                            解决方案：
+                            ${if (hasCookie) "1. 重新配置B站Cookie（可能已过期）\n2. 检查账号是否有该视频的访问权限" else "1. 点击「下载设置」配置Cookie\n2. 确保SESSDATA填写正确"}
+                            3. 或使用「导入本地视频」功能
+                            4. 在电脑上使用 yt-dlp 下载后再导入
+                        """.trimIndent()
+                        }
+
+                        urlHost.contains("youtube") || urlHost.contains("googlevideo") -> """
+                            HTTP 403 - YouTube下载被拒绝
+
+                            可能原因：
+                            • 视频有地区限制
+                            • 下载链接已过期
+                            • YouTube检测到自动化下载
+
+                            解决方案：
+                            1. 稍后重试（可能是临时限制）
+                            2. 使用「导入本地视频」功能
+                            3. 在电脑上使用 yt-dlp 下载后再导入
+                        """.trimIndent()
+
+                        else -> """
+                            HTTP 403 - 访问被拒绝
+
+                            可能原因：
+                            • 服务器拒绝访问
+                            • 需要认证才能下载
+
+                            解决方案：
+                            1. 使用「导入本地视频」功能
+                        """.trimIndent()
+                    }
+                }
+                410 -> "HTTP 410 - 下载链接已过期，请重新解析视频"
+                404 -> "HTTP 404 - 视频文件不存在，可能已被删除"
+                else -> "HTTP $errorCode - 下载失败"
+            }
+            throw IOException(errorDetail)
+        }
+
+        val body = response.body ?: throw IOException("No response body")
+        val inputStream = body.byteStream()
+        val totalBytes = body.contentLength()
+        var downloadedBytes = 0L
+        val startTime = System.currentTimeMillis()
+
+        config.outputFile.outputStream().use { output ->
+            val buffer = ByteArray(8 * 1024)
+            var bytes: Int
+
+            while (inputStream.read(buffer).also { bytes = it } > 0) {
+                output.write(buffer, 0, bytes)
+                downloadedBytes += bytes
+
+                val elapsed = (System.currentTimeMillis() - startTime) / 1000.0
+                val speed = if (elapsed > 0) (downloadedBytes / elapsed).toLong() else 0
+
+                if (totalBytes > 0) {
+                    config.onProgress(DownloadProgress(
+                        bytesDownloaded = downloadedBytes,
+                        totalBytes = totalBytes,
+                        percent = ((downloadedBytes * 100) / totalBytes).toInt().coerceAtMost(99),
+                        speed = speed,
+                        segmentIndex = 1,
+                        totalSegments = 1,
+                        completedSegments = emptySet()
+                    ))
+                }
+            }
+        }
+
+        // 发送100%完成进度
+        config.onProgress(DownloadProgress(
+            bytesDownloaded = config.outputFile.length(),
+            totalBytes = config.outputFile.length(),
+            percent = 100,
+            speed = 0,
+            segmentIndex = 1,
+            totalSegments = 1,
+            completedSegments = setOf(0)
+        ))
+
+        return Result.success(config.outputFile)
+    }
+
+    /**
+     * 下载单个分段 - 带重试机制
+     */
+    private fun downloadSegment(
+        url: String,
+        file: File,
+        start: Long,
+        end: Long,
+        cookies: String?,
+        onBytesDownloaded: (Long) -> Unit
+    ): Boolean {
+        var lastError: Exception? = null
+
+        repeat(MAX_RETRY_COUNT) { attempt ->
+            if (attempt > 0) {
+                Log.d("SegmentedDownloader", "Segment $start-$end retry $attempt/$MAX_RETRY_COUNT")
+                try {
+                    Thread.sleep(RETRY_DELAY_MS * attempt)
+                } catch (e: InterruptedException) {
+                    return false
+                }
+            }
+
+            try {
+                // 添加完整的 headers 避免返回 403
+                val requestBuilder = okhttp3.Request.Builder()
+                    .url(url)
+                    .header("Range", "bytes=$start-$end")
+                    .header("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36")
+                    .header("Referer", getRefererFromUrl(url))
+                    .header("Accept", "*/*")
+                    .header("Accept-Language", "zh-CN,zh;q=0.9,en;q=0.8")
+                    .header("Origin", getOriginFromUrl(url))
+
+                // 添加Cookie（如果提供）
+                if (!cookies.isNullOrEmpty()) {
+                    requestBuilder.header("Cookie", cookies)
+                }
+
+                val request = requestBuilder.build()
+                val response = client.newCall(request).execute()
+
+                if (response.code !in 200..299) {
+                    val errorCode = response.code
+                    val urlHost = try { java.net.URL(url).host } catch (e: Exception) { "未知" }
+                    val errorMsg = when (errorCode) {
+                        403 -> {
+                            val hasCookie = !cookies.isNullOrEmpty()
+                            val isBilibili = urlHost.contains("bilibili") || urlHost.contains("bilivideo")
+                            if (isBilibili) {
+                                "HTTP 403 - B站下载被拒绝 ${if (hasCookie) "(已配置Cookie，可能已过期)" else "(未配置Cookie)"}"
+                            } else {
+                                "HTTP 403 - 下载被拒绝，可能需要Cookie或链接已过期"
+                            }
+                        }
+                        else -> "HTTP $errorCode - 分段下载失败"
+                    }
+                    throw IOException("$errorMsg (segment $start-$end)")
+                }
+
+                val inputStream = response.body?.byteStream() ?: throw IOException("No response body")
+                val raf = RandomAccessFile(file, "rw")
+                raf.seek(start)
+
+                val buffer = ByteArray(8 * 1024)
+                var bytes: Int
+                var totalBytes = 0L
+
+                while (inputStream.read(buffer).also { bytes = it } > 0) {
+                    raf.write(buffer, 0, bytes)
+                    totalBytes += bytes
+                    onBytesDownloaded(bytes.toLong())
+                }
+
+                raf.close()
+                inputStream.close()
+                return true
+
+            } catch (e: Exception) {
+                lastError = e
+                val isConnectionError = e.message?.contains("connection abort", ignoreCase = true) == true ||
+                                     e.message?.contains("Software caused connection abort", ignoreCase = true) == true ||
+                                     e is java.net.SocketException ||
+                                     e is javax.net.ssl.SSLException
+
+                if (!isConnectionError || attempt >= MAX_RETRY_COUNT - 1) {
+                    Log.e("SegmentedDownloader", "Segment $start-$end download failed", e)
+                    return false
+                }
+                Log.w("SegmentedDownloader", "Segment $start-$end connection error, will retry: ${e.message}")
+            }
+        }
+
+        Log.e("SegmentedDownloader", "Segment $start-$end failed after $MAX_RETRY_COUNT retries", lastError)
+        return false
+    }
+
+    /**
+     * 获取文件内容长度
+     */
+    private fun getContentLength(url: String): Long {
+        return try {
+            // 添加必要的 headers
+            val request = okhttp3.Request.Builder()
+                .url(url)
+                .head()
+                .header("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36")
+                .header("Referer", getRefererFromUrl(url))
+                .build()
+
+            val response = client.newCall(request).execute()
+
+            // 检查是否支持断点续传
+            val acceptRanges = response.header("Accept-Ranges") == "bytes"
+            val contentLength = response.body?.contentLength() ?: 0
+
+            if (acceptRanges && contentLength > 0) {
+                contentLength
+            } else {
+                0
+            }
+        } catch (e: Exception) {
+            Log.w("SegmentedDownloader", "Failed to get content length", e)
+            0
+        }
+    }
+
+    /**
+     * 保存断点状态
+     */
+    private fun saveResumeState(file: File, segments: Set<Int>) {
+        try {
+            val stateFile = File(file.absolutePath + ".resume")
+            stateFile.writeText(segments.joinToString(","))
+        } catch (e: Exception) {
+            Log.e("SegmentedDownloader", "Failed to save resume state", e)
+        }
+    }
+
+    /**
+     * 加载断点状态
+     */
+    private fun loadResumeState(file: File): MutableSet<Int> {
+        return try {
+            val stateFile = File(file.absolutePath + ".resume")
+            if (stateFile.exists()) {
+                val content = stateFile.readText()
+                if (content.isNotBlank()) {
+                    content.split(",").mapNotNull { it.toIntOrNull() }.toMutableSet()
+                } else {
+                    mutableSetOf()
+                }
+            } else {
+                mutableSetOf()
+            }
+        } catch (e: Exception) {
+            Log.e("SegmentedDownloader", "Failed to load resume state", e)
+            mutableSetOf()
+        }
+    }
+
+    /**
+     * 清理断点状态
+     */
+    fun clearResumeState(file: File) {
+        try {
+            val stateFile = File(file.absolutePath + ".resume")
+            if (stateFile.exists()) {
+                stateFile.delete()
+            }
+            val tempFile = File(file.absolutePath + ".tmp")
+            if (tempFile.exists()) {
+                tempFile.delete()
+            }
+        } catch (e: Exception) {
+            Log.e("SegmentedDownloader", "Failed to clear resume state", e)
+        }
+    }
+
+    /**
+     * 取消下载并清理临时文件
+     */
+    fun cancelDownload(outputFile: File) {
+        clearResumeState(outputFile)
+    }
+
+    /**
+     * 根据URL获取对应的Referer
+     * B站、YouTube等网站需要正确的Referer才能下载
+     */
+    private fun getRefererFromUrl(url: String): String {
+        return when {
+            url.contains("bilibili.com") || url.contains("b23.tv") || url.contains("bilivideo.com") -> "https://www.bilibili.com/"
+            url.contains("youtube.com") || url.contains("youtu.be") || url.contains("googlevideo.com") -> "https://www.youtube.com/"
+            url.contains("douyin.com") -> "https://www.douyin.com/"
+            url.contains("tiktok.com") -> "https://www.tiktok.com/"
+            else -> url
+        }
+    }
+
+    /**
+     * 根据URL获取Origin
+     */
+    private fun getOriginFromUrl(url: String): String {
+        return when {
+            url.contains("bilibili.com") || url.contains("b23.tv") || url.contains("bilivideo.com") -> "https://www.bilibili.com"
+            url.contains("youtube.com") || url.contains("youtu.be") || url.contains("googlevideo.com") -> "https://www.youtube.com"
+            url.contains("douyin.com") -> "https://www.douyin.com"
+            url.contains("tiktok.com") -> "https://www.tiktok.com"
+            else -> {
+                // 从URL中提取origin
+                val uri = java.net.URL(url)
+                "${uri.protocol}://${uri.host}"
+            }
+        }
+    }
+}

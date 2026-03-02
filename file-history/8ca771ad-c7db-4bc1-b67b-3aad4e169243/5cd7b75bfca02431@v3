@@ -1,0 +1,33 @@
+package com.videodownload.app.engine
+
+import android.content.Context
+import com.videodownload.app.data.model.Word
+import com.videodownload.app.repository.TestResult
+import com.videodownload.app.repository.TranscriptionResult
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
+import java.io.File
+
+/**
+ * Whisper.cpp 转录引擎（离线）
+ *
+ * 注意：此引擎需要集成 whisper.cpp JNI 库
+ * 当前为占位符实现，实际使用需要集成 whisper.cpp
+ */
+class WhisperCppEngine(private val context: Context) : TranscriptionEngine {
+
+    override val name = "whisper_cpp"
+
+    override suspend fun transcribe(audioPath: String, language: String?): TranscriptionResult =
+        withContext(Dispatchers.IO) {
+            throw UnsupportedOperationException("Whisper.cpp engine not yet implemented. Please use Groq engine.")
+        }
+
+    override fun isAvailable(): Boolean {
+        return false
+    }
+
+    override suspend fun test(apiKey: String?): TestResult {
+        return TestResult(false, "Whisper.cpp 引擎尚未集成，请使用在线引擎")
+    }
+}

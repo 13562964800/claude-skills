@@ -1,0 +1,85 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 800 600">
+  <!-- 背景 -->
+  <rect width="800" height="600" fill="#f8f9fa"/>
+
+  <!-- 标题 -->
+  <text x="400" y="40" font-family="Arial, sans-serif" font-size="24" font-weight="bold" fill="#4A90E2" text-anchor="middle">图灵测试 - AI的起点</text>
+
+  <!-- 左侧：人类审问者 -->
+  <g transform="translate(150, 250)">
+    <circle cx="0" cy="0" r="40" fill="#FFD700" stroke="#333" stroke-width="2"/>
+    <circle cx="-12" cy="-5" r="5" fill="#333"/>
+    <circle cx="12" cy="-5" r="5" fill="#333"/>
+    <path d="M -15 10 Q 0 5 15 10" stroke="#333" stroke-width="2" fill="none"/>
+
+    <rect x="-25" y="40" width="50" height="70" fill="#4A90E2" rx="5"/>
+    <rect x="-25" y="40" width="50" height="20" fill="#FF6B35" rx="5"/>
+
+    <text x="0" y="150" font-family="Arial, sans-serif" font-size="14" font-weight="bold" fill="#333" text-anchor="middle">人类审问者</text>
+  </g>
+
+  <!-- 中间：屏障/墙 -->
+  <rect x="370" y="150" width="60" height="300" fill="#666" opacity="0.3"/>
+  <line x1="400" y1="150" x2="400" y2="450" stroke="#333" stroke-width="3" stroke-dasharray="10,5"/>
+
+  <!-- 问题气泡 -->
+  <g transform="translate(250, 200)">
+    <ellipse cx="0" cy="0" rx="80" ry="40" fill="white" stroke="#4A90E2" stroke-width="2"/>
+    <path d="M -60 20 L -80 40 L -50 25" fill="white" stroke="#4A90E2" stroke-width="2"/>
+    <text x="0" y="-10" font-family="Arial, sans-serif" font-size="12" fill="#333" text-anchor="middle">你喜欢什么</text>
+    <text x="0" y="10" font-family="Arial, sans-serif" font-size="12" fill="#333" text-anchor="middle">颜色？</text>
+  </g>
+
+  <!-- 右上：真人 -->
+  <g transform="translate(550, 220)">
+    <circle cx="0" cy="0" r="35" fill="#FFD700" stroke="#333" stroke-width="2"/>
+    <circle cx="-10" cy="-5" r="4" fill="#333"/>
+    <circle cx="10" cy="-5" r="4" fill="#333"/>
+    <path d="M -12 8 Q 0 15 12 8" stroke="#333" stroke-width="2" fill="none"/>
+
+    <rect x="-20" y="35" width="40" height="60" fill="#50C878" rx="5"/>
+
+    <text x="0" y="120" font-family="Arial, sans-serif" font-size="13" font-weight="bold" fill="#333" text-anchor="middle">真人</text>
+
+    <!-- 回答气泡 -->
+    <ellipse cx="100" cy="0" rx="70" ry="35" fill="white" stroke="#50C878" stroke-width="2"/>
+    <path d="M 30 10 L 10 25 L 35 15" fill="white" stroke="#50C878" stroke-width="2"/>
+    <text x="100" y="-8" font-family="Arial, sans-serif" font-size="11" fill="#333" text-anchor="middle">我喜欢蓝色</text>
+    <text x="100" y="8" font-family="Arial, sans-serif" font-size="11" fill="#333" text-anchor="middle">很平静</text>
+  </g>
+
+  <!-- 右下：AI -->
+  <g transform="translate(550, 380)">
+    <rect x="-30" y="-30" width="60" height="60" fill="#4A90E2" stroke="#333" stroke-width="2" rx="8"/>
+    <circle cx="-12" cy="-10" r="6" fill="#FFD700"/>
+    <circle cx="12" cy="-10" r="6" fill="#FFD700"/>
+    <rect x="-18" y="5" width="36" height="5" fill="#FFD700" rx="2"/>
+
+    <line x1="0" y1="-30" x2="0" y2="-45" stroke="#333" stroke-width="2"/>
+    <circle cx="0" cy="-45" r="5" fill="#FF6B35"/>
+
+    <text x="0" y="60" font-family="Arial, sans-serif" font-size="13" font-weight="bold" fill="#333" text-anchor="middle">AI</text>
+
+    <!-- 回答气泡 -->
+    <ellipse cx="100" cy="-10" rx="70" ry="35" fill="white" stroke="#4A90E2" stroke-width="2"/>
+    <path d="M 30 0 L 10 15 L 35 5" fill="white" stroke="#4A90E2" stroke-width="2"/>
+    <text x="100" y="-18" font-family="Arial, sans-serif" font-size="11" fill="#333" text-anchor="middle">我也喜欢蓝色</text>
+    <text x="100" y="-2" font-family="Arial, sans-serif" font-size="11" fill="#333" text-anchor="middle">让人放松</text>
+  </g>
+
+  <!-- 问号 -->
+  <g transform="translate(150, 350)">
+    <circle cx="0" cy="0" r="25" fill="#FFD700" opacity="0.3"/>
+    <text x="0" y="10" font-family="Arial, sans-serif" font-size="30" font-weight="bold" fill="#FF6B35" text-anchor="middle">?</text>
+  </g>
+
+  <!-- 说明框 -->
+  <rect x="50" y="480" width="700" height="100" fill="white" stroke="#4A90E2" stroke-width="2" rx="10"/>
+  <text x="400" y="510" font-family="Arial, sans-serif" font-size="14" font-weight="bold" fill="#333" text-anchor="middle">💡 图灵测试的核心问题</text>
+  <text x="400" y="535" font-family="Arial, sans-serif" font-size="12" fill="#666" text-anchor="middle">如果审问者无法分辨哪个是人类、哪个是AI，</text>
+  <text x="400" y="555" font-family="Arial, sans-serif" font-size="12" fill="#666" text-anchor="middle">那么这个AI就可以被认为具有"智能"</text>
+
+  <!-- 装饰 -->
+  <path d="M 100 100 L 105 110 L 115 110 L 107 117 L 110 127 L 100 120 L 90 127 L 93 117 L 85 110 L 95 110 Z" fill="#FFD700" opacity="0.5"/>
+  <path d="M 700 100 L 705 110 L 715 110 L 707 117 L 710 127 L 700 120 L 690 127 L 693 117 L 685 110 L 695 110 Z" fill="#FFD700" opacity="0.5"/>
+</svg>

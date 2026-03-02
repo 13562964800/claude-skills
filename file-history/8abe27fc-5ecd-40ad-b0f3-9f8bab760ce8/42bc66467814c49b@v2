@@ -1,0 +1,374 @@
+#!/usr/bin/env python3
+"""
+使用Playwright将SVG转换为PNG并生成Word文档
+"""
+
+import re
+import os
+from pathlib import Path
+from docx import Document
+from docx.shared import Pt, Cm, RGBColor, Inches
+from docx.enum.text import WD_ALIGN_PARAGRAPH
+from docx.oxml.ns import qn
+from docx.oxml import OxmlElement
+from playwright.sync_api import sync_playwright
+import time
+
+def add_page_number(section):
+    """添加页码"""
+    footer = section.footer
+    footer_para = footer.paragraphs[0] if footer.paragraphs else footer.add_paragraph()
+    footer_para.alignment = WD_ALIGN_PARAGRAPH.CENTER
+
+    run = footer_para.add_run()
+    fldChar1 = OxmlElement('w:fldChar')
+    fldChar1.set(qn('w:fldCharType'), 'begin')
+
+    instrText = OxmlElement('w:instrText')
+    instrText.set(qn('xml:space'), 'preserve')
+    instrText.text = 'PAGE'
+
+    fldChar2 = OxmlElement('w:fldChar')
+    fldChar2.set(qn('w:fldCharType'), 'end')
+
+    run._r.append(fldChar1)
+    run._r.append(instrText)
+    run._r.append(fldChar2)
+
+    run.font.size = Pt(10)
+    run.font.name = '微软雅黑'
+
+def setup_styles(doc):
+    """设置样式"""
+    h1 = doc.styles['Heading 1']
+    h1.font.name = '微软雅黑'
+    h1.font.size = Pt(24)
+    h1.font.bold = True
+    h1.font.color.rgb = RGBColor(0, 74, 144)
+
+    h2 = doc.styles['Heading 2']
+    h2.font.name = '微软雅黑'
+    h2.font.size = Pt(18)
+    h2.font.bold = True
+    h2.font.color.rgb = RGBColor(74, 144, 226)
+
+    h3 = doc.styles['Heading 3']
+    h3.font.name = '微软雅黑'
+    h3.font.size = Pt(14)
+    h3.font.bold = True
+
+    normal = doc.styles['Normal']
+    normal.font.name = '微软雅黑'
+    normal.font.size = Pt(11)
+
+def create_cover(doc):
+    """创建封面"""
+    title = doc.add_paragraph()
+    title.alignment = WD_ALIGN_PARAGRAPH.CENTER
+    run = title.add_run('AI前沿知识儿童科普画册')
+    run.font.name = '微软雅黑'
+    run.font.size = Pt(36)
+    run.font.bold = True
+    run.font.color.rgb = RGBColor(0, 74, 144)
+    title.paragraph_format.space_before = Pt(120)
+
+    subtitle = doc.add_paragraph()
+    subtitle.alignment = WD_ALIGN_PARAGRAPH.CENTER
+    run = subtitle.add_run('从LLM到GitHub，从Vibecoding到未来')
+    run.font.name = '微软雅黑'
+    run.font.size = Pt(18)
+    run.font.color.rgb = RGBColor(100, 100, 100)
+
+    author = doc.add_paragraph()
+    author.alignment = WD_ALIGN_PARAGRAPH.CENTER
+    run = author.add_run('\n\n\n作者：单夫纯\n\n目标读者：8-14岁儿童\n\n共215个精美插图')
+    run.font.name = '微软雅黑'
+    run.font.size = Pt(14)
+    author.paragraph_format.space_before = Pt(180)
+
+    doc.add_page_break()
+
+def create_toc(doc, headings):
+    """创建目录"""
+    toc_title = doc.add_heading('目录', level=1)
+    toc_title.alignment = WD_ALIGN_PARAGRAPH.CENTER
+
+    page = 3
+    for level, text in headings[:100]:
+        para = doc.add_paragraph()
+        para.paragraph_format.left_indent = Cm(level * 0.6)
+
+        run = para.add_run(text)
+        run.font.name = '微软雅黑'
+        run.font.size = Pt(12 if level == 1 else 11)
+        if level == 1:
+            run.font.bold = True
+
+        run = para.add_run(' ' + '.' * 35)
+        run.font.size = Pt(9)
+        run.font.color.rgb = RGBColor(200, 200, 200)
+
+        run = para.add_run(f' {page}')
+        run.font.name = '微软雅黑'
+        run.font.size = Pt(11)
+
+        page += (2 if level == 1 else 1)
+
+    doc.add_page_break()
+
+def extract_and_convert_svgs(md_file, output_dir):
+    """提取SVG并转换为PNG"""
+    print('步骤1: 提取并转换SVG为PNG...')
+
+    # 创建输出目录
+    png_dir = Path(output_dir)
+    png_dir.mkdir(parents=True, exist_ok=True)
+
+    # 读取Markdown
+    with open(md_file, 'r', encoding='utf-8') as f:
+        content = f.read()
+
+    lines = content.split('\n')
+    svg_list = []
+    i = 0
+
+    # 提取所有SVG
+    while i < len(lines):
+        line = lines[i].strip()
+
+        if line.startswith('【插图'):
+            desc = line
+
+            if i + 1 < len(lines) and '<svg' in lines[i + 1]:
+                svg_start = i + 1
+                svg_end = svg_start
+                svg_lines = []
+
+                while svg_end < len(lines):
+                    svg_lines.append(lines[svg_end])
+                    if '</svg>' in lines[svg_end]:
+                        break
+                    svg_end += 1
+
+                if svg_end < len(lines):
+                    svg_content = '\n'.join(svg_lines)
+                    svg_id = len(svg_list) + 1
+
+                    svg_list.append({
+                        'id': svg_id,
+                        'desc': desc,
+                        'svg_content': svg_content
+                    })
+
+                    i = svg_end
+
+        i += 1
+
+    print(f'  找到 {len(svg_list)} 个SVG')
+
+    # 使用Playwright转换
+    print('  启动浏览器转换SVG...')
+
+    with sync_playwright() as p:
+        browser = p.chromium.launch(headless=True)
+        page = browser.new_page(viewport={'width': 1000, 'height': 600})
+
+        for idx, item in enumerate(svg_list):
+            svg_id = item['id']
+            svg_content = item['svg_content']
+            png_path = png_dir / f'插图{svg_id:03d}.png'
+
+            # 创建临时HTML
+            html_content = f'''
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <style>
+        body {{ margin: 0; padding: 20px; background: white; }}
+        #svg-container {{ display: inline-block; }}
+    </style>
+</head>
+<body>
+    <div id="svg-container">
+        {svg_content}
+    </div>
+</body>
+</html>
+'''
+
+            # 设置HTML内容
+            page.set_content(html_content)
+            time.sleep(0.1)
+
+            # 截图SVG元素
+            try:
+                element = page.locator('#svg-container')
+                element.screenshot(path=str(png_path))
+                item['png_path'] = str(png_path)
+
+                if (idx + 1) % 20 == 0:
+                    print(f'    已转换 {idx + 1}/{len(svg_list)} 个插图...')
+            except Exception as e:
+                print(f'    ⚠ 插图{svg_id}转换失败: {e}')
+                item['png_path'] = None
+
+        browser.close()
+
+    print(f'  ✓ 转换完成: {len([x for x in svg_list if x.get("png_path")])} 个成功')
+    return svg_list
+
+def generate_word_with_images(md_file, svg_list, output_file):
+    """生成包含图片的Word文档"""
+    print('\n步骤2: 生成Word文档...')
+
+    # 读取Markdown
+    with open(md_file, 'r', encoding='utf-8') as f:
+        content = f.read()
+
+    # 创建文档
+    doc = Document()
+
+    # 页面设置
+    section = doc.sections[0]
+    section.page_height = Cm(29.7)
+    section.page_width = Cm(21)
+    section.top_margin = Cm(2.5)
+    section.bottom_margin = Cm(2.5)
+    section.left_margin = Cm(2.5)
+    section.right_margin = Cm(2.5)
+
+    add_page_number(section)
+    setup_styles(doc)
+
+    # 创建封面
+    create_cover(doc)
+
+    # 提取标题
+    lines = content.split('\n')
+    headings = []
+
+    for line in lines:
+        if line.startswith('# '):
+            headings.append((1, line[2:].strip()))
+        elif line.startswith('## '):
+            headings.append((2, line[3:].strip()))
+        elif line.startswith('### '):
+            headings.append((3, line[4:].strip()))
+
+    # 创建目录
+    create_toc(doc, headings)
+
+    # 生成正文
+    print('  生成正文内容...')
+    i = 0
+    svg_index = 0
+    in_svg = False
+    img_success = 0
+
+    while i < len(lines):
+        line = lines[i].strip()
+
+        # 跳过SVG内容
+        if '<svg' in line:
+            in_svg = True
+        if '</svg>' in line:
+            in_svg = False
+            i += 1
+            continue
+        if in_svg:
+            i += 1
+            continue
+
+        # 一级标题
+        if line.startswith('# '):
+            doc.add_heading(line[2:].strip(), level=1)
+
+        # 二级标题
+        elif line.startswith('## '):
+            doc.add_heading(line[3:].strip(), level=2)
+
+        # 三级标题
+        elif line.startswith('### '):
+            doc.add_heading(line[4:].strip(), level=3)
+
+        # 插图标记
+        elif line.startswith('【插图'):
+            # 插图说明
+            para = doc.add_paragraph()
+            para.alignment = WD_ALIGN_PARAGRAPH.CENTER
+            run = para.add_run(line)
+            run.font.name = '微软雅黑'
+            run.font.size = Pt(10)
+            run.font.color.rgb = RGBColor(100, 100, 100)
+            run.italic = True
+
+            # 添加图片
+            if svg_index < len(svg_list):
+                png_path = svg_list[svg_index].get('png_path')
+
+                if png_path and os.path.exists(png_path):
+                    para = doc.add_paragraph()
+                    para.alignment = WD_ALIGN_PARAGRAPH.CENTER
+                    run = para.add_run()
+
+                    try:
+                        run.add_picture(png_path, width=Inches(5.5))
+                        img_success += 1
+                    except Exception as e:
+                        print(f'    ⚠ 插图{svg_index+1}添加失败: {e}')
+
+                svg_index += 1
+
+                if svg_index % 50 == 0:
+                    print(f'    已处理 {svg_index} 个插图...')
+
+        # 分隔线
+        elif line == '---':
+            para = doc.add_paragraph()
+            para.alignment = WD_ALIGN_PARAGRAPH.CENTER
+            run = para.add_run('─' * 30)
+            run.font.color.rgb = RGBColor(200, 200, 200)
+
+        # 粗体标题
+        elif line.startswith('**') and line.endswith('**') and len(line) < 60:
+            para = doc.add_paragraph()
+            run = para.add_run(line.strip('*'))
+            run.font.name = '微软雅黑'
+            run.font.size = Pt(12)
+            run.font.bold = True
+            run.font.color.rgb = RGBColor(0, 74, 144)
+
+        # 普通段落
+        elif line and not line.startswith('<'):
+            doc.add_paragraph(line)
+
+        i += 1
+
+    # 保存
+    print('  保存文档...')
+    doc.save(output_file)
+
+    print(f'\n✓ 完成!')
+    print(f'  文件: {output_file}')
+    print(f'  插图: {img_success}/{len(svg_list)}')
+
+def main():
+    md_file = 'AI前沿知识儿童科普画册-带全部插图.md'
+    png_dir = 'png_images'
+    output_file = 'AI科普画册-完整图文版.docx'
+
+    print('='*60)
+    print('AI科普画册Word生成器 - 完整图文版')
+    print('='*60)
+
+    # 步骤1: 提取并转换SVG
+    svg_list = extract_and_convert_svgs(md_file, png_dir)
+
+    # 步骤2: 生成Word文档
+    generate_word_with_images(md_file, svg_list, output_file)
+
+    print('='*60)
+
+if __name__ == '__main__':
+    main()

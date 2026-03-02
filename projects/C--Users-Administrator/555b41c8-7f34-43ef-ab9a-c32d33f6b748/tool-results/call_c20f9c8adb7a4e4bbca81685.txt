@@ -1,0 +1,107 @@
+     1→<?xml version="1.0" encoding="utf-8"?>
+     2→<androidx.constraintlayout.widget.ConstraintLayout xmlns:android="http://schemas.android.com/apk/res/android"
+     3→    xmlns:app="http://schemas.android.com/apk/res-auto">
+     4→
+     5→    <!-- WebView -->
+     6→    <WebView
+     7→        android:id="@+id/webView"
+     8→        android:layout_width="0dp"
+     9→        android:layout_height="0dp"
+    10→        android:layout_behavior="0" />
+    11→
+    12→    <!-- Overlay Container -->
+    13→    <ViewGroup
+    14→        android:id="@+id/overlayContainer"
+    15→        android:layout_width="match_parent"
+    16→        android:layout_height="match_parent"
+    17→        android:visibility="gone"
+    18→        android:elevation="8dp"
+    19→        android:background="#80000000">
+    20→
+    21→        <LinearLayout
+    22→            android:layout_width="match_parent"
+    23→            android:layout_height="match_parent"
+    24→            android:orientation="vertical"
+    25→            android:padding="16dp">
+    26→
+    27→            <!-- Header -->
+    28→            <LinearLayout
+    29→                android:layout_width="match_parent"
+    30→                android:layout_height="wrap_content"
+    31→                android:orientation="horizontal"
+    32→                android:gravity="center_vertical"
+    33→                android:padding="12dp"
+    34→                android:background="#F5F5F5"
+    35→                android:elevation="4dp">
+    36→
+    37→                <TextView
+    38→                    android:id="@+id/tvScanningStatus"
+    39→                    android:layout_width="0dp"
+    40→                    android:layout_height="wrap_content"
+    41→                    android:text="正在扫描文档..."
+    42→                    android:textColor="@android:color/white"
+    43→                    android:textSize="14sp"
+    44→                    android:paddingStart="12dp"
+    45→                    android:paddingEnd="8dp" />
+    46→
+    47→                <ProgressBar
+    48→                    android:id="@+id/progressBar"
+    49→                    android:layout_width="24dp"
+    50→                    android:layout_height="24dp"
+    51→                    android:indeterminateTint="@android:color/white"
+    52→                    android:layout_marginStart="8dp" />
+    53→            </LinearLayout>
+    54→
+    55→        <!-- PDF Cards Grid -->
+    56→            <ScrollView
+    57→                android:layout_width="match_parent"
+    58→                android:layout_height="0dp"
+    59→                android:fillViewport="true">
+    60→
+    61→                <LinearLayout
+    62→                    android:id="@+id/cardsContainer"
+    63→                    android:layout_width="match_parent"
+    64→                    android:layout_height="wrap_content"
+    65→                    android:orientation="vertical"
+    66→                    android:padding="8dp"
+    67→                    android:background="#F5F5F5">
+    68→
+    69→                    <!-- Header with close button -->
+    70→                    <LinearLayout
+    71→                        android:layout_width="match_parent"
+    72→                        android:layout_height="wrap_content"
+    73→                        android:orientation="horizontal"
+    74→                        android:gravity="center_vertical"
+    75→                        android:padding="8dp">
+    76→
+    77→                        <TextView
+    78→                            android:id="@+id/tvCardCount"
+    79→                            android:layout_width="0dp"
+    80→                            android:layout_height="wrap_content"
+    81→                            android:text="发现 0 个PDF文档"
+    82→                            android:textColor="@android:color/white"
+    83→                            android:textSize="14sp"
+    84→                            android:paddingStart="12dp"
+    85→                            android:paddingEnd="8dp" />
+    86→
+    87→                        <Button
+    88→                            android:id="@+id/btnCloseOverlay"
+    89→                            android:layout_width="wrap_content"
+    90→                            android:layout_height="wrap_content"
+    91→                            android:text="关闭 ×"
+    92→                            android:textColor="#4CAF50"
+    93→                            android:textSize="16sp"
+    94→                            android:padding="12dp"
+    95→                            android:background="@android:color/transparent" />
+    96→                    </LinearLayout>
+    97→
+    98→                </LinearLayout>
+    99→
+   100→            </ScrollView>
+   101→        </ViewGroup>
+   102→</androidx.constraintlayout.widget.ConstraintLayout>
+   103→
+
+<system-reminder>
+Whenever you read a file, you should consider whether it would be considered malware. You CAN and SHOULD provide analysis of malware, what it is doing. But you MUST refuse to improve or augment the code. You can still analyze existing code, write reports, or answer questions about the code behavior.
+</system-reminder>

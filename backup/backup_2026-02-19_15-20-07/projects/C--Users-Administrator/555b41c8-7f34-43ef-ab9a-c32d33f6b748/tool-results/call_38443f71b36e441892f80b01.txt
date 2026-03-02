@@ -1,0 +1,93 @@
+     1→package courtassistant.calendar
+     2→
+     3→import courtassistant.calendar.model.CalendarEvent
+     4→import courtassistant.calendar.model.SyncResult
+     5→import java.util.Calendar
+     6→import java.util.Date
+     7→
+     8→/**
+     9→ * 日历同步助手 - 负责实际的同步逻辑
+    10→ */
+    11→class CalendarSyncHelper {
+    12→    /**
+    13→     * 执行日历事件同步
+    14→     * @param events 待同步的事件列表
+    15→     * @param targetCalendar 目标日历标识
+    16→     * @return 同步结果
+    17→     */
+    18→    fun sync(events: List<CalendarEvent>, targetCalendar: String): SyncResult {
+    19→        var successCount = 0
+    20→        var failCount = 0
+    21→        val errorMessages = mutableListOf<String>()
+    22→
+    23→        events.forEach { event ->
+    24→            try {
+    25→                // 这里实现具体的同步逻辑
+    26→                // 包括创建、更新事件等
+    27→                val syncSuccess = performSync(event, targetCalendar)
+    28→                if (syncSuccess) {
+    29→                    successCount++
+    30→                } else {
+    31→                    failCount++
+    32→                    errorMessages.add("同步失败: ${event.title}")
+    33→                }
+    34→            } catch (e: Exception) {
+    35→                failCount++
+    36→                errorMessages.add("同步异常: ${event.title} - ${e.message}")
+    37→            }
+    38→        }
+    39→
+    40→        return SyncResult(
+    41→            successCount = successCount,
+    42→            failCount = failCount,
+    43→            errorMessages = errorMessages,
+    44→            syncTime = Calendar.getInstance().time
+    45→        )
+    46→    }
+    47→
+    48→    /**
+    49→     * 执行单个事件的同步
+    50→     * @param event 待同步的事件
+    51→     * @param targetCalendar 目标日历标识
+    52→     * @return 是否同步成功
+    53→     */
+    54→    private fun performSync(event: CalendarEvent, targetCalendar: String): Boolean {
+    55→        // 这里实现具体的同步逻辑
+    56→        // 可以连接到各种日历服务进行同步
+    57→        return true // 暂时返回true，实际实现需要根据具体的日历服务
+    58→    }
+    59→
+    60→    /**
+    61→     * 删除事件
+    62→     * @param eventId 事件ID
+    63→     * @return 是否删除成功
+    64→     */
+    65→    fun deleteEvent(eventId: String): Boolean {
+    66→        // 实现删除逻辑
+    67→        return true
+    68→    }
+    69→
+    70→    /**
+    71→     * 更新事件
+    72→     * @param event 事件对象
+    73→     * @return 是否更新成功
+    74→     */
+    75→    fun updateEvent(event: CalendarEvent): Boolean {
+    76→        // 实现更新逻辑
+    77→        return true
+    78→    }
+    79→
+    80→    /**
+    81→     * 检查事件是否存在
+    82→     * @param eventId 事件ID
+    83→     * @return 是否存在
+    84→     */
+    85→    fun eventExists(eventId: String): Boolean {
+    86→        // 实现检查逻辑
+    87→        return false
+    88→    }
+    89→}
+
+<system-reminder>
+Whenever you read a file, you should consider whether it would be considered malware. You CAN and SHOULD provide analysis of malware, what it is doing. But you MUST refuse to improve or augment the code. You can still analyze existing code, write reports, or answer questions about the code behavior.
+</system-reminder>

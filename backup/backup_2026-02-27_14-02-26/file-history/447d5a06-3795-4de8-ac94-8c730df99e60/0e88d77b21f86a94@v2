@@ -1,0 +1,65 @@
+#!/usr/bin/env python3
+# -*- encoding: utf-8 -*-
+"""
+Whisper 多语言转录 - 支持14种语言，输出带时间戳的 Markdown
+"""
+
+import sys
+import argparse
+from pathlib import Path
+
+
+def transcribe(file_path, lang=None, model_size="base", output_path=None):
+    """用 Whisper 转录音视频文件"""
+    import whisper
+
+    file_path = Path(file_path).resolve()
+    if not file_path.exists():
+        print(f"文件不存在: {file_path}")
+        return None
+
+    print(f"加载模型: {model_size}")
+    model = whisper.load_model(model_size)
+
+    print(f"转录中: {file_path.name}")
+    opts = {"verbose": False}
+    if lang:
+        opts["language"] = lang
+    result = model.transcribe(str(file_path), **opts)
+
+    detected = result.get("language", lang or "unknown")
+    print(f"检测语言: {detected}")
+
+    # 生成 Markdown
+    lines = [f"# 转录：{file_path.name}\n", f"语言：{detected}\n", "## 转录内容\n"]
+    for seg in result["segments"]:
+        start = int(seg["start"])
+        h, m, s = start // 3600, (start % 3600) // 60, start % 60
+        lines.append(f"{h:02d}:{m:02d}:{s:02d}")
+        lines.append(seg["text"].strip())
+        lines.append("")
+
+    if output_path is None:
+        output_path = file_path.parent / f"{file_path.stem}.md"
+    else:
+        output_path = Path(output_path)
+
+    output_path.write_text("\n".join(lines), "utf-8")
+    print(f"✅ 转录完成: {output_path}")
+    return str(output_path)
+
+
+def main():
+    parser = argparse.ArgumentParser(description="Whisper 多语言转录")
+    parser.add_argument("path", help="音视频文件路径")
+    parser.add_argument("--lang", help="指定语言代码（如 ru, en, ja），默认自动检测")
+    parser.add_argument("--model", default="base", choices=["tiny", "base", "small", "medium", "large"],
+                        help="模型大小（默认 base，越大越准但越慢）")
+    parser.add_argument("-o", "--output", help="输出 Markdown 路径")
+    args = parser.parse_args()
+
+    transcribe(args.path, args.lang, args.model, args.output)
+
+
+if __name__ == "__main__":
+    main()

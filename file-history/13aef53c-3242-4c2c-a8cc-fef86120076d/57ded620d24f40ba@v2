@@ -1,0 +1,76 @@
+@echo off
+chcp 65001 >nul
+echo.
+echo ===============================================
+echo     华为 Mate X5 - HiSuite ADB 连接
+echo ===============================================
+echo.
+echo HiSuite 已连接，现在尝试通过 HiSuite 的 ADB 访问设备...
+echo.
+
+:: 关闭系统的 ADB
+echo [1] 关闭系统 ADB...
+taskkill /F /IM adb.exe >nul 2>&1
+timeout /t 1 /nobreak >nul
+
+:: 查找 HiSuite 的 ADB 路径
+echo [2] 查找 HiSuite ADB...
+for /f "tokens=2" %%a in ('tasklist ^| findstr /i "HiSuite"') do set HPID=%%a
+
+:: 常见的 HiSuite ADB 路径
+set HDB_PATHS=(
+    "C:\Program Files\HiSuite\HandSetSuite\Adb\adb.exe"
+    "C:\Program Files (x86)\HiSuite\HandSetSuite\Adb\adb.exe"
+    "%LOCALAPPDATA%\HiSuite\Adb\adb.exe"
+    "%USERPROFILE%\AppData\Local\HiSuite\Adb\adb.exe"
+)
+
+:: 尝试找到可用的 adb
+set FOUND_ADB=
+for %%p in (
+    "C:\Program Files\HiSuite\HandSetSuite\Adb\adb.exe"
+    "C:\Program Files (x86)\HiSuite\HandSetSuite\Adb\adb.exe"
+    "%LOCALAPPDATA%\HiSuite\Adb\adb.exe"
+) do (
+    if exist %%p (
+        set FOUND_ADB=%%p
+        goto :found
+    )
+)
+
+:found
+if not defined FOUND_ADB (
+    echo ❌ 未找到 HiSuite ADB
+    echo.
+    echo 💡 建议：
+    echo    1. 使用 HiSuite 界面操作（已连接）
+    echo    2. 或者直接在资源管理器中访问手机文件
+    pause
+    exit /b 1
+)
+
+echo ✅ 找到 ADB: %FOUND_ADB%
+echo.
+
+echo [3] 检查设备连接...
+"%FOUND_ADB%" devices
+
+echo.
+echo ===============================================
+echo           🎉 HiSuite 已连接！
+echo ===============================================
+echo.
+echo 您可以：
+echo.
+echo 📱 在 HiSuite 界面中：
+echo    • 管理文件
+echo    • 备份/恢复
+echo    • 安装应用
+echo    • 查看短信/联系人
+echo.
+echo 💻 在电脑资源管理器中：
+echo    • 直接访问手机文件（此电脑\Huawei Mate X5\内部存储）
+echo.
+echo ===============================================
+echo.
+pause

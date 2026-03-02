@@ -1,0 +1,131 @@
+"""配音文字核对宝 - ASR/LLM 服务商配置定义"""
+
+# ===== ASR 语音识别服务商 =====
+ASR_PROVIDERS = {
+    'sherpa_offline': {
+        'name': '离线识别(内置)',
+        'desc': 'Paraformer中英文语音识别，无需联网',
+        'fields': [],
+        'builtin': True,
+    },
+    'funasr': {
+        'name': 'FunASR(局域网)',
+        'desc': '连接电脑上的FunASR服务，需同一WiFi',
+        'fields': ['server_url'],
+    },
+    'baidu_builtin': {
+        'name': '百度语音(内置)',
+        'desc': '使用内置百度API密钥，开箱即用',
+        'fields': [],
+        'builtin': True,
+    },
+    'groq_whisper': {
+        'name': 'Groq Whisper',
+        'desc': 'Groq云端Whisper，速度快，内置密钥',
+        'fields': [],
+        'builtin_key': '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',
+    },
+    'openai_whisper': {
+        'name': 'OpenAI Whisper',
+        'desc': 'OpenAI官方Whisper，精度高，需API密钥',
+        'fields': ['key'],
+    },
+}
+
+# ===== LLM 大模型服务商 =====
+LLM_PROVIDERS = {
+    # 国内
+    'zhipu': {
+        'name': '智谱GLM', 'region': 'cn',
+        'endpoint': 'https://open.bigmodel.cn/api/paas/v4/chat/completions',
+        'default_model': 'glm-4-flash',  # 使用更快的flash模型
+        'auth_format': 'bearer',  # 使用标准Bearer格式
+    },
+    'deepseek': {
+        'name': 'DeepSeek', 'region': 'cn',
+        'endpoint': 'https://api.deepseek.com/v1/chat/completions',
+        'default_model': 'deepseek-chat',
+    },
+    'qwen': {
+        'name': '通义千问', 'region': 'cn',
+        'endpoint': 'https://dashscope.aliyuncs.com/compatible-mode/v1/chat/completions',
+        'default_model': 'qwen-turbo',
+    },
+    'moonshot': {
+        'name': 'Kimi(月之暗面)', 'region': 'cn',
+        'endpoint': 'https://api.moonshot.cn/v1/chat/completions',
+        'default_model': 'moonshot-v1-8k',
+    },
+    'baichuan': {
+        'name': '百川智能', 'region': 'cn',
+        'endpoint': 'https://api.baichuan-ai.com/v1/chat/completions',
+        'default_model': 'Baichuan4',
+    },
+    'minimax': {
+        'name': 'MiniMax', 'region': 'cn',
+        'endpoint': 'https://api.minimax.chat/v1/text/chatcompletion_v2',
+        'default_model': 'abab6.5s-chat',
+    },
+    'stepfun': {
+        'name': '阶跃星辰', 'region': 'cn',
+        'endpoint': 'https://api.stepfun.com/v1/chat/completions',
+        'default_model': 'step-1-8k',
+    },
+    'doubao': {
+        'name': '豆包(字节)', 'region': 'cn',
+        'endpoint': 'https://ark.cn-beijing.volces.com/api/v3/chat/completions',
+        'default_model': 'doubao-pro-4k',
+    },
+    # 国际
+    'openai': {
+        'name': 'OpenAI', 'region': 'intl',
+        'endpoint': 'https://api.openai.com/v1/chat/completions',
+        'default_model': 'gpt-4o-mini',
+    },
+    'claude': {
+        'name': 'Claude', 'region': 'intl',
+        'endpoint': 'https://api.anthropic.com/v1/messages',
+        'default_model': 'claude-sonnet-4-20250514',
+    },
+    'gemini': {
+        'name': 'Gemini', 'region': 'intl',
+        'endpoint': 'https://generativelanguage.googleapis.com/v1beta/chat/completions',
+        'default_model': 'gemini-2.0-flash',
+    },
+    'groq_llm': {
+        'name': 'Groq', 'region': 'intl',
+        'endpoint': 'https://api.groq.com/openai/v1/chat/completions',
+        'default_model': 'llama-3.1-70b-versatile',
+    },
+    'mistral': {
+        'name': 'Mistral', 'region': 'intl',
+        'endpoint': 'https://api.mistral.ai/v1/chat/completions',
+        'default_model': 'mistral-large-latest',
+    },
+    'cohere': {
+        'name': 'Cohere', 'region': 'intl',
+        'endpoint': 'https://api.cohere.com/v2/chat',
+        'default_model': 'command-r-plus',
+    },
+    'perplexity': {
+        'name': 'Perplexity', 'region': 'intl',
+        'endpoint': 'https://api.perplexity.ai/chat/completions',
+        'default_model': 'sonar-pro',
+    },
+    'together': {
+        'name': 'Together AI', 'region': 'intl',
+        'endpoint': 'https://api.together.xyz/v1/chat/completions',
+        'default_model': 'meta-llama/Llama-3-70b-chat-hf',
+    },
+}
+
+# ===== 映射表 =====
+ASR_MAP = {info['name']: pid for pid, info in ASR_PROVIDERS.items()}
+ASR_MAP_REVERSE = {pid: info['name'] for pid, info in ASR_PROVIDERS.items()}
+
+LLM_MAP = {info['name']: pid for pid, info in LLM_PROVIDERS.items()}
+LLM_MAP_REVERSE = {pid: info['name'] for pid, info in LLM_PROVIDERS.items()}
+
+# Spinner显示列表
+ASR_NAMES = [info['name'] for info in ASR_PROVIDERS.values()]
+LLM_NAMES = [info['name'] for info in LLM_PROVIDERS.values()]

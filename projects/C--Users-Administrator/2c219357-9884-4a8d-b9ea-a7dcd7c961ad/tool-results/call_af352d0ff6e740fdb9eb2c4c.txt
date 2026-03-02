@@ -1,0 +1,67 @@
+325-                    }
+326-
+327-                    // 更新任务信息
+328-                    val updatedTask = task.copy(
+329-                        title = videoInfo.title,
+330-                        status = DownloadStatus.DOWNLOADING
+331-                    )
+332-                    updateCurrentDownload(updatedTask)
+333-
+334-                    // 生成文件名
+335:                    val safeTitle = videoInfo.title.replace(Regex("[\\\\/:*?\"<>|]"), "_").take(50)
+336:                    val outputFile = File(downloadsDir, "${safeTitle}_${System.currentTimeMillis()}.mp4")
+337-
+338-                    // 使用分段下载器下载，传递Cookie
+339:                    downloadWithSegmentedDownloader(url, videoInfo, safeTitle, outputFile, onComplete)
+340-                }.onFailure { error ->
+341-                    val failedTask = task.copy(
+342-                        status = DownloadStatus.FAILED,
+343-                        errorMessage = "解析失败: ${error.message}\n\n建议：使用导入功能添加本地视频",
+344-                        errorCode = error.javaClass.simpleName
+345-                    )
+346-                    onDownloadFailed(task.id, failedTask, failedTask.errorMessage ?: "解析失败")
+347-                }
+348-
+349-            } catch (e: Exception) {
+--
+451-                    completedAt = System.currentTimeMillis()
+452-                )
+453-                activeDownloadTasks.remove(taskId)
+454-                activeDownloadJobs.remove(taskId)
+455-                updateActiveDownloads()
+456-                updateCurrentDownload(cancelledTask)
+457-                addToHistory(cancelledTask)
+458-
+459-                // 清理临时文件
+460-                if (task.totalBytes > 0) {
+461:                    val safeTitle = task.title.replace(Regex("[\\\\/:*?\"<>|]"), "_").take(50)
+462:                    val outputFile = File(downloadsDir, "${safeTitle}_${task.createdAt}.mp4")
+463-                    segmentedDownloader.cancelDownload(outputFile)
+464-                }
+465-            }
+466-            // 处理队列中的下一个任务
+467-            processQueue()
+468-        } else {
+469-            // 取消所有任务
+470-            activeDownloadJobs.values.forEach { it.cancel() }
+471-            activeDownloadTasks.values.forEach { task ->
+472-                val cancelledTask = task.copy(
+473-                    status = DownloadStatus.CANCELLED,
+474-                    completedAt = System.currentTimeMillis()
+475-                )
+476-                addToHistory(cancelledTask)
+477-
+478-                // 清理临时文件
+479-                if (task.totalBytes > 0) {
+480:                    val safeTitle = task.title.replace(Regex("[\\\\/:*?\"<>|]"), "_").take(50)
+481:                    val outputFile = File(downloadsDir, "${safeTitle}_${task.createdAt}.mp4")
+482-                    segmentedDownloader.cancelDownload(outputFile)
+483-                }
+484-            }
+485-            activeDownloadJobs.clear()
+486-            activeDownloadTasks.clear()
+487-            updateActiveDownloads()
+488-            updateCurrentDownload(null)
+489-        }
+490-    }
+491-

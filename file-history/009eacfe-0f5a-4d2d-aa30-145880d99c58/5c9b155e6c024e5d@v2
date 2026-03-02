@@ -1,0 +1,156 @@
+<?xml version="1.0" encoding="utf-8"?>
+<ScrollView xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="#F5F5F5">
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="vertical"
+        android:padding="16dp">
+
+        <!-- 标题 -->
+        <TextView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="核对宝"
+            android:textSize="24sp"
+            android:textStyle="bold"
+            android:textColor="#333333"
+            android:gravity="center"
+            android:paddingBottom="16dp" />
+
+        <!-- 导入按钮区域 -->
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal"
+            android:gravity="center">
+
+            <Button
+                android:id="@+id/btnImportDoc"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:layout_marginEnd="8dp"
+                android:text="导入文档"
+                android:textColor="#FFFFFF"
+                android:backgroundTint="#4CAF50" />
+
+            <Button
+                android:id="@+id/btnImportAudio"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:layout_marginStart="8dp"
+                android:text="导入录音"
+                android:textColor="#FFFFFF"
+                android:backgroundTint="#2196F3" />
+        </LinearLayout>
+
+        <!-- 微信导入按钮 -->
+        <Button
+            android:id="@+id/btnImportWechat"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="8dp"
+            android:text="从微信导入"
+            android:textColor="#FFFFFF"
+            android:backgroundTint="#07C160"
+            app:icon="@android:drawable/ic_menu_upload" />
+
+        <!-- 进度条 -->
+        <ProgressBar
+            android:id="@+id/progressBar"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_gravity="center"
+            android:layout_marginTop="16dp"
+            android:visibility="gone" />
+
+        <!-- 文档文本区域 -->
+        <TextView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="文档文本："
+            android:textSize="14sp"
+            android:textColor="#666666"
+            android:layout_marginTop="16dp" />
+
+        <TextView
+            android:id="@+id/tvDocText"
+            android:layout_width="match_parent"
+            android:layout_height="100dp"
+            android:background="#FFFFFF"
+            android:padding="8dp"
+            android:textSize="14sp"
+            android:textColor="#333333"
+            android:gravity="top"
+            android:hint="点击上方按钮导入文档文本"
+            android:textColorHint="#CCCCCC" />
+
+        <!-- 音频文本区域 -->
+        <TextView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="录音文本："
+            android:textSize="14sp"
+            android:textColor="#666666"
+            android:layout_marginTop="16dp" />
+
+        <EditText
+            android:id="@+id/tvAudioText"
+            android:layout_width="match_parent"
+            android:layout_height="100dp"
+            android:background="#FFFFFF"
+            android:padding="8dp"
+            android:textSize="14sp"
+            android:textColor="#333333"
+            android:gravity="top"
+            android:hint="请输入或粘贴录音转写的文本"
+            android:textColorHint="#CCCCCC"
+            android:inputType="textMultiLine" />
+
+        <!-- 比对按钮 -->
+        <Button
+            android:id="@+id/btnCompare"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="16dp"
+            android:text="开始比对"
+            android:textSize="16sp"
+            android:textColor="#FFFFFF"
+            android:backgroundTint="#FF9800" />
+
+        <!-- 比对结果 -->
+        <TextView
+            android:id="@+id/tvResult"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="16dp"
+            android:background="#FFF3E0"
+            android:padding="12dp"
+            android:textSize="14sp"
+            android:textColor="#333333"
+            android:text="比对结果将显示在这里" />
+
+        <!-- 差异列表 -->
+        <TextView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="差异详情："
+            android:textSize="14sp"
+            android:textColor="#666666"
+            android:layout_marginTop="16dp" />
+
+        <androidx.recyclerview.widget.RecyclerView
+            android:id="@+id/rvDiffs"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="8dp"
+            android:background="#FFFFFF" />
+
+    </LinearLayout>
+</ScrollView>

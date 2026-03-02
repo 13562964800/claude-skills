@@ -1,0 +1,113 @@
+const { app, BrowserWindow } = require('electron');
+const path = require('path');
+const { spawn } = require('child_process');
+
+let mainWindow;
+let apiProcess;
+let webProcess;
+
+function startAPI() {
+  const pythonPath = 'python'; // 使用系统 Python
+  const apiDir = path.join(__dirname, '..', 'api');
+
+  console.log('Starting API from:', apiDir);
+
+  apiProcess = spawn(pythonPath, ['-m', 'uvicorn', 'app.main:app', '--host', '127.0.0.1', '--port', '8000'], {
+    cwd: apiDir,
+    shell: true
+  });
+
+  apiProcess.stdout.on('data', (data) => {
+    console.log(`API: ${data}`);
+  });
+
+  apiProcess.stderr.on('data', (data) => {
+    console.error(`API: ${data}`);
+  });
+
+  apiProcess.on('error', (err) => {
+    console.error('Failed to start API:', err);
+  });
+}
+
+function startWeb() {
+  const webDir = path.join(__dirname, '..', 'web');
+
+  console.log('Starting Web from:', webDir);
+
+  webProcess = spawn('npm', ['run', 'dev'], {
+    cwd: webDir,
+    shell: true
+  });
+
+  webProcess.stdout.on('data', (data) => {
+    console.log(`Web: ${data}`);
+  });
+
+  webProcess.stderr.on('data', (data) => {
+    console.error(`Web: ${data}`);
+  });
+
+  webProcess.on('error', (err) => {
+    console.error('Failed to start Web:', err);
+  });
+}
+
+function createWindow() {
+  mainWindow = new BrowserWindow({
+    width: 1400,
+    height: 900,
+    webPreferences: {
+      preload: path.join(__dirname, 'preload.js'),
+      nodeIntegration: false,
+      contextIsolation: true
+    }
+  });
+
+  // 等待服务启动
+  setTimeout(() => {
+    mainWindow.loadURL('http://localhost:3000');
+  }, 5000);
+
+  mainWindow.on('closed', () => {
+    mainWindow = null;
+  });
+
+  // 开发模式下打开 DevTools
+  if (process.env.NODE_ENV === 'development') {
+    mainWindow.webContents.openDevTools();
+  }
+}
+
+app.on('ready', () => {
+  startAPI();
+  startWeb();
+  createWindow();
+});
+
+app.on('window-all-closed', () => {
+  if (apiProcess) {
+    apiProcess.kill();
+  }
+  if (webProcess) {
+    webProcess.kill();
+  }
+  if (process.platform !== 'darwin') {
+    app.quit();
+  }
+});
+
+app.on('activate', () => {
+  if (mainWindow === null) {
+    createWindow();
+  }
+});
+
+app.on('before-quit', () => {
+  if (apiProcess) {
+    apiProcess.kill();
+  }
+  if (webProcess) {
+    webProcess.kill();
+  }
+});

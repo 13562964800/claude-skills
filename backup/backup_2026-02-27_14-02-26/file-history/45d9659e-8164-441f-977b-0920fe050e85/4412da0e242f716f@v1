@@ -1,0 +1,329 @@
+package com.shanfuchun.courtassistant.ui
+
+import android.annotation.SuppressLint
+import android.os.Bundle
+import android.util.Log
+import android.webkit.*
+import android.widget.Toast
+import androidx.appcompat.app.AppCompatActivity
+import androidx.core.content.FileProvider
+import com.shanfuchun.courtassistant.App
+import com.shanfuchun.courtassistant.data.DocumentRecord
+import com.shanfuchun.courtassistant.service.PdfParser
+import kotlinx.coroutines.*
+import okhttp3.OkHttpClient
+import okhttp3.Request
+import org.json.JSONArray
+import java.io.File
+import java.util.concurrent.TimeUnit
+
+class WebViewActivity : AppCompatActivity() {
+    private lateinit var webView: WebView
+    private val TAG = "CourtAssistant"
+    private val scope = CoroutineScope(Dispatchers.Main + SupervisorJob())
+    private var smsId: Long = 0
+    private var docId: Long = 0
+    private val downloadedUrls = mutableSetOf<String>()
+    private var scanComplete = false
+    private var allLinksCollected = mutableListOf<Pair<String, String>>() // url, name
+
+    private val client = OkHttpClient.Builder()
+        .followRedirects(true)
+        .connectTimeout(30, TimeUnit.SECONDS)
+        .readTimeout(60, TimeUnit.SECONDS)
+        .build()
+
+    @SuppressLint("SetJavaScriptEnabled")
+    override fun onCreate(savedInstanceState: Bundle?) {
+        super.onCreate(savedInstanceState)
+        webView = WebView(this)
+        setContentView(webView)
+
+        smsId = intent.getLongExtra("smsId", 0)
+        docId = intent.getLongExtra("docId", 0)
+        val url = intent.getStringExtra("url") ?: run { finish(); return }
+
+        Log.d(TAG, "WebView: loading url=$url smsId=$smsId docId=$docId")
+        Toast.makeText(this, "正在扫描文档...", Toast.LENGTH_SHORT).show()
+
+        webView.settings.apply {
+            javaScriptEnabled = true
+            domStorageEnabled = true
+            allowFileAccess = true
+            mixedContentMode = WebSettings.MIXED_CONTENT_ALWAYS_ALLOW
+            userAgentString = "Mozilla/5.0 (Linux; Android 12) AppleWebKit/537.36 Chrome/120.0 Mobile Safari/537.36"
+        }
+
+        webView.addJavascriptInterface(JsBridge(), "CourtBridge")
+
+        // 拦截浏览器触发的下载
+        webView.setDownloadListener { downloadUrl, _, _, _, _ ->
+            Log.d(TAG, "WebView download listener: $downloadUrl")
+            synchronized(allLinksCollected) {
+                if (!downloadedUrls.contains(downloadUrl)) {
+                    allLinksCollected.add(downloadUrl to "")
+                }
+            }
+        }
+
+        webView.webViewClient = object : WebViewClient() {
+            override fun shouldOverrideUrlLoading(view: WebView, request: WebResourceRequest): Boolean {
+                val reqUrl = request.url.toString()
+                if (reqUrl.lowercase().let { it.endsWith(".pdf") || it.contains("pdf") && it.contains("download") }) {
+                    synchronized(allLinksCollected) {
+                        if (!downloadedUrls.contains(reqUrl)) {
+                            allLinksCollected.add(reqUrl to "")
+                        }
+                    }
+                    return true
+                }
+                return false
+            }
+
+            override fun onPageFinished(view: WebView, url: String) {
+                Log.d(TAG, "WebView page loaded: $url")
+                // 第一次扫描
+                scanForPdfLinks(view)
+                // SPA 延迟重扫 + 点击下载按钮
+                view.postDelayed({
+                    // 点击所有下载/查看按钮
+                    view.evaluateJavascript("""
+                        (function() {
+                            var btns = document.querySelectorAll('button, .btn, [class*=download], [class*=btn], a');
+                            for (var i = 0; i < btns.length; i++) {
+                                var t = btns[i].innerText || '';
+                                if (t.indexOf('下载') >= 0 || t.indexOf('查看') >= 0) {
+                                    btns[i].click();
+                                }
+                            }
+                        })()
+                    """.trimIndent(), null)
+                    // 再次扫描
+                    scanForPdfLinks(view)
+                }, 3000)
+                // 第三次扫描确保 SPA 完全渲染
+                view.postDelayed({
+                    scanForPdfLinks(view)
+                    // 最终确认，开始批量下载
+                    view.postDelayed({
+                        scanComplete = true
+                        startBatchDownload()
+                    }, 2000)
+                }, 6000)
+            }
+        }
+
+        webView.loadUrl(url)
+
+        // 超时保底
+        scope.launch {
+            delay(60000)
+            if (!isFinishing) {
+                Log.d(TAG, "WebView: timeout")
+                if (allLinksCollected.isNotEmpty() && !scanComplete) {
+                    scanComplete = true
+                    startBatchDownload()
+                } else {
+                    Toast.makeText(this@WebViewActivity, "页面加载超时", Toast.LENGTH_SHORT).show()
+                    finish()
+                }
+            }
+        }
+    }
+
+    private val JS_SCAN = """
+        (function() {
+            var results = [];
+            var links = document.querySelectorAll('a[href]');
+            for (var i = 0; i < links.length; i++) {
+                var href = links[i].href || '';
+                var text = links[i].innerText || '';
+                var lower = href.toLowerCase();
+                if (lower.indexOf('.pdf') >= 0 ||
+                    text.indexOf('下载') >= 0 || text.indexOf('查看') >= 0 ||
+                    text.indexOf('传票') >= 0 || text.indexOf('文书') >= 0 ||
+                    text.indexOf('判决') >= 0 || text.indexOf('裁定') >= 0 ||
+                    text.indexOf('送达') >= 0 || text.indexOf('通知') >= 0) {
+                    results.push({url: href, name: text.trim()});
+                }
+            }
+            var iframes = document.querySelectorAll('iframe[src], embed[src]');
+            for (var j = 0; j < iframes.length; j++) {
+                var src = iframes[j].src || '';
+                if (src.toLowerCase().indexOf('pdf') >= 0) {
+                    results.push({url: src, name: '嵌入文档'});
+                }
+            }
+            return JSON.stringify(results);
+        })()
+    """.trimIndent()
+
+    private fun scanForPdfLinks(view: WebView) {
+        view.evaluateJavascript(JS_SCAN) { result ->
+            try {
+                val json = result?.trim()?.removeSurrounding("\"")
+                    ?.replace("\\\"", "\"")?.replace("\\\\", "\\")
+                if (json.isNullOrBlank() || json == "null" || json == "[]") return@evaluateJavascript
+                val arr = JSONArray(json)
+                synchronized(allLinksCollected) {
+                    for (i in 0 until arr.length()) {
+                        val obj = arr.getJSONObject(i)
+                        val pdfUrl = obj.getString("url")
+                        val name = obj.optString("name", "")
+                        if (pdfUrl.isNotBlank() && !downloadedUrls.contains(pdfUrl)
+                            && allLinksCollected.none { it.first == pdfUrl }) {
+                            allLinksCollected.add(pdfUrl to name)
+                        }
+                    }
+                }
+                Log.d(TAG, "WebView scan: total ${allLinksCollected.size} links found")
+            } catch (e: Exception) {
+                Log.e(TAG, "WebView scan parse error", e)
+            }
+        }
+    }
+
+    inner class JsBridge {
+        @JavascriptInterface
+        fun onPdfLinksFound(json: String) {
+            // 保留兼容，但主要靠 scanForPdfLinks
+            Log.d(TAG, "WebView JsBridge: $json")
+        }
+    }
+
+    private fun startBatchDownload() {
+        val links: List<Pair<String, String>>
+        synchronized(allLinksCollected) {
+            links = allLinksCollected.toList()
+        }
+        if (links.isEmpty()) {
+            Toast.makeText(this, "未发现PDF文档", Toast.LENGTH_SHORT).show()
+            finish()
+            return
+        }
+        Log.d(TAG, "WebView: starting batch download of ${links.size} files")
+        Toast.makeText(this, "发现 ${links.size} 个文档，开始下载...", Toast.LENGTH_SHORT).show()
+
+        scope.launch(Dispatchers.IO) {
+            var firstDocHandled = false
+            var downloaded = 0
+            val totalExpected = links.size
+            for ((url, name) in links) {
+                if (downloadedUrls.contains(url)) continue
+                downloadedUrls.add(url)
+                try {
+                    val result = downloadOnePdf(url, name, !firstDocHandled)
+                    if (result) {
+                        firstDocHandled = true
+                        downloaded++
+                    }
+                } catch (e: Exception) {
+                    Log.e(TAG, "WebView batch download error: $url", e)
+                }
+            }
+
+            // 监督机制：对比实际下载数量与源网页数量
+            val db = (application as App).db
+            val actualDocs = db.documentDao().getBySmsIdSync(smsId)
+            val downloadedDocs = actualDocs.filter { it.parseStatus != 4 && it.filePath.isNotEmpty() }
+            Log.d(TAG, "WebView: expected=$totalExpected downloaded=$downloaded actual=${downloadedDocs.size}")
+
+            if (downloadedDocs.size < totalExpected) {
+                // 未下载完全，保留/更新待下载记录以便用户重试
+                val pendingExists = actualDocs.any { it.parseStatus == 4 }
+                if (!pendingExists) {
+                    val sourceUrl = intent.getStringExtra("url") ?: ""
+                    if (sourceUrl.isNotEmpty()) {
+                        db.documentDao().insert(
+                            DocumentRecord(
+                                smsId = smsId, fileName = "未下载完全(${downloadedDocs.size}/$totalExpected) 点击重试",
+                                filePath = "", fileSize = 0, sourceUrl = sourceUrl,
+                                downloadTime = System.currentTimeMillis(), parseStatus = 4
+                            )
+                        )
+                    }
+                }
+            } else {
+                // 全部下载完成，删除残留的待下载记录
+                val pendingDocs = actualDocs.filter { it.parseStatus == 4 }
+                for (p in pendingDocs) {
+                    db.documentDao().delete(p)
+                }
+            }
+
+            withContext(Dispatchers.Main) {
+                Toast.makeText(this@WebViewActivity,
+                    "下载完成: $downloaded/$totalExpected", Toast.LENGTH_SHORT).show()
+                finish()
+            }
+        }
+    }
+
+    /** 下载单个 PDF，返回 true 表示成功 */
+    private suspend fun downloadOnePdf(url: String, displayName: String, useExistingDocId: Boolean): Boolean {
+        val dir = File(filesDir, "pdfs").also { it.mkdirs() }
+        val guessName = URLUtil.guessFileName(url, "", "application/pdf")
+        val file = File(dir, "${System.currentTimeMillis()}_$guessName")
+
+        val request = Request.Builder().url(url).build()
+        val response = client.newCall(request).execute()
+        if (!response.isSuccessful) {
+            Log.e(TAG, "WebView download failed: HTTP ${response.code}")
+            return false
+        }
+        val contentType = response.header("Content-Type", "") ?: ""
+        if (!contentType.contains("pdf", true) && !contentType.contains("octet-stream", true)
+            && !url.lowercase().contains(".pdf")) {
+            Log.d(TAG, "WebView: skipping non-PDF content-type=$contentType url=$url")
+            return false
+        }
+        response.body?.byteStream()?.use { input ->
+            file.outputStream().use { output -> input.copyTo(output) }
+        }
+        if (file.length() == 0L) { file.delete(); return false }
+        Log.d(TAG, "WebView: downloaded ${file.length()} bytes -> ${file.name}")
+
+        val db = (application as App).db
+        val finalName = displayName.ifEmpty { guessName }
+
+        // 去重：已下载过的跳过
+        val existing = db.documentDao().findDownloadedByUrlAndSms(url, smsId)
+        if (existing != null) {
+            Log.d(TAG, "WebView: already downloaded url=$url, skip")
+            file.delete()
+            return false
+        }
+
+        if (useExistingDocId && docId > 0) {
+            val doc = db.documentDao().getById(docId)
+            if (doc != null) {
+                db.documentDao().update(doc.copy(
+                    fileName = guessName, filePath = file.absolutePath,
+                    fileSize = file.length(), parseStatus = 0,
+                    displayName = finalName
+                ))
+                PdfParser.parseAndSync(this@WebViewActivity, db, docId)
+                docId = 0
+                return true
+            }
+        }
+
+        if (db.documentDao().findByUrlAndSms(url, smsId) != null) return false
+        val newDocId = db.documentDao().insert(
+            DocumentRecord(
+                smsId = smsId, fileName = guessName, filePath = file.absolutePath,
+                fileSize = file.length(), sourceUrl = url,
+                downloadTime = System.currentTimeMillis(),
+                displayName = finalName
+            )
+        )
+        PdfParser.parseAndSync(this@WebViewActivity, db, newDocId)
+        return true
+    }
+
+    override fun onDestroy() {
+        scope.cancel()
+        webView.destroy()
+        super.onDestroy()
+    }
+}

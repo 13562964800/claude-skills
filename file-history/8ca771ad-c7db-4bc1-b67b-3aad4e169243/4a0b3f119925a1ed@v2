@@ -1,0 +1,460 @@
+package com.videodownload.app.ui.transcription
+
+import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.*
+import androidx.compose.material3.*
+import androidx.compose.runtime.*
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.unit.dp
+import androidx.lifecycle.viewmodel.compose.viewModel
+
+/**
+ * 转录界面
+ *
+ * 功能：
+ * 1. 手动点击开始转录
+ * 2. 显示转录进度
+ * 3. 支持取消转录
+ * 4. 转录完成自动退出
+ * 5. 支持重新转录
+ * 6. 显示转录结果
+ */
+@Composable
+fun TranscriptionScreen(
+    videoId: String,
+    videoTitle: String,
+    onNavigateBack: () -> Unit,
+    viewModel: TranscriptionViewModel = viewModel()
+) {
+    val uiState by viewModel.uiState.collectAsState()
+    val progress by viewModel.progress.collectAsState()
+    val transcription by viewModel.transcription.collectAsState()
+
+    // 加载转录结果
+    LaunchedEffect(videoId) {
+        viewModel.loadTranscription(videoId)
+    }
+
+    // 转录完成后自动退出
+    LaunchedEffect(uiState) {
+        if (uiState is TranscriptionUiState.Completed) {
+            kotlinx.coroutines.delay(2000) // 延迟 2 秒显示完成状态
+            onNavigateBack()
+        }
+    }
+
+    Scaffold(
+        topBar = {
+            TopAppBar(
+                title = { Text("转录") },
+                navigationIcon = {
+                    IconButton(onClick = onNavigateBack) {
+                        Icon(Icons.Default.ArrowBack, "返回")
+                    }
+                }
+            )
+        }
+    ) { padding ->
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(padding)
+                .padding(16.dp)
+                .verticalScroll(rememberScrollState()),
+            verticalArrangement = Arrangement.spacedBy(16.dp)
+        ) {
+            // 视频信息
+            VideoInfoCard(videoTitle)
+
+            // 根据状态显示不同内容
+            when (val state = uiState) {
+                is TranscriptionUiState.NotStarted -> {
+                    NotStartedContent(
+                        onStartTranscription = { engine ->
+                            viewModel.startTranscription(videoId, engine)
+                        }
+                    )
+                }
+
+                is TranscriptionUiState.Transcribing -> {
+                    TranscribingContent(
+                        progress = progress,
+                        onCancel = { viewModel.cancelTranscription() }
+                    )
+                }
+
+                is TranscriptionUiState.Completed -> {
+                    CompletedContent(
+                        transcription = transcription,
+                        onRetry = { engine ->
+                            viewModel.retryTranscription(videoId, engine)
+                        }
+                    )
+                }
+
+                is TranscriptionUiState.Failed -> {
+                    FailedContent(
+                        error = state.error,
+                        onRetry = { engine ->
+                            viewModel.retryTranscription(videoId, engine)
+                        }
+                    )
+                }
+
+                else -> {
+                    // Idle 状态
+                }
+            }
+        }
+    }
+}
+
+/**
+ * 视频信息卡片
+ */
+@Composable
+private fun VideoInfoCard(title: String) {
+    Card(
+        modifier = Modifier.fillMaxWidth()
+    ) {
+        Column(
+            modifier = Modifier.padding(16.dp)
+        ) {
+            Text(
+                text = "视频标题",
+                style = MaterialTheme.typography.labelMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+            Spacer(modifier = Modifier.height(4.dp))
+            Text(
+                text = title,
+                style = MaterialTheme.typography.bodyLarge,
+                fontWeight = FontWeight.Medium
+            )
+        }
+    }
+}
+
+/**
+ * 未开始转录内容
+ */
+@Composable
+private fun NotStartedContent(
+    onStartTranscription: (String) -> Unit
+) {
+    var selectedEngine by remember { mutableStateOf("auto") }
+
+    Card(
+        modifier = Modifier.fillMaxWidth()
+    ) {
+        Column(
+            modifier = Modifier.padding(16.dp),
+            verticalArrangement = Arrangement.spacedBy(16.dp)
+        ) {
+            Text(
+                text = "选择转录引擎",
+                style = MaterialTheme.typography.titleMedium
+            )
+
+            // 引擎选择
+            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                EngineOption(
+                    title = "自动选择",
+                    description = "根据文件大小和网络状况自动选择最佳引擎",
+                    selected = selectedEngine == "auto",
+                    onClick = { selectedEngine = "auto" }
+                )
+
+                EngineOption(
+                    title = "在线引擎 (Groq)",
+                    description = "速度快，准确度高，需要网络连接",
+                    selected = selectedEngine == "groq",
+                    onClick = { selectedEngine = "groq" }
+                )
+
+                EngineOption(
+                    title = "离线引擎 (Whisper.cpp)",
+                    description = "完全离线，无文件大小限制",
+                    selected = selectedEngine == "whisper_cpp",
+                    onClick = { selectedEngine = "whisper_cpp" }
+                )
+            }
+
+            // 开始转录按钮
+            Button(
+                onClick = { onStartTranscription(selectedEngine) },
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                Icon(Icons.Default.PlayArrow, contentDescription = null)
+                Spacer(modifier = Modifier.width(8.dp))
+                Text("开始转录")
+            }
+        }
+    }
+}
+
+/**
+ * 引擎选项
+ */
+@Composable
+private fun EngineOption(
+    title: String,
+    description: String,
+    selected: Boolean,
+    onClick: () -> Unit
+) {
+    Card(
+        onClick = onClick,
+        colors = CardDefaults.cardColors(
+            containerColor = if (selected) {
+                MaterialTheme.colorScheme.primaryContainer
+            } else {
+                MaterialTheme.colorScheme.surface
+            }
+        )
+    ) {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(12.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            RadioButton(
+                selected = selected,
+                onClick = onClick
+            )
+            Spacer(modifier = Modifier.width(8.dp))
+            Column {
+                Text(
+                    text = title,
+                    style = MaterialTheme.typography.bodyLarge,
+                    fontWeight = FontWeight.Medium
+                )
+                Text(
+                    text = description,
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            }
+        }
+    }
+}
+
+/**
+ * 转录中内容
+ */
+@Composable
+private fun TranscribingContent(
+    progress: com.videodownload.app.service.TranscriptionProgress?,
+    onCancel: () -> Unit
+) {
+    Card(
+        modifier = Modifier.fillMaxWidth()
+    ) {
+        Column(
+            modifier = Modifier.padding(16.dp),
+            verticalArrangement = Arrangement.spacedBy(16.dp)
+        ) {
+            // 状态标题
+            Row(
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                CircularProgressIndicator(
+                    modifier = Modifier.size(24.dp),
+                    strokeWidth = 2.dp
+                )
+                Spacer(modifier = Modifier.width(12.dp))
+                Text(
+                    text = "转录中...",
+                    style = MaterialTheme.typography.titleMedium
+                )
+            }
+
+            // 进度信息
+            if (progress != null) {
+                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    // 进度条
+                    LinearProgressIndicator(
+                        progress = progress.progress,
+                        modifier = Modifier.fillMaxWidth()
+                    )
+
+                    // 进度文本
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween
+                    ) {
+                        Text(
+                            text = progress.message,
+                            style = MaterialTheme.typography.bodyMedium
+                        )
+                        Text(
+                            text = "${(progress.progress * 100).toInt()}%",
+                            style = MaterialTheme.typography.bodyMedium,
+                            fontWeight = FontWeight.Medium
+                        )
+                    }
+
+                    // 分段信息
+                    if (progress.totalSegments > 0) {
+                        Text(
+                            text = "分段: ${progress.currentSegment}/${progress.totalSegments}",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
+                }
+            }
+
+            // 取消按钮
+            OutlinedButton(
+                onClick = onCancel,
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                Icon(Icons.Default.Close, contentDescription = null)
+                Spacer(modifier = Modifier.width(8.dp))
+                Text("取消转录")
+            }
+
+            // 提示信息
+            Text(
+                text = "提示：离开此页面不会中断转录，转录将在后台继续进行",
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+        }
+    }
+}
+
+/**
+ * 转录完成内容
+ */
+@Composable
+private fun CompletedContent(
+    transcription: com.videodownload.app.data.model.TranscriptionEntity?,
+    onRetry: (String) -> Unit
+) {
+    Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
+        // 成功提示
+        Card(
+            modifier = Modifier.fillMaxWidth(),
+            colors = CardDefaults.cardColors(
+                containerColor = MaterialTheme.colorScheme.primaryContainer
+            )
+        ) {
+            Row(
+                modifier = Modifier.padding(16.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Icon(
+                    Icons.Default.CheckCircle,
+                    contentDescription = null,
+                    tint = MaterialTheme.colorScheme.primary
+                )
+                Spacer(modifier = Modifier.width(12.dp))
+                Column {
+                    Text(
+                        text = "转录完成",
+                        style = MaterialTheme.typography.titleMedium,
+                        fontWeight = FontWeight.Medium
+                    )
+                    if (transcription != null) {
+                        Text(
+                            text = "语言: ${transcription.language} | 引擎: ${transcription.engine}",
+                            style = MaterialTheme.typography.bodySmall
+                        )
+                    }
+                }
+            }
+        }
+
+        // 转录文本预览
+        if (transcription != null) {
+            Card(
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                Column(
+                    modifier = Modifier.padding(16.dp)
+                ) {
+                    Text(
+                        text = "转录文本",
+                        style = MaterialTheme.typography.titleMedium
+                    )
+                    Spacer(modifier = Modifier.height(8.dp))
+                    Text(
+                        text = transcription.text.take(200) + if (transcription.text.length > 200) "..." else "",
+                        style = MaterialTheme.typography.bodyMedium
+                    )
+                }
+            }
+        }
+
+        // 重新转录按钮
+        OutlinedButton(
+            onClick = { onRetry("auto") },
+            modifier = Modifier.fillMaxWidth()
+        ) {
+            Icon(Icons.Default.Refresh, contentDescription = null)
+            Spacer(modifier = Modifier.width(8.dp))
+            Text("重新转录")
+        }
+    }
+}
+
+/**
+ * 转录失败内容
+ */
+@Composable
+private fun FailedContent(
+    error: String?,
+    onRetry: (String) -> Unit
+) {
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        colors = CardDefaults.cardColors(
+            containerColor = MaterialTheme.colorScheme.errorContainer
+        )
+    ) {
+        Column(
+            modifier = Modifier.padding(16.dp),
+            verticalArrangement = Arrangement.spacedBy(16.dp)
+        ) {
+            Row(
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Icon(
+                    Icons.Default.Error,
+                    contentDescription = null,
+                    tint = MaterialTheme.colorScheme.error
+                )
+                Spacer(modifier = Modifier.width(12.dp))
+                Text(
+                    text = "转录失败",
+                    style = MaterialTheme.typography.titleMedium,
+                    fontWeight = FontWeight.Medium
+                )
+            }
+
+            if (error != null) {
+                Text(
+                    text = error,
+                    style = MaterialTheme.typography.bodyMedium
+                )
+            }
+
+            Button(
+                onClick = { onRetry("auto") },
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                Icon(Icons.Default.Refresh, contentDescription = null)
+                Spacer(modifier = Modifier.width(8.dp))
+                Text("重试")
+            }
+        }
+    }
+}

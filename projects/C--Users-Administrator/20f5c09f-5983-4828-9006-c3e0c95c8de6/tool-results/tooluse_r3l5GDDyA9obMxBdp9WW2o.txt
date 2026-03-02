@@ -1,0 +1,87 @@
+     1→# Task Plan: 安卓视频解析与转录系统优化
+     2→
+     3→## Goal
+     4→研究GitHub热门视频解析和转录项目，改进安卓应用的解析成功率、转录显示效果和代码鲁棒性。
+     5→
+     6→## Current Phase
+     7→Phase 5 - 完成
+     8→
+     9→## Phases
+    10→
+    11→### Phase 1: 研究与分析 ✅ complete
+    12→- [x] 探索项目现有结构
+    13→- [x] 研究GitHub热门视频解析项目（yt-dlp、Douyin_TikTok_Download_API、BilibiliDown等）
+    14→- [x] 研究安卓转录项目（whisper.cpp、whisper_android、sherpa-onnx、faster-whisper）
+    15→- [x] 分析现有实现的问题
+    16→- **Status:** complete
+    17→
+    18→### Phase 2: 规划与设计 ✅ complete
+    19→- [x] 总结研究成果
+    20→- [x] 设计视频解析改进方案
+    21→- [x] 设计转录优化方案
+    22→- [x] 制定实施计划
+    23→- **Status:** complete
+    24→
+    25→### Phase 3: 视频解析改进 ✅ complete
+    26→- [x] 集成NewPipeExtractor库（YouTube解析）- 已添加为首选方案
+    27→- [x] 优化B站DASH格式处理 - 已有音视频合并逻辑
+    28→- [x] 添加小红书解析支持 - 已实现
+    29→- [x] 添加API健康检查机制 - 已实现（apiHealthCache + ApiHealthStatus）
+    30→- [x] 改进Cookie管理 - 已实现（各平台Cookie提供者）
+    31→- [x] 添加微信视频号解析支持 - 已添加第三方API支持（但安卓限制）
+    32→- **Status:** complete
+    33→
+    34→### Phase 4: 转录系统优化 ✅ complete
+    35→- [x] 优化分段策略 - 智能分段+并行转录
+    36→- [x] 改进进度显示 - 详细状态跟踪
+    37→- [x] 增强错误恢复机制 - Semaphore并发控制+API请求间隔
+    38→- **Status:** complete
+    39→
+    40→### Phase 5: 界面优化与测试 ✅ complete
+    41→- [x] 重新设计主界面布局 - 三列表状态：下载中→已下载→已转录
+    42→- [x] 添加手动转录按钮 - 用户可在"已下载"列表手动触发转录
+    43→- [x] 已转录视频保护 - 删除按钮只在点击对话框中显示
+    44→- [x] 点击视频弹出操作对话框 - 文件夹/分享/删除
+    45→- [x] 保留词书和收藏入口 - 位于列表切换栏右侧
+    46→- [x] 移除未实现的功能按钮 - 清理AI设置中的TODO按钮
+    47→- [x] 简化顶部栏 - 保留核心设置入口
+    48→- **Status:** complete
+    49→
+    50→## Notes
+    51→- 用户明确要求针对安卓平台优化
+    52→- 核心目标：解析、下载、转录三个功能的最优化配置
+    53→- 工作流程：解析链接 → 下载 → 手动转录 → 播放/分享/删除
+    54→- 已转录视频受保护，删除需二次确认
+    55→
+    56→## Key Questions
+    57→1. 是否需要集成NewPipeExtractor作为YouTube解析的主要方案？
+    58→2. 本地Whisper转录（sherpa-onnx）vs 云端Groq API如何平衡？
+    59→3. 如何在不增加应用体积太多的情况下支持本地转录？
+    60→4. API健康检查的频率和策略如何设计？
+    61→
+    62→## Decisions Made
+    63→| Decision | Rationale |
+    64→|----------|-----------|
+    65→| 使用NewPipeExtractor | 专门为Android设计，不依赖YouTube API，直接解析网页，稳定性高 |
+    66→| 保留云端Groq API | 本地转录模型较大（100MB+），云端更快更省电 |
+    67→| 添加sherpa-onnx选项 | 提供离线转录能力，满足隐私需求 |
+    68→| API健康检查机制 | 提高解析成功率，自动选择最佳API |
+    69→| DASH格式优先处理 | B站高清视频使用DASH，需要音视频合并 |
+    70→
+    71→## Errors Encountered
+    72→| Error | Attempt | Resolution |
+    73→|-------|---------|------------|
+    74→| 无 | - | - |
+    75→
+    76→## Implementation Priority
+    77→1. **高优先级**：NewPipeExtractor集成（解决YouTube解析不稳定问题）
+    78→2. **高优先级**：B站DASH格式优化（提高高清视频下载成功率）
+    79→3. **中优先级**：API健康检查（提高整体解析成功率）
+    80→4. **中优先级**：转录进度显示优化（改善用户体验）
+    81→5. **低优先级**：本地Whisper集成（作为可选功能）
+    82→
+    83→## Notes
+    84→- 用户明确要求针对安卓平台优化
+    85→- 核心目标：解析、下载、转录三个功能的最优化配置
+    86→- 这是检验项目是否通过的最高标准
+    87→

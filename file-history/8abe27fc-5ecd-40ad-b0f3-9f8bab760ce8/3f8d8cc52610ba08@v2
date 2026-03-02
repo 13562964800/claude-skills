@@ -1,0 +1,30 @@
+#!/usr/bin/env python3
+import re
+
+with open('AI前沿知识儿童科普画册-带全部插图.md', 'r', encoding='utf-8') as f:
+    content = f.read()
+
+# 找到所有插图标记及其位置
+pattern = r'【插图([^】]+)】'
+missing = []
+has_svg = []
+
+for match in re.finditer(pattern, content):
+    marker = match.group(0)
+    ill_id = match.group(1)
+    start_pos = match.end()
+
+    # 检查后面300个字符是否有SVG
+    next_content = content[start_pos:start_pos+300]
+
+    if '<svg' in next_content:
+        has_svg.append(ill_id)
+    else:
+        missing.append(ill_id)
+
+print(f'总插图: {len(has_svg) + len(missing)}')
+print(f'已有SVG: {len(has_svg)}')
+print(f'缺失SVG: {len(missing)}')
+print('\n缺失的插图ID:')
+for ill_id in missing:
+    print(f'  {ill_id}')

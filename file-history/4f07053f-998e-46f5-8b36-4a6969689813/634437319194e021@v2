@@ -1,0 +1,44 @@
+{
+  "expo": {
+    "name": "视频转录助手",
+    "slug": "video-transcribe-app",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "icon": "./assets/icon.png",
+    "userInterfaceStyle": "light",
+    "splash": {
+      "image": "./assets/splash-icon.png",
+      "resizeMode": "contain",
+      "backgroundColor": "#ffffff"
+    },
+    "ios": {
+      "supportsTablet": true,
+      "bundleIdentifier": "com.videotranscribe.app"
+    },
+    "android": {
+      "package": "com.videotranscribe.app",
+      "versionCode": 1,
+      "adaptiveIcon": {
+        "backgroundColor": "#007AFF",
+        "foregroundImage": "./assets/android-icon-foreground.png",
+        "backgroundImage": "./assets/android-icon-background.png",
+        "monochromeImage": "./assets/android-icon-monochrome.png"
+      },
+      "permissions": [
+        "INTERNET",
+        "ACCESS_NETWORK_STATE"
+      ]
+    },
+    "web": {
+      "favicon": "./assets/favicon.png"
+    },
+    "extra": {
+      "eas": {
+        "projectId": "video-transcribe-app"
+      }
+    },
+    "plugins": [
+      "expo-build-properties"
+    ]
+  }
+}

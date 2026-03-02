@@ -1,0 +1,55 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 800 450" width="800" height="450">
+  <defs>
+    <filter id="softShadow">
+      <feGaussianBlur in="SourceAlpha" stdDeviation="3"/>
+      <feOffset dx="2" dy="2" result="offsetblur"/>
+      <feComponentTransfer>
+        <feFuncA type="linear" slope="0.2"/>
+      </feComponentTransfer>
+      <feMerge>
+        <feMergeNode/>
+        <feMergeNode in="SourceGraphic"/>
+      </feMerge>
+    </filter>
+    <filter id="glow">
+      <feGaussianBlur stdDeviation="2" result="coloredBlur"/>
+      <feMerge>
+        <feMergeNode in="coloredBlur"/>
+        <feMergeNode in="SourceGraphic"/>
+      </feMerge>
+    </filter>
+  </defs>
+
+  <!-- 温暖背景 -->
+  <rect width="800" height="450" fill="#FFF9F0"/>
+
+  <!-- 大脑形状 -->
+  <g transform="translate(400, 225)">
+    <ellipse cx="0" cy="0" rx="120" ry="100" fill="#E6E6FA" stroke="#9370DB" stroke-width="4"/>
+    <path d="M -80,-40 Q -100,-60 -90,-80 Q -70,-90 -50,-80 Q -40,-70 -50,-50"
+          fill="#E6E6FA" stroke="#9370DB" stroke-width="3"/>
+    <path d="M 80,-40 Q 100,-60 90,-80 Q 70,-90 50,-80 Q 40,-70 50,-50"
+          fill="#E6E6FA" stroke="#9370DB" stroke-width="3"/>
+
+    <!-- 文字流动 -->
+    <text x="-60" y="-20" font-size="20" fill="#9370DB" font-family="Arial">你好</text>
+    <text x="20" y="-30" font-size="18" fill="#9370DB" font-family="Arial">Hello</text>
+    <text x="-40" y="20" font-size="16" fill="#9370DB" font-family="Arial">世界</text>
+    <text x="30" y="30" font-size="19" fill="#9370DB" font-family="Arial">AI</text>
+
+    <!-- 箭头表示流动 -->
+    <path d="M -80,60 L -60,80" stroke="#FFD700" stroke-width="3" marker-end="url(#arrowhead)"/>
+    <path d="M 0,80 L 20,100" stroke="#FFD700" stroke-width="3" marker-end="url(#arrowhead)"/>
+    <path d="M 80,60 L 100,80" stroke="#FFD700" stroke-width="3" marker-end="url(#arrowhead)"/>
+  </g>
+
+  <defs>
+    <marker id="arrowhead" markerWidth="10" markerHeight="10" refX="9" refY="3" orient="auto">
+      <polygon points="0 0, 10 3, 0 6" fill="#FFD700"/>
+    </marker>
+  </defs>
+
+  <text x="400" y="80" font-size="32" font-weight="bold" fill="#9370DB" text-anchor="middle">
+    大语言模型 (LLM)
+  </text>
+</svg>

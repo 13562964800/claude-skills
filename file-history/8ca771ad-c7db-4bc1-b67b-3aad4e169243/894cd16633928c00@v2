@@ -1,0 +1,18 @@
+# 服务器配置
+server:
+  host: 0.0.0.0
+  port: 8765
+
+# 下载配置
+download:
+  output_dir: ~/Downloads/videos
+
+# 转录配置
+transcription:
+  transcription_mode: auto  # auto, local, online
+  model_size: base  # tiny, base, small, medium, large-v3
+  groq_api_key: ""  # 在这里填入你的 Groq API Key
+
+# 数据库配置
+database:
+  path: data/tasks.db

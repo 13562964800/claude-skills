@@ -1,0 +1,89 @@
+import re
+
+# 全部诉讼参与人角色关键词
+_ROLES = (
+    "原告", "被告", "第三人",
+    "上诉人", "被上诉人",
+    "申请人", "被申请人",
+    "申请执行人", "被执行人",
+    "再审申请人", "再审被申请人",
+    "抗诉申请人",
+    "答辩人", "被答辩人",
+    "异议人", "被异议人",
+    "反诉原告", "反诉被告",
+    "原审原告", "原审被告", "原审第三人",
+    "委托诉讼代理人", "委托代理人", "诉讼代理人",
+    "法定代理人", "指定代理人",
+    "法定代表人", "负责人",
+)
+
+# 键名集合：冒号前面的键名不作为字段值
+_KEY_NAMES = set(_ROLES) | {
+    "姓名", "性别", "民族", "出生日期", "出生年月", "年龄", "职业", "工作单位",
+    "联系电话", "电话", "手机", "电话号码", "手机号码", "手机号",
+    "身份证号", "身份证号码", "公民身份号码", "身份证",
+    "律师事务所", "统一社会信用代码", "企业信用代码", "社会信用代码", "信用代码",
+    "住所地", "地址", "住址", "联系地址", "住所", "住",
+    "邮政编码", "邮编", "案号", "合同编号", "职务", "电子邮箱", "名称",
+    "公司名称", "企业名称", "单位名称", "组织机构代码",
+    "民事起诉状", "民事答辩状", "起诉状", "答辩状",
+    "诉讼请求", "事实和理由",
+}
+
+# 当事人区域终止标记
+_PARTY_END = re.compile(r'诉讼请求|事实和理由|审理查明|本院认为|判决如下|裁定如下')
+
+# 构建键名正则：匹配 "键名：" 或 "键名:"
+_ALL_KEYS = sorted(_KEY_NAMES, key=len, reverse=True)
+_KEY_PATTERN = re.compile(r'(' + '|'.join(re.escape(k) for k in _ALL_KEYS) + r')[：:]')
+
+# 清理字段首尾标点
+_STRIP_PUNCT = re.compile(
+    r'^[\s，。；、！？,.;!?\n\r\t\u201c\u201d\u2018\u2019"\'（）()\[\]【】《》<>{}\u00b7\u2014\u2013\-\u2026\uff5e~\ufe4f\u2502|／/\\]+|'
+    r'[\s，。；、！？,.;!?\n\r\t\u201c\u201d\u2018\u2019"\'（）()\[\]【】《》<>{}\u00b7\u2014\u2013\-\u2026\uff5e~\ufe4f\u2502|／/\\]+$'
+)
+
+
+class LegalFieldExtractor:
+    def extract_fields(self, text, custom_keys=None):
+        if not text:
+            return []
+
+        # 合并自定义键名
+        skip = set(_KEY_NAMES)
+        if custom_keys:
+            skip.update(custom_keys)
+            key_pat = re.compile(
+                r'(' + '|'.join(re.escape(k) for k in sorted(skip, key=len, reverse=True)) + r')[：:]'
+            )
+        else:
+            key_pat = _KEY_PATTERN
+
+        # 截取当事人区域
+        m = _PARTY_END.search(text)
+        party_text = text[:m.start()] if m else text
+
+        # 用"键名："作为分隔符切分，提取冒号后面到下一个键名之间的内容
+        fields = []
+        parts = key_pat.split(party_text)
+        # parts 结构: [前缀, 键名1, 值1, 键名2, 值2, ...]
+        # 从 index 2 开始，每隔2个是值
+        for i in range(2, len(parts), 2):
+            val = parts[i].strip()
+            if not val:
+                continue
+            # 按逗号等标点拆分成子字段
+            subs = re.split(r'[，。；、！？,.;!?\n\r\t]+', val)
+            for sub in subs:
+                sub = _STRIP_PUNCT.sub('', sub).strip()
+                if sub and sub not in skip and len(sub) <= 80:
+                    fields.append(sub)
+
+        # 去重
+        seen = set()
+        result = []
+        for f in fields:
+            if f not in seen:
+                seen.add(f)
+                result.append(f)
+        return result

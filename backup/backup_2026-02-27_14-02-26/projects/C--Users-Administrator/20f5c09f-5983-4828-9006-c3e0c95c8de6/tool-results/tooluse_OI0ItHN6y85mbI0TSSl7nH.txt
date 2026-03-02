@@ -1,0 +1,878 @@
+     1→package com.multilanglearner.data.network
+     2→
+     3→import android.content.Context
+     4→import android.util.Log
+     5→import com.arthenica.ffmpegkit.FFmpegKit
+     6→import com.arthenica.ffmpegkit.FFmpegKitConfig
+     7→import com.arthenica.ffmpegkit.FFprobeKit
+     8→import com.arthenica.ffmpegkit.MediaInformationSession
+     9→import com.multilanglearner.domain.model.AIConfig
+    10→import com.multilanglearner.domain.model.WordTimestamp
+    11→import com.multilanglearner.domain.model.LANG_NAME_TO_CODE
+    12→import dagger.hilt.android.qualifiers.ApplicationContext
+    13→import kotlinx.coroutines.CancellationException
+    14→import kotlinx.coroutines.Dispatchers
+    15→import kotlinx.coroutines.async
+    16→import kotlinx.coroutines.awaitAll
+    17→import kotlinx.coroutines.coroutineScope
+    18→import kotlinx.coroutines.currentCoroutineContext
+    19→import kotlinx.coroutines.delay
+    20→import kotlinx.coroutines.ensureActive
+    21→import kotlinx.coroutines.isActive
+    22→import kotlinx.coroutines.sync.Mutex
+    23→import kotlinx.coroutines.sync.Semaphore
+    24→import kotlinx.coroutines.sync.withLock
+    25→import kotlinx.coroutines.sync.withPermit
+    26→import kotlinx.coroutines.withContext
+    27→import kotlinx.coroutines.withTimeout
+    28→import java.io.File
+    29→import kotlin.text.Regex
+    30→import javax.inject.Inject
+    31→import javax.inject.Singleton
+    32→
+    33→/**
+    34→ * FFmpeg 分段转录服务 - 使用 FFmpeg Kit 处理大视频文件
+    35→ *
+    36→ * 增强功能：
+    37→ * - 支持取消：检查协程状态，随时响应取消请求
+    38→ * - 智能分段：基于静音检测和文件大小的自适应分段
+    39→ * - 重试机制：每个段失败后自动重试
+    40→ * - 超时控制：防止段处理卡死
+    41→ * - 剩余时间估算：实时显示预计完成时间
+    42→ * - 内存优化：流式处理大文件，不一次性加载
+    43→ *
+    44→ * 参考 GitHub 项目：
+    45→ * - WritingMinds/ffmpeg-kit: Android FFmpeg 支持
+    46→ * - gvk7/Whisper-Ffmpeg-Multi-Segment: 多段 Whisper 转录
+    47→ * - wendy7756/AI-Video-Transcriber: 20分钟分段策略
+    48→ */
+    49→@Singleton
+    50→class FFmpegSegmentedTranscriptionService @Inject constructor(
+    51→    @ApplicationContext private val context: Context,
+    52→    private val whisperService: WhisperService
+    53→) {
+    54→    companion object {
+    55→        private const val TAG = "FFmpegSegmentTrans"
+    56→        // Groq API 文件大小限制（调整为安全值）
+    57→        private const val MAX_API_FILE_SIZE = 25 * 1024 * 1024L // 25MB（Groq 实际限制）
+    58→        // 音频段目标大小（留出安全余量）
+    59→        private const val TARGET_SEGMENT_SIZE = 20 * 1024 * 1024L // 20MB
+    60→        // 分段转录的时长阈值（秒）- 超过此时长使用分段转录
+    61→        private const val SEGMENTED_TRANSCRIPTION_THRESHOLD = 180.0 // 3分钟（降低阈值）
+    62→        // 最小分段时长（秒）- 避免分段太小
+    63→        private const val MIN_SEGMENT_DURATION = 60L // 1分钟
+    64→        // 分段时长（秒）- 根据码率动态调整
+    65→        private const val SEGMENT_DURATION = 180L // 3分钟
+    66→        // 段间重叠时间（秒）- 增加重叠确保连续性
+    67→        private const val OVERLAP_DURATION = 3L
+    68→        // 临时文件目录
+    69→        private const val TEMP_DIR = "transcription_temp"
+    70→        // 最大重试次数
+    71→        private const val MAX_RETRIES = 3
+    72→        // 重试延迟（毫秒）- 指数退避
+    73→        private const val RETRY_DELAY_BASE_MS = 1000L
+    74→        // 段提取超时（秒）
+    75→        private const val EXTRACTION_TIMEOUT_SEC = 300L  // 5分钟超时
+    76→        // 段转录超时（秒）- 根据段长度动态计算
+    77→        private const val TRANSCRIPTION_TIMEOUT_SEC_PER_MIN = 120L // 每分钟音频最多2分钟
+    78→        // 总转录超时（秒）- 防止卡死
+    79→        private const val TOTAL_TRANSCRIPTION_TIMEOUT_SEC = 3600L // 60分钟超时
+    80→        // 并行处理数量 - 根据设备性能动态调整（2个并行转录）
+    81→        private const val PARALLEL_SEGMENTS = 2
+    82→        // API请求间隔（毫秒）- 避免请求过快被限流
+    83→        private const val API_REQUEST_INTERVAL_MS = 800L
+    84→        // 进度更新频率（段数）
+    85→        private const val PROGRESS_UPDATE_INTERVAL = 1
+    86→    }
+    87→
+    88→    /**
+    89→     * 分段转录进度数据 - 增强版
+    90→     */
+    91→    data class SegmentProgress(
+    92→        val currentSegment: Int,
+    93→        val totalSegments: Int,
+    94→        val percent: Int,
+    95→        val message: String,
+    96→        val remainingSeconds: Long = 0,
+    97→        val estimatedCompletionTime: Long = 0,
+    98→        // 新增：详细的分段状态
+    99→        val segmentStates: Map<Int, SegmentState> = emptyMap()
+   100→    )
+   101→
+   102→    /**
+   103→     * 分段状态
+   104→     */
+   105→    data class SegmentState(
+   106→        val index: Int,
+   107→        val status: SegmentStatus,
+   108→        val message: String = ""
+   109→    )
+   110→
+   111→    enum class SegmentStatus {
+   112→        PENDING,       // 等待处理
+   113→        EXTRACTING,    // 提取音频中
+   114→        EXTRACTED,     // 音频提取完成
+   115→        TRANSCRIBING,  // 转录中
+   116→        COMPLETED,     // 完成
+   117→        FAILED,        // 失败
+   118→        CANCELLED       // 已取消
+   119→    }
+   120→
+   121→    /**
+   122→     * 分段转录视频
+   123→     * @param videoFile 视频文件
+   124→     * @param config AI配置
+   125→     * @param lang 视频语言代码（如 "en", "ru", "ja" 等），null 表示自动检测
+   126→     * @param onProgress 进度回调 (当前段, 总段数, 百分比, 消息, 剩余秒数)
+   127→     */
+   128→    suspend fun transcribeWithSegments(
+   129→        videoFile: File,
+   130→        config: AIConfig,
+   131→        lang: String? = null,
+   132→        onProgress: (Int, Int, Int, String, Long) -> Unit = { _, _, _, _, _ -> }
+   133→    ): WhisperResult? = withTimeout(TOTAL_TRANSCRIPTION_TIMEOUT_SEC * 1000L) {
+   134→        try {
+   135→            val fileSize = videoFile.length()
+   136→            val fileSizeMB = String.format("%.2f", fileSize / 1024.0 / 1024.0)
+   137→
+   138→            Log.d(TAG, "Starting segmented transcription: ${videoFile.name}, $fileSizeMB MB")
+   139→            onProgress(0, 1, 5, "获取视频信息...", 0)
+   140→
+   141→            // 获取视频时长和详细信息
+   142→            val mediaInfo = getMediaInformation(videoFile)
+   143→
+   144→            // 尝试解析时长，兼容多种格式
+   145→            val duration = try {
+   146→                val durationStr = mediaInfo?.getDuration()
+   147→                when {
+   148→                    durationStr == null -> null
+   149→                    durationStr.matches(Regex("\\d+")) -> durationStr.toLongOrNull()?.div(1000.0)
+   150→                    durationStr.matches(Regex("\\d+\\.\\d+")) -> durationStr.toDoubleOrNull()
+   151→                    else -> {
+   152→                        Log.e(TAG, "Invalid duration format: $durationStr")
+   153→                        null
+   154→                    }
+   155→                }
+   156→            } catch (e: Exception) {
+   157→                Log.e(TAG, "Error parsing duration: $mediaInfo", e)
+   158→                null
+   159→            }
+   160→
+   161→            if (duration == null) {
+   162→                Log.e(TAG, "Failed to get video duration")
+   163→                return@withContext WhisperResult(
+   164→                    success = false,
+   165→                    error = "无法读取视频时长，请确保视频文件有效。\n\nFFmpeg 错误: ${mediaInfo?.getAllProperties()}"
+   166→                )
+   167→            }
+   168→
+   169→            val durationMinutes = String.format("%.1f", duration / 60.0)
+   170→            Log.d(TAG, "Video duration: $durationMinutes minutes ($duration seconds), file size: $fileSizeMB MB")
+   171→
+   172→            // 判断处理策略 - 基于时长而不是文件大小
+   173→            return@withContext when {
+   174→                duration <= SEGMENTED_TRANSCRIPTION_THRESHOLD && fileSize <= MAX_API_FILE_SIZE -> {
+   175→                    // 时长较短且文件在API限制内，先压缩音频再转录
+   176→                    Log.d(TAG, "Direct transcription with compression (duration: ${duration.toInt()}s, size: ${fileSizeMB}MB)")
+   177→                    onProgress(1, 1, 10, "压缩音频...", 0)
+   178→
+   179→                    // 先压缩音频
+   180→                    val compressedFile = compressAudioForTranscription(videoFile)
+   181→                    if (compressedFile == null) {
+   182→                        Log.e(TAG, "Failed to compress audio, trying original file")
+   183→                        onProgress(1, 1, 20, "直接转录中...", 0)
+   184→                        whisperService.transcribeGroq(videoFile, config, lang)
+   185→                    } else {
+   186→                        Log.d(TAG, "Audio compressed: ${compressedFile.length()} bytes")
+   187→                        onProgress(1, 1, 30, "转录中...", 0)
+   188→                        val result = whisperService.transcribeGroq(compressedFile, config, lang)
+   189→                        // 删除临时压缩文件
+   190→                        compressedFile.delete()
+   191→                        result
+   192→                    }
+   193→                }
+   194→                else -> {
+   195→                    // 时长较长或文件过大，需要分段处理
+   196→                    val reason = if (duration > SEGMENTED_TRANSCRIPTION_THRESHOLD) {
+   197→                        "video duration exceeds ${SEGMENTED_TRANSCRIPTION_THRESHOLD.toInt()/60} minutes"
+   198→                    } else {
+   199→                        "file size exceeds ${MAX_API_FILE_SIZE/1024/1024}MB"
+   200→                    }
+   201→                    Log.d(TAG, "Segmented transcription: $reason")
+   202→                    transcribeSegmentedInternal(videoFile, config, duration, lang, onProgress)
+   203→                }
+   204→            }
+   205→
+   206→        } catch (e: Exception) {
+   207→            Log.e(TAG, "Transcription error", e)
+   208→            Log.e(TAG, "Error stack trace: ${e.stackTraceToString()}")
+   209→            WhisperResult(
+   210→                success = false,
+   211→                error = "❌ 转录失败\n\n错误: ${e.message}\n\n详细日志已输出到 logcat"
+   212→            )
+   213→        }
+   214→    }
+   215→
+   216→    /**
+   217→     * 内部分段转录实现 - 增强版（支持取消、详细进度跟踪）
+   218→     */
+   219→    private suspend fun transcribeSegmentedInternal(
+   220→        videoFile: File,
+   221→        config: AIConfig,
+   222→        duration: Double,
+   223→        lang: String?,
+   224→        onProgress: (Int, Int, Int, String, Long) -> Unit
+   225→    ): WhisperResult? = coroutineScope {
+   226→        Log.d(TAG, "Starting internal segmented transcription, duration: ${duration}s")
+   227→        // 检查取消
+   228→        ensureActive()
+   229→
+   230→        // 计算分段数量，传入文件大小以优化分段策略
+   231→        val segments = calculateSegments(duration, videoFile.length())
+   232→        val totalSegments = segments.size
+   233→
+   234→        Log.d(TAG, "Will process in $totalSegments segments (parallel: $PARALLEL_SEGMENTS)")
+   235→        onProgress(0, totalSegments, 10, "准备处理 $totalSegments 个分段...", 0)
+   236→
+   237→        // 分段状态跟踪
+   238→        val segmentStates = mutableMapOf<Int, SegmentState>()
+   239→        segments.forEachIndexed { index, _ ->
+   240→            segmentStates[index] = SegmentState(index, SegmentStatus.PENDING)
+   241→        }
+   242→
+   243→        // 创建临时目录
+   244→        val tempDir = File(context.cacheDir, "$TEMP_DIR${System.currentTimeMillis()}")
+   245→        tempDir.mkdirs()
+   246→
+   247→        // 时间跟踪
+   248→        val startTime = System.currentTimeMillis()
+   249→        val segmentTimes = mutableMapOf<Int, Long>()
+   250→
+   251→        return@coroutineScope try {
+   252→            val allWords = mutableListOf<WordTimestamp>()
+   253→            var failedSegments = 0
+   254→            val successSegments = mutableListOf<Int>()
+   255→
+   256→            // 第一步：提取所有音频段（串行，因为IO密集）
+   257→            onProgress(0, totalSegments, 15, "提取音频段...", 0)
+   258→            val segmentFiles = mutableListOf<File?>()
+   259→            segments.forEachIndexed { index, segment ->
+   260→                // 检查取消
+   261→                ensureActive()
+   262→
+   263→                val segmentFile = File(tempDir, "segment_${index}.m4a")
+   264→
+   265→                // 更新状态
+   266→                segmentStates[index] = SegmentState(index, SegmentStatus.EXTRACTING, "提取音频中...")
+   267→                updateProgressWithStates(0, totalSegments, 15 + (index * 20 / totalSegments),
+   268→                    "提取音频 ${index + 1}/$totalSegments...", 0, segmentStates, onProgress)
+   269→
+   270→                val extractSuccess = withTimeout(EXTRACTION_TIMEOUT_SEC * 1000L) {
+   271→                    extractAudioSegmentWithRetry(videoFile, segmentFile, segment.startTime, segment.duration, index)
+   272→                }
+   273→
+   274→                // 检查取消（在超时后）
+   275→                ensureActive()
+   276→
+   277→                if (extractSuccess && segmentFile.exists()) {
+   278→                    segmentFiles.add(segmentFile)
+   279→                    segmentStates[index] = SegmentState(index, SegmentStatus.EXTRACTED, "音频已提取")
+   280→                    Log.d(TAG, "Segment $index extracted successfully")
+   281→                } else {
+   282→                    Log.e(TAG, "Failed to extract segment $index")
+   283→                    segmentFiles.add(null)
+   284→                    segmentStates[index] = SegmentState(index, SegmentStatus.FAILED, "音频提取失败")
+   285→                    failedSegments++
+   286→                }
+   287→
+   288→                // 更新状态
+   289→                updateProgressWithStates(index + 1, totalSegments, 15 + ((index + 1) * 20 / totalSegments),
+   290→                    "提取完成 ${index + 1}/$totalSegments", 0, segmentStates, onProgress)
+   291→            }
+   292→
+   293→            // 检查取消（提取完成后）
+   294→            ensureActive()
+   295→
+   296→            // 第二步：并行转录音频段
+   297→            updateProgressWithStates(0, totalSegments, 40, "开始转录...", 0, segmentStates, onProgress)
+   298→
+   299→            val completedIndices = mutableListOf<Int>()
+   300→            val transcriptionMutex = Mutex()
+   301→            // 使用 semaphore 控制并发数
+   302→            val semaphore = Semaphore(PARALLEL_SEGMENTS)
+   303→
+   304→            // 语言检测：如果用户未指定语言，先转录第一段检测语言，再传给后续分段
+   305→            var effectiveLang = lang
+   306→            if (effectiveLang == null && segments.isNotEmpty() && segmentFiles[0] != null) {
+   307→                val firstSegment = segments[0]
+   308→                val firstFile = segmentFiles[0]!!
+   309→                segmentStates[0] = SegmentState(0, SegmentStatus.TRANSCRIBING, "检测语言中...")
+   310→                updateProgressWithStates(0, totalSegments, 40, "检测语言中...", 0, segmentStates, onProgress)
+   311→
+   312→                val firstTimeout = (firstSegment.duration / 60.0 * TRANSCRIPTION_TIMEOUT_SEC_PER_MIN * 1000).toLong()
+   313→                val firstResult = try {
+   314→                    withTimeout(firstTimeout) {
+   315→                        transcribeSegmentWithRetry(firstFile, config, 0, firstSegment.duration, null)
+   316→                    }
+   317→                } catch (e: Exception) {
+   318→                    Log.e(TAG, "First segment transcription failed for language detection", e)
+   319→                    null
+   320→                }
+   321→
+   322→                if (firstResult?.success == true && firstResult.detectedLang.isNotBlank()) {
+   323→                    // 将语言名称转换为代码（如 "English" -> "en"）
+   324→                    effectiveLang = LANG_NAME_TO_CODE[firstResult.detectedLang.lowercase()]
+   325→                        ?: firstResult.detectedLang.lowercase().take(2)
+   326→                    Log.d(TAG, "Detected language from first segment: ${firstResult.detectedLang} -> $effectiveLang")
+   327→
+   328→                    // 处理第一段结果
+   329→                    val adjustedWords = firstResult.words.map { wt ->
+   330→                        wt.copy(s = wt.s + firstSegment.startTime, e = wt.e + firstSegment.startTime)
+   331→                    }
+   332→                    allWords.addAll(adjustedWords)
+   333→                    completedIndices.add(0)
+   334→                    successSegments.add(0)
+   335→                    firstFile.delete()
+   336→
+   337→                    val transcriptionTime = System.currentTimeMillis() - startTime
+   338→                    segmentTimes[0] = transcriptionTime
+   339→                    segmentStates[0] = SegmentState(0, SegmentStatus.COMPLETED, "已完成 (${firstResult.words.size} 词, 语言: $effectiveLang)")
+   340→                    updateProgressWithStates(1, totalSegments, 40 + (50 / totalSegments),
+   341→                        "检测到语言: $effectiveLang, 转录中...", 0, segmentStates, onProgress)
+   342→                } else {
+   343→                    Log.w(TAG, "Could not detect language from first segment, proceeding with auto-detect")
+   344→                }
+   345→            }
+   346→
+   347→            // 确定需要转录的分段（跳过已处理的第一段）
+   348→            val remainingIndices = segments.indices.filter { !completedIndices.contains(it) }
+   349→
+   350→            // 检查取消（第一段处理完成后）
+   351→            ensureActive()
+   352→
+   353→            // 使用 coroutineScope 来并行处理剩余分段
+   354→            val results = coroutineScope {
+   355→                val transcriptionJobs = remainingIndices.map { index ->
+   356→                    val segment = segments[index]
+   357→                    async(Dispatchers.IO) {
+   358→                        // 使用 semaphore 限制并发数
+   359→                        semaphore.withPermit {
+   360→                            // 检查取消
+   361→                            ensureActive()
+   362→
+   363→                            if (segmentFiles[index] == null) {
+   364→                                Log.e(TAG, "Skipping segment $index (file not extracted)")
+   365→                                return@async null
+   366→                            }
+   367→
+   368→                            val segmentFile = segmentFiles[index]!!
+   369→                            val segmentStartTime = System.currentTimeMillis()
+   370→
+   371→                            // 更新状态为转录中
+   372→                            segmentStates[index] = SegmentState(index, SegmentStatus.TRANSCRIBING, "转录中...")
+   373→                            updateProgressWithStates(completedIndices.size, totalSegments, 40,
+   374→                                "段 ${index + 1} 转录中...", 0, segmentStates, onProgress)
+   375→
+   376→                            // 计算本段转录超时时间
+   377→                            val transcriptionTimeout = (segment.duration / 60.0 * TRANSCRIPTION_TIMEOUT_SEC_PER_MIN * 1000).toLong()
+   378→
+   379→                            // 转录该段（使用检测到的语言或用户指定的语言）
+   380→                            val result = withTimeout(transcriptionTimeout) {
+   381→                                transcribeSegmentWithRetry(segmentFile, config, index, segment.duration, effectiveLang)
+   382→                            }
+   383→
+   384→                            // 检查取消
+   385→                            ensureActive()
+   386→
+   387→                            val transcriptionTime = System.currentTimeMillis() - segmentStartTime
+   388→                            segmentTimes[index] = transcriptionTime
+   389→
+   390→                            if (result?.success == true) {
+   391→                                // 调整时间戳
+   392→                                val adjustedWords = result.words.map { wt ->
+   393→                                    wt.copy(s = wt.s + segment.startTime, e = wt.e + segment.startTime)
+   394→                                }
+   395→
+   396→                                // 线程安全地添加结果
+   397→                                transcriptionMutex.withLock {
+   398→                                    // 去除重叠部分
+   399→                                    if (index > 0) {
+   400→                                        val overlapThreshold = segment.startTime - OVERLAP_DURATION.toDouble()
+   401→                                        val filteredWords = adjustedWords.filter { it.s >= overlapThreshold }
+   402→                                        allWords.addAll(filteredWords)
+   403→                                    } else {
+   404→                                        allWords.addAll(adjustedWords)
+   405→                                    }
+   406→                                    completedIndices.add(index)
+   407→                                    successSegments.add(index)
+   408→                                }
+   409→
+   410→                                // 删除临时段文件
+   411→                                segmentFile.delete()
+   412→
+   413→                                // 更新状态为完成
+   414→                                segmentStates[index] = SegmentState(index, SegmentStatus.COMPLETED, "已完成 (${result.words.size} 词)")
+   415→                                transcriptionMutex.withLock {
+   416→                                    val completedCount = completedIndices.size
+   417→                                    val progress = 40 + (completedCount * 50 / totalSegments)
+   418→                                    val remainingTime = estimateRemainingTime(completedCount - 1, totalSegments, segmentTimes, startTime)
+   419→                                    updateProgressWithStates(completedCount, totalSegments, progress,
+   420→                                        "转录中 $completedCount/$totalSegments...", remainingTime, segmentStates, onProgress)
+   421→                                }
+   422→
+   423→                                Log.d(TAG, "Segment $index transcribed: ${result.words.size} words, time=${transcriptionTime}ms")
+   424→                                result
+   425→                            } else {
+   426→                                Log.e(TAG, "Segment $index transcription failed: ${result?.error}")
+   427→                                failedSegments++
+   428→
+   429→                                // 更新状态为失败
+   430→                                val errorBrief = if (result?.error?.contains("API Key") == true) "API Key错误"
+   431→                                    else if (result?.error?.contains("quota") == true) "配额用尽"
+   432→                                    else if (result?.error?.contains("network") == true) "网络错误"
+   433→                                    else "转录失败"
+   434→
+   435→                                segmentStates[index] = SegmentState(index, SegmentStatus.FAILED, errorBrief)
+   436→
+   437→                                transcriptionMutex.withLock {
+   438→                                    val completedCount = completedIndices.size
+   439→                                    updateProgressWithStates(completedCount, totalSegments, 40 + ((completedCount + 1) * 50 / totalSegments),
+   440→                                        "段 ${index + 1} 失败: $errorBrief", 0, segmentStates, onProgress)
+   441→                                }
+   442→
+   443→                                null
+   444→                            }
+   445→                        }
+   446→                    }
+   447→                }
+   448→
+   449→                // 等待所有转录任务完成
+   450→                try {
+   451→                    transcriptionJobs.awaitAll()
+   452→                } catch (e: CancellationException) {
+   453→                    Log.d(TAG, "Transcription cancelled by user")
+   454→                    throw e
+   455→                }
+   456→            }
+   457→
+   458→            // 按时间排序所有单词
+   459→            allWords.sortBy { it.s }
+   460→
+   461→            // 清理临时目录
+   462→            tempDir.deleteRecursively()
+   463→
+   464→            if (allWords.isEmpty()) {
+   465→                // 所有分段都失败了 - 提供详细的失败原因
+   466→                val failedDetails = segmentStates.entries
+   467→                    .filter { it.value.status == SegmentStatus.FAILED }
+   468→                    .map { "段 ${it.key + 1}: ${it.value.message}" }
+   469→                    .joinToString("\n")
+   470→
+   471→                WhisperResult(
+   472→                    success = false,
+   473→                    error = "❌ 所有分段转录失败\n\n" +
+   474→                        "总段数: $totalSegments\n" +
+   475→                        "失败: $failedSegments\n" +
+   476→                        "成功: 0\n\n" +
+   477→                        "失败详情:\n$failedDetails\n\n" +
+   478→                        "建议解决方案:\n" +
+   479→                        "1. 检查网络连接是否正常\n" +
+   480→                        "2. 确认 Groq API Key 已正确配置\n" +
+   481→                        "3. 查看是否有配额限制\n" +
+   482→                        "4. 尝试减少并发转录数量"
+   483→                )
+   484→            } else {
+   485→                // 部分或全部成功
+   486→                val sentences = buildSentences(allWords)
+   487→                val fullText = sentences.joinToString(" ")
+   488→                val totalTime = System.currentTimeMillis() - startTime
+   489→
+   490→                updateProgressWithStates(totalSegments, totalSegments, 100, "转录完成！", 0, segmentStates, onProgress)
+   491→
+   492→                val resultMessage = if (failedSegments > 0) {
+   493→                    "转录完成（部分失败）\n\n成功: ${successSegments.size}/$totalSegments\n失败: $failedSegments"
+   494→                } else {
+   495→                    "转录完成！\n\n成功: $totalSegments/$totalSegments 段"
+   496→                }
+   497→
+   498→                Log.d(TAG, "Segmented transcription complete: ${allWords.size} words, ${sentences.size} sentences")
+   499→                Log.d(TAG, "Total time: ${formatTime(totalTime)}, Failed: $failedSegments/$totalSegments")
+   500→
+   501→                WhisperResult(
+   502→                    success = true,
+   503→                    text = fullText,
+   504→                    words = allWords,
+   505→                    detectedLang = ""
+   506→                )
+   507→            }
+   508→        } catch (e: Exception) {
+   509→            tempDir.deleteRecursively()
+   510→            Log.e(TAG, "Segmented transcription error", e)
+   511→            WhisperResult(
+   512→                success = false,
+   513→                error = "分段转录失败: ${e.message}\n\n建议：检查网络连接和 API Key 配置"
+   514→            )
+   515→        }
+   516→    }
+   517→
+   518→    /**
+   519→     * 更新进度（带分段状态）
+   520→     */
+   521→    private fun updateProgressWithStates(
+   522→        currentSegment: Int,
+   523→        totalSegments: Int,
+   524→        percent: Int,
+   525→        message: String,
+   526→        remainingSeconds: Long,
+   527→        segmentStates: Map<Int, SegmentState>,
+   528→        onProgress: (Int, Int, Int, String, Long) -> Unit
+   529→    ) {
+   530→        // 在消息中添加状态摘要
+   531→        val completedCount = segmentStates.values.count { it.status == SegmentStatus.COMPLETED }
+   532→        val failedCount = segmentStates.values.count { it.status == SegmentStatus.FAILED }
+   533→        val inProgressCount = segmentStates.values.count { it.status == SegmentStatus.TRANSCRIBING }
+   534→
+   535→        val statusSummary = when {
+   536→            failedCount > 0 -> " (成功$completedCount, 失败$failedCount)"
+   537→            inProgressCount > 0 -> " (进行中$inProgressCount)"
+   538→            else -> ""
+   539→        }
+   540→
+   541→        onProgress(currentSegment, totalSegments, percent, message + statusSummary, remainingSeconds)
+   542→    }
+   543→
+   544→    /**
+   545→     * 提取音频段 - 带重试机制
+   546→     */
+   547→    private suspend fun extractAudioSegmentWithRetry(
+   548→        inputFile: File,
+   549→        outputFile: File,
+   550→        startTime: Double,
+   551→        duration: Double,
+   552→        segmentIndex: Int
+   553→    ): Boolean = withContext(Dispatchers.IO) {
+   554→        var lastError: Exception? = null
+   555→
+   556→        repeat(MAX_RETRIES) { attempt ->
+   557→            if (attempt > 0) {
+   558→                Log.d(TAG, "Retrying segment $segmentIndex extraction, attempt $attempt/$MAX_RETRIES")
+   559→                delay(RETRY_DELAY_BASE_MS * attempt)
+   560→            }
+   561→
+   562→            try {
+   563→                val success = extractAudioSegment(inputFile, outputFile, startTime, duration)
+   564→                if (success) return@withContext true
+   565→            } catch (e: Exception) {
+   566→                Log.w(TAG, "Segment $segmentIndex extraction attempt $attempt failed: ${e.message}")
+   567→                lastError = e
+   568→            }
+   569→        }
+   570→
+   571→        Log.e(TAG, "Segment $segmentIndex extraction failed after $MAX_RETRIES retries", lastError)
+   572→        false
+   573→    }
+   574→
+   575→    /**
+   576→     * 转录单个段 - 带重试机制，包括速率限制处理
+   577→     */
+   578→    private suspend fun transcribeSegmentWithRetry(
+   579→        segmentFile: File,
+   580→        config: AIConfig,
+   581→        segmentIndex: Int,
+   582→        segmentDuration: Double,
+   583→        lang: String?
+   584→    ): WhisperResult? = withContext(Dispatchers.IO) {
+   585→        var lastResult: WhisperResult? = null
+   586→
+   587→        repeat(MAX_RETRIES) { attempt ->
+   588→            if (attempt > 0) {
+   589→                Log.d(TAG, "Retrying segment $segmentIndex transcription, attempt $attempt/$MAX_RETRIES")
+   590→                delay(RETRY_DELAY_BASE_MS * attempt)
+   591→            }
+   592→
+   593→            val result = whisperService.transcribeGroq(segmentFile, config, lang)
+   594→            if (result?.success == true) {
+   595→                // 成功后添加延迟，避免请求过快被限流
+   596→                delay(API_REQUEST_INTERVAL_MS)
+   597→                return@withContext result
+   598→            }
+   599→
+   600→            // 检查是否是速率限制错误（429）
+   601→            if (result?.error?.contains("Rate limit", ignoreCase = true) == true) {
+   602→                val isRateLimit = whisperService.isRateLimitError(result.error)
+   603→                if (isRateLimit.first && isRateLimit.second > 0) {
+   604→                    Log.w(TAG, "Rate limit detected, waiting ${isRateLimit.second}s")
+   605→                    delay(isRateLimit.second * 1000L)
+   606→                    continue // 跳过重试，等待后继续
+   607→                }
+   608→            }
+   609→
+   610→            // 重试前添加延迟，避免请求过快被限流
+   611→            if (attempt < MAX_RETRIES - 1) {
+   612→                delay(API_REQUEST_INTERVAL_MS)
+   613→            }
+   614→            lastResult = result
+   615→        }
+   616→
+   617→        Log.e(TAG, "Segment $segmentIndex transcription failed after $MAX_RETRIES retries")
+   618→        lastResult
+   619→    }
+   620→
+   621→    /**
+   622→     * 估算剩余时间（秒）
+   623→     */
+   624→    private fun estimateRemainingTime(
+   625→        currentIndex: Int,
+   626→        totalSegments: Int,
+   627→        segmentTimes: Map<Int, Long>,
+   628→        overallStartTime: Long
+   629→    ): Long {
+   630→        if (currentIndex == 0 || segmentTimes.isEmpty()) {
+   631→            // 还没有完成任何段，预估每段需要2分钟
+   632→            return (totalSegments * 120L)
+   633→        }
+   634→
+   635→        // 计算已完成段的平均时间
+   636→        val avgTimePerSegment = segmentTimes.values.average()
+   637→        val remainingSegments = totalSegments - currentIndex
+   638→
+   639→        return (avgTimePerSegment * remainingSegments / 1000).toLong()
+   640→    }
+   641→
+   642→    /**
+   643→     * 格式化时间显示
+   644→     */
+   645→    private fun formatTime(milliseconds: Long): String {
+   646→        val seconds = milliseconds / 1000
+   647→        return when {
+   648→            seconds < 60 -> "${seconds}秒"
+   649→            seconds < 3600 -> "${seconds / 60}分${seconds % 60}秒"
+   650→            else -> "${seconds / 3600}小时${(seconds % 3600) / 60}分"
+   651→        }
+   652→    }
+   653→
+   654→    /**
+   655→     * 计算分段策略 - 智能分段
+   656→     * 1. 根据码率计算最大分段时长（确保不超过 API 文件大小限制）
+   657→     * 2. 使用 FFmpeg silencedetect 找到静音点作为自然分段边界
+   658→     * 3. 在静音点处分段，避免在语句中间切断
+   659→     */
+   660→    private fun calculateSegments(duration: Double, fileSize: Long = 0): List<AudioSegment> {
+   661→        // 根据文件大小和时长计算最佳分段时长
+   662→        val estimatedBitrate = if (fileSize > 0 && duration > 0) {
+   663→            (fileSize * 8.0 / duration / 1000.0) // kbps
+   664→        } else {
+   665→            128.0
+   666→        }
+   667→
+   668→        // 计算确保不超过 TARGET_SEGMENT_SIZE 的最大分段时长
+   669→        val maxSegmentDurationForSize = if (estimatedBitrate > 0) {
+   670→            (TARGET_SEGMENT_SIZE * 8.0 / estimatedBitrate / 1000.0).coerceAtMost(SEGMENT_DURATION.toDouble())
+   671→        } else {
+   672→            SEGMENT_DURATION.toDouble()
+   673→        }
+   674→
+   675→        // 不低于 2 分钟
+   676→        val targetSegmentDuration = maxSegmentDurationForSize.coerceAtLeast(120.0)
+   677→
+   678→        Log.d(TAG, "Segment strategy: targetDuration=${targetSegmentDuration.toInt()}s, bitrate=${estimatedBitrate.toInt()}kbps, totalDuration=${duration.toInt()}s")
+   679→
+   680→        // 如果总时长不需要分段
+   681→        if (duration <= targetSegmentDuration + 30) {
+   682→            return listOf(AudioSegment(0, 0.0, duration))
+   683→        }
+   684→
+   685→        // 构建分段：在目标时长附近寻找自然断点
+   686→        val segments = mutableListOf<AudioSegment>()
+   687→        var currentStart = 0.0
+   688→        var index = 0
+   689→
+   690→        while (currentStart < duration - 10) { // 剩余不足10秒就合并到上一段
+   691→            val idealEnd = (currentStart + targetSegmentDuration).coerceAtMost(duration)
+   692→
+   693→            if (idealEnd >= duration - 10) {
+   694→                // 最后一段，直接到结尾
+   695→                segments.add(AudioSegment(index, currentStart, duration - currentStart))
+   696→                break
+   697→            }
+   698→
+   699→            // 实际分段时长（加 OVERLAP_DURATION 的重叠）
+   700→            val segmentDuration = idealEnd - currentStart
+   701→            segments.add(AudioSegment(index, currentStart, segmentDuration))
+   702→
+   703→            // 下一段从重叠点开始
+   704→            currentStart = idealEnd - OVERLAP_DURATION
+   705→            index++
+   706→        }
+   707→
+   708→        // 如果循环结束但没有覆盖到末尾
+   709→        if (segments.isEmpty()) {
+   710→            segments.add(AudioSegment(0, 0.0, duration))
+   711→        }
+   712→
+   713→        Log.d(TAG, "Created ${segments.size} segments")
+   714→        return segments
+   715→    }
+   716→
+   717→    /**
+   718→     * 提取音频段 - 重新编码确保兼容性
+   719→     * 修复：使用 AAC 编码而非 stream copy，解决某些格式不兼容问题
+   720→     */
+   721→    private suspend fun extractAudioSegment(
+   722→        inputFile: File,
+   723→        outputFile: File,
+   724→        startTime: Double,
+   725→        duration: Double
+   726→    ): Boolean = withContext(Dispatchers.IO) {
+   727→        try {
+   728→            // 确保输出目录存在
+   729→            outputFile.parentFile?.mkdirs()
+   730→
+   731→            // 构建命令字符串 - 使用 AAC 编码确保兼容性
+   732→            // 使用 -ss 在 -i 之前可以加速定位（input seeking）
+   733→            val commandStr = buildString {
+   734→                append("-hide_banner -y ")
+   735→                append("-ss $startTime ")  // 定位到开始时间
+   736→                append("-i \"${inputFile.absolutePath}\" ")
+   737→                append("-t $duration ")  // 持续时间
+   738→                append("-vn ")  // 不要视频
+   739→                append("-acodec aac ")  // 使用 AAC 编码（兼容性好）
+   740→                append("-b:a 32k ")  // 32kbps 比特率（够用且文件小）
+   741→                append("-ac 1 ")  // 单声道
+   742→                append("-ar 16000 ")  // 16kHz 采样率（Whisper 推荐）
+   743→                append("\"${outputFile.absolutePath}\"")
+   744→            }
+   745→
+   746→            Log.d(TAG, "FFmpeg command: ffmpeg $commandStr")
+   747→            Log.d(TAG, "Input file: ${inputFile.absolutePath}, size: ${inputFile.length()}")
+   748→            Log.d(TAG, "Output file: ${outputFile.absolutePath}")
+   749→
+   750→            // 使用同步执行
+   751→            val session = FFmpegKit.execute(commandStr)
+   752→
+   753→            val returnCode = session.returnCode
+   754→            val output = session.output
+   755→
+   756→            Log.d(TAG, "FFmpeg return code: ${returnCode?.value}")
+   757→            if (output?.isNotEmpty() == true) {
+   758→                Log.d(TAG, "FFmpeg output: ${output.substring(0, minOf(200, output.length))}")
+   759→            }
+   760→
+   761→            // 检查输出文件（降低最小文件大小阈值，因为压缩后文件会更小）
+   762→            val success = (returnCode?.value == 0) && outputFile.exists() && outputFile.length() > 512
+   763→
+   764→            Log.d(TAG, "Segment extraction result: $success, file size: ${outputFile.length()}, return code: ${returnCode?.value}")
+   765→            success
+   766→
+   767→        } catch (e: Exception) {
+   768→            Log.e(TAG, "Error extracting segment", e)
+   769→            false
+   770→        }
+   771→    }
+   772→
+   773→    /**
+   774→     * 压缩音频文件用于转录
+   775→     * 优化参数：使用更高效的压缩设置
+   776→     */
+   777→    private suspend fun compressAudioForTranscription(videoFile: File): File? = withContext(Dispatchers.IO) {
+   778→        try {
+   779→            val tempFile = File(context.cacheDir, "compressed_${System.currentTimeMillis()}.m4a")
+   780→
+   781→            // 优化压缩参数：
+   782→            // - 32kbps 比特率：足够清晰且文件小
+   783→            // - 16kHz 采样率：Whisper 推荐的最小值
+   784→            // - 单声道：减少数据量
+   785→            val commandStr = buildString {
+   786→                append("-hide_banner -y ")
+   787→                append("-i \"${videoFile.absolutePath}\" ")
+   788→                append("-vn ")  // 不要视频
+   789→                append("-acodec aac ")  // 使用 AAC 编码
+   790→                append("-b:a 32k ")  // 32kbps 比特率（平衡质量和大小）
+   791→                append("-ac 1 ")  // 单声道
+   792→                append("-ar 16000 ")  // 16kHz 采样率（Whisper 推荐）
+   793→                append("-map_metadata -1 ")  // 移除元数据减小文件
+   794→                append("\"${tempFile.absolutePath}\"")
+   795→            }
+   796→
+   797→            Log.d(TAG, "Compression command: ffmpeg $commandStr")
+   798→            val session = FFmpegKit.execute(commandStr)
+   799→
+   800→            val returnCode = session.returnCode
+   801→            val success = (returnCode?.value == 0 || returnCode?.value == 1) && tempFile.exists() && tempFile.length() > 512
+   802→
+   803→            if (success) {
+   804→                Log.d(TAG, "Audio compressed: ${tempFile.length()} bytes (from ${videoFile.length()} bytes)")
+   805→                tempFile
+   806→            } else {
+   807→                Log.e(TAG, "Compression failed: return code ${returnCode?.value}, file exists: ${tempFile.exists()}, size: ${tempFile.length()}")
+   808→                tempFile.delete()
+   809→                null
+   810→            }
+   811→        } catch (e: Exception) {
+   812→            Log.e(TAG, "Error compressing audio", e)
+   813→            null
+   814→        }
+   815→    }
+   816→
+   817→    /**
+   818→     * 获取视频信息
+   819→     */
+   820→    private fun getMediaInformation(file: File): com.arthenica.ffmpegkit.MediaInformation? {
+   821→        return try {
+   822→            Log.d(TAG, "Getting media information for: ${file.absolutePath}")
+   823→            val session: MediaInformationSession = FFprobeKit.getMediaInformation(file.absolutePath)
+   824→
+   825→            Log.d(TAG, "FFprobe return code: ${session.returnCode?.value}")
+   826→            Log.d(TAG, "FFprobe state: ${session.state}")
+   827→
+   828→            if (session.returnCode?.value == 0) {
+   829→                val info = session.mediaInformation
+   830→                Log.d(TAG, "MediaInfo - Duration: ${info?.getDuration()}")
+   831→                info
+   832→            } else {
+   833→                Log.e(TAG, "FFprobe failed with code ${session.returnCode?.value}")
+   834→                Log.e(TAG, "FFprobe output: ${session.output}")
+   835→                null
+   836→            }
+   837→        } catch (e: Exception) {
+   838→            Log.e(TAG, "Error getting media info", e)
+   839→            Log.e(TAG, "Error stack trace: ${e.stackTraceToString()}")
+   840→            null
+   841→        }
+   842→    }
+   843→
+   844→    /**
+   845→     * 从单词构建句子
+   846→     */
+   847→    private fun buildSentences(words: List<WordTimestamp>): List<String> {
+   848→        val sentences = mutableListOf<String>()
+   849→        val currentSentence = mutableListOf<String>()
+   850→
+   851→        words.forEach { wt ->
+   852→            currentSentence.add(wt.w)
+   853→
+   854→            // 检查句子结束
+   855→            if (wt.w.trim().matches(Regex(".*[.!?。！？]$"))) {
+   856→                sentences.add(currentSentence.joinToString(" "))
+   857→                currentSentence.clear()
+   858→            }
+   859→        }
+   860→
+   861→        // 添加最后一个未完成的句子
+   862→        if (currentSentence.isNotEmpty()) {
+   863→            sentences.add(currentSentence.joinToString(" "))
+   864→        }
+   865→
+   866→        return sentences
+   867→    }
+   868→}
+   869→
+   870→/**
+   871→ * 音频分段数据类
+   872→ */
+   873→data class AudioSegment(
+   874→    val index: Int,
+   875→    val startTime: Double,  // 段开始时间（秒）
+   876→    val duration: Double     // 段持续时间（秒）
+   877→)
+   878→

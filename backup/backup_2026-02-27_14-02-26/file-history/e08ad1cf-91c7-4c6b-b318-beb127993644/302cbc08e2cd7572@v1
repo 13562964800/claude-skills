@@ -1,0 +1,51 @@
+from PyQt5.QtWidgets import QWidget, QHBoxLayout, QPushButton, QFileDialog, QLabel
+from PyQt5.QtCore import pyqtSignal
+from app.core.extractor import DocumentExtractor
+
+
+class ImportBar(QWidget):
+    text_extracted = pyqtSignal(str)
+
+    def __init__(self, parent=None):
+        super().__init__(parent)
+        self.extractor = DocumentExtractor()
+        layout = QHBoxLayout(self)
+        layout.setContentsMargins(5, 5, 5, 5)
+
+        for label, handler in [
+            ("导入PDF", self._on_pdf), ("导入Word", self._on_word),
+            ("导入Excel", self._on_excel), ("粘贴板", self._on_clipboard),
+            ("导入图片", self._on_image),
+        ]:
+            btn = QPushButton(label)
+            btn.setObjectName("importBtn")
+            btn.clicked.connect(handler)
+            layout.addWidget(btn)
+
+        drop_label = QLabel("  或拖拽文件到窗口  ")
+        drop_label.setObjectName("dropZone")
+        layout.addWidget(drop_label)
+
+    def _open_and_extract(self, title, filt, method):
+        path, _ = QFileDialog.getOpenFileName(self, title, "", filt)
+        if path:
+            text = method(path)
+            if text:
+                self.text_extracted.emit(text)
+
+    def _on_pdf(self):
+        self._open_and_extract("选择PDF", "PDF (*.pdf)", self.extractor.extract_pdf)
+
+    def _on_word(self):
+        self._open_and_extract("选择Word", "Word (*.docx)", self.extractor.extract_word)
+
+    def _on_excel(self):
+        self._open_and_extract("选择Excel", "Excel (*.xlsx)", self.extractor.extract_excel)
+
+    def _on_clipboard(self):
+        text = self.extractor.extract_clipboard()
+        if text:
+            self.text_extracted.emit(text)
+
+    def _on_image(self):
+        self._open_and_extract("选择图片", "图片 (*.png *.jpg *.jpeg *.bmp)", self.extractor.extract_image)

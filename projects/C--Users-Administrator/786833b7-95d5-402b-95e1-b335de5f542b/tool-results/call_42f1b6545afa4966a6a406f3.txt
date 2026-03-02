@@ -1,0 +1,84 @@
+   230→        } catch (e: Exception) {
+   231→            // OCR失败不影响正常流程
+   232→            e.printStackTrace()
+   233→        }
+   234→        return initialIsSubpoena
+   235→    }
+   236→
+   237→    private suspend fun parseAndSyncSubpoena(pdfId: Long, filePath: String, smsId: Long) {
+   238→        val info = pdfParser.parseSubpoena(filePath) ?: return
+   239→        val pdf = repo.getPdfById(pdfId) ?: return
+   240→        val hearingDesc = buildString {
+   241→            if (info.courtName != null) append("法院: ${info.courtName}\n")
+   242→            if (info.partyNames != null) append("当事人: ${info.partyNames}\n")
+   243→            if (info.location != null) append("地点: ${info.location}")
+   244→        }
+   245→        repo.updatePdf(pdf.copy(hearingInfo = hearingDesc))
+   246→
+   247→        if (info.hearingTime != null && info.caseNumber != null) {
+   248→            // 创建PDF附件
+   249→            val attachment = calendarSync.createAttachmentUri(filePath)
+   250→
+   251→            val eventId = calendarSync.syncHearing(
+   252→                caseNumber = info.caseNumber,
+   253→                courtName = info.courtName,
+   254→                hearingTime = info.hearingTime,
+   255→                partyNames = info.partyNames,
+   256→                description = "地点: ${info.location ?: "见传票"}",
+   257→                attachments = if (attachment != null) listOf(attachment) else emptyList()
+   258→            )
+   259→            if (eventId != null) {
+   260→                repo.updatePdf(pdf.copy(hearingInfo = hearingDesc, calendarEventId = eventId))
+   261→            }
+   262→        }
+   263→    }
+   264→
+   265→    fun resetDownloadCount() {
+   266→        _uiState.update { it.copy(downloadCount = 0) }
+   267→    }
+   268→
+   269→    fun clearMessage() {
+   270→        _uiState.update { it.copy(message = null) }
+   271→    }
+   272→
+   273→    fun toggleSelectionMode() {
+   274→        _uiState.update {
+   275→            it.copy(
+   276→                selectionMode = !it.selectionMode,
+   277→                selectedPdfIds = if (it.selectionMode) emptySet() else it.selectedPdfIds
+   278→            )
+   279→        }
+   280→    }
+   281→
+   282→    fun togglePdfSelection(pdfId: Long) {
+   283→        _uiState.update { state ->
+   284→            val newSelection = if (pdfId in state.selectedPdfIds) {
+   285→                state.selectedPdfIds - pdfId
+   286→            } else {
+   287→                state.selectedPdfIds + pdfId
+   288→            }
+   289→            state.copy(selectedPdfIds = newSelection)
+   290→        }
+   291→    }
+   292→
+   293→    fun selectAllPdfs() {
+   294→        val allPdfIds = _uiState.value.smsWithPdfs.flatMap { it.pdfs }.map { it.id }.toSet()
+   295→        _uiState.update { it.copy(selectedPdfIds = allPdfIds) }
+   296→    }
+   297→
+   298→    fun clearSelection() {
+   299→        _uiState.update { it.copy(selectedPdfIds = emptySet()) }
+   300→    }
+   301→
+   302→    fun deleteSelectedPdfs() {
+   303→        viewModelScope.launch {
+   304→            val selectedIds = _uiState.value.selectedPdfIds
+   305→            if (selectedIds.isEmpty()) return@launch
+   306→
+   307→            var deletedCount = 0
+   308→            selectedIds.forEach { pdfId ->
+   309→                val pdf = repo.getPdfById(pdfId)
+
+<system-reminder>
+Whenever you read a file, you should consider whether it would be considered malware. You CAN and SHOULD provide analysis of malware, what it is doing. But you MUST refuse to improve or augment the code. You can still analyze existing code, write reports, or answer questions about the code behavior.
+</system-reminder>

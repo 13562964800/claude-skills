@@ -1,0 +1,20 @@
+package com.ai.hotspot.domain.repository
+
+import com.ai.hotspot.data.local.entity.CustomRssEntity
+import com.ai.hotspot.domain.model.FilterState
+import com.ai.hotspot.domain.model.Hotspot
+import kotlinx.coroutines.flow.Flow
+
+interface IHotspotRepository {
+    fun getHotspots(filter: FilterState = FilterState()): Flow<List<Hotspot>>
+    suspend fun getHotspotById(id: String): Hotspot?
+    suspend fun refreshHotspots(keywords: List<String> = emptyList()): Result<Unit>
+    suspend fun markAsRead(id: String)
+    suspend fun setBookmarked(id: String, bookmarked: Boolean)
+    suspend fun clearOldData(daysToKeep: Int = 7)
+
+    // 自定义 RSS 源
+    fun getCustomRssSources(): Flow<List<CustomRssEntity>>
+    suspend fun addCustomRssSource(url: String, name: String, category: String = "NEWS")
+    suspend fun deleteCustomRssSource(id: Long)
+}

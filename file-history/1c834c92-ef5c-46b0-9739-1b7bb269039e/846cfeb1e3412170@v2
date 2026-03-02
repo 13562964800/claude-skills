@@ -1,0 +1,19 @@
+from app.skills.base import SkillAdapter, LLMRouter
+
+
+class LegalTextFormatAdapter(SkillAdapter):
+    name = 'legal-text-format'
+
+    def __init__(self):
+        self.router = LLMRouter(primary='claude-opus-4-6', fallback='qwen/qwen-max')
+
+    def run(self, payload: dict) -> dict:
+        text = payload.get('text', '')
+        if not text:
+            return {'error': 'text required'}
+        api_keys = payload.get('_api_keys', {})
+        result = self.router.complete([
+            {'role': 'system', 'content': '你是法律文本格式化专家，将输入文本转换为规范Markdown格式，删除推广冗余信息。'},
+            {'role': 'user', 'content': text},
+        ], custom_keys=api_keys)
+        return {'formatted': result}

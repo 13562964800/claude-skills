@@ -1,0 +1,63 @@
+package com.ai.hotspot.data.local
+
+import android.content.Context
+import androidx.datastore.core.DataStore
+import androidx.datastore.preferences.core.Preferences
+import androidx.datastore.preferences.core.edit
+import androidx.datastore.preferences.core.stringPreferencesKey
+import androidx.datastore.preferences.preferencesDataStore
+import com.ai.hotspot.domain.model.LLMProvider
+import dagger.hilt.android.qualifiers.ApplicationContext
+import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.map
+import javax.inject.Inject
+import javax.inject.Singleton
+
+private val Context.userPrefsDataStore: DataStore<Preferences> by preferencesDataStore(name = "user_prefs")
+
+@Singleton
+class UserPrefsManager @Inject constructor(
+    @ApplicationContext private val context: Context
+) {
+    private val dataStore = context.userPrefsDataStore
+
+    companion object {
+        private val KEY_LLM_PROVIDER = stringPreferencesKey("llm_provider")
+        private val KEY_LLM_API_KEY = stringPreferencesKey("llm_api_key")
+        private val KEY_LLM_MODEL = stringPreferencesKey("llm_model")
+        private val KEY_KEYWORDS = stringPreferencesKey("keywords")
+    }
+
+    val llmProvider: Flow<LLMProvider> = dataStore.data.map { prefs ->
+        val name = prefs[KEY_LLM_PROVIDER] ?: LLMProvider.DEEPSEEK.name
+        try { LLMProvider.valueOf(name) } catch (e: Exception) { LLMProvider.DEEPSEEK }
+    }
+
+    val llmApiKey: Flow<String> = dataStore.data.map { prefs ->
+        prefs[KEY_LLM_API_KEY] ?: ""
+    }
+
+    val llmModel: Flow<String> = dataStore.data.map { prefs ->
+        prefs[KEY_LLM_MODEL] ?: ""
+    }
+
+    val keywords: Flow<String> = dataStore.data.map { prefs ->
+        prefs[KEY_KEYWORDS] ?: "AI,大模型,LLM,GPT,深度学习"
+    }
+
+    suspend fun setLlmProvider(provider: LLMProvider) {
+        dataStore.edit { it[KEY_LLM_PROVIDER] = provider.name }
+    }
+
+    suspend fun setLlmApiKey(key: String) {
+        dataStore.edit { it[KEY_LLM_API_KEY] = key }
+    }
+
+    suspend fun setLlmModel(model: String) {
+        dataStore.edit { it[KEY_LLM_MODEL] = model }
+    }
+
+    suspend fun setKeywords(keywords: String) {
+        dataStore.edit { it[KEY_KEYWORDS] = keywords }
+    }
+}

@@ -1,0 +1,47 @@
+"""
+配置加载
+"""
+
+import yaml
+from pathlib import Path
+
+def load_config(config_path: str = "config.yaml") -> dict:
+    """加载配置文件"""
+    config_file = Path(config_path)
+
+    if not config_file.exists():
+        # 返回默认配置
+        return get_default_config()
+
+    with open(config_file, 'r', encoding='utf-8') as f:
+        config = yaml.safe_load(f)
+
+    return config
+
+def get_default_config() -> dict:
+    """默认配置"""
+    return {
+        'server': {
+            'host': '0.0.0.0',
+            'port': 8765,
+        },
+        'download': {
+            'output_dir': str(Path.home() / 'Downloads' / 'videos'),
+        },
+        'transcription': {
+            'transcription_mode': 'auto',  # auto, local, online
+            'model_size': 'base',  # tiny, base, small, medium, large-v3
+            'groq_api_key': '',
+        },
+        'database': {
+            'path': 'data/tasks.db',
+        }
+    }
+
+def save_config(config: dict, config_path: str = "config.yaml"):
+    """保存配置文件"""
+    config_file = Path(config_path)
+    config_file.parent.mkdir(parents=True, exist_ok=True)
+
+    with open(config_file, 'w', encoding='utf-8') as f:
+        yaml.dump(config, f, allow_unicode=True, default_flow_style=False)

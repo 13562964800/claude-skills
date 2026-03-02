@@ -1,0 +1,97 @@
+# -*- coding: utf-8 -*-
+"""提示音模块 - 处理完成时的音频提醒"""
+
+import sys
+import threading
+import time
+
+class NotificationSound:
+    """提示音管理器"""
+
+    @staticmethod
+    def _speak_text(text):
+        """使用TTS播放语音
+
+        Args:
+            text: 要播报的文本
+        """
+        try:
+            if sys.platform == 'win32':
+                # Windows: 使用pyttsx3
+                import pyttsx3
+                engine = pyttsx3.init()
+
+                # 设置中文语音
+                voices = engine.getProperty('voices')
+                for voice in voices:
+                    # 尝试找中文语音
+                    if 'chinese' in voice.name.lower() or 'zh' in voice.id.lower():
+                        engine.setProperty('voice', voice.id)
+                        break
+
+                # 设置语速（正常语速）
+                engine.setProperty('rate', 180)
+
+                engine.say(text)
+                engine.runAndWait()
+
+            elif sys.platform == 'darwin':
+                # macOS: 使用say命令
+                import subprocess
+                subprocess.run(['say', '-v', 'Ting-Ting', text], check=False)
+            else:
+                # Linux: 使用espeak
+                import subprocess
+                subprocess.run(['espeak', '-v', 'zh', text], check=False)
+        except Exception:
+            # TTS失败，静默处理
+            pass
+
+    @staticmethod
+    def play_completion_sound():
+        """播放完成提示音 - 语音播报"""
+        try:
+            # 在后台线程播放语音，避免阻塞界面
+            sound_thread = threading.Thread(
+                target=NotificationSound._speak_text,
+                args=('核对完毕，请指示！',),
+                daemon=True
+            )
+            sound_thread.start()
+        except Exception:
+            pass
+
+    @staticmethod
+    def play_notification_sound(sound_type='completion'):
+        """播放指定类型的提示音
+
+        Args:
+            sound_type: 提示音类型 ('completion', 'error', 'warning')
+        """
+        try:
+            if sys.platform == 'win32':
+                import winsound
+
+                if sound_type == 'completion':
+                    # 完成时使用语音播报
+                    NotificationSound.play_completion_sound()
+                else:
+                    # 其他类型使用系统提示音
+                    sound_map = {
+                        'error': winsound.MB_ICONHAND,
+                        'warning': winsound.MB_ICONEXCLAMATION,
+                    }
+                    sound_id = sound_map.get(sound_type, winsound.MB_ICONASTERISK)
+                    winsound.MessageBeep(sound_id)
+            else:
+                if sound_type == 'completion':
+                    NotificationSound.play_completion_sound()
+                else:
+                    print('\a', end='', flush=True)
+        except Exception:
+            pass
+
+    @staticmethod
+    def test_sound():
+        """测试语音播报"""
+        NotificationSound._speak_text('核对完毕，请指示！')

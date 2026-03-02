@@ -1,0 +1,101 @@
+# 差异点标红/蓝色时间戳 + 预览增删改搜 + 微信分享
+
+## Context
+
+用户需要在配音文字核对宝的 Word 对比报告中：
+1. **所有差异点统一标红**（不再区分误读/漏读/多读颜色）
+2. **时间戳蓝色标注**（精确到分钟）
+3. 差异数据**持久化保存到 JSON**
+4. UI 上支持**预览、增、删、改、搜**差异点
+5. 支持**分享到微信**
+
+## 已完成的修改
+
+### ✅ `core/report_gen.py` — Word 报告颜色修改
+- 图例：`（红色=差异点，蓝色=录音时间戳）`
+- 漏读/多读/误读文本 → 全部红色 `RGBColor(200, 0, 0)`
+- 时间戳 → 蓝色 `RGBColor(0, 0, 200)`，格式 `第X分钟`
+
+### ✅ `main.py` KV 界面
+- DiffItem 模板：增加编辑/删除按钮、蓝色时间戳显示、红色差异文本
+- 结果页：增加搜索栏 + 清除按钮 + 新增按钮 + 差异计数提示
+
+### ✅ `main.py` 类属性
+- 新增 `_raw_diffs = []` 和 `_search_keyword = ''`
+
+### ✅ `main.py` `_do_compare` 方法
+- 调用 `_rebuild_diff_items()` 替代手动构建
+- 保存 `_raw_diffs` 并调用 `_save_diffs()`
+
+## 剩余工作
+
+### 1. 添加 `_rebuild_diff_items()` 方法
+将 `_raw_diffs` 转为 UI 显示数据 `diff_items`，支持搜索过滤。
+每条记录包含 `diff_type`, `diff_detail`, `diff_timestamp`, `diff_index`。
+
+```python
+def _rebuild_diff_items(self, keyword=''):
+    items = []
+    type_labels = {'mismatch': '误读', 'missing_in_audio': '漏读', 'extra_in_audio': '多读'}
+    for i, d in enumerate(self._raw_diffs):
+        dtype = type_labels.get(d['type'], d['type'])
+        ts_text = ''
+        if 'time_start' in d:
+            m = int(d['time_start']) // 60
+            ts_text = f'第{m}分钟'
+        if d['type'] == 'mismatch':
+            detail = f'原文: {d["docText"]}  →  录音: {d["audioText"]}'
+        elif d['type'] == 'missing_in_audio':
+            detail = f'漏读: {d["docText"]}'
+        else:
+            detail = f'多读: {d["audioText"]}'
+        if keyword and keyword not in detail and keyword not in dtype and keyword not in ts_text:
+            continue
+        items.append({
+            'diff_type': f'【{dtype}】',
+            'diff_detail': detail,
+            'diff_timestamp': ts_text,
+            'diff_index': i,
+        })
+    def _do(dt):
+        self.diff_items = items
+    Clock.schedule_once(_do)
+```
+
+### 2. 添加持久化方法 `_diffs_json_path`, `_save_diffs`, `_load_diffs`
+- 路径：`~/reports/last_diffs.json`
+- JSON 结构：`{ audio_path, doc_path, accuracy, summary, audio_text, doc_text, diffs }`
+- `_save_diffs()` 在每次增删改后调用
+- `_load_diffs()` 在 app 启动时尝试加载上次结果
+
+### 3. 添加搜索方法 `filter_diffs(keyword)`
+调用 `_rebuild_diff_items(keyword)` 过滤差异列表。
+
+### 4. 添加编辑弹窗 `_show_edit_popup(index)`
+- Kivy Popup，包含：类型 Spinner、原文 TextInput、录音 TextInput、时间 TextInput
+- 保存后更新 `_raw_diffs[index]`、调用 `_save_diffs()` 和 `_rebuild_diff_items()`
+
+### 5. 添加 `edit_diff(index)` 和 `delete_diff(index)` 方法
+- `edit_diff`: 调用 `_show_edit_popup(index)`
+- `delete_diff`: 从 `_raw_diffs` 移除、保存、重建
+
+### 6. 添加 `add_diff()` 方法
+调用 `_show_edit_popup(-1)` 打开空弹窗，保存后追加到 `_raw_diffs`。
+
+### 7. 更新 `generate_word_report`
+修改 `_gen_report_thread` 中 result 的 diffs 源，改用 `self._raw_diffs`（支持用户编辑后重新生成报告）。
+
+## 涉及文件
+
+| 文件 | 状态 |
+|------|------|
+| `d:\voicedoccompare\app\core\report_gen.py` | ✅ 已完成 |
+| `d:\voicedoccompare\app\main.py` | 🔧 部分完成，需插入 7 个方法 |
+
+## 验证方式
+
+1. 在 Windows 环境下运行 `python main.py` 确认无语法错误
+2. 检查 KV 界面渲染：结果页显示搜索栏、差异列表含编辑/删除按钮
+3. 测试 CRUD：新增 → 编辑 → 搜索 → 删除 差异项
+4. 检查 `~/reports/last_diffs.json` 正确保存
+5. 生成 Word 报告验证红色差异 + 蓝色时间戳

@@ -1,0 +1,80 @@
+package com.shanfuchun.courtassistant.sms
+
+import android.app.PendingIntent
+import android.content.BroadcastReceiver
+import android.content.Context
+import android.content.Intent
+import android.provider.Telephony
+import androidx.core.app.NotificationCompat
+import androidx.core.app.NotificationManagerCompat
+import com.shanfuchun.courtassistant.App
+import com.shanfuchun.courtassistant.R
+import com.shanfuchun.courtassistant.data.SmsRecord
+import com.shanfuchun.courtassistant.service.QuickSyncService
+import com.shanfuchun.courtassistant.service.SmsReader
+import com.shanfuchun.courtassistant.service.TextParser
+import com.shanfuchun.courtassistant.ui.MainActivity
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
+
+class SmsReceiver : BroadcastReceiver() {
+    override fun onReceive(context: Context, intent: Intent) {
+        if (intent.action != Telephony.Sms.Intents.SMS_RECEIVED_ACTION) return
+        val messages = Telephony.Sms.Intents.getMessagesFromIntent(intent) ?: return
+        val grouped = mutableMapOf<String, StringBuilder>()
+        for (msg in messages) {
+            val addr = msg.displayOriginatingAddress ?: continue
+            if (!SmsReader.is12368(addr)) continue
+            grouped.getOrPut(addr) { StringBuilder() }.append(msg.displayMessageBody ?: "")
+        }
+        val app = context.applicationContext as App
+        CoroutineScope(Dispatchers.IO).launch {
+            for ((addr, body) in grouped) {
+                val text = body.toString()
+                val urls = TextParser.extractUrls(text)
+                val record = SmsRecord(sender = addr, body = text, receiveTime = System.currentTimeMillis(), hasLink = urls.isNotEmpty())
+                val id = app.db.smsDao().insert(record)
+                if (id > 0) {
+                    SmsProcessor.process(context, app.db, record.copy(id = id))
+                    showNotification(context, text)
+                }
+            }
+        }
+    }
+
+    private fun showNotification(context: Context, body: String) {
+        val notificationId = System.currentTimeMillis().toInt()
+
+        // 打开应用的 Intent
+        val openIntent = PendingIntent.getActivity(
+            context, 0,
+            Intent(context, MainActivity::class.java).apply { flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP },
+            PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
+        )
+
+        // 立即同步的 Intent
+        val syncIntent = PendingIntent.getService(
+            context, notificationId,
+            Intent(context, QuickSyncService::class.java).apply {
+                putExtra(QuickSyncService.EXTRA_SMS_BODY, body)
+                putExtra(QuickSyncService.EXTRA_NOTIFICATION_ID, notificationId)
+            },
+            PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
+        )
+
+        val notification = NotificationCompat.Builder(context, App.CHANNEL_ID)
+            .setSmallIcon(R.mipmap.ic_launcher)
+            .setContentTitle("12368 法院通知")
+            .setContentText(body.take(60))
+            .setStyle(NotificationCompat.BigTextStyle().bigText(body))
+            .setContentIntent(openIntent)
+            .setAutoCancel(true)
+            .addAction(0, "立即同步", syncIntent)
+            .addAction(0, "查看详情", openIntent)
+            .build()
+        try {
+            NotificationManagerCompat.from(context).notify(notificationId, notification)
+        } catch (_: SecurityException) { }
+    }
+}

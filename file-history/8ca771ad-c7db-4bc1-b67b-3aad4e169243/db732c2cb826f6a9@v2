@@ -1,0 +1,48 @@
+{
+  "manifest_version": 3,
+  "name": "视频下载转录助手",
+  "version": "1.0.0",
+  "description": "一键下载并转录 YouTube、B站等平台视频",
+  "permissions": [
+    "activeTab",
+    "storage",
+    "cookies",
+    "notifications"
+  ],
+  "host_permissions": [
+    "https://www.youtube.com/*",
+    "https://www.bilibili.com/*",
+    "https://www.douyin.com/*",
+    "http://localhost:8765/*"
+  ],
+  "background": {
+    "service_worker": "background.js"
+  },
+  "content_scripts": [
+    {
+      "matches": ["https://www.youtube.com/*", "https://youtu.be/*"],
+      "js": ["content/youtube.js"],
+      "css": ["content/styles.css"],
+      "run_at": "document_end"
+    },
+    {
+      "matches": ["https://www.bilibili.com/*"],
+      "js": ["content/bilibili.js"],
+      "css": ["content/styles.css"],
+      "run_at": "document_end"
+    }
+  ],
+  "action": {
+    "default_popup": "popup/popup.html",
+    "default_icon": {
+      "16": "icons/icon16.png",
+      "48": "icons/icon48.png",
+      "128": "icons/icon128.png"
+    }
+  },
+  "icons": {
+    "16": "icons/icon16.png",
+    "48": "icons/icon48.png",
+    "128": "icons/icon128.png"
+  }
+}

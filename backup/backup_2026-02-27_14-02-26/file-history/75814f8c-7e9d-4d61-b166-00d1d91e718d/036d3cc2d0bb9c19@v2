@@ -1,0 +1,189 @@
+package com.shanfuchun.courtassistant.ai.provider
+
+import com.shanfuchun.courtassistant.ai.model.LLMProvider
+import com.shanfuchun.courtassistant.ai.model.SummonsExtraction
+import com.shanfuchun.courtassistant.ai.prompt.SummonsPrompt
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
+import okhttp3.MediaType.Companion.toMediaType
+import okhttp3.OkHttpClient
+import okhttp3.RequestBody.Companion.toRequestBody
+import org.json.JSONArray
+import org.json.JSONObject
+import java.util.concurrent.TimeUnit
+
+/**
+ * 百度文心一言 Provider
+ *
+ * 文心一言需要两步认证：
+ * 1. 使用 API Key + Secret Key 获取 Access Token
+ * 2. 使用 Access Token 调用聊天 API
+ */
+class WenxinProvider(
+    override val apiKey: String,
+    override val secretKey: String,
+    override val enabled: Boolean = true
+) : BaseLLMProvider {
+
+    override val providerType: LLMProvider = LLMProvider.WENXIN
+
+    private val client = OkHttpClient.Builder()
+        .connectTimeout(30, TimeUnit.SECONDS)
+        .readTimeout(60, TimeUnit.SECONDS)
+        .build()
+
+    private val JSON = "application/json; charset=utf-8".toMediaType()
+
+    private var cachedAccessToken: String? = null
+    private var tokenExpireTime: Long = 0
+
+    /**
+     * 获取 Access Token
+     * 文档: https://cloud.baidu.com/doc/WENXINWORKSHOP/s/Ilkkrb0i5
+     */
+    private suspend fun getAccessToken(): String = withContext(Dispatchers.IO) {
+        // 检查缓存的 Token 是否有效
+        if (cachedAccessToken != null && System.currentTimeMillis() < tokenExpireTime) {
+            return@withContext cachedAccessToken!!
+        }
+
+        val url = "https://aip.baidubce.com/oauth/2.0/token?" +
+            "grant_type=client_credentials&" +
+            "client_id=$apiKey&" +
+            "client_secret=$secretKey"
+
+        val request = okhttp3.Request.Builder()
+            .url(url)
+            .get()
+            .build()
+
+        val response = client.newCall(request).execute()
+        val body = response.body?.string() ?: throw Exception("Empty response")
+
+        val json = JSONObject(body)
+        val accessToken = json.optString("access_token")
+            ?: throw Exception("Failed to get access token: ${json.optString("error_description")}")
+
+        // 缓存 Token（有效期通常为 30 天，这里设置为 29 天）
+        cachedAccessToken = accessToken
+        tokenExpireTime = System.currentTimeMillis() + (29 * 24 * 60 * 60 * 1000)
+
+        accessToken
+    }
+
+    override suspend fun extractFromPdf(
+        pdfText: String,
+        ocrText: String?
+    ): Result<SummonsExtraction> = withContext(Dispatchers.IO) {
+        try {
+            val prompt = SummonsPrompt.buildPdfPrompt(pdfText, ocrText)
+            val response = callChatApi(prompt)
+            parseResponse(response)
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
+
+    override suspend fun extractFromSms(smsBody: String): Result<SummonsExtraction> = withContext(Dispatchers.IO) {
+        try {
+            val prompt = SummonsPrompt.build12368SmsPrompt(smsBody)
+            val response = callChatApi(prompt)
+            parseResponse(response)
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
+
+    override suspend fun extract(text: String, isSms: Boolean): Result<SummonsExtraction> {
+        return if (isSms) {
+            extractFromSms(text)
+        } else {
+            extractFromPdf(text, null)
+        }
+    }
+
+    /**
+     * 调用文心一言聊天 API
+     * 文档: https://cloud.baidu.com/doc/WENXINWORKSHOP/s/Nlks5zkzu
+     */
+    private suspend fun callChatApi(prompt: String): String = withContext(Dispatchers.IO) {
+        val accessToken = getAccessToken()
+
+        val messages = JSONArray().apply {
+            put(JSONObject().apply {
+                put("role", "user")
+                put("content", prompt)
+            })
+        }
+
+        val requestBody = JSONObject().apply {
+            put("messages", messages)
+        }.toString()
+
+        val request = okhttp3.Request.Builder()
+            .url("https://aip.baidubce.com/rpc/2.0/ai_custom/v1/wenxinworkshop/chat/completions?access_token=$accessToken")
+            .post(requestBody.toRequestBody(JSON))
+            .build()
+
+        val response = client.newCall(request).execute()
+        val body = response.body?.string() ?: throw Exception("Empty response")
+
+        if (!response.isSuccessful) {
+            throw Exception("API call failed: ${response.code} - $body")
+        }
+
+        val json = JSONObject(body)
+        json.optJSONObject("result")?.toString()
+            ?: json.optString("result")
+            ?: throw Exception("Invalid response format: $body")
+    }
+
+    /**
+     * 解析 AI 返回的结果
+     */
+    private fun parseResponse(response: String?): Result<SummonsExtraction> {
+        if (response.isNullOrBlank()) {
+            return Result.success(SummonsExtraction(confidence = 0f))
+        }
+
+        return try {
+            // 尝试解析 JSON
+            val json = if (response.trim().startsWith("{")) {
+                JSONObject(response)
+            } else {
+                // 尝试从文本中提取 JSON
+                val jsonStart = response.indexOf("{")
+                val jsonEnd = response.lastIndexOf("}")
+                if (jsonStart >= 0 && jsonEnd > jsonStart) {
+                    JSONObject(response.substring(jsonStart, jsonEnd + 1))
+                } else {
+                    return Result.success(SummonsExtraction(rawResponse = response, confidence = 0f))
+                }
+            }
+
+            val extraction = SummonsExtraction(
+                caseNo = json.optString("caseNo").takeIf { it.isNotEmpty() && it != "null" },
+                courtName = json.optString("courtName").takeIf { it.isNotEmpty() && it != "null" },
+                hearingTime = json.optLong("hearingTime").takeIf { it > 0 },
+                location = json.optString("location").takeIf { it.isNotEmpty() && it != "null" },
+                partyName = json.optString("partyName").takeIf { it.isNotEmpty() && it != "null" },
+                confidence = json.optDouble("confidence", 0.5).toFloat(),
+                rawResponse = response
+            )
+
+            Result.success(extraction)
+        } catch (e: Exception) {
+            // 解析失败，返回原始响应
+            Result.success(SummonsExtraction(rawResponse = response, confidence = 0f))
+        }
+    }
+
+    override suspend fun validateApiKey(): Result<Boolean> = withContext(Dispatchers.IO) {
+        try {
+            getAccessToken()
+            Result.success(true)
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
+}

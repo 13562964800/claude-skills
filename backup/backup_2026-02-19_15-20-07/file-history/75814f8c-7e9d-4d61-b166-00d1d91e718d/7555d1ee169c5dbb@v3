@@ -1,0 +1,388 @@
+package com.courassistant.java.ui;
+
+import android.Manifest;
+import android.app.Activity;
+import android.content.Context;
+import android.content.Intent;
+import android.content.pm.PackageManager;
+import android.net.Uri;
+import android.os.Build;
+import android.os.Bundle;
+import android.provider.Settings;
+import android.text.TextUtils;
+import android.view.LayoutInflater;
+import android.view.View;
+import android.view.ViewGroup;
+import android.widget.Button;
+import android.widget.ImageView;
+import android.widget.LinearLayout;
+import android.widget.TextView;
+import android.widget.Toast;
+
+import androidx.annotation.NonNull;
+import androidx.appcompat.app.AlertDialog;
+import androidx.appcompat.app.AppCompatActivity;
+import androidx.core.app.ActivityCompat;
+import androidx.core.content.ContextCompat;
+
+import com.shanfuchun.courtassistant.java.R;
+
+import java.util.ArrayList;
+import java.util.List;
+
+/**
+ * 权限请求活动
+ * 分步请求应用所需权限，提供友好的用户体验
+ *
+ * 宋氏美学，单夫纯律师 制作
+ */
+public class PermissionRequestActivity extends AppCompatActivity {
+
+    private static final String TAG = "PermissionRequestActivity";
+    private static final int PERMISSION_REQUEST_CODE = 1001;
+
+    // 权限组
+    private static final String[] SMS_PERMISSIONS = {
+        Manifest.permission.READ_SMS,
+        Manifest.permission.RECEIVE_SMS
+    };
+
+    private static final String[] CALENDAR_PERMISSIONS = {
+        Manifest.permission.READ_CALENDAR,
+        Manifest.permission.WRITE_CALENDAR
+    };
+
+    private static final String[] STORAGE_PERMISSIONS = {
+        Manifest.permission.READ_EXTERNAL_STORAGE,
+        Manifest.permission.WRITE_EXTERNAL_STORAGE
+    };
+
+    private static final String[] NOTIFICATION_PERMISSIONS = {
+        Manifest.permission.POST_NOTIFICATIONS
+    };
+
+    // 当前请求的权限组索引
+    private int currentPermissionGroup = 0;
+
+    @Override
+    protected void onCreate(Bundle savedInstanceState) {
+        super.onCreate(savedInstanceState);
+
+        // 检查是否已有所有权限
+        if (hasAllRequiredPermissions()) {
+            navigateToMain();
+            return;
+        }
+
+        // 显示权限说明对话框
+        showPermissionIntroduction();
+    }
+
+    /**
+     * 显示权限引导介绍
+     */
+    private void showPermissionIntroduction() {
+        AlertDialog.Builder builder = new AlertDialog.Builder(this);
+        builder.setTitle("欢迎使用 CourtAssistant");
+        builder.setMessage("法院助手需要一些权限才能正常运行，我们将逐步向您说明每个权限的用途。\n\n您可以随时拒绝，但可能会影响部分功能。");
+        builder.setIcon(R.drawable.ic_launcher_foreground);
+        builder.setPositiveButton("开始授权", (dialog, which) -> {
+            requestNextPermissionGroup();
+        });
+        builder.setNegativeButton("退出", (dialog, which) -> {
+            finish();
+        });
+        builder.setCancelable(false);
+        builder.show();
+    }
+
+    /**
+     * 请求下一组权限
+     */
+    private void requestNextPermissionGroup() {
+        if (currentPermissionGroup >= 4) {
+            // 所有权限组已请求完毕
+            checkAllPermissionsAndNavigate();
+            return;
+        }
+
+        switch (currentPermissionGroup) {
+            case 0:
+                showPermissionDetailsDialog(
+                    "短信权限",
+                    "需要读取和接收短信，以自动识别法院发送的庭审通知。",
+                    R.drawable.ic_sms,
+                    SMS_PERMISSIONS
+                );
+                break;
+
+            case 1:
+                showPermissionDetailsDialog(
+                    "日历权限",
+                    "需要读写日历，以自动将开庭信息添加到您的系统日历。",
+                    R.drawable.ic_calendar,
+                    CALENDAR_PERMISSIONS
+                );
+                break;
+
+            case 2:
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+                    showPermissionDetailsDialog(
+                        "通知权限",
+                        "需要在开庭前发送提醒通知。",
+                        R.drawable.ic_notification,
+                        NOTIFICATION_PERMISSIONS
+                    );
+                } else {
+                    // 跳过通知权限（Android 13以下不需要）
+                    currentPermissionGroup++;
+                    requestNextPermissionGroup();
+                }
+                break;
+
+            case 3:
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
+                    // Android 11+ 存储权限变化
+                    showPermissionDetailsDialog(
+                        "存储权限",
+                        "需要访问存储空间，以保存下载的传票和文档。",
+                        R.drawable.ic_storage,
+                        new String[]{} // Android 11+ 不需要请求
+                    );
+                } else {
+                    showPermissionDetailsDialog(
+                        "存储权限",
+                        "需要访问存储空间，以保存下载的传票和文档。",
+                        R.drawable.ic_storage,
+                        STORAGE_PERMISSIONS
+                    );
+                }
+                break;
+        }
+    }
+
+    /**
+     * 显示权限详情对话框
+     */
+    private void showPermissionDetailsDialog(String title, String message, int iconRes, String[] permissions) {
+        AlertDialog.Builder builder = new AlertDialog.Builder(this);
+
+        // 创建自定义视图
+        View dialogView = LayoutInflater.from(this).inflate(R.layout.dialog_permission_detail, null);
+        ImageView iconView = dialogView.findViewById(R.id.permission_icon);
+        TextView titleView = dialogView.findViewById(R.id.permission_title);
+        TextView messageView = dialogView.findViewById(R.id.permission_message);
+
+        iconView.setImageResource(iconRes);
+        titleView.setText(title);
+        messageView.setText(message);
+
+        builder.setView(dialogView);
+        builder.setPositiveButton("授权", (dialog, which) -> {
+            if (permissions.length > 0) {
+                ActivityCompat.requestPermissions(this, permissions, PERMISSION_REQUEST_CODE);
+            } else {
+                // Android 11+ 不需要请求存储权限，直接继续
+                currentPermissionGroup++;
+                requestNextPermissionGroup();
+            }
+        });
+
+        builder.setNegativeButton("跳过", (dialog, which) -> {
+            Toast.makeText(this, "已跳过 " + title + "，部分功能可能无法使用", Toast.LENGTH_SHORT).show();
+            currentPermissionGroup++;
+            requestNextPermissionGroup();
+        });
+
+        builder.setCancelable(false);
+        builder.show();
+    }
+
+    @Override
+    public void onRequestPermissionsResult(int requestCode, @NonNull String[] permissions, @NonNull int[] grantResults) {
+        super.onRequestPermissionsResult(requestCode, permissions, grantResults);
+
+        if (requestCode != PERMISSION_REQUEST_CODE) {
+            return;
+        }
+
+        // 检查权限结果
+        boolean allGranted = true;
+        for (int result : grantResults) {
+            if (result != PackageManager.PERMISSION_GRANTED) {
+                allGranted = false;
+                break;
+            }
+        }
+
+        if (allGranted) {
+            Toast.makeText(this, "权限授予成功", Toast.LENGTH_SHORT).show();
+            currentPermissionGroup++;
+            requestNextPermissionGroup();
+        } else {
+            // 部分权限被拒绝
+            showPermissionDeniedDialog();
+        }
+    }
+
+    /**
+     * 显示权限被拒绝对话框
+     */
+    private void showPermissionDeniedDialog() {
+        AlertDialog.Builder builder = new AlertDialog.Builder(this);
+        builder.setTitle("权限未授予");
+        builder.setMessage("您拒绝了部分权限，应用可能无法正常工作。\n\n建议：\n1. 点击\"设置\"手动开启权限\n2. 或点击\"继续\"跳过此权限组");
+
+        builder.setPositiveButton("去设置", (dialog, which) -> {
+            openAppSettings();
+        });
+
+        builder.setNegativeButton("继续", (dialog, which) -> {
+            currentPermissionGroup++;
+            requestNextPermissionGroup();
+        });
+
+        builder.setCancelable(false);
+        builder.show();
+    }
+
+    /**
+     * 打开应用设置页面
+     */
+    private void openAppSettings() {
+        Intent intent = new Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS);
+        Uri uri = Uri.fromParts("package", getPackageName(), null);
+        intent.setData(uri);
+        startActivity(intent);
+    }
+
+    /**
+     * 检查所有权限
+     */
+    private void checkAllPermissionsAndNavigate() {
+        if (hasAllRequiredPermissions()) {
+            Toast.makeText(this, "所有权限已授予", Toast.LENGTH_SHORT).show();
+            navigateToMain();
+        } else {
+            showCompletionDialog();
+        }
+    }
+
+    /**
+     * 显示完成对话框
+     */
+    private void showCompletionDialog() {
+        AlertDialog.Builder builder = new AlertDialog.Builder(this);
+        builder.setTitle("权限授权完成");
+        builder.setMessage("权限请求已完成。\n\n如需修改权限，可前往系统设置调整。");
+
+        builder.setPositiveButton("开始使用", (dialog, which) -> {
+            navigateToMain();
+        });
+
+        builder.setNeutralButton("设置", (dialog, which) -> {
+            openAppSettings();
+        });
+
+        builder.setCancelable(false);
+        builder.show();
+    }
+
+    /**
+     * 导航到主界面
+     */
+    private void navigateToMain() {
+        Intent intent = new Intent(this, MainActivity.class);
+        startActivity(intent);
+        finish();
+    }
+
+    /**
+     * 检查是否拥有所有必需权限
+     */
+    private boolean hasAllRequiredPermissions() {
+        return checkPermissions(SMS_PERMISSIONS) &&
+               checkPermissions(CALENDAR_PERMISSIONS) &&
+               (Build.VERSION.SDK_INT < Build.VERSION_CODES.TIRAMISU || checkPermissions(NOTIFICATION_PERMISSIONS));
+    }
+
+    /**
+     * 检查权限组
+     */
+    private boolean checkPermissions(String[] permissions) {
+        for (String permission : permissions) {
+            if (ContextCompat.checkSelfPermission(this, permission) != PackageManager.PERMISSION_GRANTED) {
+                return false;
+            }
+        }
+        return true;
+    }
+
+    /**
+     * 静态方法：检查权限（供其他Activity使用）
+     */
+    public static boolean hasPermission(Context context, String permission) {
+        return ContextCompat.checkSelfPermission(context, permission) == PackageManager.PERMISSION_GRANTED;
+    }
+
+    /**
+     * 静态方法：检查短信权限
+     */
+    public static boolean hasSmsPermissions(Context context) {
+        for (String permission : SMS_PERMISSIONS) {
+            if (!hasPermission(context, permission)) {
+                return false;
+            }
+        }
+        return true;
+    }
+
+    /**
+     * 静态方法：检查日历权限
+     */
+    public static boolean hasCalendarPermissions(Context context) {
+        for (String permission : CALENDAR_PERMISSIONS) {
+            if (!hasPermission(context, permission)) {
+                return false;
+            }
+        }
+        return true;
+    }
+
+    /**
+     * 静态方法：检查存储权限
+     */
+    public static boolean hasStoragePermissions(Context context) {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
+            // Android 11+ 不需要请求存储权限
+            return true;
+        }
+        return checkPermissionsCompat(context, STORAGE_PERMISSIONS);
+    }
+
+    private static boolean checkPermissionsCompat(Context context, String[] permissions) {
+        for (String permission : permissions) {
+            if (!hasPermission(context, permission)) {
+                return false;
+            }
+        }
+        return true;
+    }
+
+    /**
+     * 静态方法：启动权限请求Activity
+     */
+    public static void startIfNeeded(Activity activity) {
+        if (!new PermissionRequestActivity().hasAllRequiredPermissionsCompat(activity)) {
+            Intent intent = new Intent(activity, PermissionRequestActivity.class);
+            activity.startActivity(intent);
+        }
+    }
+
+    private boolean hasAllRequiredPermissionsCompat(Context context) {
+        return hasSmsPermissions(context) &&
+               hasCalendarPermissions(context) &&
+               hasStoragePermissions(context) &&
+               (Build.VERSION.SDK_INT < Build.VERSION_CODES.TIRAMISU || hasPermission(context, Manifest.permission.POST_NOTIFICATIONS));
+    }
+}

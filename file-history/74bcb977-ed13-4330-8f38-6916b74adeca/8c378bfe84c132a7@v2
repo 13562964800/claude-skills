@@ -1,0 +1,19 @@
+from celery import Celery
+
+# MVP: 使用 eager 模式，同步执行，无需 Redis
+celery_app = Celery('legalflow')
+celery_app.conf.task_always_eager = True
+celery_app.conf.task_eager_propagates = True
+celery_app.conf.task_serializer = 'json'
+celery_app.conf.result_serializer = 'json'
+celery_app.conf.accept_content = ['json']
+celery_app.conf.timezone = 'Asia/Shanghai'
+celery_app.conf.enable_utc = True
+
+# 生产环境配置（需要 Redis）
+# from app.worker.celery_config import CeleryConfig
+# config = CeleryConfig()
+# celery_app.conf.broker_url = config.broker_url
+# celery_app.conf.result_backend = config.result_backend
+
+celery_app.autodiscover_tasks(['app.worker'])

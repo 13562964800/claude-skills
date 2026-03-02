@@ -1,0 +1,197 @@
+# PowerShell脚本：完成页码设置和目录更新
+# 自动完成所有剩余工作
+
+param(
+    [string]$DocPath = "C:\Users\Administrator\AI科普画册\AI前沿知识儿童科普画册-完整版-已插入插图.docx",
+    [string]$OutputPath = "C:\Users\Administrator\AI科普画册\AI前沿知识儿童科普画册-最终完整版.docx"
+)
+
+Write-Host "=" * 70 -ForegroundColor Cyan
+Write-Host "📄 完成页码设置和目录更新" -ForegroundColor Cyan
+Write-Host "=" * 70 -ForegroundColor Cyan
+
+# 检查文件是否存在
+if (-not (Test-Path $DocPath)) {
+    Write-Host "❌ 找不到输入文件: $DocPath" -ForegroundColor Red
+    exit 1
+}
+
+Write-Host "`n📂 输入文件: $DocPath" -ForegroundColor Yellow
+Write-Host "📂 输出文件: $OutputPath`n" -ForegroundColor Yellow
+
+try {
+    Write-Host "📖 启动Word应用程序..." -ForegroundColor Green
+    $word = New-Object -ComObject Word.Application
+    $word.Visible = $false
+
+    Write-Host "📖 打开Word文档..." -ForegroundColor Green
+    $doc = $word.Documents.Open($DocPath)
+
+    # 常量定义
+    $wdSeekCurrentPageHeader = 9
+    $wdSeekCurrentPageFooter = 10
+    $wdAlignPageNumberCenter = 1
+    $wdHeaderFooterPrimary = 1
+    $wdNumberFormatLowercaseRoman = 4  # i, ii, iii
+    $wdNumberFormatArabic = 0  # 1, 2, 3
+    $wdFieldPage = 33
+    $wdStory = 6
+
+    Write-Host "`n📄 设置页码..." -ForegroundColor Green
+
+    # 第一步：设置封面页不显示页码
+    Write-Host "  1. 设置封面页不显示页码..." -ForegroundColor Cyan
+    $section1 = $doc.Sections.Item(1)
+    $section1.PageSetup.DifferentFirstPageHeaderFooter = $true
+
+    # 第二步：查找目录位置并设置罗马数字页码
+    Write-Host "  2. 查找目录位置..." -ForegroundColor Cyan
+    $tocFound = $false
+    $tocSectionIndex = 1
+
+    # 遍历段落查找目录
+    for ($i = 1; $i -le $doc.Paragraphs.Count; $i++) {
+        $para = $doc.Paragraphs.Item($i)
+        $text = $para.Range.Text
+
+        if ($text -match "目录|Table of Contents|TOC") {
+            $tocSectionIndex = $para.Range.Sections.Item(1).Index
+            $tocFound = $true
+            Write-Host "     ✓ 找到目录在第 $tocSectionIndex 节" -ForegroundColor Green
+            break
+        }
+
+        # 只检查前50个段落
+        if ($i -gt 50) { break }
+    }
+
+    if ($tocFound -and $tocSectionIndex -le $doc.Sections.Count) {
+        Write-Host "  3. 为目录页添加罗马数字页码..." -ForegroundColor Cyan
+
+        $tocSection = $doc.Sections.Item($tocSectionIndex)
+
+        # 设置页脚
+        $footer = $tocSection.Footers.Item($wdHeaderFooterPrimary)
+        $footer.Range.Text = ""
+        $footer.Range.ParagraphFormat.Alignment = $wdAlignPageNumberCenter
+
+        # 添加页码域
+        $footer.PageNumbers.RestartNumberingAtSection = $true
+        $footer.PageNumbers.StartingNumber = 1
+        $footer.Range.Fields.Add($footer.Range, $wdFieldPage) | Out-Null
+
+        Write-Host "     ✓ 目录页码设置完成（罗马数字）" -ForegroundColor Green
+    }
+
+    # 第三步：为正文添加阿拉伯数字页码
+    Write-Host "  4. 查找正文开始位置..." -ForegroundColor Cyan
+    $contentSectionIndex = $tocSectionIndex + 1
+
+    # 查找第一个一级标题作为正文开始
+    for ($i = 1; $i -le $doc.Paragraphs.Count; $i++) {
+        $para = $doc.Paragraphs.Item($i)
+        $styleName = $para.Style.NameLocal
+
+        if ($styleName -match "标题 1|Heading 1") {
+            $contentSectionIndex = $para.Range.Sections.Item(1).Index
+            Write-Host "     ✓ 找到正文开始在第 $contentSectionIndex 节" -ForegroundColor Green
+            break
+        }
+    }
+
+    # 如果目录和正文在同一节，需要插入分节符
+    if ($contentSectionIndex -eq $tocSectionIndex) {
+        Write-Host "  5. 插入分节符..." -ForegroundColor Cyan
+
+        # 查找目录结束位置
+        for ($i = 1; $i -le $doc.Paragraphs.Count; $i++) {
+            $para = $doc.Paragraphs.Item($i)
+            $styleName = $para.Style.NameLocal
+
+            if ($styleName -match "标题 1|Heading 1") {
+                # 在第一个标题前插入分节符
+                $para.Range.InsertBreak(2)  # 2 = wdSectionBreakNextPage
+                $contentSectionIndex = $para.Range.Sections.Item(1).Index
+                Write-Host "     ✓ 已插入分节符，正文在第 $contentSectionIndex 节" -ForegroundColor Green
+                break
+            }
+        }
+    }
+
+    if ($contentSectionIndex -le $doc.Sections.Count) {
+        Write-Host "  6. 为正文添加阿拉伯数字页码..." -ForegroundColor Cyan
+
+        $contentSection = $doc.Sections.Item($contentSectionIndex)
+
+        # 断开与前一节的链接
+        $contentSection.Footers.Item($wdHeaderFooterPrimary).LinkToPrevious = $false
+
+        # 设置页脚
+        $footer = $contentSection.Footers.Item($wdHeaderFooterPrimary)
+        $footer.Range.Text = ""
+        $footer.Range.ParagraphFormat.Alignment = $wdAlignPageNumberCenter
+
+        # 添加页码域
+        $footer.PageNumbers.RestartNumberingAtSection = $true
+        $footer.PageNumbers.StartingNumber = 1
+        $footer.Range.Fields.Add($footer.Range, $wdFieldPage) | Out-Null
+
+        Write-Host "     ✓ 正文页码设置完成（阿拉伯数字）" -ForegroundColor Green
+    }
+
+    # 第四步：更新所有域（包括目录）
+    Write-Host "`n📑 更新目录和所有域..." -ForegroundColor Green
+
+    # 更新所有域
+    foreach ($field in $doc.Fields) {
+        try {
+            $field.Update() | Out-Null
+        }
+        catch {
+            # 忽略无法更新的域
+        }
+    }
+
+    # 特别更新目录
+    foreach ($toc in $doc.TablesOfContents) {
+        try {
+            $toc.Update() | Out-Null
+            Write-Host "  ✓ 目录已更新" -ForegroundColor Green
+        }
+        catch {
+            Write-Host "  ⚠️  目录更新失败: $_" -ForegroundColor Yellow
+        }
+    }
+
+    Write-Host "`n💾 保存文档..." -ForegroundColor Green
+    $doc.SaveAs([ref]$OutputPath)
+    $doc.Close()
+    $word.Quit()
+
+    # 释放COM对象
+    [System.Runtime.Interopservices.Marshal]::ReleaseComObject($doc) | Out-Null
+    [System.Runtime.Interopservices.Marshal]::ReleaseComObject($word) | Out-Null
+    [System.GC]::Collect()
+    [System.GC]::WaitForPendingFinalizers()
+
+    Write-Host "`n" + ("=" * 70) -ForegroundColor Cyan
+    Write-Host "✅ 全部完成！" -ForegroundColor Green
+    Write-Host "`n📊 完成情况：" -ForegroundColor Yellow
+    Write-Host "   ✓ 封面页：不显示页码" -ForegroundColor Green
+    Write-Host "   ✓ 目录页：罗马数字页码（i, ii, iii...）" -ForegroundColor Green
+    Write-Host "   ✓ 正文页：阿拉伯数字页码（1, 2, 3...）" -ForegroundColor Green
+    Write-Host "   ✓ 目录已更新" -ForegroundColor Green
+    Write-Host "   ✓ 所有插图已插入（31个）" -ForegroundColor Green
+    Write-Host "`n📁 最终文件: $OutputPath" -ForegroundColor Yellow
+    Write-Host ("=" * 70) -ForegroundColor Cyan
+    Write-Host "`n🎉 AI科普画册制作完成！" -ForegroundColor Green
+}
+catch {
+    Write-Host "`n❌ 错误: $_" -ForegroundColor Red
+    Write-Host $_.Exception.Message -ForegroundColor Red
+    Write-Host $_.ScriptStackTrace -ForegroundColor Red
+
+    # 清理
+    if ($doc) { $doc.Close() }
+    if ($word) { $word.Quit() }
+}

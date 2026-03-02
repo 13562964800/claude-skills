@@ -1,0 +1,121 @@
+Sub 自动插入所有插图()
+    '
+    ' 自动插入所有插图到Word文档
+    ' 将SVG文件插入到对应的占位符位置
+    '
+
+    Dim doc As Document
+    Dim para As Paragraph
+    Dim rng As Range
+    Dim illustrationPath As String
+    Dim illustrationNum As Integer
+    Dim insertedCount As Integer
+    Dim failedCount As Integer
+
+    ' 插图文件夹路径
+    Const ILLUSTRATION_DIR As String = "C:\Users\Administrator\插图\"
+
+    ' 插图文件列表（按序号排列）
+    Dim illustrations(1 To 31) As String
+    illustrations(1) = "00-AI小助手吉祥物.svg"
+    illustrations(2) = "00-封面设计.svg"
+    illustrations(3) = "01-LLM.svg"
+    illustrations(4) = "01-LLM接龙游戏.svg"
+    illustrations(5) = "02-Embedding.svg"
+    illustrations(6) = "02-Embedding坐标系统.svg"
+    illustrations(7) = "03-Vector-Database魔法图书馆.svg"
+    illustrations(8) = "03-VectorDatabase.svg"
+    illustrations(9) = "04-API.svg"
+    illustrations(10) = "04-Token积木.svg"
+    illustrations(11) = "05-MCP.svg"
+    illustrations(12) = "05-Prompt魔法咒语.svg"
+    illustrations(13) = "06-GitHub.svg"
+    illustrations(14) = "06-GitHub宇宙.svg"
+    illustrations(15) = "07-API餐厅服务员.svg"
+    illustrations(16) = "07-Fork.svg"
+    illustrations(17) = "08-Branch.svg"
+    illustrations(18) = "09-Vibecoding.svg"
+    illustrations(19) = "09-Vibecoding场景.svg"
+    illustrations(20) = "10-AI助手.svg"
+    illustrations(21) = "11-AI历史时间线.svg"
+    illustrations(22) = "15-Repository仓库房子.svg"
+    illustrations(23) = "16-Commit相机快照.svg"
+    illustrations(24) = "17-PullRequest快递.svg"
+    illustrations(25) = "18-Branch树的分支.svg"
+    illustrations(26) = "19-Merge河流汇合.svg"
+    illustrations(27) = "20-传统编程vsVibecoding.svg"
+    illustrations(28) = "21-AI学习路径.svg"
+    illustrations(29) = "22-AI改变世界.svg"
+    illustrations(30) = "封底-精美版.svg"
+    illustrations(31) = "封面-精美版.svg"
+
+    Set doc = ActiveDocument
+    insertedCount = 0
+    failedCount = 0
+
+    ' 遍历所有段落
+    For Each para In doc.Paragraphs
+        ' 查找插图占位符
+        If InStr(para.Range.Text, "🖼️  插图 #") > 0 Then
+            ' 提取插图编号
+            Dim startPos As Integer
+            Dim endPos As Integer
+            startPos = InStr(para.Range.Text, "#") + 1
+            endPos = InStr(startPos, para.Range.Text, ":")
+
+            If endPos > startPos Then
+                illustrationNum = Val(Mid(para.Range.Text, startPos, endPos - startPos))
+
+                If illustrationNum >= 1 And illustrationNum <= 31 Then
+                    illustrationPath = ILLUSTRATION_DIR & illustrations(illustrationNum)
+
+                    ' 检查文件是否存在
+                    If Dir(illustrationPath) <> "" Then
+                        On Error Resume Next
+
+                        ' 清空段落
+                        para.Range.Delete
+
+                        ' 插入图片
+                        Set rng = para.Range
+                        rng.InlineShapes.AddPicture _
+                            FileName:=illustrationPath, _
+                            LinkToFile:=False, _
+                            SaveWithDocument:=True, _
+                            Range:=rng
+
+                        ' 设置图片大小（5.5英寸宽）
+                        If rng.InlineShapes.Count > 0 Then
+                            rng.InlineShapes(1).Width = InchesToPoints(5.5)
+                            rng.InlineShapes(1).LockAspectRatio = msoTrue
+                        End If
+
+                        ' 居中对齐
+                        para.Alignment = wdAlignParagraphCenter
+
+                        If Err.Number = 0 Then
+                            insertedCount = insertedCount + 1
+                            If insertedCount Mod 10 = 0 Then
+                                Application.StatusBar = "已插入 " & insertedCount & " 个插图..."
+                            End If
+                        Else
+                            failedCount = failedCount + 1
+                        End If
+
+                        On Error GoTo 0
+                    Else
+                        failedCount = failedCount + 1
+                    End If
+                End If
+            End If
+        End If
+    Next para
+
+    ' 显示结果
+    Application.StatusBar = ""
+    MsgBox "插图插入完成！" & vbCrLf & vbCrLf & _
+           "成功插入: " & insertedCount & " 个" & vbCrLf & _
+           "失败: " & failedCount & " 个", _
+           vbInformation, "完成"
+
+End Sub

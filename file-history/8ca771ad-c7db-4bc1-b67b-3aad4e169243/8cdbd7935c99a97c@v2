@@ -1,0 +1,49 @@
+/* 通用下载按钮样式 */
+.video-dl-button {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 16px;
+  background: #1a73e8;
+  color: white;
+  border: none;
+  border-radius: 18px;
+  cursor: pointer;
+  font-size: 14px;
+  font-weight: 500;
+  transition: all 0.2s;
+  margin: 0 8px;
+  z-index: 9999;
+}
+
+.video-dl-button:hover {
+  background: #1557b0;
+  transform: translateY(-1px);
+  box-shadow: 0 2px 8px rgba(26, 115, 232, 0.3);
+}
+
+.video-dl-button:active {
+  transform: translateY(0);
+}
+
+.video-dl-button:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.video-dl-button svg {
+  width: 18px;
+  height: 18px;
+}
+
+/* B站特定样式 */
+.video-dl-button.bilibili-style {
+  background: #00a1d6;
+  border-radius: 4px;
+  padding: 6px 12px;
+  font-size: 13px;
+}
+
+.video-dl-button.bilibili-style:hover {
+  background: #0087b3;
+}

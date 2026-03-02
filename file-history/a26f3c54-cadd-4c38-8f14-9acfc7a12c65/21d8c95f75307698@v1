@@ -1,0 +1,120 @@
+package com.ai.hotspot.presentation.home
+
+import androidx.lifecycle.ViewModel
+import androidx.lifecycle.viewModelScope
+import com.ai.hotspot.domain.model.Category
+import com.ai.hotspot.domain.model.FilterState
+import com.ai.hotspot.domain.model.Source
+import com.ai.hotspot.domain.usecase.GetHotspotsUseCase
+import com.ai.hotspot.domain.usecase.HotspotActionsUseCase
+import com.ai.hotspot.domain.usecase.RefreshHotspotsUseCase
+import dagger.hilt.android.lifecycle.HiltViewModel
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.catch
+import kotlinx.coroutines.flow.update
+import kotlinx.coroutines.launch
+import javax.inject.Inject
+
+@HiltViewModel
+class HomeViewModel @Inject constructor(
+    private val getHotspotsUseCase: GetHotspotsUseCase,
+    private val refreshHotspotsUseCase: RefreshHotspotsUseCase,
+    private val hotspotActionsUseCase: HotspotActionsUseCase
+) : ViewModel() {
+
+    private val _state = MutableStateFlow(HomeState())
+    val state = _state.asStateFlow()
+
+    init {
+        loadHotspots()
+    }
+
+    private fun loadHotspots() {
+        viewModelScope.launch {
+            _state.update { it.copy(isLoading = true) }
+
+            getHotspotsUseCase(_state.value.filterState)
+                .catch { e ->
+                    _state.update {
+                        it.copy(
+                            error = e.message,
+                            isLoading = false
+                        )
+                    }
+                }
+                .collect { hotspots ->
+                    _state.update {
+                        it.copy(
+                            hotspots = hotspots,
+                            isLoading = false,
+                            error = null
+                        )
+                    }
+                }
+        }
+    }
+
+    fun refresh() {
+        viewModelScope.launch {
+            _state.update { it.copy(isRefreshing = true) }
+
+            refreshHotspotsUseCase()
+                .onSuccess {
+                    _state.update { it.copy(isRefreshing = false, error = null) }
+                }
+                .onFailure { e ->
+                    _state.update {
+                        it.copy(
+                            isRefreshing = false,
+                            error = e.message
+                        )
+                    }
+                }
+        }
+    }
+
+    fun toggleBookmark(hotspotId: String, isCurrentlyBookmarked: Boolean) {
+        viewModelScope.launch {
+            hotspotActionsUseCase.toggleBookmark(hotspotId, isCurrentlyBookmarked)
+        }
+    }
+
+    fun markAsRead(hotspotId: String) {
+        viewModelScope.launch {
+            hotspotActionsUseCase.markAsRead(hotspotId)
+        }
+    }
+
+    fun updateFilter(filterState: FilterState) {
+        _state.update { it.copy(filterState = filterState) }
+        loadHotspots()
+    }
+
+    fun toggleFilterSheet() {
+        _state.update { it.copy(showFilterSheet = !it.showFilterSheet) }
+    }
+
+    fun toggleSearchBar() {
+        _state.update {
+            it.copy(
+                showSearchBar = !it.showSearchBar,
+                searchQuery = if (it.showSearchBar) "" else it.searchQuery
+            )
+        }
+    }
+
+    fun updateSearchQuery(query: String) {
+        _state.update {
+            it.copy(
+                searchQuery = query,
+                filterState = it.filterState.copy(searchQuery = query)
+            )
+        }
+        loadHotspots()
+    }
+
+    fun clearError() {
+        _state.update { it.copy(error = null) }
+    }
+}

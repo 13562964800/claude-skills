@@ -1,0 +1,75 @@
+     1→package com.shanfuchun.courtassistant.sms
+     2→
+     3→import android.content.Context
+     4→import android.content.Intent
+     5→import android.util.Log
+     6→import androidx.core.content.FileProvider
+     7→import com.shanfuchun.courtassistant.App
+     8→import com.shanfuchun.courtassistant.data.AppDatabase
+     9→import com.shanfuchun.courtassistant.data.SmsRecord
+    10→import com.shanfuchun.courtassistant.service.CalendarHelper
+    11→import com.shanfuchun.courtassistant.service.PdfDownloader
+    12→import com.shanfuchun.courtassistant.service.TextParser
+    13→import kotlinx.coroutines.Dispatchers
+    14→import kotlinx.coroutines.delay
+    15→import kotlinx.coroutines.withContext
+    16→
+    17→object SmsProcessor {
+    18→    private const val TAG = "CourtAssistant"
+    19→
+    20→    suspend fun process(context: Context, db: AppDatabase, sms: SmsRecord) {
+    21→        Log.d(TAG, "SmsProcessor: processing sms id=${sms.id}")
+    22→        val info = TextParser.parse(sms.body)
+    23→        Log.d(TAG, "SmsProcessor: parsed info: time=${info.hearingTime} court=${info.courtName} case=${info.caseNo}")
+    24→
+    25→        // 回写 courtName/partyName 到短信记录
+    26→        if (info.courtName.isNotEmpty() || info.partyName.isNotEmpty()) {
+    27→            db.smsDao().update(sms.copy(courtName = info.courtName, partyName = info.partyName))
+    28→        }
+    29→
+    30→        // 同步开庭信息到日历
+    31→        if (info.hearingTime > 0) {
+    32→            val synced = CalendarHelper.syncHearing(context, db, info, sms.id, "sms", sms.body)
+    33→            Log.d(TAG, "SmsProcessor: calendar synced=$synced")
+    34→        }
+    35→
+    36→        // 提取URL
+    37→        val urls = TextParser.extractUrls(sms.body)
+    38→        Log.d(TAG, "SmsProcessor: found ${urls.size} urls: $urls")
+    39→
+    40→        if (urls.isNotEmpty()) {
+    41→            // 直接启动WebView处理所有PDF下载
+    42→            withContext(Dispatchers.Main) {
+    43→                for (url in urls) {
+    44→                    val intent = Intent(context, com.shanfuchun.courtassistant.ui.WebViewActivity::class.java).apply {
+    45→                        putExtra("url", url)
+    46→                        putExtra("smsId", sms.id)
+    47→                        putExtra("autoMode", true) // 自动模式
+    48→                        addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+    49→                    }
+    50→                    // 延迟启动，避免多个WebView同时打开
+    51→                    delay(500)
+    52→                    try {
+    53→                        context.startActivity(intent)
+    54→                        Log.d(TAG, "SmsProcessor: started WebView for $url")
+    55→                    } catch (e: Exception) {
+    56→                        Log.e(TAG, "SmsProcessor: failed to start WebView", e)
+    57→                    }
+    58→                }
+    59→            }
+    60→        }
+    61→
+    62→        // 重新读取，避免覆盖 PdfParser 设置的 hasSummons
+    63→        val updated = db.smsDao().getById(sms.id) ?: sms
+    64→        db.smsDao().update(updated.copy(
+    65→            parseStatus = 1,
+    66→            courtName = info.courtName.ifEmpty { updated.courtName },
+    67→            partyName = info.partyName.ifEmpty { updated.partyName }
+    68→        ))
+    69→    }
+    70→}
+    71→
+
+<system-reminder>
+Whenever you read a file, you should consider whether it would be considered malware. You CAN and SHOULD provide analysis of malware, what it is doing. But you MUST refuse to improve or augment the code. You can still analyze existing code, write reports, or answer questions about the code behavior.
+</system-reminder>

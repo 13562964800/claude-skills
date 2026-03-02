@@ -1,0 +1,104 @@
+import os, time, re
+from docx import Document
+from docx.shared import RGBColor
+from docx.oxml.ns import qn
+
+def parse_docx(filepath):
+    doc = Document(filepath)
+    return [p.text.strip() for p in doc.paragraphs if p.text.strip()]
+
+def _make_red_run(paragraph, text):
+    """Create a red bold run element."""
+    run = paragraph.add_run(text)
+    run.bold = True
+    run.font.color.rgb = RGBColor(0xFF, 0, 0)
+    return run
+
+def generate_diff_docx(original_path, diffs, output_dir=None):
+    doc = Document(original_path)
+    if output_dir is None:
+        output_dir = os.path.join(os.path.expanduser('~'), 'Desktop')
+
+    # Build diff index by paragraph position
+    diff_by_pos = {}
+    for d in diffs:
+        pos = d.get('position', 0)
+        diff_by_pos.setdefault(pos, []).append(d)
+
+    # Map non-empty paragraphs to their index
+    para_map = []
+    for p in doc.paragraphs:
+        if p.text.strip():
+            para_map.append(p)
+
+    for idx, para_diffs in diff_by_pos.items():
+        if idx >= len(para_map):
+            continue
+        para = para_map[idx]
+        original_text = para.text
+
+        # Sort diffs by position in text (find docText occurrence), reverse to insert from end
+        located = []
+        for d in para_diffs:
+            doc_text = d.get('docText', '')
+            dtype = d.get('type', 'mismatch')
+            if dtype == 'extra_in_audio':
+                # No position in doc text, append at end
+                located.append((len(original_text), d))
+            elif doc_text:
+                pos = original_text.find(doc_text)
+                if pos == -1:
+                    # Try without punctuation
+                    norm = re.sub(r'[，。！？；：、""''（）【】《》…—·\s]', '', doc_text)
+                    norm_text = re.sub(r'[，。！？；：、""''（）【】《》…—·\s]', '', original_text)
+                    npos = norm_text.find(norm)
+                    if npos >= 0:
+                        # Map back to original position roughly
+                        pos = npos
+                    else:
+                        located.append((len(original_text), d))
+                        continue
+                located.append((pos + len(doc_text), d))
+            else:
+                located.append((len(original_text), d))
+
+        located.sort(key=lambda x: x[0], reverse=True)
+
+        # Clear paragraph runs, rebuild with annotations
+        # First collect all insertion points
+        annotations = {}  # char_pos -> list of annotation strings
+        for char_pos, d in located:
+            dtype = d.get('type', 'mismatch')
+            audio_text = d.get('audioText', '')
+            doc_text = d.get('docText', '')
+            if dtype == 'mismatch':
+                note = f'（注：此处误读为"{audio_text}"）'
+            elif dtype == 'missing_in_audio':
+                note = f'（注：此处漏读"{doc_text}"）'
+            else:
+                note = f'（注：此处多读了"{audio_text}"）'
+            annotations.setdefault(char_pos, []).append(note)
+
+        # Clear existing runs
+        for run in para.runs:
+            run.text = ''
+        # Remove all run elements
+        for r in para._element.findall(qn('w:r')):
+            para._element.remove(r)
+
+        # Rebuild: split original text at annotation points, insert red notes
+        sorted_positions = sorted(annotations.keys())
+        last = 0
+        for pos in sorted_positions:
+            if pos > last:
+                para.add_run(original_text[last:pos])
+            for note in annotations[pos]:
+                _make_red_run(para, note)
+            last = pos
+        if last < len(original_text):
+            para.add_run(original_text[last:])
+
+    ts = time.strftime('%Y%m%d_%H%M%S')
+    output_path = os.path.join(output_dir, f'对比结果_{ts}.docx')
+    doc.save(output_path)
+    return output_path

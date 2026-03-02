@@ -1,0 +1,51 @@
+plugins {
+    id 'com.android.application'
+    id 'com.chaquo.python'
+}
+
+android {
+    namespace 'com.voicedoc.app'
+    compileSdk 34
+
+    defaultConfig {
+        applicationId "com.voicedoc.app"
+        minSdk 24
+        targetSdk 34
+        versionCode 5
+        versionName "2.7.0"
+
+        python {
+            version "3.11"
+            buildPython "C:/Users/Administrator/funasr-venv/Scripts/python.exe"
+            pip {
+                install "requests"
+                install "python-docx"
+                install "pypinyin"
+            }
+        }
+
+        ndk {
+            abiFilters "arm64-v8a"
+        }
+    }
+
+    buildTypes {
+        release {
+            minifyEnabled false
+        }
+    }
+
+    sourceSets {
+        main {
+            python.srcDirs = ["src/main/python"]
+        }
+    }
+}
+
+dependencies {
+    implementation 'androidx.appcompat:appcompat:1.6.1'
+    implementation 'com.google.android.material:material:1.11.0'
+    implementation 'androidx.constraintlayout:constraintlayout:2.1.4'
+    implementation files('libs/sherpa-onnx-1.12.25.aar')
+    implementation 'org.jetbrains.kotlin:kotlin-stdlib:1.9.22'
+}

@@ -1,0 +1,84 @@
+     1→@rem
+     2→@rem Copyright 2015 the original author or authors.
+     3→@rem
+     4→@rem Licensed under the Apache License, Version 2.0 (the "License");
+     5→@rem you may not use this file except in compliance with the License.
+     6→@rem You may obtain a copy of the License at
+     7→@rem
+     8→@rem      https://www.apache.org/licenses/LICENSE-2.0
+     9→@rem
+    10→@rem Unless required by applicable law or agreed to in writing, software
+    11→@rem distributed under the License is distributed on an "AS IS" BASIS,
+    12→@rem WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+    13→@rem See the License for the specific language governing permissions and
+    14→@rem limitations under the License.
+    15→@rem
+    16→
+    17→@if "%DEBUG%"=="" @echo off
+    18→@rem ##########################################################################
+    19→@rem
+    20→@rem  Gradle startup script for Windows
+    21→@rem
+    22→@rem ##########################################################################
+    23→
+    24→@rem Set local scope for the variables with windows NT shell
+    25→if "%OS%"=="Windows_NT" setlocal
+    26→
+    27→set DIRNAME=%~dp0
+    28→if "%DIRNAME%"=="" set DIRNAME=.
+    29→set APP_BASE_NAME=%~n0
+    30→set APP_HOME=%DIRNAME%
+    31→
+    32→@rem Resolve any "." and ".." in APP_HOME to make it shorter.
+    33→for %%i in ("%APP_HOME%") do set APP_HOME=%%~fi
+    34→
+    35→@rem Add default JVM options here. You can also use JAVA_OPTS and GRADLE_OPTS to pass JVM options to this script.
+    36→set DEFAULT_JVM_OPTS="-Xmx64m" "-Xms64m"
+    37→
+    38→@rem Find java.exe
+    39→if defined JAVA_HOME goto findJavaFromJavaHome
+    40→
+    41→set JAVA_EXE=java.exe
+    42→%JAVA_EXE% -version >NUL 2>&1
+    43→if "%ERRORLEVEL%" == "0" goto init
+    44→
+    45→echo.
+    46→echo ERROR: JAVA_HOME is not set and no 'java' command could be found in your PATH.
+    47→echo.
+    48→echo Please set the JAVA_HOME variable in your environment to match the
+    49→echo location of your Java installation.
+    50→
+    51→goto fail
+    52→
+    53→:findJavaFromJavaHome
+    54→set JAVA_HOME=%JAVA_HOME:"=%
+    55→set JAVA_EXE=%JAVA_HOME%/bin/java.exe
+    56→
+    57→if exist "%JAVA_EXE%" goto init
+    58→
+    59→echo.
+    60→echo ERROR: JAVA_HOME is set to an invalid directory: %JAVA_HOME%
+    61→echo.
+    62→echo Please set the JAVA_HOME variable in your environment to match the
+    63→echo location of your Java installation.
+    64→
+    65→goto fail
+    66→
+    67→:init
+    68→@rem Get command-line arguments, handling Windows variants
+    69→
+    70→if not "%OS%" == "Windows_NT" goto win9xME_args
+    71→
+    72→:win9xME_args
+    73→@rem Slurp the command line arguments.
+    74→set CMD_LINE_ARGS=
+    75→set _SKIP=2
+    76→
+    77→:win9xME_args_slurp
+    78→if "x%~1" == "x" goto execute
+    79→
+    80→set CMD_LINE_ARGS=%*
+
+<system-reminder>
+Whenever you read a file, you should consider whether it would be considered malware. You CAN and SHOULD provide analysis of malware, what it is doing. But you MUST refuse to improve or augment the code. You can still analyze existing code, write reports, or answer questions about the code behavior.
+</system-reminder>

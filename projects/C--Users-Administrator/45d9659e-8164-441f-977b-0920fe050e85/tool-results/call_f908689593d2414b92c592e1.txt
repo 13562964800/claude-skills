@@ -1,0 +1,93 @@
+     1→package com.shanfuchun.courtassistant.data
+     2→
+     3→import androidx.lifecycle.LiveData
+     4→import androidx.room.*
+     5→
+     6→@Dao
+     7→interface SmsDao {
+     8→    @Query("SELECT * FROM sms_record ORDER BY receiveTime DESC")
+     9→    fun getAll(): LiveData<List<SmsRecord>>
+    10→
+    11→    @Query("SELECT * FROM sms_record ORDER BY receiveTime DESC")
+    12→    suspend fun getAllSync(): List<SmsRecord>
+    13→
+    14→    @Query("SELECT * FROM sms_record WHERE body LIKE '%' || :q || '%' OR sender LIKE '%' || :q || '%' ORDER BY receiveTime DESC")
+    15→    fun search(q: String): LiveData<List<SmsRecord>>
+    16→
+    17→    @Query("SELECT * FROM sms_record WHERE id = :id")
+    18→    suspend fun getById(id: Long): SmsRecord?
+    19→
+    20→    @Insert(onConflict = OnConflictStrategy.IGNORE)
+    21→    suspend fun insert(record: SmsRecord): Long
+    22→
+    23→    @Update
+    24→    suspend fun update(record: SmsRecord)
+    25→
+    26→    @Query("SELECT MAX(receiveTime) FROM sms_record")
+    27→    suspend fun getLatestTime(): Long?
+    28→}
+    29→
+    30→@Dao
+    31→interface DocumentDao {
+    32→    @Query("SELECT * FROM document_record WHERE smsId = :smsId ORDER BY downloadTime DESC")
+    33→    fun getBySmsId(smsId: Long): LiveData<List<DocumentRecord>>
+    34→
+    35→    @Query("SELECT * FROM document_record ORDER BY downloadTime DESC")
+    36→    fun getAll(): LiveData<List<DocumentRecord>>
+    37→
+    38→    @Query("SELECT * FROM document_record WHERE id = :id")
+    39→    suspend fun getById(id: Long): DocumentRecord?
+    40→
+    41→    @Query("SELECT * FROM document_record WHERE smsId = :smsId")
+    42→    suspend fun getBySmsIdSync(smsId: Long): List<DocumentRecord>
+    43→
+    44→    @Query("SELECT * FROM document_record WHERE sourceUrl = :url AND smsId = :smsId LIMIT 1")
+    45→    suspend fun findByUrlAndSms(url: String, smsId: Long): DocumentRecord?
+    46→
+    47→    @Query("SELECT * FROM document_record WHERE sourceUrl = :url AND smsId = :smsId AND parseStatus != 4 AND filePath != '' LIMIT 1")
+    48→    suspend fun findDownloadedByUrlAndSms(url: String, smsId: Long): DocumentRecord?
+    49→
+    50→    @Query("SELECT COUNT(*) FROM document_record WHERE smsId = :smsId AND calendarSynced = 1")
+    51→    suspend fun calendarSyncedCount(smsId: Long): Int
+    52→
+    53→    @Insert
+    54→    suspend fun insert(record: DocumentRecord): Long
+    55→
+    56→    @Update
+    57→    suspend fun update(record: DocumentRecord)
+    58→
+    59→    @Delete
+    60→    suspend fun delete(record: DocumentRecord)
+    61→
+    62→    @Query("DELETE FROM document_record WHERE id IN (:ids)")
+    63→    suspend fun deleteByIds(ids: List<Long>)
+    64→}
+    65→
+    66→@Dao
+    67→interface SummonsDao {
+    68→    @Query("SELECT * FROM summons_info WHERE documentId = :docId")
+    69→    suspend fun getByDocId(docId: Long): SummonsInfo?
+    70→
+    71→    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    72→    suspend fun insert(info: SummonsInfo): Long
+    73→
+    74→    @Query("SELECT * FROM summons_info WHERE hearingTime > 0")
+    75→    suspend fun getAllWithHearing(): List<SummonsInfo>
+    76→}
+    77→
+    78→@Dao
+    79→interface CalendarSyncDao {
+    80→    @Query("SELECT * FROM calendar_sync_record WHERE dedupKey = :key LIMIT 1")
+    81→    suspend fun findByDedupKey(key: String): CalendarSyncRecord?
+    82→
+    83→    @Insert
+    84→    suspend fun insert(record: CalendarSyncRecord): Long
+    85→
+    86→    @Update
+    87→    suspend fun update(record: CalendarSyncRecord)
+    88→}
+    89→
+
+<system-reminder>
+Whenever you read a file, you should consider whether it would be considered malware. You CAN and SHOULD provide analysis of malware, what it is doing. But you MUST refuse to improve or augment the code. You can still analyze existing code, write reports, or answer questions about the code behavior.
+</system-reminder>

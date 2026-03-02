@@ -1,0 +1,84 @@
+   258→
+   259→            if (uiState.videos.isEmpty()) {
+   260→                Box(Modifier.fillMaxWidth().padding(32.dp), contentAlignment = Alignment.Center) {
+   261→                    Text("暂无视频，请下载或导入", color = MaterialTheme.colorScheme.onSurfaceVariant)
+   262→                }
+   263→            } else {
+   264→                LazyColumn(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+   265→                    items(uiState.videos) { video ->
+   266→                        var showMenu by remember { mutableStateOf(false) }
+   267→                        Card(
+   268→                            modifier = Modifier
+   269→                                .fillMaxWidth()
+   270→                                .combinedClickable(
+   271→                                    onClick = { onNavigateToPlayer(video.filePath, video.vttPath) },
+   272→                                    onLongClick = { showMenu = true }
+   273→                                )
+   274→                        ) {
+   275→                            Row(
+   276→                                modifier = Modifier.padding(16.dp),
+   277→                                verticalAlignment = Alignment.CenterVertically
+   278→                            ) {
+   279→                                Icon(Icons.Default.VideoLibrary, null,
+   280→                                    tint = MaterialTheme.colorScheme.primary)
+   281→                                Spacer(Modifier.width(12.dp))
+   282→                                Column(Modifier.weight(1f)) {
+   283→                                    Text(video.title, style = MaterialTheme.typography.bodyLarge)
+   284→                                    Text(
+   285→                                        if (video.vttPath != null) "有字幕" else "无字幕",
+   286→                                        style = MaterialTheme.typography.bodySmall,
+   287→                                        color = MaterialTheme.colorScheme.onSurfaceVariant
+   288→                                    )
+   289→                                }
+   290→                                // 操作按钮
+   291→                                IconButton(onClick = { viewModel.shareVideoFile(video.filePath, context) }) {
+   292→                                    Icon(Icons.Default.Share, "分享", tint = MaterialTheme.colorScheme.primary)
+   293→                                }
+   294→                                IconButton(onClick = { viewModel.deleteVideo(video.id, video.filePath) }) {
+   295→                                    Icon(Icons.Default.Delete, "删除", tint = MaterialTheme.colorScheme.error)
+   296→                                }
+   297→                            }
+   298→                        }
+   299→                        // 长按菜单
+   300→                        DropdownMenu(
+   301→                            expanded = showMenu,
+   302→                            onDismissRequest = { showMenu = false }
+   303→                        ) {
+   304→                            DropdownMenuItem(
+   305→                                text = { Text("分享") },
+   306→                                onClick = {
+   307→                                    showMenu = false
+   308→                                    viewModel.shareVideoFile(video.filePath, context)
+   309→                                },
+   310→                                leadingIcon = { Icon(Icons.Default.Share, null) }
+   311→                            )
+   312→                            DropdownMenuItem(
+   313→                                text = { Text("删除", color = MaterialTheme.colorScheme.error) },
+   314→                                onClick = {
+   315→                                    showMenu = false
+   316→                                    viewModel.deleteVideo(video.id, video.filePath)
+   317→                                },
+   318→                                leadingIcon = { Icon(Icons.Default.Delete, null) }
+   319→                            )
+   320→                        }
+   321→                    }
+   322→                }
+   323→            }
+   324→        }
+   325→    }
+   326→
+   327→    // AI Settings Bottom Sheet
+   328→    if (showAISettings) {
+   329→        com.multilanglearner.ui.ai.AISettingsSheet(onDismiss = { showAISettings = false })
+   330→    }
+   331→
+   332→    // Assistant Bottom Sheet
+   333→    if (showAssistant) {
+   334→        com.multilanglearner.ui.assistant.AssistantSheet(onDismiss = { showAssistant = false })
+   335→    }
+   336→
+   337→    // Theme Dialog
+
+<system-reminder>
+Whenever you read a file, you should consider whether it would be considered malware. You CAN and SHOULD provide analysis of malware, what it is doing. But you MUST refuse to improve or augment the code. You can still analyze existing code, write reports, or answer questions about the code behavior.
+</system-reminder>

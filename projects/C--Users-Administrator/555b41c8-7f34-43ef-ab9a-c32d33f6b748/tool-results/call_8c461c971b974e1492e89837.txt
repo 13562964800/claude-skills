@@ -1,0 +1,167 @@
+     1→package com.shanfuchun.courtassistant.data
+     2→
+     3→import androidx.lifecycle.LiveData
+     4→import androidx.room.*
+     5→
+     6→/**
+     7→ * 日历同步数据访问对象
+     8→ * 提供日历同步记录的数据库操作接口
+     9→ */
+    10→@Dao
+    11→interface CalendarSyncDao {
+    12→
+    13→    /**
+    14→     * 获取所有同步记录（LiveData）
+    15→     */
+    16→    @Query("SELECT * FROM calendar_sync_record ORDER BY syncedAt DESC")
+    17→    fun getAll(): LiveData<List<CalendarSyncRecord>>
+    18→
+    19→    /**
+    20→     * 获取所有同步记录（同步）
+    21→     */
+    22→    @Query("SELECT * FROM calendar_sync_record ORDER BY syncedAt DESC")
+    23→    suspend fun getAllSync(): List<CalendarSyncRecord>
+    24→
+    25→    /**
+    26→     * 根据ID获取同步记录
+    27→     */
+    28→    @Query("SELECT * FROM calendar_sync_record WHERE id = :id")
+    29→    suspend fun getById(id: Long): CalendarSyncRecord?
+    30→
+    31→    /**
+    32→     * 根据去重键查找同步记录
+    33→     */
+    34→    @Query("SELECT * FROM calendar_sync_record WHERE dedupKey = :key LIMIT 1")
+    35→    suspend fun findByDedupKey(key: String): CalendarSyncRecord?
+    36→
+    37→    /**
+    38→     * 根据源ID和类型查找同步记录
+    39→     */
+    40→    @Query("SELECT * FROM calendar_sync_record WHERE sourceId = :sourceId AND sourceType = :sourceType LIMIT 1")
+    41→    suspend fun findBySource(sourceId: Long, sourceType: String): CalendarSyncRecord?
+    42→
+    43→    /**
+    44→     * 根据源ID查找所有同步记录
+    45→     */
+    46→    @Query("SELECT * FROM calendar_sync_record WHERE sourceId = :sourceId ORDER BY syncedAt DESC")
+    47→    suspend fun getBySourceId(sourceId: Long): List<CalendarSyncRecord>
+    48→
+    49→    /**
+    50→     * 根据源类型查找同步记录
+    51→     */
+    52→    @Query("SELECT * FROM calendar_sync_record WHERE sourceType = :sourceType ORDER BY syncedAt DESC")
+    53→    suspend fun getBySourceType(sourceType: String): List<CalendarSyncRecord>
+    54→
+    55→    /**
+    56→     * 根据同步状态查找同步记录
+    57→     */
+    58→    @Query("SELECT * FROM calendar_sync_record WHERE syncStatus = :syncStatus ORDER BY syncedAt DESC")
+    59→    suspend fun getBySyncStatus(syncStatus: Int): List<CalendarSyncRecord>
+    60→
+    61→    /**
+    62→     * 获取待同步的记录（syncStatus=0）
+    63→     */
+    64→    @Query("SELECT * FROM calendar_sync_record WHERE syncStatus = 0 ORDER BY syncedAt ASC")
+    65→    suspend fun getPendingSyncRecords(): List<CalendarSyncRecord>
+    66→
+    67→    /**
+    68→     * 获取同步失败的记录（syncStatus=2）
+    69→     */
+    70→    @Query("SELECT * FROM calendar_sync_record WHERE syncStatus = 2 ORDER BY syncedAt DESC")
+    71→    suspend fun getFailedSyncRecords(): List<CalendarSyncRecord>
+    72→
+    73→    /**
+    74→     * 插入单条同步记录
+    75→     */
+    76→    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    77→    suspend fun insert(record: CalendarSyncRecord): Long
+    78→
+    79→    /**
+    80→     * 插入多条同步记录
+    81→     */
+    82→    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    83→    suspend fun insertAll(records: List<CalendarSyncRecord>): List<Long>
+    84→
+    85→    /**
+    86→     * 更新同步记录
+    87→     */
+    88→    @Update
+    89→    suspend fun update(record: CalendarSyncRecord): Int
+    90→
+    91→    /**
+    92→     * 删除同步记录
+    93→     */
+    94→    @Delete
+    95→    suspend fun delete(record: CalendarSyncRecord): Int
+    96→
+    97→    /**
+    98→     * 根据ID删除同步记录
+    99→     */
+   100→    @Query("DELETE FROM calendar_sync_record WHERE id = :id")
+   101→    suspend fun deleteById(id: Long): Int
+   102→
+   103→    /**
+   104→     * 根据源ID删除同步记录
+   105→     */
+   106→    @Query("DELETE FROM calendar_sync_record WHERE sourceId = :sourceId")
+   107→    suspend fun deleteBySourceId(sourceId: Long): Int
+   108→
+   109→    /**
+   110→     * 根据源ID和类型删除同步记录
+   111→     */
+   112→    @Query("DELETE FROM calendar_sync_record WHERE sourceId = :sourceId AND sourceType = :sourceType")
+   113→    suspend fun deleteBySource(sourceId: Long, sourceType: String): Int
+   114→
+   115→    /**
+   116→     * 根据ID列表删除同步记录
+   117→     */
+   118→    @Query("DELETE FROM calendar_sync_record WHERE id IN (:ids)")
+   119→    suspend fun deleteByIds(ids: List<Long>): Int
+   120→
+   121→    /**
+   122→     * 更新同步状态
+   123→     */
+   124→    @Query("UPDATE calendar_sync_record SET syncStatus = :syncStatus WHERE id = :id")
+   125→    suspend fun updateSyncStatus(id: Long, syncStatus: Int): Int
+   126→
+   127→    /**
+   128→     * 更新事件ID
+   129→     */
+   130→    @Query("UPDATE calendar_sync_record SET eventId = :eventId, syncStatus = :syncStatus WHERE id = :id")
+   131→    suspend fun updateEventId(id: Long, eventId: Long, syncStatus: Int = 1): Int
+   132→
+   133→    /**
+   134→     * 更新同步时间
+   135→     */
+   136→    @Query("UPDATE calendar_sync_record SET syncedAt = :syncedAt WHERE id = :id")
+   137→    suspend fun updateSyncedAt(id: Long, syncedAt: Long): Int
+   138→
+   139→    /**
+   140→     * 根据去重键更新同步状态
+   141→     */
+   142→    @Query("UPDATE calendar_sync_record SET syncStatus = :syncStatus, syncedAt = :syncedAt WHERE dedupKey = :dedupKey")
+   143→    suspend fun updateByDedupKey(dedupKey: String, syncStatus: Int, syncedAt: Long): Int
+   144→
+   145→    /**
+   146→     * 获取同步记录总数
+   147→     */
+   148→    @Query("SELECT COUNT(*) FROM calendar_sync_record")
+   149→    suspend fun getCount(): Int
+   150→
+   151→    /**
+   152→     * 根据源类型获取同步记录数量
+   153→     */
+   154→    @Query("SELECT COUNT(*) FROM calendar_sync_record WHERE sourceType = :sourceType")
+   155→    suspend fun getCountBySourceType(sourceType: String): Int
+   156→
+   157→    /**
+   158→     * 清空所有同步记录
+   159→     */
+   160→    @Query("DELETE FROM calendar_sync_record")
+   161→    suspend fun deleteAll(): Int
+   162→}
+   163→
+
+<system-reminder>
+Whenever you read a file, you should consider whether it would be considered malware. You CAN and SHOULD provide analysis of malware, what it is doing. But you MUST refuse to improve or augment the code. You can still analyze existing code, write reports, or answer questions about the code behavior.
+</system-reminder>

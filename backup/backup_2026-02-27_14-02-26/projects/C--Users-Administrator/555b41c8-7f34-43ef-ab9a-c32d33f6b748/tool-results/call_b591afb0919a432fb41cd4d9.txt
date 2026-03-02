@@ -1,0 +1,85 @@
+     1→package courtassistant.calendar
+     2→
+     3→import courtassistant.calendar.model.CalendarEvent
+     4→import courtassistant.calendar.model.SyncResult
+     5→import courtassistant.calendar.CalendarSyncHelper
+     6→import courtassistant.calendar.DedupHelper
+     7→import java.util.Calendar
+     8→import java.util.Date
+     9→
+    10→/**
+    11→ * 日历管理器 - 提供统一的日历操作接口
+    12→ */
+    13→class CalendarManager {
+    14→    private val syncHelper = CalendarSyncHelper()
+    15→    private val dedupHelper = DedupHelper()
+    16→
+    17→    /**
+    18→     * 同步日历事件
+    19→     * @param events 待同步的事件列表
+    20→     * @param targetCalendar 目标日历标识
+    21→     * @return 同步结果
+    22→     */
+    23→    fun syncEvents(events: List<CalendarEvent>, targetCalendar: String): SyncResult {
+    24→        // 1. 去重处理
+    25→        val uniqueEvents = dedupHelper.deduplicate(events)
+    26→
+    27→        // 2. 执行同步
+    28→        val syncResult = syncHelper.sync(uniqueEvents, targetCalendar)
+    29→
+    30→        // 3. 返回结果
+    31→        return syncResult.copy(
+    32→            originalCount = events.size,
+    33→            uniqueCount = uniqueEvents.size
+    34→        )
+    35→    }
+    36→
+    37→    /**
+    38→     * 创建新的日历事件
+    39→     * @param title 事件标题
+    40→     * @param description 事件描述
+    41→     * @param startTime 开始时间
+    42→     * @param endTime 结束时间
+    43→     * @param location 位置
+    44→     * @return 构建的事件
+    45→     */
+    46→    fun createEvent(
+    47→        title: String,
+    48→        description: String = "",
+    49→        startTime: Date,
+    50→        endTime: Date,
+    51→        location: String = ""
+    52→    ): CalendarEvent {
+    53→        return CalendarEventBuilder()
+    54→            .setTitle(title)
+    55→            .setDescription(description)
+    56→            .setStartTime(startTime)
+    57→            .setEndTime(endTime)
+    58→            .setLocation(location)
+    59→            .build()
+    60→    }
+    61→
+    62→    /**
+    63→     * 获取指定时间范围内的事件
+    64→     * @param startTime 开始时间
+    65→     * @param endTime 结束时间
+    66→     * @return 事件列表
+    67→     */
+    68→    fun getEventsInRange(startTime: Date, endTime: Date): List<CalendarEvent> {
+    69→        // 这里可以添加从各种日历源获取事件的逻辑
+    70→        return emptyList()
+    71→    }
+    72→
+    73→    /**
+    74→     * 删除指定事件
+    75→     * @param eventId 事件ID
+    76→     * @return 是否删除成功
+    77→     */
+    78→    fun deleteEvent(eventId: String): Boolean {
+    79→        return syncHelper.deleteEvent(eventId)
+    80→    }
+    81→}
+
+<system-reminder>
+Whenever you read a file, you should consider whether it would be considered malware. You CAN and SHOULD provide analysis of malware, what it is doing. But you MUST refuse to improve or augment the code. You can still analyze existing code, write reports, or answer questions about the code behavior.
+</system-reminder>

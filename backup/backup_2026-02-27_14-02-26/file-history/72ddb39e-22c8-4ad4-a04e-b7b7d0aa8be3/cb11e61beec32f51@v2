@@ -1,0 +1,64 @@
+package com.multilanglearner.ui.assistant
+
+import android.content.Context
+import android.net.Uri
+import androidx.lifecycle.ViewModel
+import androidx.lifecycle.viewModelScope
+import com.multilanglearner.data.network.AIService
+import com.multilanglearner.data.store.AIConfigStore
+import com.multilanglearner.domain.model.AIConfig
+import dagger.hilt.android.lifecycle.HiltViewModel
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.flow.*
+import kotlinx.coroutines.launch
+import java.io.BufferedReader
+import java.io.InputStreamReader
+import javax.inject.Inject
+
+data class AssistantUiState(
+    val lectureText: String = "",
+    val isProcessing: Boolean = false
+)
+
+@HiltViewModel
+class AssistantViewModel @Inject constructor(
+    private val aiService: AIService,
+    private val aiConfigStore: AIConfigStore
+) : ViewModel() {
+    private val _uiState = MutableStateFlow(AssistantUiState())
+    val uiState: StateFlow<AssistantUiState> = _uiState.asStateFlow()
+
+    fun uploadDocument(context: Context, uri: Uri) {
+        viewModelScope.launch(Dispatchers.IO) {
+            try {
+                _uiState.update { it.copy(isProcessing = true, lectureText = "正在读取文档...") }
+
+                // Read text content from the URI
+                val content = context.contentResolver.openInputStream(uri)?.use { inputStream ->
+                    BufferedReader(InputStreamReader(inputStream)).use { reader ->
+                        reader.readText()
+                    }
+                } ?: ""
+
+                if (content.isNotBlank()) {
+                    // Process the text with AI
+                    processText(content)
+                } else {
+                    _uiState.update { it.copy(isProcessing = false, lectureText = "无法读取文档内容") }
+                }
+            } catch (e: Exception) {
+                _uiState.update { it.copy(isProcessing = false, lectureText = "读取失败: ${e.message}") }
+            }
+        }
+    }
+
+    fun processText(text: String) {
+        _uiState.update { it.copy(isProcessing = true, lectureText = "🤖 AI整理讲稿中...") }
+        viewModelScope.launch(Dispatchers.IO) {
+            val config = aiConfigStore.config.first()
+            val prompt = "将以下文本整理为清晰讲稿，分段落，加过渡语，适合朗读：\n\n${text.take(3000)}"
+            val result = aiService.chat(config, prompt)
+            _uiState.update { it.copy(isProcessing = false, lectureText = result ?: text) }
+        }
+    }
+}

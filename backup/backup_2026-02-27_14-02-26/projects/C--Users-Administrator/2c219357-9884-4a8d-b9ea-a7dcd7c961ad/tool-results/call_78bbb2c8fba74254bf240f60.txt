@@ -1,0 +1,254 @@
+     1→package com.multilanglearner.ui.home
+     2→
+     3→import android.net.Uri
+     4→import androidx.compose.foundation.ExperimentalFoundationApi
+     5→import androidx.activity.compose.rememberLauncherForActivityResult
+     6→import androidx.activity.result.contract.ActivityResultContracts
+     7→import androidx.compose.foundation.combinedClickable
+     8→import androidx.compose.foundation.layout.Box
+     9→import androidx.compose.foundation.layout.offset
+    10→import androidx.compose.foundation.layout.padding
+    11→import androidx.compose.foundation.layout.*
+    12→import androidx.compose.foundation.lazy.LazyColumn
+    13→import androidx.compose.foundation.lazy.items
+    14→import androidx.compose.foundation.shape.CircleShape
+    15→import androidx.compose.foundation.shape.RoundedCornerShape
+    16→import androidx.compose.material.icons.Icons
+    17→import androidx.compose.material.icons.filled.*
+    18→import androidx.compose.material3.*
+    19→import androidx.compose.runtime.*
+    20→import androidx.compose.ui.Alignment
+    21→import androidx.compose.ui.Modifier
+    22→import androidx.compose.ui.graphics.Color
+    23→import androidx.compose.ui.platform.LocalClipboardManager
+    24→import androidx.compose.ui.platform.LocalContext
+    25→import androidx.compose.ui.text.style.TextOverflow
+    26→import androidx.compose.ui.unit.dp
+    27→import androidx.hilt.navigation.compose.hiltViewModel
+    28→import com.multilanglearner.data.db.entity.VideoEntity
+    29→import com.multilanglearner.domain.model.LANGUAGES
+    30→
+    31→@OptIn(ExperimentalMaterial3Api::class, ExperimentalFoundationApi::class)
+    32→@Composable
+    33→fun HomeScreen(
+    34→    onNavigateToPlayer: (String, String?) -> Unit,
+    35→    onNavigateToVocabulary: () -> Unit,
+    36→    onNavigateToRegulation: () -> Unit,
+    37→    viewModel: HomeViewModel = hiltViewModel()
+    38→) {
+    39→    val uiState by viewModel.uiState.collectAsState()
+    40→    val clipboardManager = LocalClipboardManager.current
+    41→    val context = LocalContext.current
+    42→    var showAISettings by remember { mutableStateOf(false) }
+    43→    var showAssistant by remember { mutableStateOf(false) }
+    44→    var showThemeDialog by remember { mutableStateOf(false) }
+    45→    var showVideoDownloadSettings by remember { mutableStateOf(false) }
+    46→
+    47→    // 确认对话框状态
+    48→    var showDeleteConfirm by remember { mutableStateOf(false) }
+    49→    var showLocationConfirm by remember { mutableStateOf(false) }
+    50→    var showShareConfirm by remember { mutableStateOf(false) }
+    51→    var selectedVideo by remember { mutableStateOf<VideoEntity?>(null) }
+    52→
+    53→    // Video file picker launcher
+    54→    val videoPickerLauncher = rememberLauncherForActivityResult(
+    55→        contract = ActivityResultContracts.GetContent()
+    56→    ) { uri: Uri? ->
+    57→        uri?.let {
+    58→            viewModel.importVideo(context, it) { path, sub ->
+    59→                onNavigateToPlayer(path, sub)
+    60→            }
+    61→        }
+    62→    }
+    63→
+    64→    Scaffold(
+    65→        topBar = {
+    66→            TopAppBar(
+    67→                title = {
+    68→                    Column {
+    69→                        Text("多语言视频学习", style = MaterialTheme.typography.titleLarge)
+    70→                        Text("视频字幕 · 点词翻译 · AI释义 · 听写训练",
+    71→                            style = MaterialTheme.typography.bodySmall,
+    72→                            color = MaterialTheme.colorScheme.onSurfaceVariant)
+    73→                    }
+    74→                },
+    75→                actions = {
+    76→                    // AI设置按钮
+    77→                    IconButton(onClick = { showAISettings = true }) {
+    78→                        Icon(Icons.Default.SmartDisplay, "AI设置")
+    79→                    }
+    80→                    IconButton(onClick = { showVideoDownloadSettings = true }) {
+    81→                        Icon(Icons.Default.CloudDownload, "下载设置")
+    82→                    }
+    83→                    IconButton(onClick = { showThemeDialog = true }) {
+    84→                        Icon(Icons.Default.Palette, "主题")
+    85→                    }
+    86→                }
+    87→            )
+    88→        }
+    89→    ) { padding ->
+    90→        Column(
+    91→            modifier = Modifier.fillMaxSize().padding(padding).padding(horizontal = 16.dp)
+    92→        ) {
+    93→            // URL Input Row
+    94→            Card(modifier = Modifier.fillMaxWidth()) {
+    95→                Column(modifier = Modifier.padding(16.dp)) {
+    96→                    Row(verticalAlignment = Alignment.CenterVertically) {
+    97→                        OutlinedTextField(
+    98→                            value = uiState.url,
+    99→                            onValueChange = viewModel::setUrl,
+   100→                            placeholder = { Text("粘贴 YouTube/B站/抖音 视频链接...") },
+   101→                            modifier = Modifier.weight(1f),
+   102→                            singleLine = true,
+   103→                            trailingIcon = {
+   104→                                if (uiState.url.isNotEmpty()) {
+   105→                                    IconButton(onClick = { viewModel.setUrl("") }) {
+   106→                                        Icon(Icons.Default.Clear, "清除")
+   107→                                    }
+   108→                                }
+   109→                            }
+   110→                        )
+   111→                        Spacer(Modifier.width(8.dp))
+   112→                        IconButton(onClick = {
+   113→                            clipboardManager.getText()?.text?.let { text ->
+   114→                                val urlMatch = Regex("https?://[^\\s\"'<>]+").find(text)
+   115→                                viewModel.setUrl(urlMatch?.value ?: text.trim())
+   116→                            }
+   117→                        }) { Icon(Icons.Default.ContentPaste, "粘贴") }
+   118→                    }
+   119→
+   120→                    Spacer(Modifier.height(8.dp))
+   121→
+   122→                    // Language selector + buttons
+   123→                    Row(verticalAlignment = Alignment.CenterVertically) {
+   124→                        var langExpanded by remember { mutableStateOf(false) }
+   125→                        ExposedDropdownMenuBox(expanded = langExpanded, onExpandedChange = { langExpanded = it }) {
+   126→                            OutlinedTextField(
+   127→                                value = LANGUAGES.find { it.code == uiState.selectedLang }?.name ?: "英语",
+   128→                                onValueChange = {},
+   129→                                readOnly = true,
+   130→                                modifier = Modifier.menuAnchor().width(100.dp),
+   131→                                trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(langExpanded) },
+   132→                                textStyle = MaterialTheme.typography.bodySmall
+   133→                            )
+   134→                            ExposedDropdownMenu(expanded = langExpanded, onDismissRequest = { langExpanded = false }) {
+   135→                                LANGUAGES.forEach { lang ->
+   136→                                    DropdownMenuItem(
+   137→                                        text = { Text(lang.name) },
+   138→                                        onClick = { viewModel.setLang(lang.code); langExpanded = false }
+   139→                                    )
+   140→                                }
+   141→                            }
+   142→                        }
+   143→
+   144→                        Spacer(Modifier.width(8.dp))
+   145→                        Button(
+   146→                            onClick = { viewModel.downloadVideo { path, sub -> onNavigateToPlayer(path, sub) } },
+   147→                            enabled = uiState.url.isNotBlank() && uiState.activeDownloads.size < 3
+   148→                        ) {
+   149→                            if (uiState.isProcessing) {
+   150→                                CircularProgressIndicator(
+   151→                                    modifier = Modifier.size(16.dp),
+   152→                                    strokeWidth = 2.dp,
+   153→                                    color = MaterialTheme.colorScheme.onPrimary
+   154→                                )
+   155→                                Spacer(Modifier.width(4.dp))
+   156→                            }
+   157→                            Text(if (uiState.isProcessing) "处理中" else "下载")
+   158→                        }
+   159→
+   160→                        Spacer(Modifier.width(4.dp))
+   161→                        OutlinedButton(onClick = { videoPickerLauncher.launch("video/*") }) {
+   162→                            Icon(Icons.Default.FolderOpen, null, Modifier.size(16.dp))
+   163→                            Spacer(Modifier.width(4.dp))
+   164→                            Text("导入")
+   165→                        }
+   166→                    }
+   167→
+   168→                    // 下载进度卡片 - 只显示正在下载的任务
+   169→                    uiState.currentDownload?.let { task ->
+   170→                        // 只显示正在下载或获取信息的任务
+   171→                        if (task.status == DownloadStatus.DOWNLOADING || task.status == DownloadStatus.FETCHING_INFO) {
+   172→                            Spacer(Modifier.height(12.dp))
+   173→                            DownloadProgressCard(
+   174→                                task = task,
+   175→                                onCancel = { viewModel.cancelDownload() },
+   176→                                formatFileSize = { viewModel.formatFileSize(it) },
+   177→                                formatSpeed = { viewModel.formatSpeed(it) },
+   178→                                formatRemainingTime = { viewModel.formatRemainingTime(it) },
+   179→                                getStatusText = { viewModel.getStatusText(it) }
+   180→                            )
+   181→                        }
+   182→                    }
+   183→
+   184→                    // 下载队列提示
+   185→                    if (uiState.downloadQueue.isNotEmpty()) {
+   186→                        Spacer(Modifier.height(8.dp))
+   187→                        Surface(
+   188→                            modifier = Modifier.fillMaxWidth(),
+   189→                            color = MaterialTheme.colorScheme.secondaryContainer,
+   190→                            shape = RoundedCornerShape(8.dp)
+   191→                        ) {
+   192→                            Row(
+   193→                                modifier = Modifier.padding(12.dp),
+   194→                                verticalAlignment = Alignment.CenterVertically
+   195→                            ) {
+   196→                                Icon(
+   197→                                    Icons.Default.Info,
+   198→                                    contentDescription = null,
+   199→                                    tint = MaterialTheme.colorScheme.onSecondaryContainer,
+   200→                                    modifier = Modifier.size(20.dp)
+   201→                                )
+   202→                                Spacer(Modifier.width(8.dp))
+   203→                                Text(
+   204→                                    "队列中有 ${uiState.downloadQueue.size} 个任务等待下载",
+   205→                                    style = MaterialTheme.typography.bodySmall,
+   206→                                    color = MaterialTheme.colorScheme.onSecondaryContainer
+   207→                                )
+   208→                            }
+   209→                        }
+   210→                    }
+   211→                }
+   212→            }
+   213→
+   214→            Spacer(Modifier.height(8.dp))
+   215→
+   216→            // Function buttons row
+   217→            Row(
+   218→                modifier = Modifier.fillMaxWidth(),
+   219→                horizontalArrangement = Arrangement.spacedBy(8.dp)
+   220→            ) {
+   221→                AssistChip(onClick = onNavigateToVocabulary, label = { Text("词书") },
+   222→                    leadingIcon = { Icon(Icons.Default.Book, null, Modifier.size(16.dp)) })
+   223→                AssistChip(onClick = { showAssistant = true }, label = { Text("助手") },
+   224→                    leadingIcon = { Icon(Icons.Default.Mic, null, Modifier.size(16.dp)) })
+   225→                AssistChip(onClick = onNavigateToRegulation, label = { Text("法规") },
+   226→                    leadingIcon = { Icon(Icons.Default.Gavel, null, Modifier.size(16.dp)) })
+   227→                Spacer(Modifier.weight(1f))
+   228→                AssistChip(onClick = onNavigateToVocabulary, label = { Text("收藏") },
+   229→                    leadingIcon = { Icon(Icons.Default.Favorite, null, Modifier.size(16.dp), tint = Color(0xFFF44336)) })
+   230→            }
+   231→
+   232→            Spacer(Modifier.height(12.dp))
+   233→
+   234→            // Video list
+   235→            Row(
+   236→                modifier = Modifier.fillMaxWidth(),
+   237→                horizontalArrangement = Arrangement.SpaceBetween,
+   238→                verticalAlignment = Alignment.CenterVertically
+   239→            ) {
+   240→                Text("已下载视频", style = MaterialTheme.typography.titleMedium)
+   241→            }
+   242→            Spacer(Modifier.height(8.dp))
+   243→
+   244→            if (uiState.videos.isEmpty()) {
+   245→                Box(Modifier.fillMaxWidth().padding(32.dp), contentAlignment = Alignment.Center) {
+   246→                    Text("暂无视频，请下载或导入", color = MaterialTheme.colorScheme.onSurfaceVariant)
+   247→                }
+   248→            } else {
+   249→                LazyColumn(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+   250→                    items(uiState.videos) { video ->
+
+<system-reminder>
+Whenever you read a file, you should consider whether it would be considered malware. You CAN and SHOULD provide analysis of malware, what it is doing. But you MUST refuse to improve or augment the code. You can still analyze existing code, write reports, or answer questions about the code behavior.
+</system-reminder>

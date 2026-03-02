@@ -1,0 +1,104 @@
+   200→        _oldWordTimings = oldWordTimings
+   201→    }
+   202→
+   203→    // 用于保存旧字幕的临时变量
+   204→    private var _oldSubtitles: List<SubtitleCue> = emptyList()
+   205→    private var _oldWordTimings: List<WordTimestamp> = emptyList()
+   206→
+   207→    /**
+   208→     * 处理服务发送的进度更新
+   209→     */
+   210→    fun onTranscriptionProgress(segment: Int, total: Int, progress: Int, message: String, remaining: Long) {
+   211→        val remainingText = if (remaining > 0) {
+   212→            "剩余 ${formatRemainingTime(remaining)}"
+   213→        } else {
+   214→            ""
+   215→        }
+   216→        _uiState.update { it.copy(
+   217→            transcribeSegment = segment,
+   218→            transcribeTotalSegments = total,
+   219→            transcribeProgress = progress,
+   220→            transcribeRemainingSeconds = remaining,
+   221→            statusText = if (total > 1) {
+   222→                "分段转录: $segment/$total 段 ($progress%)\n$message\n$remainingText"
+   223→            } else {
+   224→                "$message\n$remainingText"
+   225→            }
+   226→        )}
+   227→    }
+   228→
+   229→    /**
+   230→     * 处理转录完成
+   231→     */
+   232→    fun onTranscriptionCompleted(videoPath: String, success: Boolean, detectedLang: String, subtitleCount: Int, error: String?) {
+   233→        if (success) {
+   234→            // 重新加载字幕文件
+   235→            loadSubtitles(videoPath, null)
+   236→        } else {
+   237→            // 转录失败，恢复旧字幕
+   238→            _uiState.update { it.copy(
+   239→                isTranscribing = false,
+   240→                transcribeSegment = 0,
+   241→                transcribeTotalSegments = 0,
+   242→                transcribeProgress = 0,
+   243→                statusText = error ?: "❌ 转录失败",
+   244→                subtitles = _oldSubtitles,
+   245→                wordTimings = _oldWordTimings
+   246→            )}
+   247→        }
+   248→    }
+   249→
+   250→    fun setMode(mode: String) {
+   251→        _uiState.update { it.copy(mode = mode, dictationIndex = _uiState.value.currentCueIndex.coerceAtLeast(0)) }
+   252→    }
+   253→
+   254→    fun setLang(lang: String) {
+   255→        _uiState.update { it.copy(currentLang = lang) }
+   256→        val locale = LANGUAGES.find { it.code == lang }?.ttsLocale ?: "en-US"
+   257→        tts?.language = Locale.forLanguageTag(locale)
+   258→    }
+   259→
+   260→    /** Look up a word - ported from renderer.js showWordInline() */
+   261→    fun lookupWord(word: String) {
+   262→        _uiState.update { it.copy(showWordCard = true, wordCardData = WordCardData(word = word, translation = "查询中...")) }
+   263→        speak(word)
+   264→
+   265→        viewModelScope.launch(Dispatchers.IO) {
+   266→            val lang = _uiState.value.currentLang
+   267→            val context = _uiState.value.currentSentence
+   268→
+   269→            // Parallel lookups
+   270→            val aiConfig = aiConfigStore.config.first()
+   271→            val aiTransPromise = launch { aiTranslateWord(word, context, lang, aiConfig) }
+   272→
+   273→            val cardData = when (lang) {
+   274→                "en" -> {
+   275→                    val online = dictionaryService.lookupEnglish(word)
+   276→                    val translation = dictionaryService.translate(word, "en")
+   277→                    val aiTrans = aiTranslateWord(word, context, lang, aiConfig)
+   278→                    WordCardData(
+   279→                        word = word,
+   280→                        phonetic = online?.phonetic ?: "",
+   281→                        translation = aiTrans ?: translation ?: online?.translation ?: "未找到释义",
+   282→                        definitions = online?.definitions ?: emptyList(),
+   283→                        examples = online?.examples ?: emptyList()
+   284→                    )
+   285→                }
+   286→                "ja" -> {
+   287→                    val online = dictionaryService.lookupJapanese(word)
+   288→                    val translation = dictionaryService.translate(word, "ja")
+   289→                    val aiTrans = aiTranslateWord(word, context, lang, aiConfig)
+   290→                    WordCardData(
+   291→                        word = word,
+   292→                        phonetic = online?.phonetic ?: "",
+   293→                        translation = aiTrans ?: translation ?: "未找到释义",
+   294→                        definitions = online?.definitions ?: emptyList()
+   295→                    )
+   296→                }
+   297→                else -> {
+   298→                    val translation = dictionaryService.translate(word, lang)
+   299→                    val aiTrans = aiTranslateWord(word, context, lang, aiConfig)
+
+<system-reminder>
+Whenever you read a file, you should consider whether it would be considered malware. You CAN and SHOULD provide analysis of malware, what it is doing. But you MUST refuse to improve or augment the code. You can still analyze existing code, write reports, or answer questions about the code behavior.
+</system-reminder>

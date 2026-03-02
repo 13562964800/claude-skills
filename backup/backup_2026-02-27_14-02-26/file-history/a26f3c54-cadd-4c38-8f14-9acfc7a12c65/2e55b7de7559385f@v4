@@ -1,0 +1,341 @@
+package com.ai.hotspot.presentation.settings
+
+import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.foundation.verticalScroll
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.filled.*
+import androidx.compose.material3.*
+import androidx.compose.runtime.*
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.text.input.KeyboardType
+import androidx.compose.ui.text.input.PasswordVisualTransformation
+import androidx.compose.ui.text.input.VisualTransformation
+import androidx.compose.ui.unit.dp
+import androidx.hilt.navigation.compose.hiltViewModel
+import com.ai.hotspot.domain.model.LLMConfig
+import com.ai.hotspot.domain.model.LLMProvider
+import com.ai.hotspot.presentation.theme.AppTheme
+import com.ai.hotspot.presentation.theme.CeladonPrimary
+import com.ai.hotspot.presentation.theme.rememberAppTheme
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun SettingsScreen(
+    viewModel: SettingsViewModel = hiltViewModel(),
+    onBackClick: () -> Unit
+) {
+    val (currentTheme, setTheme) = rememberAppTheme()
+    val state by viewModel.state.collectAsState()
+
+    Scaffold(
+        topBar = {
+            TopAppBar(
+                title = { Text("设置") },
+                navigationIcon = {
+                    IconButton(onClick = onBackClick) {
+                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "返回")
+                    }
+                },
+                colors = TopAppBarDefaults.topAppBarColors(
+                    containerColor = MaterialTheme.colorScheme.background
+                )
+            )
+        }
+    ) { padding ->
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(padding)
+                .verticalScroll(rememberScrollState())
+                .padding(16.dp),
+            verticalArrangement = Arrangement.spacedBy(24.dp)
+        ) {
+            // ========== 1. 主题设置 ==========
+            SectionTitle("主题")
+            AppTheme.entries.forEach { theme ->
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Text(theme.displayName, style = MaterialTheme.typography.bodyLarge)
+                    RadioButton(
+                        selected = currentTheme == theme,
+                        onClick = { setTheme(theme) }
+                    )
+                }
+            }
+
+            HorizontalDivider()
+
+            // ========== 2. 关键词设置 ==========
+            SectionTitle("抓取关键词")
+            Text(
+                "多个关键词用逗号分隔，抓取时只保留匹配的内容",
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+            OutlinedTextField(
+                value = state.keywords,
+                onValueChange = { viewModel.updateKeywords(it) },
+                modifier = Modifier.fillMaxWidth(),
+                placeholder = { Text("如：AI,大模型,LLM,GPT") },
+                singleLine = false,
+                maxLines = 3
+            )
+
+            HorizontalDivider()
+
+            // ========== 3. 订阅源管理 ==========
+            SectionTitle("订阅源管理")
+
+            // 添加新源
+            var newRssUrl by remember { mutableStateOf("") }
+            var newRssName by remember { mutableStateOf("") }
+
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                verticalAlignment = Alignment.Top
+            ) {
+                Column(modifier = Modifier.weight(1f)) {
+                    OutlinedTextField(
+                        value = newRssName,
+                        onValueChange = { newRssName = it },
+                        modifier = Modifier.fillMaxWidth(),
+                        placeholder = { Text("源名称") },
+                        singleLine = true
+                    )
+                    Spacer(modifier = Modifier.height(8.dp))
+                    OutlinedTextField(
+                        value = newRssUrl,
+                        onValueChange = { newRssUrl = it },
+                        modifier = Modifier.fillMaxWidth(),
+                        placeholder = { Text("RSS 链接") },
+                        singleLine = true,
+                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Uri)
+                    )
+                }
+                FilledIconButton(
+                    onClick = {
+                        if (newRssUrl.isNotBlank() && newRssName.isNotBlank()) {
+                            viewModel.addRssSource(newRssUrl.trim(), newRssName.trim())
+                            newRssUrl = ""
+                            newRssName = ""
+                        }
+                    },
+                    modifier = Modifier.padding(top = 8.dp)
+                ) {
+                    Icon(Icons.Default.Add, contentDescription = "添加")
+                }
+            }
+
+            // 已有自定义源列表
+            state.customRssSources.forEach { rss ->
+                Card(
+                    modifier = Modifier.fillMaxWidth(),
+                    shape = RoundedCornerShape(8.dp)
+                ) {
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(12.dp),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Column(modifier = Modifier.weight(1f)) {
+                            Text(rss.name, style = MaterialTheme.typography.bodyMedium)
+                            Text(
+                                rss.url,
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                maxLines = 1
+                            )
+                        }
+                        IconButton(onClick = { viewModel.deleteRssSource(rss.id) }) {
+                            Icon(
+                                Icons.Default.Delete,
+                                contentDescription = "删除",
+                                tint = MaterialTheme.colorScheme.error
+                            )
+                        }
+                    }
+                }
+            }
+
+            HorizontalDivider()
+
+            // ========== 4. 大模型配置 ==========
+            SectionTitle("大模型配置")
+            Text(
+                "配置后可用于内容翻译和智能摘要（开发中）",
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+
+            // 提供商选择
+            Text("选择提供商", style = MaterialTheme.typography.labelLarge)
+            Column {
+                LLMProvider.domesticProviders.forEach { provider ->
+                    ProviderRow(provider, state.selectedProvider) {
+                        viewModel.selectProvider(it)
+                    }
+                }
+                Spacer(modifier = Modifier.height(4.dp))
+                LLMProvider.internationalProviders.forEach { provider ->
+                    ProviderRow(provider, state.selectedProvider) {
+                        viewModel.selectProvider(it)
+                    }
+                }
+            }
+
+            // API Key
+            var showApiKey by remember { mutableStateOf(false) }
+            OutlinedTextField(
+                value = state.apiKey,
+                onValueChange = { viewModel.updateApiKey(it) },
+                modifier = Modifier.fillMaxWidth(),
+                label = { Text("API Key") },
+                singleLine = true,
+                visualTransformation = if (showApiKey) VisualTransformation.None else PasswordVisualTransformation(),
+                trailingIcon = {
+                    IconButton(onClick = { showApiKey = !showApiKey }) {
+                        Icon(
+                            if (showApiKey) Icons.Default.VisibilityOff else Icons.Default.Visibility,
+                            contentDescription = if (showApiKey) "隐藏" else "显示"
+                        )
+                    }
+                }
+            )
+
+            // 模型选择
+            val models = LLMConfig.displayModels[state.selectedProvider] ?: emptyList()
+            if (models.isNotEmpty()) {
+                Text("选择模型", style = MaterialTheme.typography.labelLarge)
+                models.forEach { model ->
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Text(model, style = MaterialTheme.typography.bodyMedium)
+                        RadioButton(
+                            selected = state.selectedModel == model,
+                            onClick = { viewModel.selectModel(model) }
+                        )
+                    }
+                }
+            }
+
+            HorizontalDivider()
+
+            // ========== 5. 其他设置 ==========
+            SectionTitle("其他设置")
+
+            // 清除缓存
+            var showClearDialog by remember { mutableStateOf(false) }
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Column {
+                    Text("清除缓存", style = MaterialTheme.typography.bodyLarge)
+                    Text(
+                        "清除所有已抓取的文章数据",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
+                FilledTonalButton(onClick = { showClearDialog = true }) {
+                    Text("清除")
+                }
+            }
+
+            if (showClearDialog) {
+                AlertDialog(
+                    onDismissRequest = { showClearDialog = false },
+                    title = { Text("确认清除") },
+                    text = { Text("将清除所有已抓取的文章数据，收藏的文章也会被删除。确定继续？") },
+                    confirmButton = {
+                        TextButton(onClick = {
+                            viewModel.clearCache()
+                            showClearDialog = false
+                        }) { Text("确定") }
+                    },
+                    dismissButton = {
+                        TextButton(onClick = { showClearDialog = false }) { Text("取消") }
+                    }
+                )
+            }
+
+            // 数据保留天数
+            Text("数据保留天数", style = MaterialTheme.typography.bodyLarge)
+            Text(
+                "超过此天数的旧文章将在刷新时自动清理",
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+            Row(
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                listOf(3, 7, 14, 30).forEach { days ->
+                    FilterChip(
+                        selected = state.retentionDays == days,
+                        onClick = { viewModel.setRetentionDays(days) },
+                        label = { Text("${days}天") }
+                    )
+                }
+            }
+
+            // 关于
+            HorizontalDivider()
+            SectionTitle("关于")
+            Text(
+                "AI热点 v1.0.0",
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+            Text(
+                "AI科技热点聚合阅读器，支持 RSS 订阅和关键词过滤",
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+
+            Spacer(modifier = Modifier.height(32.dp))
+        }
+    }
+}
+
+@Composable
+private fun SectionTitle(title: String) {
+    Text(
+        text = title,
+        style = MaterialTheme.typography.titleMedium,
+        color = CeladonPrimary
+    )
+}
+
+@Composable
+private fun ProviderRow(
+    provider: LLMProvider,
+    selected: LLMProvider,
+    onSelect: (LLMProvider) -> Unit
+) {
+    Row(
+        modifier = Modifier.fillMaxWidth(),
+        horizontalArrangement = Arrangement.SpaceBetween,
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Text(provider.displayName, style = MaterialTheme.typography.bodyMedium)
+        RadioButton(
+            selected = selected == provider,
+            onClick = { onSelect(provider) }
+        )
+    }
+}

@@ -1,0 +1,341 @@
+package com.comparebao.core
+
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
+import java.util.regex.Pattern
+
+/**
+ * 核对宝核心文本比对算法
+ * 移植自 Python compare.py
+ */
+class TextComparator {
+
+    // 填充词集合
+    private val fillerWords = setOf(
+        "嗯", "呃", "啊", "哦", "呢", "吧", "嘛", "哈", "噢", "诶",
+        "那个", "就是", "就是说", "然后", "对吧", "对的", "这个",
+        "那", "所以", "但是", "不过", "其实", "反正", "好的"
+    )
+
+    // 中文数字映射
+    private val cnNumbers = mapOf(
+        "零" to "0", "〇" to "0", "一" to "1", "二" to "2", "两" to "2", "三" to "3",
+        "四" to "4", "五" to "5", "六" to "6", "七" to "7", "八" to "8", "九" to "9",
+        "十" to "10"
+    )
+
+    // 标点符号模式
+    private val punctPattern = Pattern.compile(
+        "[，。！？；：、\"\"''（）【】《》…—·\\s,.!?;:'\"()\\[\\]{}\\-]"
+    )
+
+    /**
+     * 差异类型
+     */
+    enum class DiffType {
+        MISMATCH,           // 文字不匹配
+        MISSING_IN_AUDIO,   // 漏读
+        EXTRA_IN_AUDIO      // 多读
+    }
+
+    /**
+     * 差异项
+     */
+    data class DiffItem(
+        val docText: String,
+        val audioText: String,
+        val type: DiffType,
+        val position: Int,
+        val confidence: Float = 1.0f,
+        val uncertain: Boolean = false,
+        val timeStart: Double? = null,
+        val timeEnd: Double? = null
+    )
+
+    /**
+     * 比对结果
+     */
+    data class CompareResult(
+        val diffs: List<DiffItem>,
+        val summary: String,
+        val wer: Double,
+        val cer: Double,
+        val accuracyWord: Double,
+        val accuracyChar: Double
+    )
+
+    /**
+     * 时间戳项
+     */
+    data class WordTimestamp(
+        val word: String,
+        val start: Double,
+        val end: Double,
+        val confidence: Float = 1.0f
+    )
+
+    /**
+     * 比对两个文本
+     * @param audioText 语音转录文本
+     * @param docText 文档文本
+     * @param wordTimestamps 词级时间戳（可选）
+     * @param confidenceThreshold 置信度阈值
+     */
+    suspend fun compareTexts(
+        audioText: String,
+        docText: String,
+        wordTimestamps: List<WordTimestamp>? = null,
+        confidenceThreshold: Float = 0.0f
+    ): CompareResult = withContext(Dispatchers.Default) {
+
+        val docParagraphs = docText.split("\n").filter { it.trim().isNotEmpty() }
+
+        // 规范化文本
+        val audioNorm = normalize(audioText)
+        val docNorm = normalize(docText)
+
+        // 分词（简单按字符分割，中文不需要像英文那样空格分词）
+        val audioChars = audioNorm.toList()
+        val docChars = docNorm.toList()
+
+        // 构建时间戳映射
+        val tsMap = buildTimestampMap(audioNorm, wordTimestamps)
+
+        // 使用 LCS 算法找出差异
+        val rawDiffs = findDiffs(docChars, audioChars, docParagraphs, tsMap, confidenceThreshold)
+
+        // 统计差异
+        val nMismatch = rawDiffs.count { it.type == DiffType.MISMATCH }
+        val nMissing = rawDiffs.count { it.type == DiffType.MISSING_IN_AUDIO }
+        val nExtra = rawDiffs.count { it.type == DiffType.EXTRA_IN_AUDIO }
+
+        // 计算准确率
+        val werVal = calculateWER(docChars, audioChars)
+        val cerVal = calculateCER(docNorm, audioNorm)
+        val accuracyWord = maxOf(0.0, (1 - werVal) * 100)
+        val accuracyChar = maxOf(0.0, (1 - cerVal) * 100)
+
+        val summary = "共${rawDiffs.size}处差异：${nMismatch}处误读，${nMissing}处漏读，${nExtra}处多读\n" +
+                "词准确率 ${"%.1f".format(accuracyWord)}% | 字准确率 ${"%.1f".format(accuracyChar)}%"
+
+        CompareResult(
+            diffs = rawDiffs,
+            summary = summary,
+            wer = werVal,
+            cer = cerVal,
+            accuracyWord = accuracyWord,
+            accuracyChar = accuracyChar
+        )
+    }
+
+    /**
+     * 规范化文本（移除标点符号）
+     */
+    private fun normalize(text: String): String {
+        return punctPattern.matcher(text).replaceAll("")
+    }
+
+    /**
+     * 构建时间戳映射
+     */
+    private fun buildTimestampMap(
+        audioNorm: String,
+        wordTimestamps: List<WordTimestamp>?
+    ): Map<Int, WordTimestamp> {
+        val tsMap = mutableMapOf<Int, WordTimestamp>()
+        if (wordTimestamps == null) return tsMap
+
+        var offset = 0
+        for (wt in wordTimestamps) {
+            val wNormalized = normalize(wt.word)
+            for (i in wNormalized.indices) {
+                tsMap[offset + i] = wt
+            }
+            offset += wNormalized.length
+        }
+        return tsMap
+    }
+
+    /**
+     * 使用简化版 LCS 算法找出差异
+     */
+    private fun findDiffs(
+        docChars: List<Char>,
+        audioChars: List<Char>,
+        docParagraphs: List<String>,
+        tsMap: Map<Int, WordTimestamp>,
+        confidenceThreshold: Float
+    ): List<DiffItem> {
+        val diffs = mutableListOf<DiffItem>()
+
+        // 简化的差分算法：找出不匹配的字符序列
+        val lcs = longestCommonSubsequence(docChars, audioChars)
+
+        var docIdx = 0
+        var audioIdx = 0
+        var lcsIdx = 0
+
+        while (docIdx < docChars.size || audioIdx < audioChars.size) {
+            if (lcsIdx < lcs.size) {
+                val lcsChar = lcs[lcsIdx]
+
+                // 跳过文档中匹配的字符
+                while (docIdx < docChars.size && docChars[docIdx] == lcsChar) {
+                    docIdx++
+                    if (lcsIdx + 1 < lcs.size && lcs[lcsIdx + 1] == lcsChar) {
+                        lcsIdx++
+                    } else {
+                        break
+                    }
+                }
+
+                // 跳过音频中匹配的字符
+                while (audioIdx < audioChars.size && audioChars[audioIdx] == lcsChar) {
+                    audioIdx++
+                    if (lcsIdx + 1 < lcs.size && lcs[lcsIdx + 1] == lcsChar) {
+                        lcsIdx++
+                    } else {
+                        break
+                    }
+                }
+
+                lcsIdx++
+            }
+
+            // 收集差异
+            val docDiff = StringBuilder()
+            val audioDiff = StringBuilder()
+
+            while (docIdx < docChars.size && (lcsIdx >= lcs.size || docChars[docIdx] != lcs[lcsIdx])) {
+                docDiff.append(docChars[docIdx])
+                docIdx++
+            }
+
+            while (audioIdx < audioChars.size && (lcsIdx >= lcs.size || audioChars[audioIdx] != lcs[lcsIdx])) {
+                audioDiff.append(audioChars[audioIdx])
+                audioIdx++
+            }
+
+            if (docDiff.isNotEmpty() || audioDiff.isNotEmpty()) {
+                val docDiffStr = docDiff.toString()
+                val audioDiffStr = audioDiff.toString()
+
+                // 跳过填充词
+                if (audioDiffStr in fillerWords) continue
+                if (docDiffStr in fillerWords) continue
+
+                // 确定差异类型
+                val type = when {
+                    docDiffStr.isNotEmpty() && audioDiffStr.isNotEmpty() -> DiffType.MISMATCH
+                    docDiffStr.isNotEmpty() -> DiffType.MISSING_IN_AUDIO
+                    else -> DiffType.EXTRA_IN_AUDIO
+                }
+
+                // 查找段落位置
+                val position = findParagraph(docParagraphs, docChars, docIdx - docDiff.length)
+
+                // 获取时间戳和置信度
+                val ts = tsMap[audioIdx]
+                val confidence = ts?.confidence ?: 1.0f
+
+                diffs.add(
+                    DiffItem(
+                        docText = docDiffStr,
+                        audioText = audioDiffStr,
+                        type = type,
+                        position = position,
+                        confidence = confidence,
+                        uncertain = confidence < confidenceThreshold && confidenceThreshold > 0,
+                        timeStart = ts?.start,
+                        timeEnd = ts?.end
+                    )
+                )
+            }
+        }
+
+        return diffs
+    }
+
+    /**
+     * 计算最长公共子序列
+     */
+    private fun longestCommonSubsequence(a: List<Char>, b: List<Char>): List<Char> {
+        val m = a.size
+        val n = b.size
+        val dp = Array(m + 1) { IntArray(n + 1) }
+
+        for (i in 1..m) {
+            for (j in 1..n) {
+                if (a[i - 1] == b[j - 1]) {
+                    dp[i][j] = dp[i - 1][j - 1] + 1
+                } else {
+                    dp[i][j] = maxOf(dp[i - 1][j], dp[i][j - 1])
+                }
+            }
+        }
+
+        // 回溯构建LCS
+        val lcs = mutableListOf<Char>()
+        var i = m
+        var j = n
+        while (i > 0 && j > 0) {
+            when {
+                a[i - 1] == b[j - 1] -> {
+                    lcs.add(a[i - 1])
+                    i--
+                    j--
+                }
+                dp[i - 1][j] > dp[i][j - 1] -> i--
+                else -> j--
+            }
+        }
+
+        return lcs.reversed()
+    }
+
+    /**
+     * 查找字符位置对应的段落索引
+     */
+    private fun findParagraph(paragraphs: List<String>, docChars: List<Char>, charPos: Int): Int {
+        var running = 0
+        for (idx in paragraphs.indices) {
+            val plen = normalize(paragraphs[idx]).length
+            if (running + plen > charPos) {
+                return idx
+            }
+            running += plen
+        }
+        return paragraphs.size - 1
+    }
+
+    /**
+     * 计算词错误率 (WER)
+     */
+    private fun calculateWER(docChars: List<Char>, audioChars: List<Char>): Double {
+        if (docChars.isEmpty()) return 0.0
+
+        val lcs = longestCommonSubsequence(docChars, audioChars).size
+        val substitutions = docChars.size - lcs
+        val insertions = maxOf(0, audioChars.size - lcs)
+        val deletions = maxOf(0, docChars.size - lcs)
+
+        return (substitutions + insertions + deletions).toDouble() / docChars.size
+    }
+
+    /**
+     * 计算字符错误率 (CER)
+     */
+    private fun calculateCER(docText: String, audioText: String): Double {
+        if (docText.isEmpty()) return 0.0
+
+        val docChars = docText.toList()
+        val audioChars = audioText.toList()
+
+        val lcs = longestCommonSubsequence(docChars, audioChars).size
+        val substitutions = docChars.size - lcs
+        val insertions = maxOf(0, audioChars.size - lcs)
+        val deletions = maxOf(0, docChars.size - lcs)
+
+        return (substitutions + insertions + deletions).toDouble() / docChars.size
+    }
+}

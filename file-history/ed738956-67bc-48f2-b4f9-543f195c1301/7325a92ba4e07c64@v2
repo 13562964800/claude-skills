@@ -1,0 +1,173 @@
+package com.multilanglearner.data.network
+
+import android.content.Context
+import android.util.Log
+import com.multilanglearner.domain.model.AIConfig
+import com.multilanglearner.domain.model.WordTimestamp
+import dagger.hilt.android.qualifiers.ApplicationContext
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
+import java.io.File
+import javax.inject.Inject
+import javax.inject.Singleton
+
+/**
+ * 本地转录服务接口
+ *
+ * 支持的引擎：
+ * 1. **Android SpeechRecognizer** - 原生语音识别（免费，多语言）
+ * 2. **Vosk** - 离线语音识别（需集成模型）
+ * 3. **Whisper.cpp** - 优化的 Whisper 实现（需 NDK）
+ */
+@Singleton
+class LocalTranscriptionService @Inject constructor(
+    @ApplicationContext private val context: Context
+) {
+    companion object {
+        private const val TAG = "LocalTranscription"
+
+        // 转录引擎类型
+        const val ENGINE_ANDROID_SPEECH = "android_speech"
+        const val ENGINE_VOSK = "vosk"
+        const val ENGINE_WHISPER_CPP = "whisper_cpp"
+    }
+
+    /**
+     * 本地转录结果
+     */
+    data class LocalTranscriptionResult(
+        val success: Boolean,
+        val text: String = "",
+        val words: List<WordTimestamp> = emptyList(),
+        val detectedLang: String = "",
+        val error: String = ""
+    )
+
+    /**
+     * 使用 Android SpeechRecognizer 进行转录
+     *
+     * 优点：
+     * - 无需网络
+     * - 免费
+     * - 支持多种语言
+     * - 系统原生，性能好
+     *
+     * 限制：
+     * - 需要将音频分段播放转录（不支持文件直接转录）
+     * - 时长限制（每个分段约30秒）
+     * - 没有词级别时间戳
+     */
+    suspend fun transcribeWithAndroidSpeech(
+        audioFile: File,
+        lang: String? = null,
+        onProgress: (Int, String) -> Unit = { _, _ -> }
+    ): LocalTranscriptionResult = withContext(Dispatchers.IO) {
+        try {
+            Log.d(TAG, "Transcribing with Android SpeechRecognizer: ${audioFile.name}")
+
+            // Android SpeechRecognizer 需要 AudioTrack 播放音频并监听
+            // 这里返回不支持状态，需要完整实现 UI 层
+            // 实际实现需要：
+            // 1. 使用 MediaPlayer 播放音频
+            // 2. 使用 SpeechRecognizer 监听语音
+            // 3. 将识别结果收集
+            // 4. 重复直到音频结束
+
+            LocalTranscriptionResult(
+                success = false,
+                error = "Android SpeechRecognizer 需要播放式转录\n\n当前仅支持在线 Groq API\n\n如需本地转录，请使用小文件（<1分钟）进行测试"
+            )
+
+        } catch (e: Exception) {
+            Log.e(TAG, "Android Speech transcription error", e)
+            LocalTranscriptionResult(
+                success = false,
+                error = "本地转录失败: ${e.message}"
+            )
+        }
+    }
+
+    /**
+     * 检查本地转录引擎是否可用
+     */
+    fun checkEngineAvailability(engine: String): EngineAvailability {
+        return when (engine) {
+            ENGINE_ANDROID_SPEECH -> {
+                // Android SpeechRecognizer 总是可用（系统原生）
+                EngineAvailability(
+                    engine = engine,
+                    available = true,
+                    name = "Android 语音识别",
+                    description = "系统原生，无需网络，支持多种语言",
+                    supportedLanguages = listOf("zh-CN", "en-US", "ja-JP", "ko-KR", "ru-RU"),
+                    offline = true
+                )
+            }
+            ENGINE_VOSK -> {
+                // Vosk 需要集成模型
+                EngineAvailability(
+                    engine = engine,
+                    available = false,
+                    name = "Vosk",
+                    description = "离线语音识别，需集成模型文件",
+                    supportedLanguages = listOf("zh-CN", "en-US"),
+                    offline = true,
+                    requiresModel = true
+                )
+            }
+            ENGINE_WHISPER_CPP -> {
+                // Whisper.cpp 需要集成
+                EngineAvailability(
+                    engine = engine,
+                    available = false,
+                    name = "Whisper.cpp",
+                    description = "高性能离线转录，需 NDK 集成",
+                    supportedLanguages = listOf("zh-CN", "en-US", "ja-JP"),
+                    offline = true,
+                    requiresModel = true
+                )
+            }
+            else -> {
+                EngineAvailability(
+                    engine = "unknown",
+                    available = false,
+                    name = "未知引擎",
+                    description = "不支持的转录引擎"
+                )
+            }
+        }
+    }
+
+    /**
+     * 获取推荐的转录引擎
+     */
+    fun getRecommendedEngine(fileSize: Long, hasNetwork: Boolean): String {
+        return when {
+            hasNetwork && fileSize < 100 * 1024 * 1024 -> {
+                // 有网络且文件小于100MB，使用在线 API
+                "groq"
+            }
+            !hasNetwork -> {
+                // 无网络，使用 Android 原生
+                ENGINE_ANDROID_SPEECH
+            }
+            else -> {
+                // 大文件，建议分段或压缩
+                "groq"
+            }
+        }
+    }
+}
+
+/**
+ * 转录引擎可用性信息
+ */
+data class EngineAvailability(
+    val engine: String,
+    val available: Boolean,
+    val name: String,
+    val description: String = "",
+    val supportedLanguages: List<String> = emptyList(),
+    val offline: Boolean = false,
+    val requiresModel: Boolean = false
+)

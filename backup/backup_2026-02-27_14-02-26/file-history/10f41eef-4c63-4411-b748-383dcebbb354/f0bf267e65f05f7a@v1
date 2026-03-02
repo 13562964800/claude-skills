@@ -1,0 +1,79 @@
+package com.multilanglearner.ui.theme
+
+import android.os.Build
+import androidx.compose.foundation.isSystemInDarkTheme
+import androidx.compose.material3.*
+import androidx.compose.runtime.Composable
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.unit.sp
+
+// Aurora Dark theme (极光暗色) - from styles.css :root
+private val AuroraDarkColors = darkColorScheme(
+    primary = Color(0xFFFF6B9D),
+    onPrimary = Color.White,
+    secondary = Color(0xFFC084FC),
+    onSecondary = Color.White,
+    tertiary = Color(0xFF60A5FA),
+    background = Color(0xFF0A0A1A),
+    surface = Color(0xFF1A1030),
+    surfaceVariant = Color(0xFF2A1A40),
+    onBackground = Color(0xFFE8E0F0),
+    onSurface = Color(0xFFE8E0F0),
+    onSurfaceVariant = Color(0xFFB0A0C0),
+    outline = Color(0xFF4A3A5A),
+    error = Color(0xFFF87171),
+    primaryContainer = Color(0xFF2A1A40),
+    onPrimaryContainer = Color(0xFFFF6B9D)
+)
+
+// Song Dynasty aesthetic (宋式美学) - from styles.css [data-theme="song"]
+private val SongLightColors = lightColorScheme(
+    primary = Color(0xFF8B6914),
+    onPrimary = Color.White,
+    secondary = Color(0xFFA0522D),
+    onSecondary = Color.White,
+    tertiary = Color(0xFF6B8E23),
+    background = Color(0xFFF5F0E8),
+    surface = Color(0xFFFAF6EE),
+    surfaceVariant = Color(0xFFEDE5D5),
+    onBackground = Color(0xFF3C2415),
+    onSurface = Color(0xFF3C2415),
+    onSurfaceVariant = Color(0xFF6B5B4B),
+    outline = Color(0xFFB8A88A),
+    error = Color(0xFFB22222),
+    primaryContainer = Color(0xFFF0E6D0),
+    onPrimaryContainer = Color(0xFF8B6914)
+)
+
+// Font size presets (from styles.css .font-small/medium/large/xlarge)
+data class FontSizePreset(
+    val subtitle: Int,
+    val body: Int,
+    val label: Int
+)
+
+val FontSizes = mapOf(
+    "small" to FontSizePreset(subtitle = 18, body = 13, label = 11),
+    "medium" to FontSizePreset(subtitle = 22, body = 14, label = 12),
+    "large" to FontSizePreset(subtitle = 28, body = 16, label = 14),
+    "xlarge" to FontSizePreset(subtitle = 34, body = 18, label = 16)
+)
+
+@Composable
+fun MultiLangTheme(
+    themeName: String = "aurora",
+    content: @Composable () -> Unit
+) {
+    val colorScheme = when (themeName) {
+        "aurora" -> AuroraDarkColors
+        "song" -> SongLightColors
+        "system" -> if (isSystemInDarkTheme()) AuroraDarkColors else SongLightColors
+        else -> AuroraDarkColors
+    }
+
+    MaterialTheme(
+        colorScheme = colorScheme,
+        typography = Typography(),
+        content = content
+    )
+}

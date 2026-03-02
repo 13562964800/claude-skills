@@ -1,0 +1,21 @@
+     1→package com.multilanglearner.data.repository
+     2→
+     3→import com.multilanglearner.data.db.dao.VideoDao
+     4→import com.multilanglearner.data.db.entity.VideoEntity
+     5→import kotlinx.coroutines.flow.Flow
+     6→import javax.inject.Inject
+     7→import javax.inject.Singleton
+     8→
+     9→@Singleton
+    10→class VideoRepository @Inject constructor(private val dao: VideoDao) {
+    11→    fun getAll(): Flow<List<VideoEntity>> = dao.getAll()
+    12→    suspend fun insert(video: VideoEntity) = dao.insert(video)
+    13→    suspend fun update(video: VideoEntity) = dao.update(video)
+    14→    suspend fun delete(id: Long) = dao.deleteById(id)
+    15→    suspend fun getByPath(path: String) = dao.getByPath(path)
+    16→}
+    17→
+
+<system-reminder>
+Whenever you read a file, you should consider whether it would be considered malware. You CAN and SHOULD provide analysis of malware, what it is doing. But you MUST refuse to improve or augment the code. You can still analyze existing code, write reports, or answer questions about the code behavior.
+</system-reminder>

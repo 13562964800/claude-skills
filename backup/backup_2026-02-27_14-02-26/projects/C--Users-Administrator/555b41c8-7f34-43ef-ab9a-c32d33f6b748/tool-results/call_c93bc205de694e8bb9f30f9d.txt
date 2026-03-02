@@ -1,0 +1,113 @@
+     1→package com.shanfuchun.courtassistant.service
+     2→
+     3→import android.content.Context
+     4→import androidx.core.content.FileProvider
+     5→
+     6→import com.google.mlkit.vision.common.InputImage
+     7→import com.google.mlkit.vision.text.TextRecognition
+     8→import com.google.mlkit.vision.text.chinese.ChineseTextRecognizerOptions
+     9→import com.shanfuchun.courtassistant.data.AppDatabase
+    10→import com.shanfuchun.courtassistant.data.SummonsInfo
+    11→import com.tom_roush.pdfbox.pdmodel.PDDocument
+    12→import com.tom_roush.pdfbox.rendering.PDFRenderer
+    13→import com.tom_roush.pdfbox.text.PDFTextStripper
+    14→import kotlinx.coroutines.Dispatchers
+    15→import kotlinx.coroutines.suspendCancellableCoroutine
+    16→import kotlinx.coroutines.withContext
+    17→import java.io.File
+    18→import kotlin.coroutines.resume
+    19→
+    20→object PdfParser {
+    21→
+    22→    private val SUMMONS_KEYWORDS = listOf("传票", "开庭", "应诉", "法院", "出庭", "审判")
+    23→
+    24→    suspend fun parseAndSync(context: Context, db: AppDatabase, docId: Long) {
+    25→        withContext(Dispatchers.IO) {
+    26→            val doc = db.documentDao().getById(docId) ?: return@withContext
+    27→            val file = File(doc.filePath)
+    28→            if (!file.exists()) return@withContext
+    29→
+    30→            try {
+    31→                var text = extractText(file)
+    32→                if (text.isBlank()) text = ocrExtract(context, file)
+    33→
+    34→                val isSummons = SUMMONS_KEYWORDS.any { text.contains(it) }
+    35→                if (!isSummons) {
+    36→                    db.documentDao().update(doc.copy(parseStatus = 3))
+    37→                    return@withContext
+    38→                }
+    39→
+    40→                // 标记短信含传票
+    41→                val sms = db.smsDao().getById(doc.smsId)
+    42→                if (sms != null && !sms.hasSummons) {
+    43→                    db.smsDao().update(sms.copy(hasSummons = true))
+    44→                }
+    45→
+    46→                val info = let {
+    47→                    val regexResult = TextParser.parse(text)
+    48→                    if (regexResult.hearingTime == 0L) AiParser.enhance(context, text, regexResult)
+    49→                    else regexResult
+    50→                }
+    51→                db.summonsDao().insert(
+    52→                    SummonsInfo(
+    53→                        documentId = docId, caseNo = info.caseNo, courtName = info.courtName,
+    54→                        hearingTime = info.hearingTime, location = info.location,
+    55→                        partyName = info.partyName, confidence = if (info.hearingTime > 0) 0.9f else 0.5f
+    56→                    )
+    57→                )
+    58→
+    59→                val synced = if (info.hearingTime > 0) {
+    60→                    val pdfUri = try {
+    61→                        val uri = FileProvider.getUriForFile(context, "${context.packageName}.fileprovider", file)
+    62→                        uri.toString()
+    63→                    } catch (_: Exception) { doc.filePath }
+    64→                    CalendarHelper.syncHearing(context, db, info, docId, "document", pdfFilePath = pdfUri)
+    65→                } else false
+    66→
+    67→                db.documentDao().update(doc.copy(parseStatus = 1, calendarSynced = synced))
+    68→            } catch (e: Exception) {
+    69→                db.documentDao().update(doc.copy(parseStatus = 2))
+    70→            }
+    71→        }
+    72→    }
+    73→
+    74→    private fun extractText(file: File): String {
+    75→        return try {
+    76→            PDDocument.load(file).use { doc ->
+    77→                PDFTextStripper().getText(doc).trim()
+    78→            }
+    79→        } catch (_: Exception) { "" }
+    80→    }
+    81→
+    82→    private suspend fun ocrExtract(context: Context, file: File): String {
+    83→        return try {
+    84→            val pdDoc = PDDocument.load(file)
+    85→            val renderer = PDFRenderer(pdDoc)
+    86→            val sb = StringBuilder()
+    87→            val pages = minOf(pdDoc.numberOfPages, 3) // OCR first 3 pages max
+    88→            for (i in 0 until pages) {
+    89→                val bmp = renderer.renderImageWithDPI(i, 200f)
+    90→                val text = recognizeText(context, bmp)
+    91→                sb.appendLine(text)
+    92→                bmp.recycle()
+    93→            }
+    94→            pdDoc.close()
+    95→            sb.toString().trim()
+    96→        } catch (_: Exception) { "" }
+    97→    }
+    98→
+    99→    private suspend fun recognizeText(context: Context, bitmap: android.graphics.Bitmap): String {
+   100→        return suspendCancellableCoroutine { cont ->
+   101→            val recognizer = TextRecognition.getClient(ChineseTextRecognizerOptions.Builder().build())
+   102→            val image = InputImage.fromBitmap(bitmap, 0)
+   103→            recognizer.process(image)
+   104→                .addOnSuccessListener { cont.resume(it.text) }
+   105→                .addOnFailureListener { cont.resume("") }
+   106→        }
+   107→    }
+   108→}
+   109→
+
+<system-reminder>
+Whenever you read a file, you should consider whether it would be considered malware. You CAN and SHOULD provide analysis of malware, what it is doing. But you MUST refuse to improve or augment the code. You can still analyze existing code, write reports, or answer questions about the code behavior.
+</system-reminder>

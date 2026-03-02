@@ -1,0 +1,42 @@
+#!/usr/bin/env python3
+"""检查哪些插图缺失SVG代码"""
+
+import re
+
+def check_missing_illustrations(file_path):
+    with open(file_path, 'r', encoding='utf-8') as f:
+        content = f.read()
+
+    # 找到所有插图标记
+    pattern = r'【插图(\d+-\d+)：([^】]+)】'
+    matches = re.finditer(pattern, content)
+
+    missing = []
+    has_svg = []
+
+    for match in matches:
+        illustration_id = match.group(1)
+        description = match.group(2)
+        start_pos = match.end()
+
+        # 检查插图标记后面是否有SVG代码
+        # 查看接下来的200个字符
+        next_content = content[start_pos:start_pos+200]
+
+        if '<svg' in next_content:
+            has_svg.append(illustration_id)
+        else:
+            missing.append((illustration_id, description))
+
+    print(f"总插图数: {len(has_svg) + len(missing)}")
+    print(f"已有SVG: {len(has_svg)}")
+    print(f"缺失SVG: {len(missing)}")
+    print("\n缺失的插图:")
+    for ill_id, desc in missing:
+        print(f"  {ill_id}: {desc}")
+
+    return missing
+
+if __name__ == '__main__':
+    file_path = r'C:\Users\Administrator\AI科普画册\AI前沿知识儿童科普画册-带全部插图.md'
+    missing = check_missing_illustrations(file_path)

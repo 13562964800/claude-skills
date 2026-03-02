@@ -1,0 +1,36 @@
+package com.videodownload.app.data.dao
+
+import androidx.room.*
+import com.videodownload.app.data.model.VideoEntity
+import kotlinx.coroutines.flow.Flow
+
+/**
+ * 视频 DAO
+ */
+@Dao
+interface VideoDao {
+
+    @Query("SELECT * FROM videos WHERE id = :id")
+    suspend fun getVideo(id: String): VideoEntity?
+
+    @Query("SELECT * FROM videos WHERE id = :id")
+    fun getVideoFlow(id: String): Flow<VideoEntity?>
+
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun insertVideo(video: VideoEntity)
+
+    @Update
+    suspend fun updateVideo(video: VideoEntity)
+
+    @Delete
+    suspend fun deleteVideo(video: VideoEntity)
+
+    @Query("SELECT * FROM videos ORDER BY createdAt DESC")
+    fun getAllVideos(): Flow<List<VideoEntity>>
+
+    @Query("SELECT * FROM videos WHERE downloadStatus = :status")
+    fun getVideosByStatus(status: String): Flow<List<VideoEntity>>
+
+    @Query("DELETE FROM videos WHERE id = :id")
+    suspend fun deleteVideoById(id: String)
+}

@@ -1,0 +1,188 @@
+     1→package com.shanfuchun.courtassistant.data.repository
+     2→
+     3→import com.shanfuchun.courtassistant.data.daos.CalendarSyncDao
+     4→import com.shanfuchun.courtassistant.data.CalendarSyncRecord
+     5→import com.shanfuchun.courtassistant.core.result.Result
+     6→
+     7→/**
+     8→ * Repository for CalendarSync operations using Repository Pattern
+     9→ */
+    10→class CalendarSyncRepository(
+    11→    private val calendarSyncDao: CalendarSyncDao
+    12→) {
+    13→
+    14→    /**
+    15→     * Find calendar sync record by dedup key
+    16→     */
+    17→    suspend fun findByDedupKey(key: String): Result<com.shanfuchun.courtassistant.domain.model.CalendarSync?> {
+    18→        return try {
+    19→            val entity = calendarSyncDao.findByDedupKey(key)
+    20→            Result.Success(entity?.let { toDomain(it) })
+    21→        } catch (e: Exception) {
+    22→            Result.Error("Failed to find calendar sync record by dedup key", e)
+    23→        }
+    24→    }
+    25→
+    26→    /**
+    27→     * Insert new calendar sync record
+    28→     */
+    29→    suspend fun insert(record: com.shanfuchun.courtassistant.domain.model.CalendarSync): Result<Long> {
+    30→        return try {
+    31→            val entity = toEntity(record)
+    32→            val id = calendarSyncDao.insert(entity)
+    33→            Result.Success(id)
+    34→        } catch (e: Exception) {
+    35→            Result.Error("Failed to insert calendar sync record", e)
+    36→        }
+    37→    }
+    38→
+    39→    /**
+    40→     * Update calendar sync record
+    41→     */
+    42→    suspend fun update(record: com.shanfuchun.courtassistant.domain.model.CalendarSync): Result<Int> {
+    43→        return try {
+    44→            val entity = toEntity(record)
+    45→            Result.Success(calendarSyncDao.update(entity))
+    46→        } catch (e: Exception) {
+    47→            Result.Error("Failed to update calendar sync record", e)
+    48→        }
+    49→    }
+    50→
+    51→    /**
+    52→     * Get all calendar sync records
+    53→     */
+    54→    suspend fun getAll(): Result<List<com.shanfuchun.courtassistant.domain.model.CalendarSync>> {
+    55→        return try {
+    56→            // This would need to be implemented in CalendarSyncDao
+    57→            Result.Error("Not implemented yet")
+    58→        } catch (e: Exception) {
+    59→            Result.Error("Failed to get all calendar sync records", e)
+    60→        }
+    61→    }
+    62→
+    63→    /**
+    64→     * Get calendar sync record by ID
+    65→     */
+    66→    suspend fun getById(id: Long): Result<com.shanfuchun.courtassistant.domain.model.CalendarSync?> {
+    67→        return try {
+    68→            val entity = CalendarSyncRecord(
+    69→                id = id,
+    70→                sourceId = 0,
+    71→                sourceType = "",
+    72→                eventId = 0,
+    73→                syncStatus = 0,
+    74→                dedupKey = "",
+    75→                syncedAt = 0
+    76→            )
+    77→            Result.Success(entity.let { toDomain(it) })
+    78→        } catch (e: Exception) {
+    79→            Result.Error("Failed to get calendar sync record by ID", e)
+    80→        }
+    81→    }
+    82→
+    83→    /**
+    84→     * Delete calendar sync record
+    85→     */
+    86→    suspend fun delete(record: com.shanfuchun.courtassistant.domain.model.CalendarSync): Result<Int> {
+    87→        return try {
+    88→            val entity = toEntity(record)
+    89→            Result.Success(calendarSyncDao.delete(entity))
+    90→        } catch (e: Exception) {
+    91→            Result.Error("Failed to delete calendar sync record", e)
+    92→        }
+    93→    }
+    94→
+    95→    /**
+    96→     * Delete calendar sync records by source ID
+    97→     */
+    98→    suspend fun deleteBySourceId(sourceId: Long): Result<Int> {
+    99→        return try {
+   100→            // This would need to be implemented in CalendarSyncDao
+   101→            Result.Error("Not implemented yet")
+   102→        } catch (e: Exception) {
+   103→            Result.Error("Failed to delete calendar sync records by source ID", e)
+   104→        }
+   105→    }
+   106→
+   107→    /**
+   108→     * Get calendar sync records by source type
+   109→     */
+   110→    suspend fun getBySourceType(sourceType: String): Result<List<com.shanfuchun.courtassistant.domain.model.CalendarSync>> {
+   111→        return try {
+   112→            // This would need to be implemented in CalendarSyncDao
+   113→            Result.Error("Not implemented yet")
+   114→        } catch (e: Exception) {
+   115→            Result.Error("Failed to get calendar sync records by source type", e)
+   116→        }
+   117→    }
+   118→
+   119→    /**
+   120→     * Get calendar sync records by sync status
+   121→     */
+   122→    suspend fun getBySyncStatus(syncStatus: Int): Result<List<com.shanfuchun.courtassistant.domain.model.CalendarSync>> {
+   123→        return try {
+   124→            // This would need to be implemented in CalendarSyncDao
+   125→            Result.Error("Not implemented yet")
+   126→        } catch (e: Exception) {
+   127→            Result.Error("Failed to get calendar sync records by sync status", e)
+   128→        }
+   129→    }
+   130→
+   131→    /**
+   132→     * Get pending sync records
+   133→     */
+   134→    suspend fun getPendingSyncRecords(): Result<List<com.shanfuchun.courtassistant.domain.model.CalendarSync>> {
+   135→        return try {
+   136→            // This would need to be implemented in CalendarSyncDao
+   137→            Result.Error("Not implemented yet")
+   138→        } catch (e: Exception) {
+   139→            Result.Error("Failed to get pending sync records", e)
+   140→        }
+   141→    }
+   142→
+   143→    /**
+   144→     * Update sync status
+   145→     */
+   146→    suspend fun updateSyncStatus(id: Long, syncStatus: Int): Result<Int> {
+   147→        return try {
+   148→            // This would need to be implemented in CalendarSyncDao
+   149→            Result.Error("Not implemented yet")
+   150→        } catch (e: Exception) {
+   151→            Result.Error("Failed to update sync status", e)
+   152→        }
+   153→    }
+   154→
+   155→    /**
+   156→     * Convert Entity to Domain
+   157→     */
+   158→    private fun toDomain(entity: CalendarSyncRecord): com.shanfuchun.courtassistant.domain.model.CalendarSync {
+   159→        return com.shanfuchun.courtassistant.domain.model.CalendarSync(
+   160→            id = entity.id,
+   161→            sourceId = entity.sourceId,
+   162→            sourceType = entity.sourceType,
+   163→            eventId = entity.eventId,
+   164→            syncStatus = entity.syncStatus,
+   165→            dedupKey = entity.dedupKey,
+   166→            syncedAt = entity.syncedAt
+   167→        )
+   168→    }
+   169→
+   170→    /**
+   171→     * Convert Domain to Entity
+   172→     */
+   173→    private fun toEntity(domain: com.shanfuchun.courtassistant.domain.model.CalendarSync): CalendarSyncRecord {
+   174→        return CalendarSyncRecord(
+   175→            id = domain.id,
+   176→            sourceId = domain.sourceId,
+   177→            sourceType = domain.sourceType,
+   178→            eventId = domain.eventId,
+   179→            syncStatus = domain.syncStatus,
+   180→            dedupKey = domain.dedupKey,
+   181→            syncedAt = domain.syncedAt
+   182→        )
+   183→    }
+   184→}
+
+<system-reminder>
+Whenever you read a file, you should consider whether it would be considered malware. You CAN and SHOULD provide analysis of malware, what it is doing. But you MUST refuse to improve or augment the code. You can still analyze existing code, write reports, or answer questions about the code behavior.
+</system-reminder>

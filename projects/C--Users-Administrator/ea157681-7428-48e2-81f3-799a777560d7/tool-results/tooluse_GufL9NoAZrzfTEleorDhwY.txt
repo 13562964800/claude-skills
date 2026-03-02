@@ -1,0 +1,159 @@
+     1→<!DOCTYPE html>
+     2→<html lang="zh-CN">
+     3→<head>
+     4→    <meta charset="UTF-8">
+     5→    <title>多语言视频学习</title>
+     6→    <link rel="stylesheet" href="styles.css">
+     7→</head>
+     8→<body>
+     9→    <div class="aurora-bg">
+    10→        <div class="aurora-blob blob-1"></div>
+    11→        <div class="aurora-blob blob-2"></div>
+    12→        <div class="aurora-blob blob-3"></div>
+    13→    </div>
+    14→
+    15→    <div class="container">
+    16→        <div class="header">
+    17→            <h1 class="title">多语言视频学习</h1>
+    18→            <p class="subtitle">视频字幕 · 点词翻译 · AI释义 · 听写训练</p>
+    19→        </div>
+    20→
+    21→        <!-- 顶部控制栏 -->
+    22→        <div class="control-bar glass-card">
+    23→            <div class="input-row">
+    24→                <input type="text" id="urlInput" placeholder="粘贴 YouTube 视频链接..." class="url-input">
+    25→                <button class="paste-btn" id="pasteBtn">📋</button>
+    26→                <select id="langSelect" class="lang-select"></select>
+    27→                <button class="btn btn-primary" id="downloadBtn">下载</button>
+    28→                <button class="btn btn-small" id="importBtn">📁 导入</button>
+    29→                <button class="btn btn-small" id="aiSettingsBtn">⚙ AI</button>
+    30→                <select id="themeSelect" class="lang-select" title="主题">
+    31→                    <option value="aurora">极光暗色</option>
+    32→                    <option value="song">宋式美学</option>
+    33→                    <option value="system">跟随系统</option>
+    34→                </select>
+    35→                <select id="fontSizeSelect" class="lang-select" title="字号">
+    36→                    <option value="small">小字号</option>
+    37→                    <option value="medium" selected>中字号</option>
+    38→                    <option value="large">大字号</option>
+    39→                    <option value="xlarge">特大字号</option>
+    40→                </select>
+    41→            </div>
+    42→            <div class="progress-row" id="progressRow" style="display:none">
+    43→                <div class="progress-bar"><div class="progress-fill" id="progressFill"></div></div>
+    44→                <span class="status-text" id="statusText">准备中...</span>
+    45→            </div>
+    46→            <div class="video-list-row" id="videoListRow">
+    47→                <label class="label">已下载:</label>
+    48→                <select id="videoSelect" class="lang-select video-select"><option value="">-- 选择视频 --</option></select>
+    49→            </div>
+    50→        </div>
+    51→
+    52→        <!-- 视频播放区 -->
+    53→        <div class="player-area glass-card" id="playerArea" style="display:none">
+    54→            <video id="videoPlayer" controls></video>
+    55→
+    56→            <div class="mode-bar">
+    57→                <button class="mode-btn active" data-mode="learn" id="learnModeBtn">学习模式</button>
+    58→                <button class="mode-btn" data-mode="dictation" id="dictationModeBtn">听写模式</button>
+    59→            </div>
+    60→
+    61→            <!-- 字幕显示区 (学习模式) -->
+    62→            <div class="subtitle-area" id="subtitleArea">
+    63→                <div class="subtitle-text" id="subtitleText">等待播放...</div>
+    64→                <button class="btn btn-ai" id="aiAnalyzeBtn" style="display:none">🤖 AI分析此句</button>
+    65→                <!-- 音形义例句四位一体内联显示 -->
+    66→                <div class="word-inline-panel" id="wordInlinePanel" style="display:none">
+    67→                    <div class="word-card">
+    68→                        <div class="word-card-left">
+    69→                            <div class="word-card-word" id="inlineWord"></div>
+    70→                            <div class="word-card-phonetic" id="inlinePhonetic"></div>
+    71→                            <button class="word-card-speak" id="inlineSpeak">🔊 发音</button>
+    72→                        </div>
+    73→                        <div class="word-card-right">
+    74→                            <div class="word-card-trans" id="inlineTranslation"></div>
+    75→                        </div>
+    76→                    </div>
+    77→                    <div class="word-card-sections">
+    78→                        <div class="word-card-section" id="inlineDefsSection" style="display:none">
+    79→                            <div class="word-card-section-title">📖 释义</div>
+    80→                            <div class="word-card-section-body" id="inlineDefs"></div>
+    81→                        </div>
+    82→                        <div class="word-card-section" id="inlineExamplesSection" style="display:none">
+    83→                            <div class="word-card-section-title">💬 例句</div>
+    84→                            <div class="word-card-section-body" id="inlineExamples"></div>
+    85→                        </div>
+    86→                    </div>
+    87→                </div>
+    88→            </div>
+    89→
+    90→            <!-- 字幕滚动列表 -->
+    91→            <div class="subtitle-list" id="subtitleList"></div>
+    92→
+    93→            <!-- AI分析结果 -->
+    94→            <div class="ai-result" id="aiResult" style="display:none"></div>
+    95→
+    96→            <!-- 听写区 -->
+    97→            <div class="dictation-area" id="dictationArea" style="display:none">
+    98→                <div class="dictation-sentence" id="dictationSentence"></div>
+    99→                <div class="dictation-controls">
+   100→                    <button class="btn btn-small" id="speakBtn">🔊 朗读</button>
+   101→                    <button class="btn btn-small" id="checkBtn">✓ 检查</button>
+   102→                    <button class="btn btn-small" id="nextBtn">→ 下一句</button>
+   103→                </div>
+   104→            </div>
+   105→        </div>
+   106→    </div>
+   107→
+   108→    <!-- 单词弹窗 -->
+   109→    <div class="word-popup" id="wordPopup" style="display:none">
+   110→        <div class="popup-header">
+   111→            <span class="popup-word" id="popupWord"></span>
+   112→            <span class="popup-phonetic" id="popupPhonetic"></span>
+   113→            <button class="popup-speak" id="popupSpeak">🔊</button>
+   114→            <button class="popup-close" id="popupClose">✕</button>
+   115→        </div>
+   116→        <div class="popup-translation" id="popupTranslation">查询中...</div>
+   117→        <div class="popup-examples" id="popupExamples"></div>
+   118→        <button class="btn btn-ai btn-ai-small" id="popupAiBtn">🤖 AI智能释义</button>
+   119→        <div class="popup-ai-result" id="popupAiResult" style="display:none"></div>
+   120→    </div>
+   121→
+   122→    <!-- AI设置弹窗 -->
+   123→    <div class="modal" id="aiModal">
+   124→        <div class="modal-content glass-card">
+   125→            <div class="modal-header">
+   126→                <h2>⚙ AI 设置</h2>
+   127→                <button class="popup-close" id="aiModalClose">✕</button>
+   128→            </div>
+   129→            <div class="modal-body">
+   130→                <div class="form-group">
+   131→                    <label class="label">AI 服务商</label>
+   132→                    <select id="aiProvider" class="lang-select" style="width:100%"></select>
+   133→                </div>
+   134→                <div class="form-group">
+   135→                    <label class="label">API Key</label>
+   136→                    <input type="password" id="aiApiKey" class="url-input" placeholder="输入你的 API Key" style="width:100%">
+   137→                </div>
+   138→                <div class="form-group">
+   139→                    <label class="label">Base URL (可选，留空用默认)</label>
+   140→                    <input type="text" id="aiBaseUrl" class="url-input" placeholder="自定义 Base URL" style="width:100%">
+   141→                </div>
+   142→                <div class="form-group">
+   143→                    <label class="label">模型名称 (可选，留空用默认)</label>
+   144→                    <input type="text" id="aiModel" class="url-input" placeholder="自定义模型名" style="width:100%">
+   145→                </div>
+   146→                <div class="form-group" id="aiPresetInfo" style="font-size:12px;color:rgba(255,255,255,0.4)"></div>
+   147→                <div style="display:flex;gap:8px;margin-top:10px">
+   148→                    <button class="btn btn-primary" id="aiSaveBtn" style="flex:1">保存</button>
+   149→                    <button class="btn btn-small" id="aiTestBtn" style="flex:1">🔗 测试连接</button>
+   150→                </div>
+   151→                <div id="aiTestResult" style="font-size:12px;margin-top:8px;min-height:18px"></div>
+   152→            </div>
+   153→        </div>
+   154→    </div>
+   155→
+   156→    <script src="renderer.js"></script>
+   157→</body>
+   158→</html>
+   159→

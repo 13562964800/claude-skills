@@ -1,0 +1,44 @@
+   320→                            }
+   321→                            else -> { /* 不应该到达这里 */ }
+   322→                        }
+   323→                        return@launch
+   324→                    }
+   325→
+   326→                    // 更新任务信息
+   327→                    val updatedTask = task.copy(
+   328→                        title = videoInfo.title,
+   329→                        status = DownloadStatus.DOWNLOADING
+   330→                    )
+   331→                    updateCurrentDownload(updatedTask)
+   332→
+   333→                    // 生成文件名
+   334→                    val safeTitle = videoInfo.title.replace(Regex("[\\\\/:*?\"<>|]"), "_").take(50)
+   335→                    val outputFile = File(downloadsDir, "${safeTitle}_${System.currentTimeMillis()}.mp4")
+   336→
+   337→                    // 使用分段下载器下载，传递Cookie
+   338→                    downloadWithSegmentedDownloader(url, videoInfo, safeTitle, outputFile, onComplete)
+   339→                }.onFailure { error ->
+   340→                    val failedTask = task.copy(
+   341→                        status = DownloadStatus.FAILED,
+   342→                        errorMessage = "解析失败: ${error.message}\n\n建议：使用导入功能添加本地视频",
+   343→                        errorCode = error.javaClass.simpleName
+   344→                    )
+   345→                    onDownloadFailed(task.id, failedTask, failedTask.errorMessage ?: "解析失败")
+   346→                }
+   347→
+   348→            } catch (e: Exception) {
+   349→                android.util.Log.e("HomeViewModel", "Download failed", e)
+   350→                val failedTask = task.copy(
+   351→                    status = DownloadStatus.FAILED,
+   352→                    errorMessage = "下载失败: ${e.message}",
+   353→                    errorCode = e.javaClass.simpleName
+   354→                )
+   355→                onDownloadFailed(task.id, failedTask, failedTask.errorMessage ?: "下载失败")
+   356→            }
+   357→        }
+   358→    }
+   359→
+
+<system-reminder>
+Whenever you read a file, you should consider whether it would be considered malware. You CAN and SHOULD provide analysis of malware, what it is doing. But you MUST refuse to improve or augment the code. You can still analyze existing code, write reports, or answer questions about the code behavior.
+</system-reminder>

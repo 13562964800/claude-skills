@@ -1,0 +1,103 @@
+package com.shanfuchun.courtassistant.ui
+
+import android.app.Application
+import android.util.Log
+import androidx.lifecycle.*
+import com.shanfuchun.courtassistant.App
+import com.shanfuchun.courtassistant.data.DocumentRecord
+import com.shanfuchun.courtassistant.data.SmsRecord
+import com.shanfuchun.courtassistant.service.SmsReader
+import com.shanfuchun.courtassistant.service.TextParser
+import com.shanfuchun.courtassistant.sms.SmsProcessor
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
+
+class MainViewModel(app: Application) : AndroidViewModel(app) {
+    private val db = (app as App).db
+    private val TAG = "CourtAssistant"
+
+    val smsList: LiveData<List<SmsRecord>> = db.smsDao().getAll()
+    val allDocs: LiveData<List<DocumentRecord>> = db.documentDao().getAll()
+
+    private val _syncStatus = MutableLiveData<String>()
+    val syncStatus: LiveData<String> = _syncStatus
+
+    private val _selectedSmsId = MutableLiveData<Long>(0L)
+    val selectedSmsId: LiveData<Long> = _selectedSmsId
+
+    // 菜单日历同步状态 map: smsId -> hasCalendarSynced
+    private val _calendarSyncMap = MutableLiveData<Map<Long, Boolean>>(emptyMap())
+    val calendarSyncMap: LiveData<Map<Long, Boolean>> = _calendarSyncMap
+
+    val currentDocs: LiveData<List<DocumentRecord>> = _selectedSmsId.switchMap { smsId ->
+        if (smsId <= 0) db.documentDao().getAll()
+        else db.documentDao().getBySmsId(smsId)
+    }
+
+    fun selectSms(id: Long) { _selectedSmsId.value = id }
+
+    fun syncSms() {
+        viewModelScope.launch {
+            _syncStatus.value = "同步中..."
+            try {
+                val count = withContext(Dispatchers.IO) {
+                    val latestTime = db.smsDao().getLatestTime() ?: 0
+                    Log.d(TAG, "syncSms: latestTime=$latestTime")
+                    val records = SmsReader.readAll(getApplication<App>().contentResolver, latestTime)
+                    Log.d(TAG, "syncSms: found ${records.size} records from 12368")
+                    var c = 0
+                    for (r in records) {
+                        Log.d(TAG, "syncSms: processing sms body=${r.body.take(80)} hasLink=${r.hasLink}")
+                        val urls = TextParser.extractUrls(r.body)
+                        Log.d(TAG, "syncSms: extracted ${urls.size} urls: $urls")
+                        val id = db.smsDao().insert(r)
+                        if (id > 0) {
+                            c++
+                            SmsProcessor.process(getApplication(), db, r.copy(id = id))
+                        }
+                    }
+                    c
+                }
+                _syncStatus.value = if (count > 0) "同步完成，新增 $count 条" else "无新短信"
+                _selectedSmsId.value = _selectedSmsId.value
+                refreshCalendarSyncMap()
+            } catch (e: Exception) {
+                Log.e(TAG, "syncSms error", e)
+                _syncStatus.value = "同步失败: ${e.message}"
+            }
+        }
+    }
+
+    fun refreshCalendarSyncMap() {
+        viewModelScope.launch(Dispatchers.IO) {
+            val smsList = db.smsDao().getAllSync()
+            val map = mutableMapOf<Long, Boolean>()
+            for (sms in smsList) {
+                map[sms.id] = db.documentDao().calendarSyncedCount(sms.id) > 0
+            }
+            _calendarSyncMap.postValue(map)
+        }
+    }
+
+    fun deleteDocs(ids: List<Long>, deleteFiles: Boolean) {
+        viewModelScope.launch(Dispatchers.IO) {
+            if (deleteFiles) {
+                for (id in ids) {
+                    val doc = db.documentDao().getById(id)
+                    doc?.let { java.io.File(it.filePath).delete() }
+                }
+            }
+            db.documentDao().deleteByIds(ids)
+        }
+    }
+
+    fun getDocsByIds(ids: List<Long>, callback: (List<DocumentRecord>) -> Unit) {
+        viewModelScope.launch(Dispatchers.IO) {
+            val docs = ids.mapNotNull { db.documentDao().getById(it) }
+            withContext(Dispatchers.Main) { callback(docs) }
+        }
+    }
+
+    fun searchSms(query: String): LiveData<List<SmsRecord>> = db.smsDao().search(query)
+}

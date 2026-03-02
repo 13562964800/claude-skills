@@ -1,0 +1,203 @@
+package com.videodownload.app.engine
+
+import android.content.Context
+import com.videodownload.app.data.model.Word
+import com.videodownload.app.repository.TestResult
+import com.videodownload.app.repository.TranscriptionResult
+import com.whispercpp.whisper.WhisperContext
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
+import java.io.File
+
+/**
+ * Whisper.cpp 转录引擎（离线）
+ *
+ * 特点：
+ * - 完全离线
+ * - 无文件大小限制
+ * - 速度：2-4x 实时（取决于设备）
+ * - 需要下载模型文件
+ *
+ * 模型大小：
+ * - tiny: 75MB, 速度最快，准确度较低
+ * - base: 142MB, 平衡
+ * - small: 466MB, 推荐
+ * - medium: 1.5GB, 准确度高，速度慢
+ */
+class WhisperCppEngine(private val context: Context) : TranscriptionEngine {
+
+    override val name = "whisper_cpp"
+
+    private var whisperContext: WhisperContext? = null
+    private val modelDir = File(context.filesDir, "whisper_models")
+
+    companion object {
+        private const val DEFAULT_MODEL = "ggml-base.bin"
+    }
+
+    init {
+        modelDir.mkdirs()
+    }
+
+    override suspend fun transcribe(audioPath: String, language: String?): TranscriptionResult =
+        withContext(Dispatchers.IO) {
+            // 1. 加载模型
+            if (whisperContext == null) {
+                whisperContext = loadModel()
+            }
+
+            val context = whisperContext
+                ?: throw IllegalStateException("Whisper model not loaded")
+
+            // 2. 转录
+            val result = context.transcribeData(
+                audioData = loadAudioData(audioPath),
+                language = language ?: "auto"
+            )
+
+            // 3. 解析结果
+            parseWhisperResult(result)
+        }
+
+    /**
+     * 加载模型
+     */
+    private fun loadModel(): WhisperContext {
+        val modelFile = File(modelDir, DEFAULT_MODEL)
+
+        if (!modelFile.exists()) {
+            throw IllegalStateException(
+                "Whisper model not found. Please download the model first."
+            )
+        }
+
+        return WhisperContext.createContextFromFile(modelFile.absolutePath)
+    }
+
+    /**
+     * 加载音频数据
+     */
+    private fun loadAudioData(audioPath: String): FloatArray {
+        // 使用 FFmpeg 将音频转换为 16kHz 单声道 PCM
+        val pcmFile = convertToPCM(audioPath)
+
+        // 读取 PCM 数据并转换为 Float 数组
+        val bytes = File(pcmFile).readBytes()
+        val floats = FloatArray(bytes.size / 2)
+
+        for (i in floats.indices) {
+            val sample = ((bytes[i * 2 + 1].toInt() shl 8) or (bytes[i * 2].toInt() and 0xFF)).toShort()
+            floats[i] = sample / 32768.0f
+        }
+
+        return floats
+    }
+
+    /**
+     * 转换音频为 PCM 格式
+     */
+    private fun convertToPCM(audioPath: String): String {
+        val outputPath = "$audioPath.pcm"
+
+        // 使用 FFmpeg 转换
+        val command = arrayOf(
+            "ffmpeg", "-i", audioPath,
+            "-ar", "16000",
+            "-ac", "1",
+            "-f", "s16le",
+            outputPath
+        )
+
+        val process = Runtime.getRuntime().exec(command)
+        process.waitFor()
+
+        return outputPath
+    }
+
+    /**
+     * 解析 Whisper 结果
+     */
+    private fun parseWhisperResult(result: String): TranscriptionResult {
+        // Whisper.cpp 返回的是纯文本，需要解析时间戳
+        // 格式：[00:00.000 --> 00:05.000] Hello world
+
+        val words = mutableListOf<Word>()
+        val textBuilder = StringBuilder()
+
+        val lines = result.split("\n")
+        for (line in lines) {
+            if (line.contains("-->")) {
+                // 解析时间戳
+                val parts = line.split("]")
+                if (parts.size >= 2) {
+                    val timestamps = parts[0].substring(1).split("-->")
+                    val text = parts[1].trim()
+
+                    if (timestamps.size == 2) {
+                        val start = parseTimestamp(timestamps[0].trim())
+                        val end = parseTimestamp(timestamps[1].trim())
+
+                        words.add(
+                            Word(
+                                word = text,
+                                start = start,
+                                end = end,
+                                confidence = null
+                            )
+                        )
+
+                        textBuilder.append(text).append(" ")
+                    }
+                }
+            }
+        }
+
+        return TranscriptionResult(
+            text = textBuilder.toString().trim(),
+            words = words,
+            language = "unknown", // Whisper.cpp 不返回语言信息
+            duration = words.lastOrNull()?.end ?: 0f
+        )
+    }
+
+    /**
+     * 解析时间戳
+     */
+    private fun parseTimestamp(timestamp: String): Float {
+        // 格式：00:00.000
+        val parts = timestamp.split(":")
+        if (parts.size != 2) return 0f
+
+        val minutes = parts[0].toIntOrNull() ?: 0
+        val seconds = parts[1].toFloatOrNull() ?: 0f
+
+        return minutes * 60 + seconds
+    }
+
+    override fun isAvailable(): Boolean {
+        val modelFile = File(modelDir, DEFAULT_MODEL)
+        return modelFile.exists()
+    }
+
+    override suspend fun test(apiKey: String?): TestResult {
+        return if (isAvailable()) {
+            TestResult(true, "模型已加载")
+        } else {
+            TestResult(false, "模型未下载，请先下载模型")
+        }
+    }
+
+    /**
+     * 下载模型
+     */
+    suspend fun downloadModel(
+        modelName: String = DEFAULT_MODEL,
+        onProgress: (Float) -> Unit
+    ) = withContext(Dispatchers.IO) {
+        val modelUrl = "https://huggingface.co/ggerganov/whisper.cpp/resolve/main/$modelName"
+        val modelFile = File(modelDir, modelName)
+
+        // 下载模型文件
+        // TODO: 实现下载逻辑
+    }
+}

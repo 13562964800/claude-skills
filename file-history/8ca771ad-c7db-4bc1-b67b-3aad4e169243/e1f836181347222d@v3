@@ -1,0 +1,315 @@
+package com.videodownload.app.repository
+
+import android.content.Context
+import com.videodownload.app.data.AppDatabase
+import com.videodownload.app.data.model.*
+import com.videodownload.app.engine.GroqEngine
+import com.videodownload.app.engine.WhisperCppEngine
+import com.videodownload.app.engine.TranscriptionEngine
+import com.videodownload.app.service.TranscriptionProgress
+import com.videodownload.app.utils.AudioSegmenter
+import com.videodownload.app.utils.FFmpegHelper
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
+import java.io.File
+
+/**
+ * 转录仓库
+ *
+ * 功能：
+ * 1. 管理转录引擎
+ * 2. 执行分段转录
+ * 3. 保存和读取转录结果
+ * 4. 断点续传
+ */
+class TranscriptionRepository(private val context: Context) {
+
+    private val database = AppDatabase.getInstance(context)
+    private val transcriptionDao = database.transcriptionDao()
+    private val videoDao = database.videoDao()
+
+    private val groqEngine = GroqEngine(context)
+    private val whisperCppEngine = WhisperCppEngine(context)
+    private val audioSegmenter = AudioSegmenter(context)
+    private val ffmpegHelper = FFmpegHelper(context)
+
+    /**
+     * 转录视频
+     *
+     * @param videoId 视频 ID
+     * @param engine 引擎类型：auto/groq/whisper_cpp
+     * @param onProgress 进度回调
+     */
+    suspend fun transcribe(
+        videoId: String,
+        engine: String = "auto",
+        onProgress: (TranscriptionProgress) -> Unit
+    ): TranscriptionEntity = withContext(Dispatchers.IO) {
+
+        // 1. 检查是否已有转录结果
+        val existing = transcriptionDao.getTranscription(videoId)
+        if (existing != null && existing.status == TranscriptionStatus.COMPLETED) {
+            // 已有完整转录结果，直接返回
+            return@withContext existing
+        }
+
+        // 2. 获取视频信息
+        val video = videoDao.getVideo(videoId)
+            ?: throw IllegalArgumentException("Video not found: $videoId")
+
+        // 3. 提取音频
+        onProgress(TranscriptionProgress(
+            videoId = videoId,
+            status = TranscriptionStatus.EXTRACTING,
+            progress = 0.05f,
+            message = "正在提取音频..."
+        ))
+
+        val audioPath = ffmpegHelper.extractAudio(video.localPath ?: throw IllegalArgumentException("Video not downloaded yet"))
+
+        // 4. 分段
+        onProgress(TranscriptionProgress(
+            videoId = videoId,
+            status = TranscriptionStatus.SEGMENTING,
+            progress = 0.1f,
+            message = "正在分析音频..."
+        ))
+
+        val segments = audioSegmenter.segment(audioPath)
+
+        // 5. 选择引擎
+        val selectedEngine = selectEngine(engine, audioPath)
+
+        // 6. 转录各段
+        onProgress(TranscriptionProgress(
+            videoId = videoId,
+            status = TranscriptionStatus.TRANSCRIBING,
+            progress = 0.15f,
+            message = "正在转录 (0/${segments.size})",
+            currentSegment = 0,
+            totalSegments = segments.size
+        ))
+
+        val results = mutableListOf<TranscriptionResult>()
+
+        segments.forEachIndexed { index, segment ->
+            // 转录单段
+            val result = transcribeSegment(
+                segment = segment,
+                engine = selectedEngine,
+                videoId = videoId,
+                index = index
+            )
+
+            results.add(result)
+
+            // 更新进度
+            val progress = 0.15f + (index + 1).toFloat() / segments.size * 0.8f
+            onProgress(TranscriptionProgress(
+                videoId = videoId,
+                status = TranscriptionStatus.TRANSCRIBING,
+                progress = progress,
+                message = "正在转录 (${index + 1}/${segments.size})",
+                currentSegment = index + 1,
+                totalSegments = segments.size
+            ))
+        }
+
+        // 7. 合并结果
+        val mergedResult = mergeResults(results)
+
+        // 8. 保存到数据库
+        val transcription = TranscriptionEntity(
+            videoId = videoId,
+            text = mergedResult.text,
+            words = mergedResult.words,
+            language = mergedResult.language,
+            engine = selectedEngine.name,
+            status = TranscriptionStatus.COMPLETED,
+            createdAt = System.currentTimeMillis(),
+            updatedAt = System.currentTimeMillis(),
+            duration = mergedResult.duration,
+            segments = segments.mapIndexed { index, seg ->
+                Segment(
+                    index = index,
+                    startTime = seg.startTime,
+                    endTime = seg.endTime,
+                    text = results[index].text,
+                    status = SegmentStatus.COMPLETED
+                )
+            }
+        )
+
+        transcriptionDao.insertTranscription(transcription)
+
+        // 9. 清理临时文件
+        cleanupTempFiles(audioPath, segments)
+
+        onProgress(TranscriptionProgress(
+            videoId = videoId,
+            status = TranscriptionStatus.COMPLETED,
+            progress = 1f,
+            message = "转录完成"
+        ))
+
+        return@withContext transcription
+    }
+
+    /**
+     * 转录单个分段（带重试）
+     */
+    private suspend fun transcribeSegment(
+        segment: AudioSegment,
+        engine: TranscriptionEngine,
+        videoId: String,
+        index: Int,
+        maxRetries: Int = 3
+    ): TranscriptionResult {
+        var lastError: Exception? = null
+
+        repeat(maxRetries) { attempt ->
+            try {
+                return engine.transcribe(segment.path, null)
+            } catch (e: Exception) {
+                lastError = e
+                if (attempt < maxRetries - 1) {
+                    // 等待后重试
+                    kotlinx.coroutines.delay(1000L * (attempt + 1))
+                }
+            }
+        }
+
+        // 所有重试都失败
+        throw lastError ?: Exception("Transcription failed for segment $index")
+    }
+
+    /**
+     * 选择转录引擎
+     */
+    private fun selectEngine(engineType: String, audioPath: String): TranscriptionEngine {
+        return when (engineType.lowercase()) {
+            "groq" -> groqEngine
+            "whisper_cpp" -> whisperCppEngine
+            "auto" -> {
+                // 自动选择：文件 < 20MB 且有网络 -> Groq，否则 -> WhisperCpp
+                val fileSize = File(audioPath).length()
+                val hasNetwork = isNetworkAvailable()
+
+                if (fileSize < 20 * 1024 * 1024 && hasNetwork && groqEngine.isAvailable()) {
+                    groqEngine
+                } else {
+                    whisperCppEngine
+                }
+            }
+            else -> groqEngine
+        }
+    }
+
+    /**
+     * 合并转录结果
+     */
+    private fun mergeResults(results: List<TranscriptionResult>): TranscriptionResult {
+        val allWords = mutableListOf<Word>()
+        val allText = StringBuilder()
+
+        results.forEach { result ->
+            allText.append(result.text).append(" ")
+            allWords.addAll(result.words)
+        }
+
+        return TranscriptionResult(
+            text = allText.toString().trim(),
+            words = allWords,
+            language = results.firstOrNull()?.language ?: "unknown",
+            duration = allWords.lastOrNull()?.end ?: 0f
+        )
+    }
+
+    /**
+     * 获取转录结果
+     */
+    suspend fun getTranscription(videoId: String): TranscriptionEntity? {
+        return transcriptionDao.getTranscription(videoId)
+    }
+
+    /**
+     * 删除转录结果（用于重新转录）
+     */
+    suspend fun deleteTranscription(videoId: String) {
+        transcriptionDao.deleteTranscription(videoId)
+    }
+
+    /**
+     * 更新转录状态
+     */
+    suspend fun updateTranscriptionStatus(
+        videoId: String,
+        status: TranscriptionStatus,
+        errorMessage: String? = null
+    ) {
+        transcriptionDao.updateStatus(videoId, status, errorMessage)
+    }
+
+    /**
+     * 测试引擎连接
+     */
+    suspend fun testEngine(engineType: String, apiKey: String? = null): TestResult {
+        return when (engineType.lowercase()) {
+            "groq" -> groqEngine.test(apiKey)
+            "whisper_cpp" -> whisperCppEngine.test(null)
+            else -> TestResult(false, "Unknown engine type")
+        }
+    }
+
+    /**
+     * 检查网络连接
+     */
+    private fun isNetworkAvailable(): Boolean {
+        val connectivityManager = context.getSystemService(Context.CONNECTIVITY_SERVICE)
+            as android.net.ConnectivityManager
+        val network = connectivityManager.activeNetwork ?: return false
+        val capabilities = connectivityManager.getNetworkCapabilities(network) ?: return false
+        return capabilities.hasCapability(android.net.NetworkCapabilities.NET_CAPABILITY_INTERNET)
+    }
+
+    /**
+     * 清理临时文件
+     */
+    private fun cleanupTempFiles(audioPath: String, segments: List<AudioSegment>) {
+        try {
+            File(audioPath).delete()
+            segments.forEach { segment ->
+                File(segment.path).delete()
+            }
+        } catch (e: Exception) {
+            // 忽略清理错误
+        }
+    }
+}
+
+/**
+ * 转录结果
+ */
+data class TranscriptionResult(
+    val text: String,
+    val words: List<Word>,
+    val language: String,
+    val duration: Float
+)
+
+/**
+ * 音频分段
+ */
+data class AudioSegment(
+    val path: String,
+    val startTime: Float,
+    val endTime: Float
+)
+
+/**
+ * 测试结果
+ */
+data class TestResult(
+    val success: Boolean,
+    val message: String
+)

@@ -1,0 +1,66 @@
+package com.multilanglearner.data.store
+
+import android.content.Context
+import androidx.datastore.preferences.core.*
+import androidx.datastore.preferences.preferencesDataStore
+import com.multilanglearner.domain.model.AIConfig
+import dagger.hilt.android.qualifiers.ApplicationContext
+import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.map
+import javax.inject.Inject
+import javax.inject.Singleton
+
+private val Context.aiDataStore by preferencesDataStore(name = "ai_config")
+
+@Singleton
+class AIConfigStore @Inject constructor(@ApplicationContext private val context: Context) {
+    private val PROVIDER = stringPreferencesKey("provider")
+    private val API_KEY = stringPreferencesKey("apiKey")
+    private val BASE_URL = stringPreferencesKey("baseUrl")
+    private val MODEL = stringPreferencesKey("model")
+    private val MAX_TOKENS = intPreferencesKey("maxTokens")
+    private val TEMPERATURE = doublePreferencesKey("temperature")
+    private val GROQ_WHISPER_ENABLED = booleanPreferencesKey("groqWhisperEnabled")
+    private val WHISPER_MODEL = stringPreferencesKey("whisperModel")
+    private val SUBTITLE_TRANSLATE_MODE = stringPreferencesKey("subtitleTranslateMode")
+    private val GROQ_API_KEY = stringPreferencesKey("groqApiKey")
+    private val TRANSCRIBE_LANGUAGE = stringPreferencesKey("transcribeLanguage")
+
+    val config: Flow<AIConfig> = context.aiDataStore.data.map { prefs ->
+        AIConfig(
+            provider = prefs[PROVIDER] ?: "zhipu",
+            apiKey = prefs[API_KEY] ?: "",
+            baseUrl = prefs[BASE_URL] ?: "",
+            model = prefs[MODEL] ?: "",
+            maxTokens = prefs[MAX_TOKENS],
+            temperature = prefs[TEMPERATURE],
+            groqWhisperEnabled = prefs[GROQ_WHISPER_ENABLED] ?: true,
+            whisperModel = prefs[WHISPER_MODEL] ?: "whisper-large-v3",
+            subtitleTranslateMode = prefs[SUBTITLE_TRANSLATE_MODE] ?: "none",
+            groqApiKey = prefs[GROQ_API_KEY] ?: "",
+            transcribeLanguage = prefs[TRANSCRIBE_LANGUAGE] ?: ""
+        )
+    }
+
+    suspend fun save(config: AIConfig) {
+        context.aiDataStore.edit { prefs ->
+            prefs[PROVIDER] = config.provider
+            prefs[API_KEY] = config.apiKey
+            prefs[BASE_URL] = config.baseUrl
+            prefs[MODEL] = config.model
+            config.maxTokens?.let { prefs[MAX_TOKENS] = it } ?: prefs.remove(MAX_TOKENS)
+            config.temperature?.let { prefs[TEMPERATURE] = it } ?: prefs.remove(TEMPERATURE)
+            prefs[GROQ_WHISPER_ENABLED] = config.groqWhisperEnabled
+            prefs[WHISPER_MODEL] = config.whisperModel
+            prefs[SUBTITLE_TRANSLATE_MODE] = config.subtitleTranslateMode
+            prefs[GROQ_API_KEY] = config.groqApiKey
+            prefs[TRANSCRIBE_LANGUAGE] = config.transcribeLanguage
+        }
+    }
+
+    suspend fun setTranscribeLanguage(lang: String) {
+        context.aiDataStore.edit { prefs ->
+            prefs[TRANSCRIBE_LANGUAGE] = lang
+        }
+    }
+}

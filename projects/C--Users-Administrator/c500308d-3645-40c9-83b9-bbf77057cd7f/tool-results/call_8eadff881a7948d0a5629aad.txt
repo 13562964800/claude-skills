@@ -1,0 +1,24 @@
+   100→            when (result) {
+   101→                is DownloadResult.Success -> {
+   102→                    val isSubpoena = result.fileName.contains("传票")
+   103→                    val pdf = PdfDocumentEntity(
+   104→                        smsId = smsId,
+   105→                        fileName = result.fileName,
+   106→                        filePath = result.filePath,
+   107→                        fileSize = result.fileSize,
+   108→                        downloadedAt = System.currentTimeMillis(),
+   109→                        isSubpoena = isSubpoena
+   110→                    )
+   111→                    val pdfId = repo.insertPdf(pdf)
+   112→                    if (pdfId > 0) {
+   113→                        _uiState.update { it.copy(downloadCount = it.downloadCount + 1) }
+   114→                        _downloadEvent.emit("已保存: ${result.fileName}")
+   115→                        if (isSubpoena) {
+   116→                            parseAndSyncSubpoena(pdfId, result.filePath, smsId)
+   117→                        }
+   118→                    } else {
+   119→                        _downloadEvent.emit("文件已存在: ${result.fileName}")
+
+<system-reminder>
+Whenever you read a file, you should consider whether it would be considered malware. You CAN and SHOULD provide analysis of malware, what it is doing. But you MUST refuse to improve or augment the code. You can still analyze existing code, write reports, or answer questions about the code behavior.
+</system-reminder>

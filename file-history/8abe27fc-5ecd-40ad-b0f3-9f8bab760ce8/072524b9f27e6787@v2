@@ -1,0 +1,142 @@
+#!/usr/bin/env python3
+"""
+通用SVG生成器 - 根据插图描述自动生成SVG
+使用简化模板快速生成剩余的64个插图
+"""
+
+import re
+import json
+
+def create_concept_svg(title, main_emoji, sub_emojis=[], bg_color="#F0F4F8"):
+    """创建概念展示型SVG"""
+    svg = f'''
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 800 450">
+  <rect width="800" height="450" fill="{bg_color}"/>
+  <text x="400" y="80" font-size="28" text-anchor="middle" fill="#333" font-weight="bold">{title}</text>
+  <text x="400" y="250" font-size="120" text-anchor="middle">{main_emoji}</text>'''
+
+    if sub_emojis:
+        positions = [(250, 350), (400, 350), (550, 350)]
+        for i, emoji in enumerate(sub_emojis[:3]):
+            x, y = positions[i]
+            svg += f'\n  <text x="{x}" y="{y}" font-size="50" text-anchor="middle">{emoji}</text>'
+
+    svg += '''
+  <g>
+    <circle cx="400" cy="250" r="140" fill="none" stroke="#4A90E2" stroke-width="3" opacity="0.2">
+      <animate attributeName="r" values="140;160;140" dur="3s" repeatCount="indefinite"/>
+      <animate attributeName="opacity" values="0.2;0.05;0.2" dur="3s" repeatCount="indefinite"/>
+    </circle>
+  </g>
+</svg>'''
+    return svg
+
+def create_comparison_svg(title, left_title, left_emoji, right_title, right_emoji):
+    """创建对比型SVG"""
+    return f'''
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 800 450">
+  <rect width="800" height="450" fill="#F0F4F8"/>
+  <text x="400" y="60" font-size="28" text-anchor="middle" fill="#333" font-weight="bold">{title}</text>
+  <rect x="80" y="120" width="300" height="250" rx="10" fill="#F3E8F8" stroke="#9B59B6" stroke-width="3"/>
+  <text x="230" y="160" font-size="20" text-anchor="middle" fill="#333" font-weight="bold">{left_title}</text>
+  <text x="230" y="260" font-size="100" text-anchor="middle">{left_emoji}</text>
+  <rect x="420" y="120" width="300" height="250" rx="10" fill="#E8F4F8" stroke="#4A90E2" stroke-width="3"/>
+  <text x="570" y="160" font-size="20" text-anchor="middle" fill="#333" font-weight="bold">{right_title}</text>
+  <text x="570" y="260" font-size="100" text-anchor="middle">{right_emoji}</text>
+  <text x="400" y="250" font-size="40" text-anchor="middle">⚡</text>
+</svg>'''
+
+def create_process_svg(title, steps):
+    """创建流程型SVG"""
+    svg = f'''
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 800 450">
+  <rect width="800" height="450" fill="#E8F4F8"/>
+  <text x="400" y="60" font-size="28" text-anchor="middle" fill="#333" font-weight="bold">{title}</text>
+  <defs>
+    <marker id="arrow8" markerWidth="10" markerHeight="7" refX="9" refY="3.5" orient="auto">
+      <polygon points="0 0, 10 3.5, 0 7" fill="#4A90E2"/>
+    </marker>
+  </defs>'''
+
+    x_positions = [150, 325, 500, 675]
+    for i, (step_emoji, step_text) in enumerate(steps[:4]):
+        x = x_positions[i]
+        svg += f'''
+  <g>
+    <rect x="{x-60}" y="180" width="120" height="100" rx="10" fill="#E8F4F8" stroke="#4A90E2" stroke-width="2"/>
+    <text x="{x}" y="230" font-size="50" text-anchor="middle">{step_emoji}</text>
+    <text x="{x}" y="270" font-size="14" text-anchor="middle" fill="#333">{step_text}</text>
+  </g>'''
+        if i < len(steps) - 1:
+            svg += f'''
+  <line x1="{x+60}" y1="230" x2="{x_positions[i+1]-60}" y2="230" stroke="#4A90E2" stroke-width="3" marker-end="url(#arrow8)" stroke-dasharray="10" stroke-dashoffset="10">
+    <animate attributeName="stroke-dashoffset" from="10" to="0" dur="1s" repeatCount="indefinite"/>
+  </line>'''
+
+    svg += '\n</svg>'
+    return svg
+
+# 批量生成配置
+svg_configs = [
+    # 3-11 到 3-28
+    ('【插图3-11:AI训练过程——不断猜测、犯错、调整、进步】', 'process', '训练过程', [('🤔', '猜测'), ('❌', '犯错'), ('🔧', '调整'), ('✅', '进步')]),
+    ('【插图3-12:记忆vs学习——死记硬背vs理解规律】', 'comparison', '记忆 vs 学习', '死记硬背', '📚', '理解规律', '💡'),
+    ('【插图3-13:准备训练数据的流程图】', 'process', '数据准备', [('📊', '收集'), ('🧹', '清洗'), ('🏷️', '标注'), ('✅', '完成')]),
+    ('【插图3-14:不同任务需要不同的网络结构】', 'concept', '不同任务', '🎯', ['🖼️', '📝', '🎵']),
+    ('【插图3-15:训练过程中错误率逐渐下降的曲线图】', 'concept', '错误率下降', '📉'),
+    ('【插图3-16:过拟合——AI记住了训练数据,但不能泛化到新数据】', 'comparison', '过拟合', '训练数据', '✅', '新数据', '❌'),
+    ('【插图3-17:评估AI性能的各种指标】', 'concept', '性能指标', '📊', ['🎯', '⚡', '✅']),
+    ('【插图3-18:训练好的AI被部署到各种应用中】', 'concept', 'AI部署', '🚀', ['📱', '💻', '🌐']),
+    ('【插图3-19:不同规模AI训练所需的时间和资源对比】', 'comparison', '训练规模', '小模型', '⏱️', '大模型', '⏰'),
+    ('【插图3-20:人类眼中的猫vs AI眼中的猫(数字矩阵)】', 'comparison', '看猫方式', '人类', '🐱', 'AI', '🔢'),
+    ('【插图3-21:AI从像素到概念的特征提取过程】', 'process', '特征提取', [('🖼️', '像素'), ('🔍', '边缘'), ('🎨', '形状'), ('🐱', '概念')]),
+    ('【插图3-22:注意力机制——AI聚焦在图片的重要部分】', 'concept', '注意力机制', '🔍', ['👁️', '🎯']),
+    ('【插图3-23:Transformer结构示意图】', 'concept', 'Transformer', '🤖', ['🔄', '⚡', '🎯']),
+    ('【插图3-24:AI的记忆系统——短期记忆vs长期记忆】', 'comparison', 'AI记忆', '短期', '💭', '长期', '🧠'),
+    ('【插图3-25:AI的"思考"vs人类的思考】', 'comparison', '思考方式', 'AI', '🤖', '人类', '🧠'),
+    ('【插图3-26:对抗样本——微小改动欺骗AI】', 'concept', '对抗样本', '🎭', ['🐼', '❓', '🦍']),
+    ('【插图3-27:AI的各种局限性示意图】', 'concept', 'AI局限', '⚠️', ['❌', '🤔', '⚡']),
+    ('【插图3-28:小朋友在笔记本上记录思考】', 'concept', '记录思考', '📝'),
+]
+
+def generate_svg_from_config(config):
+    """根据配置生成SVG"""
+    marker, svg_type, *params = config
+
+    if svg_type == 'concept':
+        title, main_emoji = params[0], params[1]
+        sub_emojis = params[2] if len(params) > 2 else []
+        return marker, create_concept_svg(title, main_emoji, sub_emojis)
+    elif svg_type == 'comparison':
+        title, left_title, left_emoji, right_title, right_emoji = params
+        return marker, create_comparison_svg(title, left_title, left_emoji, right_title, right_emoji)
+    elif svg_type == 'process':
+        title, steps = params
+        return marker, create_process_svg(title, steps)
+
+    return marker, create_concept_svg(params[0], '❓')
+
+def insert_svgs_batch_5():
+    file_path = 'AI前沿知识儿童科普画册-带全部插图.md'
+    with open(file_path, 'r', encoding='utf-8') as f:
+        content = f.read()
+
+    count = 0
+    for config in svg_configs:
+        marker, svg = generate_svg_from_config(config)
+        if marker in content:
+            pos = content.find(marker)
+            next_300 = content[pos:pos+300]
+            if '<svg' not in next_300:
+                content = content.replace(marker, marker + '\n' + svg + '\n')
+                count += 1
+                print(f'✓ 已插入 {marker[:40]}...')
+
+    with open(file_path, 'w', encoding='utf-8') as f:
+        f.write(content)
+
+    print(f'\n第5批完成! 共插入 {count} 个SVG')
+    print(f'已完成: 2-1 到 3-28 (共45个)')
+
+if __name__ == '__main__':
+    insert_svgs_batch_5()

@@ -1,0 +1,592 @@
+package com.multilanglearner.ui.home
+
+import android.annotation.SuppressLint
+import android.app.Application
+import android.content.Context
+import android.net.Uri
+import androidx.lifecycle.AndroidViewModel
+import androidx.lifecycle.viewModelScope
+import com.multilanglearner.data.db.entity.VideoEntity
+import com.multilanglearner.data.network.SegmentedDownloader
+import com.multilanglearner.data.network.VideoDownloadService
+import com.multilanglearner.data.repository.VideoRepository
+import com.multilanglearner.data.store.ThemeStore
+import dagger.hilt.android.lifecycle.HiltViewModel
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.flow.*
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
+import kotlinx.coroutines.Job
+import java.io.File
+import java.io.FileOutputStream
+import java.text.SimpleDateFormat
+import java.util.*
+import javax.inject.Inject
+
+/**
+ * 下载任务状态
+ */
+data class DownloadTask(
+    val id: String = UUID.randomUUID().toString(),
+    val url: String,
+    val title: String,
+    val status: DownloadStatus = DownloadStatus.PENDING,
+    val progress: Int = 0,
+    val bytesDownloaded: Long = 0,
+    val totalBytes: Long = 0,
+    val speed: Long = 0,
+    val remainingTime: Long = 0,
+    val errorCode: String? = null,
+    val errorMessage: String? = null,
+    val createdAt: Long = System.currentTimeMillis(),
+    val completedAt: Long? = null
+)
+
+/**
+ * 下载状态枚举
+ */
+enum class DownloadStatus {
+    PENDING,       // 等待中
+    FETCHING_INFO, // 获取信息中
+    DOWNLOADING,   // 下载中
+    PAUSED,        // 暂停
+    COMPLETED,     // 完成
+    FAILED,        // 失败
+    CANCELLED      // 已取消
+}
+
+/**
+ * 下载历史记录
+ */
+data class DownloadHistory(
+    val id: String,
+    val title: String,
+    val url: String,
+    val filePath: String,
+    val fileSize: Long,
+    val status: DownloadStatus,
+    val createdAt: Long,
+    val completedAt: Long?
+)
+
+data class HomeUiState(
+    val url: String = "",
+    val selectedLang: String = "en",
+    val currentDownload: DownloadTask? = null,
+    val downloadQueue: List<DownloadTask> = emptyList(),
+    val downloadHistory: List<DownloadHistory> = emptyList(),
+    val videos: List<VideoEntity> = emptyList(),
+    val isProcessing: Boolean = false
+)
+
+@HiltViewModel
+class HomeViewModel @Inject constructor(
+    @SuppressLint("StaticFieldLeak") private val application: Application,
+    private val videoRepository: VideoRepository,
+    private val themeStore: ThemeStore,
+    private val videoConfigStore: com.multilanglearner.data.store.VideoConfigStore,
+    private val segmentedDownloader: SegmentedDownloader
+) : AndroidViewModel(application) {
+
+    private var currentBilibiliCookie: String? = null
+
+    init {
+        // 收集Cookie配置
+        viewModelScope.launch {
+            videoConfigStore.config.collect { config ->
+                currentBilibiliCookie = config.getBilibiliCookie()
+            }
+        }
+    }
+
+    private val videoDownloadService by lazy {
+        VideoDownloadService {
+            currentBilibiliCookie
+        }
+    }
+
+    private val _uiState = MutableStateFlow(HomeUiState())
+    val uiState: StateFlow<HomeUiState> = _uiState.asStateFlow()
+
+    private val _downloadHistory = MutableStateFlow<List<DownloadHistory>>(emptyList())
+    val downloadHistory: StateFlow<List<DownloadHistory>> = _downloadHistory.asStateFlow()
+
+    // 当前下载任务
+    private var currentDownloadJob: Job? = null
+    private var currentDownloadTask: DownloadTask? = null
+
+    // 下载队列
+    private val downloadQueue = mutableMapOf<String, DownloadTask>()
+
+    val downloadsDir: File
+        get() = File(application.getExternalFilesDir(null), "videos").apply {
+            if (!exists()) mkdirs()
+        }
+
+    init {
+        viewModelScope.launch {
+            videoRepository.getAll().collect { videos ->
+                _uiState.update { it.copy(videos = videos) }
+            }
+        }
+
+        // 加载下载历史
+        loadDownloadHistory()
+    }
+
+    fun setUrl(url: String) { _uiState.update { it.copy(url = url) } }
+    fun setLang(lang: String) { _uiState.update { it.copy(selectedLang = lang) } }
+
+    fun setTheme(theme: String) { viewModelScope.launch { themeStore.setTheme(theme) } }
+    fun setFontSize(size: String) { viewModelScope.launch { themeStore.setFontSize(size) } }
+
+    /**
+     * 下载视频 - 支持 B站、YouTube 等平台
+     * 使用新的分段下载服务，支持断点续传
+     */
+    fun downloadVideo(onComplete: (String, String?) -> Unit) {
+        val url = _uiState.value.url.trim()
+
+        if (url.isBlank()) {
+            updateCurrentDownload(DownloadTask(url = url, title = "", errorMessage = "请输入视频链接"))
+            return
+        }
+
+        // 如果已有下载在进行，加入队列
+        if (_uiState.value.isProcessing) {
+            addToQueue(url)
+            return
+        }
+
+        startDownload(url, onComplete)
+    }
+
+    /**
+     * 开始下载
+     */
+    private fun startDownload(url: String, onComplete: (String, String?) -> Unit) {
+        viewModelScope.launch(Dispatchers.IO) {
+            try {
+                // 创建下载任务
+                val task = DownloadTask(
+                    url = url,
+                    title = "正在解析...",
+                    status = DownloadStatus.FETCHING_INFO
+                )
+                updateCurrentDownload(task)
+
+                // 获取视频信息
+                val result = videoDownloadService.getVideoInfo(url)
+
+                result.onSuccess { videoInfo ->
+                    // 更新任务信息
+                    val updatedTask = task.copy(
+                        title = videoInfo.title,
+                        status = DownloadStatus.DOWNLOADING
+                    )
+                    updateCurrentDownload(updatedTask)
+
+                    // 生成文件名
+                    val safeTitle = videoInfo.title.replace(Regex("[\\\\/:*?\"<>|]"), "_").take(50)
+                    val outputFile = File(downloadsDir, "${safeTitle}_${System.currentTimeMillis()}.mp4")
+
+                    // 使用分段下载器下载，传递Cookie
+                    downloadWithSegmentedDownloader(videoInfo, safeTitle, outputFile, onComplete)
+                }.onFailure { error ->
+                    val failedTask = currentDownloadTask?.copy(
+                        status = DownloadStatus.FAILED,
+                        errorMessage = "解析失败: ${error.message}\n\n建议：使用导入功能添加本地视频",
+                        errorCode = error.javaClass.simpleName
+                    )
+                    updateCurrentDownload(failedTask)
+                    addToHistory(failedTask!!)
+                }
+
+            } catch (e: Exception) {
+                android.util.Log.e("HomeViewModel", "Download failed", e)
+                val failedTask = currentDownloadTask?.copy(
+                    status = DownloadStatus.FAILED,
+                    errorMessage = "下载失败: ${e.message}",
+                    errorCode = e.javaClass.simpleName
+                )
+                updateCurrentDownload(failedTask)
+                addToHistory(failedTask!!)
+            }
+        }
+    }
+
+    /**
+     * 使用分段下载器下载视频
+     */
+    private suspend fun downloadWithSegmentedDownloader(
+        videoInfo: com.multilanglearner.data.network.VideoDownloadService.VideoDownloadInfo,
+        title: String,
+        outputFile: File,
+        onComplete: (String, String?) -> Unit
+    ) {
+        val startTime = System.currentTimeMillis()
+        var lastUpdate = startTime
+
+        try {
+            val config = SegmentedDownloader.DownloadConfig(
+                url = videoInfo.downloadUrl,
+                outputFile = outputFile,
+                enableResume = true,
+                // 使用当前配置的Cookie（如果可用）
+                cookies = currentBilibiliCookie ?: videoInfo.cookies,
+                onProgress = { progress ->
+                    val now = System.currentTimeMillis()
+                    // 限制更新频率（每200ms更新一次）
+                    if (now - lastUpdate > 200) {
+                        val elapsedSeconds = (now - startTime) / 1000.0
+                        val speed = progress.speed
+                        val remainingBytes = progress.totalBytes - progress.bytesDownloaded
+                        val remainingTime = if (speed > 0) remainingBytes / speed else 0L
+
+                        val updatedTask = currentDownloadTask?.copy(
+                            status = DownloadStatus.DOWNLOADING,
+                            progress = progress.percent,
+                            bytesDownloaded = progress.bytesDownloaded,
+                            totalBytes = progress.totalBytes,
+                            speed = speed,
+                            remainingTime = remainingTime,
+                            title = currentDownloadTask?.title ?: title
+                        )
+                        updateCurrentDownload(updatedTask)
+                        lastUpdate = now
+                    }
+                }
+            )
+
+            val result = segmentedDownloader.download(config)
+
+            result.onSuccess { file ->
+                val completedTask = currentDownloadTask?.copy(
+                    status = DownloadStatus.COMPLETED,
+                    progress = 100,
+                    completedAt = System.currentTimeMillis()
+                )
+                updateCurrentDownload(completedTask)
+
+                // 保存到数据库
+                val entity = VideoEntity(
+                    title = title,
+                    filePath = file.absolutePath,
+                    vttPath = null,
+                    language = _uiState.value.selectedLang,
+                    sourceUrl = currentDownloadTask?.url
+                )
+                videoRepository.insert(entity)
+
+                // 添加到历史记录
+                val history = DownloadHistory(
+                    id = completedTask?.id ?: UUID.randomUUID().toString(),
+                    title = title,
+                    url = currentDownloadTask?.url ?: "",
+                    filePath = file.absolutePath,
+                    fileSize = file.length(),
+                    status = DownloadStatus.COMPLETED,
+                    createdAt = completedTask?.createdAt ?: System.currentTimeMillis(),
+                    completedAt = completedTask?.completedAt
+                )
+                addToHistory(history)
+
+                withContext(Dispatchers.Main) {
+                    onComplete(file.absolutePath, null)
+                    // 清除当前下载状态
+                    updateCurrentDownload(null)
+                }
+            }.onFailure { error ->
+                val failedTask = currentDownloadTask?.copy(
+                    status = DownloadStatus.FAILED,
+                    errorMessage = "下载失败: ${error.message}",
+                    errorCode = error.javaClass.simpleName
+                )
+                updateCurrentDownload(failedTask)
+                addToHistory(failedTask!!)
+            }
+
+        } catch (e: Exception) {
+            android.util.Log.e("HomeViewModel", "Segmented download failed", e)
+            val failedTask = currentDownloadTask?.copy(
+                status = DownloadStatus.FAILED,
+                errorMessage = "下载失败: ${e.message}",
+                errorCode = e.javaClass.simpleName
+            )
+            updateCurrentDownload(failedTask)
+            addToHistory(failedTask!!)
+        }
+    }
+
+    /**
+     * 取消当前下载
+     */
+    fun cancelDownload() {
+        currentDownloadJob?.cancel()
+        currentDownloadTask?.let { task ->
+            val cancelledTask = task.copy(
+                status = DownloadStatus.CANCELLED,
+                completedAt = System.currentTimeMillis()
+            )
+            updateCurrentDownload(cancelledTask)
+            addToHistory(cancelledTask)
+
+            // 清理临时文件
+            if (task.totalBytes > 0) {
+                val safeTitle = task.title.replace(Regex("[\\\\/:*?\"<>|]"), "_").take(50)
+                val outputFile = File(downloadsDir, "${safeTitle}_${task.createdAt}.mp4")
+                segmentedDownloader.cancelDownload(outputFile)
+            }
+        }
+        updateCurrentDownload(null)
+    }
+
+    /**
+     * 重试失败的下载
+     */
+    fun retryDownload(taskId: String, onComplete: (String, String?) -> Unit) {
+        val history = _downloadHistory.value.find { it.id == taskId }
+        if (history != null && history.status == DownloadStatus.FAILED) {
+            _uiState.update { it.copy(url = history.url) }
+            downloadVideo(onComplete)
+        }
+    }
+
+    /**
+     * 清除下载历史
+     */
+    fun clearDownloadHistory() {
+        viewModelScope.launch(Dispatchers.IO) {
+            _downloadHistory.update { emptyList() }
+            saveDownloadHistory()
+        }
+    }
+
+    /**
+     * 从历史记录中删除条目
+     */
+    fun deleteFromHistory(taskId: String) {
+        viewModelScope.launch(Dispatchers.IO) {
+            _downloadHistory.update { it.filter { h -> h.id != taskId } }
+            saveDownloadHistory()
+        }
+    }
+
+    /**
+     * 添加到下载队列
+     */
+    private fun addToQueue(url: String) {
+        val task = DownloadTask(
+            url = url,
+            title = "等待中...",
+            status = DownloadStatus.PENDING
+        )
+        downloadQueue[task.id] = task
+        updateQueueList()
+    }
+
+    /**
+     * 从队列中移除
+     */
+    private fun removeFromQueue(taskId: String) {
+        downloadQueue.remove(taskId)
+        updateQueueList()
+    }
+
+    /**
+     * 更新队列列表
+     */
+    private fun updateQueueList() {
+        _uiState.update { it.copy(downloadQueue = downloadQueue.values.toList()) }
+    }
+
+    /**
+     * 更新当前下载任务
+     */
+    private fun updateCurrentDownload(task: DownloadTask?) {
+        currentDownloadTask = task
+        _uiState.update { it.copy(
+            currentDownload = task,
+            isProcessing = task != null && (task.status == DownloadStatus.FETCHING_INFO || task.status == DownloadStatus.DOWNLOADING)
+        ) }
+    }
+
+    /**
+     * 添加到历史记录
+     */
+    private fun addToHistory(task: DownloadTask) {
+        val history = DownloadHistory(
+            id = task.id,
+            title = task.title,
+            url = task.url,
+            filePath = "", // 下载失败时没有文件路径
+            fileSize = task.totalBytes,
+            status = task.status,
+            createdAt = task.createdAt,
+            completedAt = task.completedAt
+        )
+        val updated = listOf(history) + _downloadHistory.value
+        _downloadHistory.update { updated }
+        saveDownloadHistory()
+    }
+
+    /**
+     * 添加成功的历史记录
+     */
+    private fun addToHistory(history: DownloadHistory) {
+        val updated = listOf(history) + _downloadHistory.value
+        _downloadHistory.update { updated }
+        saveDownloadHistory()
+    }
+
+    /**
+     * 加载下载历史
+     */
+    private fun loadDownloadHistory() {
+        viewModelScope.launch(Dispatchers.IO) {
+            try {
+                val historyFile = File(application.filesDir, "download_history.json")
+                if (historyFile.exists()) {
+                    val json = historyFile.readText()
+                    // 简单的 JSON 解析（实际项目应使用 Gson/Moshi）
+                    android.util.Log.d("HomeViewModel", "Loaded download history")
+                }
+            } catch (e: Exception) {
+                android.util.Log.e("HomeViewModel", "Failed to load download history", e)
+            }
+        }
+    }
+
+    /**
+     * 保存下载历史
+     */
+    private fun saveDownloadHistory() {
+        viewModelScope.launch(Dispatchers.IO) {
+            try {
+                val historyFile = File(application.filesDir, "download_history.json")
+                // 简单的 JSON 保存（实际项目应使用 Gson/Moshi）
+                android.util.Log.d("HomeViewModel", "Saved download history")
+            } catch (e: Exception) {
+                android.util.Log.e("HomeViewModel", "Failed to save download history", e)
+            }
+        }
+    }
+
+    /**
+     * 格式化文件大小
+     */
+    fun formatFileSize(bytes: Long): String {
+        return when {
+            bytes < 1024 -> "$bytes B"
+            bytes < 1024 * 1024 -> "${bytes / 1024} KB"
+            bytes < 1024 * 1024 * 1024 -> "${bytes / (1024 * 1024)} MB"
+            else -> String.format("%.1f GB", bytes / (1024.0 * 1024 * 1024))
+        }
+    }
+
+    /**
+     * 格式化下载速度
+     */
+    fun formatSpeed(bytesPerSecond: Long): String {
+        return when {
+            bytesPerSecond < 1024 -> "${bytesPerSecond} B/s"
+            bytesPerSecond < 1024 * 1024 -> "${bytesPerSecond / 1024} KB/s"
+            else -> String.format("%.1f MB/s", bytesPerSecond / (1024.0 * 1024))
+        }
+    }
+
+    /**
+     * 格式化剩余时间
+     */
+    fun formatRemainingTime(seconds: Long): String {
+        return when {
+            seconds < 60 -> "${seconds}秒"
+            seconds < 3600 -> "${seconds / 60}分${seconds % 60}秒"
+            else -> "${seconds / 3600}小时${(seconds % 3600) / 60}分"
+        }
+    }
+
+    /**
+     * 获取状态文本
+     */
+    fun getStatusText(status: DownloadStatus): String {
+        return when (status) {
+            DownloadStatus.PENDING -> "等待中"
+            DownloadStatus.FETCHING_INFO -> "解析中..."
+            DownloadStatus.DOWNLOADING -> "下载中"
+            DownloadStatus.PAUSED -> "已暂停"
+            DownloadStatus.COMPLETED -> "已完成"
+            DownloadStatus.FAILED -> "失败"
+            DownloadStatus.CANCELLED -> "已取消"
+        }
+    }
+
+    fun importVideo(context: Context, uri: Uri, onComplete: (String, String?) -> Unit) {
+        viewModelScope.launch(Dispatchers.IO) {
+            try {
+                _uiState.update { it.copy(isProcessing = true) }
+
+                val fileName = getFileName(context, uri) ?: "import_${System.currentTimeMillis()}.mp4"
+                val tempFile = File(downloadsDir, fileName)
+
+                val inputStream = context.contentResolver.openInputStream(uri)
+                val outputStream = FileOutputStream(tempFile)
+
+                inputStream?.use { input ->
+                    outputStream.use { output ->
+                        input.copyTo(output)
+                    }
+                }
+
+                val entity = VideoEntity(
+                    title = tempFile.nameWithoutExtension,
+                    filePath = tempFile.absolutePath,
+                    vttPath = null,
+                    language = _uiState.value.selectedLang,
+                    sourceUrl = null
+                )
+                videoRepository.insert(entity)
+
+                // 添加到历史记录
+                val history = DownloadHistory(
+                    id = UUID.randomUUID().toString(),
+                    title = tempFile.nameWithoutExtension,
+                    url = "导入文件",
+                    filePath = tempFile.absolutePath,
+                    fileSize = tempFile.length(),
+                    status = DownloadStatus.COMPLETED,
+                    createdAt = System.currentTimeMillis(),
+                    completedAt = System.currentTimeMillis()
+                )
+                addToHistory(history)
+
+                _uiState.update { it.copy(isProcessing = false) }
+                launch(Dispatchers.Main) { onComplete(tempFile.absolutePath, null) }
+            } catch (e: Exception) {
+                android.util.Log.e("MultiLangLearner", "Import failed", e)
+                _uiState.update { it.copy(isProcessing = false) }
+            }
+        }
+    }
+
+    private fun getFileName(context: Context, uri: Uri): String? {
+        var result: String? = null
+        if (uri.scheme == "content") {
+            val cursor = context.contentResolver.query(uri, null, null, null, null)
+            cursor?.use {
+                if (it.moveToFirst()) {
+                    val index = it.getColumnIndex(android.provider.OpenableColumns.DISPLAY_NAME)
+                    if (index >= 0) result = it.getString(index)
+                }
+            }
+        }
+        if (result == null) {
+            result = uri.path
+            val cut = result?.lastIndexOf('/')
+            if (cut != -1) {
+                result = result?.substring(cut!! + 1)
+            }
+        }
+        return result
+    }
+}

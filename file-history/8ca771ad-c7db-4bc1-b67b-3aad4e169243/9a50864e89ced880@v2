@@ -1,0 +1,213 @@
+# 📦 Setup 安装包使用指南
+
+## ✅ 已创建的安装包
+
+### 文件信息
+- **文件名**: `VideoDownloadTranscribe-Setup-v1.0.0-Installer.zip`
+- **位置**: `C:\Users\Administrator\`
+- **大小**: 0.05 MB (约 50 KB)
+- **版本**: v1.0.0
+- **类型**: ZIP 安装包（含图形化安装向导）
+
+## 🎯 安装包特点
+
+### ✨ 图形化安装向导
+- ✅ 彩色界面，美观易用
+- ✅ 自动检查系统环境（Python、FFmpeg）
+- ✅ 自动安装所有依赖
+- ✅ 自动创建桌面快捷方式
+- ✅ 自动创建配置文件
+- ✅ 完整的进度提示
+
+### 📋 安装步骤
+
+**第 1 步：解压安装包**
+```
+右键点击 VideoDownloadTranscribe-Setup-v1.0.0-Installer.zip
+→ 解压到当前文件夹
+```
+
+**第 2 步：运行安装向导**
+```
+进入解压后的文件夹
+右键点击 SETUP.bat
+→ 以管理员身份运行
+```
+
+**第 3 步：按照向导操作**
+```
+安装向导会自动：
+1. 检查管理员权限
+2. 检查 Python（如未安装会打开下载页面）
+3. 检查 FFmpeg（如未安装会打开下载页面）
+4. 安装 Python 依赖（使用清华镜像源）
+5. 创建配置文件
+6. 创建桌面快捷方式
+```
+
+**第 4 步：安装浏览器扩展**
+```
+1. 打开 Chrome/Edge 浏览器
+2. 访问 chrome://extensions/
+3. 开启"开发者模式"
+4. 点击"加载已解压的扩展程序"
+5. 选择 video-downloader-extension 文件夹
+```
+
+**第 5 步：开始使用**
+```
+1. 双击桌面的"视频下载转录服务"快捷方式
+2. 访问 YouTube 或 B站视频页面
+3. 点击"下载转录"按钮
+```
+
+## 🎨 安装向导界面预览
+
+```
+    ╔════════════════════════════════════════════════════════╗
+    ║                                                        ║
+    ║          视频下载转录系统 v1.0.0                      ║
+    ║          Video Download & Transcribe System           ║
+    ║                                                        ║
+    ╚════════════════════════════════════════════════════════╝
+
+    欢迎使用安装向导！
+
+    本程序将安装以下组件：
+    • 浏览器扩展（Chrome/Edge）
+    • 本地服务（Python + FastAPI）
+    • 转录引擎（faster-whisper + Groq API）
+
+    系统要求：
+    • Windows 11
+    • Python 3.10+
+    • FFmpeg
+    • Chrome/Edge 浏览器
+
+    按任意键开始安装，或按 Ctrl+C 取消...
+```
+
+## 🔧 安装向导功能
+
+### 自动检查
+- ✅ 管理员权限检查
+- ✅ Python 版本检查
+- ✅ FFmpeg 安装检查
+- ✅ 自动打开下载页面（如缺少组件）
+
+### 自动安装
+- ✅ 使用清华镜像源加速下载
+- ✅ 静默安装所有依赖
+- ✅ 显示安装进度
+- ✅ 错误处理和提示
+
+### 自动配置
+- ✅ 创建配置文件（config.yaml）
+- ✅ 创建桌面快捷方式
+- ✅ 设置工作目录
+- ✅ 提示后续步骤
+
+## 📖 安装包内容
+
+```
+VideoDownloadTranscribe-Setup-v1.0.0-Installer.zip
+└── video-download-transcribe-v1.0.0/
+    ├── SETUP.bat                   ⭐ 图形化安装向导
+    ├── 安装说明.txt                快速说明
+    ├── README.md                   完整文档
+    ├── QUICKSTART.md               快速开始
+    ├── INSTALLATION_GUIDE.md       安装指南
+    ├── PACKAGE_README.md           使用说明
+    ├── TEST_REPORT.md              测试报告
+    │
+    ├── video-downloader-extension/ 浏览器扩展
+    │   ├── manifest.json
+    │   ├── background.js
+    │   ├── content/
+    │   └── popup/
+    │
+    └── video-download-service/     本地服务
+        ├── setup.bat               旧版安装脚本
+        ├── start.bat               启动脚本
+        ├── server.py               主服务器
+        ├── config.yaml.example     配置模板
+        └── ...
+```
+
+## 🆚 两种安装方式对比
+
+| 特性 | SETUP.bat（推荐） | setup.bat（旧版） |
+|------|------------------|------------------|
+| 界面 | 图形化向导 | 命令行 |
+| 环境检查 | 完整检查 | 基础检查 |
+| 错误提示 | 详细提示 | 简单提示 |
+| 用户体验 | ⭐⭐⭐⭐⭐ | ⭐⭐⭐ |
+| 推荐度 | ✅ 强烈推荐 | 备用方案 |
+
+## ⚙️ 可选配置
+
+安装完成后，可以编辑配置文件：
+
+**位置**: `video-download-service\config.yaml`
+
+```yaml
+# 转录引擎
+transcription:
+  transcription_mode: auto  # auto/local/online
+  groq_api_key: ""          # 填入你的 Groq API Key
+```
+
+获取 Groq API Key: https://console.groq.com/
+
+## 🐛 常见问题
+
+### Q: 安装向导提示"需要管理员权限"？
+A: 右键点击 SETUP.bat，选择"以管理员身份运行"
+
+### Q: 提示"Python 未安装"？
+A: 安装向导会自动打开 Python 下载页面，安装后重新运行
+
+### Q: 提示"FFmpeg 未安装"？
+A: 安装向导会自动打开 FFmpeg 下载页面，安装后重新运行
+
+### Q: 依赖安装失败？
+A: 检查网络连接，或手动运行 `pip install -r requirements.txt`
+
+### Q: 如何卸载？
+A: 删除安装目录和桌面快捷方式即可
+
+## 📞 技术支持
+
+遇到问题？查看：
+- `INSTALLATION_GUIDE.md` - 详细安装指南
+- `TEST_REPORT.md` - 测试报告
+- `README.md` - 完整文档
+
+## 🎉 安装完成后
+
+1. **启动服务**
+   - 双击桌面的"视频下载转录服务"快捷方式
+
+2. **安装扩展**
+   - Chrome → `chrome://extensions/`
+   - 加载 `video-downloader-extension` 文件夹
+
+3. **开始使用**
+   - 访问 YouTube/B站视频页面
+   - 点击"下载转录"按钮
+
+## 🌟 特色功能
+
+- ✅ 一键下载视频（YouTube、B站、抖音等）
+- ✅ 自动转录文字（中英文）
+- ✅ 混合引擎（在线/本地自动切换）
+- ✅ 实时进度推送
+- ✅ Cookie 自动管理
+- ✅ 语言自动检测
+
+---
+
+**版本**: v1.0.0
+**日期**: 2026-03-01
+**许可**: MIT
+**安装方式**: 图形化向导

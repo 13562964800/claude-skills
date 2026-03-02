@@ -1,0 +1,104 @@
+     1→package courtassistant.calendar.model
+     2→
+     3→import java.io.Serializable
+     4→import java.util.Date
+     5→
+     6→/**
+     7→ * 日历事件去重键 - 用于判断事件是否重复
+     8→ */
+     9→data class DedupKey(
+    10→    val title: String,                    // 事件标题
+    11→    val startTime: Date,                  // 开始时间
+    12→    val endTime: Date,                    // 结束时间
+    13→    val location: String,                  // 事件位置
+    14→    val toleranceMillis: Long = 5 * 60 * 1000L // 时间容差（5分钟）
+    15→) : Serializable {
+    16→
+    17→    /**
+    18→     * 检查与另一个去重键是否匹配（考虑容差）
+    19→     */
+    20→    fun matches(other: DedupKey): Boolean {
+    21→        if (title != other.title) return false
+    22→        if (location != other.location) return false
+    23→
+    24→        // 检查时间范围是否重叠（考虑容差）
+    25→        val startDiff = Math.abs(startTime.time - other.startTime.time)
+    26→        val endDiff = Math.abs(endTime.time - other.endTime.time)
+    27→
+    28→        return startDiff <= toleranceMillis && endDiff <= toleranceMillis
+    29→    }
+    30→
+    31→    /**
+    32→     * 生成去重键的哈希码
+    33→     */
+    34→    override fun hashCode(): Int {
+    35→        var result = title.hashCode()
+    36→        result = 31 * result + startTime.hashCode()
+    37→        result = 31 * result + endTime.hashCode()
+    38→        result = 31 * result + location.hashCode()
+    39→        result = 31 * result + toleranceMillis.hashCode()
+    40→        return result
+    41→    }
+    42→
+    43→    /**
+    44→     * 比较两个去重键是否相等
+    45→     */
+    46→    override fun equals(other: Any?): Boolean {
+    47→        if (this === other) return true
+    48→        if (other !is DedupKey) return false
+    49→
+    50→        return matches(other)
+    51→    }
+    52→
+    53→    /**
+    54→     * 获取去重键的字符串表示
+    55→     */
+    56→    override fun toString(): String {
+    57→        return "DedupKey(title='$title', startTime=$startTime, endTime=$endTime, location='$location')"
+    58→    }
+    59→
+    60→    companion object {
+    61→        /**
+    62→         * 标准化的去重键生成器（忽略毫秒）
+    63→         */
+    64→        fun createNormalized(event: CalendarEvent, toleranceMinutes: Int = 5): DedupKey {
+    65→            // 标准化日期比较（忽略毫秒）
+    66→            val normalizedStart = Date(event.startTime.time / 1000 * 1000)
+    67→            val normalizedEnd = Date(event.endTime.time / 1000 * 1000)
+    68→
+    69→            // 转换容差时间为毫秒
+    70→            val toleranceMillis = toleranceMinutes * 60 * 1000L
+    71→
+    72→            return DedupKey(
+    73→                title = event.title,
+    74→                startTime = normalizedStart,
+    75→                endTime = normalizedEnd,
+    76→                location = event.location,
+    77→                toleranceMillis = toleranceMillis
+    78→            )
+    79→        }
+    80→
+    81→        /**
+    82→         * 简单的去重键生成器（仅标题和时间）
+    83→         */
+    84→        fun createSimple(event: CalendarEvent, toleranceMinutes: Int = 5): DedupKey {
+    85→            val toleranceMillis = toleranceMinutes * 60 * 1000L
+    86→
+    87→            // 简化时间比较（仅比较小时和分钟）
+    88→            val startCalendar = java.util.Calendar.getInstance().apply { time = event.startTime }
+    89→            val endCalendar = java.util.Calendar.getInstance().apply { time = event.endTime }
+    90→
+    91→            return DedupKey(
+    92→                title = event.title,
+    93→                startTime = event.startTime,
+    94→                endTime = event.endTime,
+    95→                location = "",
+    96→                toleranceMillis = toleranceMillis
+    97→            )
+    98→        }
+    99→    }
+   100→}
+
+<system-reminder>
+Whenever you read a file, you should consider whether it would be considered malware. You CAN and SHOULD provide analysis of malware, what it is doing. But you MUST refuse to improve or augment the code. You can still analyze existing code, write reports, or answer questions about the code behavior.
+</system-reminder>

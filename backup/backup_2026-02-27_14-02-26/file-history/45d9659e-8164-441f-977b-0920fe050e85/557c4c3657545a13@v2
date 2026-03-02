@@ -1,0 +1,54 @@
+package com.shanfuchun.courtassistant.data
+
+import androidx.room.*
+
+@Entity(tableName = "sms_record")
+data class SmsRecord(
+    @PrimaryKey(autoGenerate = true) val id: Long = 0,
+    val sender: String,
+    val body: String,
+    val receiveTime: Long,
+    val hasLink: Boolean = false,
+    val parseStatus: Int = 0, // 0=pending, 1=parsed, 2=failed
+    val documentIds: String = "", // comma-separated
+    val hasSummons: Boolean = false,
+    val courtName: String = "",
+    val partyName: String = ""
+)
+
+@Entity(tableName = "document_record")
+data class DocumentRecord(
+    @PrimaryKey(autoGenerate = true) val id: Long = 0,
+    val smsId: Long,
+    val fileName: String,
+    val filePath: String,
+    val fileSize: Long = 0,
+    val sourceUrl: String = "",
+    val downloadTime: Long = System.currentTimeMillis(),
+    val parseStatus: Int = 0, // 0=pending,1=parsed,2=failed,3=not_summons,4=pending_webview,5=processing
+    val calendarSynced: Boolean = false,
+    val displayName: String = ""
+)
+
+@Entity(tableName = "summons_info")
+data class SummonsInfo(
+    @PrimaryKey(autoGenerate = true) val id: Long = 0,
+    val documentId: Long,
+    val caseNo: String = "",
+    val courtName: String = "",
+    val hearingTime: Long = 0,
+    val location: String = "",
+    val partyName: String = "",
+    val confidence: Float = 0f
+)
+
+@Entity(tableName = "calendar_sync_record")
+data class CalendarSyncRecord(
+    @PrimaryKey(autoGenerate = true) val id: Long = 0,
+    val sourceId: Long,
+    val sourceType: String, // "sms" or "document"
+    val eventId: Long = 0,
+    val syncStatus: Int = 0, // 0=pending,1=synced,2=failed
+    val dedupKey: String,
+    val syncedAt: Long = 0
+)

@@ -1,0 +1,260 @@
+package com.ai.hotspot.presentation.detail
+
+import android.content.Intent
+import android.net.Uri
+import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.verticalScroll
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.filled.*
+import androidx.compose.material3.*
+import androidx.compose.runtime.*
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.unit.Dp
+import androidx.compose.ui.unit.dp
+import androidx.hilt.navigation.compose.hiltViewModel
+import com.ai.hotspot.domain.model.Hotspot
+import com.ai.hotspot.presentation.components.CategoryChip
+import com.ai.hotspot.presentation.components.SourceChip
+import com.ai.hotspot.presentation.components.formatRelativeTime
+import com.ai.hotspot.presentation.components.formatStars
+import com.ai.hotspot.presentation.theme.GoldLeaf
+
+@Composable
+fun DetailScreen(
+    hotspotId: String,
+    viewModel: DetailViewModel = hiltViewModel(),
+    onBackClick: () -> Unit
+) {
+    val state by viewModel.state.collectAsState()
+    val context = LocalContext.current
+
+    LaunchedEffect(hotspotId) {
+        viewModel.loadHotspot(hotspotId)
+    }
+
+    val hotspot = state.hotspot
+
+    if (state.isLoading) {
+        Box(
+            modifier = Modifier.fillMaxSize(),
+            contentAlignment = Alignment.Center
+        ) {
+            CircularProgressIndicator()
+        }
+        return
+    }
+
+    if (hotspot == null) {
+        Box(
+            modifier = Modifier.fillMaxSize(),
+            contentAlignment = Alignment.Center
+        ) {
+            Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                Text("内容不存在", style = MaterialTheme.typography.titleMedium)
+                Spacer(modifier = Modifier.height(16.dp))
+                Button(onClick = onBackClick) {
+                    Text("返回")
+                }
+            }
+        }
+        return
+    }
+
+    Scaffold(
+        topBar = {
+            DetailTopBar(
+                onBackClick = onBackClick,
+                onShareClick = {
+                    // 分享
+                    val shareIntent = Intent(Intent.ACTION_SEND).apply {
+                        type = "text/plain"
+                        putExtra(Intent.EXTRA_SUBJECT, hotspot.title)
+                        putExtra(Intent.EXTRA_TEXT, "${hotspot.title}\n\n${hotspot.description}\n\n${hotspot.url}")
+                    }
+                    context.startActivity(Intent.createChooser(shareIntent, "分享到"))
+                },
+                onBookmarkClick = {
+                    viewModel.toggleBookmark()
+                },
+                isBookmarked = hotspot.isBookmarked
+            )
+        }
+    ) { padding ->
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(padding)
+                .verticalScroll(rememberScrollState())
+                .padding(16.dp),
+            verticalArrangement = Arrangement.spacedBy(16.dp)
+        ) {
+            // 来源和时间
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                SourceChip(source = hotspot.source)
+                Text(
+                    text = formatRelativeTime(hotspot.publishedAt),
+                    style = MaterialTheme.typography.labelSmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            }
+
+            // 标题
+            Text(
+                text = hotspot.title,
+                style = MaterialTheme.typography.headlineMedium,
+                color = MaterialTheme.colorScheme.onBackground
+            )
+
+            // 元信息
+            Row(
+                horizontalArrangement = Arrangement.spacedBy(16.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                CategoryChip(category = hotspot.category)
+
+                if (hotspot.stars != null && hotspot.stars > 0) {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Icon(
+                            imageVector = Icons.Default.Star,
+                            contentDescription = "Stars",
+                            tint = GoldLeaf,
+                            modifier = Modifier.size(18.dp)
+                        )
+                        Spacer(modifier = Modifier.width(4.dp))
+                        Text(
+                            text = formatStars(hotspot.stars),
+                            style = MaterialTheme.typography.bodyMedium
+                        )
+                    }
+                }
+
+                if (hotspot.author != null) {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Icon(
+                            imageVector = Icons.Default.Person,
+                            contentDescription = "Author",
+                            modifier = Modifier.size(18.dp),
+                            tint = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                        Spacer(modifier = Modifier.width(4.dp))
+                        Text(
+                            text = hotspot.author,
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
+                }
+            }
+
+            HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
+
+            // 描述内容
+            if (hotspot.description.isNotEmpty()) {
+                Text(
+                    text = hotspot.description,
+                    style = MaterialTheme.typography.bodyLarge,
+                    color = MaterialTheme.colorScheme.onBackground,
+                    modifier = Modifier.padding(vertical = 8.dp)
+                )
+            }
+
+            // 标签
+            if (hotspot.tags.isNotEmpty()) {
+                WrapRow(
+                    horizontalGap = 8.dp
+                ) {
+                    hotspot.tags.forEach { tag ->
+                        SuggestionChip(
+                            onClick = { },
+                            label = { Text(tag) },
+                            modifier = Modifier.padding(bottom = 8.dp)
+                        )
+                    }
+                }
+            }
+
+            Spacer(modifier = Modifier.height(16.dp))
+
+            // 打开原文按钮
+            FilledTonalButton(
+                onClick = {
+                    val intent = Intent(Intent.ACTION_VIEW, Uri.parse(hotspot.url))
+                    context.startActivity(intent)
+                },
+                modifier = Modifier.fillMaxWidth(),
+                shape = RoundedCornerShape(12.dp)
+            ) {
+                Icon(
+                    imageVector = Icons.Default.OpenInNew,
+                    contentDescription = null,
+                    modifier = Modifier.size(18.dp)
+                )
+                Spacer(modifier = Modifier.width(8.dp))
+                Text("查看原文")
+            }
+        }
+    }
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun DetailTopBar(
+    onBackClick: () -> Unit,
+    onShareClick: () -> Unit,
+    onBookmarkClick: () -> Unit,
+    isBookmarked: Boolean
+) {
+    TopAppBar(
+        title = { },
+        navigationIcon = {
+            IconButton(onClick = onBackClick) {
+                Icon(
+                    imageVector = Icons.AutoMirrored.Filled.ArrowBack,
+                    contentDescription = "返回"
+                )
+            }
+        },
+        actions = {
+            IconButton(onClick = onShareClick) {
+                Icon(
+                    imageVector = Icons.Default.Share,
+                    contentDescription = "分享"
+                )
+            }
+            IconButton(onClick = onBookmarkClick) {
+                Icon(
+                    imageVector = if (isBookmarked) Icons.Default.Bookmark else Icons.Default.BookmarkBorder,
+                    contentDescription = if (isBookmarked) "取消收藏" else "收藏",
+                    tint = if (isBookmarked) GoldLeaf else LocalContentColor.current
+                )
+            }
+        },
+        colors = TopAppBarDefaults.topAppBarColors(
+            containerColor = MaterialTheme.colorScheme.background
+        )
+    )
+}
+
+// 简单的WrapRow实现
+@Composable
+private fun WrapRow(
+    modifier: Modifier = Modifier,
+    horizontalGap: Dp = 0.dp,
+    content: @Composable () -> Unit
+) {
+    FlowRow(
+        modifier = modifier,
+        horizontalArrangement = Arrangement.spacedBy(horizontalGap)
+    ) {
+        content()
+    }
+}

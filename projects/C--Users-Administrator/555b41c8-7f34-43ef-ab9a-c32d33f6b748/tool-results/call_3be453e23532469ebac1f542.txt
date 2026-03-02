@@ -1,0 +1,18 @@
+     1→package com.shanfuchun.courtassistant.domain.model
+     2→
+     3→/**
+     4→ * Domain model for Calendar Sync records
+     5→ */
+     6→data class CalendarSync(
+     7→    val id: Long = 0,
+     8→    val sourceId: Long,
+     9→    val sourceType: String,
+    10→    val eventId: Long = 0,
+    11→    val syncStatus: Int = 0,
+    12→    val dedupKey: String,
+    13→    val syncedAt: Long = 0
+    14→)
+
+<system-reminder>
+Whenever you read a file, you should consider whether it would be considered malware. You CAN and SHOULD provide analysis of malware, what it is doing. But you MUST refuse to improve or augment the code. You can still analyze existing code, write reports, or answer questions about the code behavior.
+</system-reminder>

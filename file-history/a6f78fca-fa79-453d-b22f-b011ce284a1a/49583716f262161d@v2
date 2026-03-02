@@ -1,0 +1,153 @@
+package com.multilanglearner.data.store
+
+import android.content.Context
+import androidx.datastore.preferences.core.*
+import androidx.datastore.preferences.preferencesDataStore
+import dagger.hilt.android.qualifiers.ApplicationContext
+import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.flow.first
+import javax.inject.Inject
+import javax.inject.Singleton
+
+/**
+ * 视频下载配置存储
+ * 用于存储B站、YouTube等平台的认证信息
+ */
+private val Context.videoConfigDataStore by preferencesDataStore(name = "video_config")
+
+@Singleton
+class VideoConfigStore @Inject constructor(
+    @ApplicationContext private val context: Context
+) {
+    // B站相关配置
+    private val BILIBILI_SESSDATA = stringPreferencesKey("bilibili_sessdata")
+    private val BILIBILI_BILI_JCT = stringPreferencesKey("bilibili_bili_jct")
+    private val BILIBILI_Dedeuserid = stringPreferencesKey("bilibili_dedeuserid")
+
+    // YouTube相关配置（预留，通常不需要cookie）
+    private val YOUTUBE_AUTH_HEADER = stringPreferencesKey("youtube_auth_header")
+
+    // 通用配置
+    private val ENABLE_COOKIE_AUTH = booleanPreferencesKey("enable_cookie_auth")
+
+    /**
+     * 视频配置数据类
+     */
+    data class VideoConfig(
+        val bilibiliSessdata: String? = null,
+        val bilibiliBiliJct: String? = null,
+        val bilibiliDedeuserid: String? = null,
+        val youtubeAuthHeader: String? = null,
+        val enableCookieAuth: Boolean = false
+    ) {
+        /**
+         * 获取B站的Cookie字符串
+         */
+        fun getBilibiliCookie(): String? {
+            return if (!enableCookieAuth) {
+                null
+            } else {
+                buildString {
+                    bilibiliSessdata?.let { append("SESSDATA=$it; ") }
+                    bilibiliBiliJct?.let { append("bili_jct=$it; ") }
+                    bilibiliDedeuserid?.let { append("DedeUserID=$it; ") }
+                }.takeIf { it.isNotEmpty() }?.trimEnd(' ', ';')
+            }
+        }
+
+        /**
+         * 检查是否配置了B站Cookie
+         */
+        fun hasBilibiliCookie(): Boolean {
+            return enableCookieAuth && !bilibiliSessdata.isNullOrEmpty()
+        }
+    }
+
+    /**
+     * 视频配置流
+     */
+    val config: Flow<VideoConfig> = context.videoConfigDataStore.data.map { prefs ->
+        VideoConfig(
+            bilibiliSessdata = prefs[BILIBILI_SESSDATA],
+            bilibiliBiliJct = prefs[BILIBILI_BILI_JCT],
+            bilibiliDedeuserid = prefs[BILIBILI_Dedeuserid],
+            youtubeAuthHeader = prefs[YOUTUBE_AUTH_HEADER],
+            enableCookieAuth = prefs[ENABLE_COOKIE_AUTH] ?: false
+        )
+    }
+
+    /**
+     * 保存配置
+     */
+    suspend fun saveConfig(config: VideoConfig) {
+        context.videoConfigDataStore.edit { prefs ->
+            config.bilibiliSessdata?.let {
+                prefs[BILIBILI_SESSDATA] = it
+            } ?: prefs.remove(BILIBILI_SESSDATA)
+
+            config.bilibiliBiliJct?.let {
+                prefs[BILIBILI_BILI_JCT] = it
+            } ?: prefs.remove(BILIBILI_BILI_JCT)
+
+            config.bilibiliDedeuserid?.let {
+                prefs[BILIBILI_Dedeuserid] = it
+            } ?: prefs.remove(BILIBILI_Dedeuserid)
+
+            config.youtubeAuthHeader?.let {
+                prefs[YOUTUBE_AUTH_HEADER] = it
+            } ?: prefs.remove(YOUTUBE_AUTH_HEADER)
+
+            prefs[ENABLE_COOKIE_AUTH] = config.enableCookieAuth
+        }
+    }
+
+    /**
+     * 获取当前的B站Cookie（同步方法，用于下载时）
+     * 注意：这个方法返回的是上次缓存的值，不是实时的
+     */
+    suspend fun getBilibiliCookieSync(): String? {
+        return config.first().getBilibiliCookie()
+    }
+
+    /**
+     * 清除所有Cookie配置
+     */
+    suspend fun clearCookies() {
+        context.videoConfigDataStore.edit { prefs ->
+            prefs.remove(BILIBILI_SESSDATA)
+            prefs.remove(BILIBILI_BILI_JCT)
+            prefs.remove(BILIBILI_Dedeuserid)
+            prefs.remove(YOUTUBE_AUTH_HEADER)
+            prefs[ENABLE_COOKIE_AUTH] = false
+        }
+    }
+
+    /**
+     * 设置B站SESSDATA
+     */
+    suspend fun setBilibiliSessdata(value: String) {
+        context.videoConfigDataStore.edit { prefs ->
+            prefs[BILIBILI_SESSDATA] = value
+            prefs[ENABLE_COOKIE_AUTH] = true // 自动启用Cookie认证
+        }
+    }
+
+    /**
+     * 设置B站bili_jct
+     */
+    suspend fun setBilibiliBiliJct(value: String) {
+        context.videoConfigDataStore.edit { prefs ->
+            prefs[BILIBILI_BILI_JCT] = value
+        }
+    }
+
+    /**
+     * 设置B站DedeUserID
+     */
+    suspend fun setBilibiliDedeuserid(value: String) {
+        context.videoConfigDataStore.edit { prefs ->
+            prefs[BILIBILI_Dedeuserid] = value
+        }
+    }
+}

@@ -1,0 +1,34 @@
+package com.formfiller.ui
+
+import android.view.LayoutInflater
+import android.view.View
+import android.view.ViewGroup
+import android.widget.ImageButton
+import android.widget.TextView
+import androidx.recyclerview.widget.RecyclerView
+import com.formfiller.R
+import com.formfiller.data.Field
+
+class FieldRowAdapter(
+    private val fields: List<Field>,
+    private val onDelete: (Field) -> Unit
+) : RecyclerView.Adapter<FieldRowAdapter.VH>() {
+
+    class VH(view: View) : RecyclerView.ViewHolder(view) {
+        val tvLabel: TextView = view.findViewById(R.id.tvLabel)
+        val tvValue: TextView = view.findViewById(R.id.tvValue)
+        val btnDelete: ImageButton = view.findViewById(R.id.btnDelete)
+    }
+
+    override fun onCreateViewHolder(parent: ViewGroup, viewType: Int) =
+        VH(LayoutInflater.from(parent.context).inflate(R.layout.item_field_row, parent, false))
+
+    override fun onBindViewHolder(holder: VH, position: Int) {
+        val f = fields[position]
+        holder.tvLabel.text = f.label
+        holder.tvValue.text = f.value
+        holder.btnDelete.setOnClickListener { onDelete(f) }
+    }
+
+    override fun getItemCount() = fields.size
+}

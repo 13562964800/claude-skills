@@ -1,0 +1,105 @@
+# 创建完整安装包
+$PackageName = "video-download-transcribe-v1.0.0"
+$PackageDir = $PackageName
+
+Write-Host "============================================================" -ForegroundColor Cyan
+Write-Host "创建完整安装包" -ForegroundColor Cyan
+Write-Host "============================================================" -ForegroundColor Cyan
+Write-Host ""
+
+# 清理旧文件
+Write-Host "[1/6] 清理旧文件..." -ForegroundColor Yellow
+if (Test-Path $PackageDir) { Remove-Item -Recurse -Force $PackageDir }
+if (Test-Path "$PackageName.zip") { Remove-Item "$PackageName.zip" }
+
+# 创建目录结构
+Write-Host "[2/6] 创建目录结构..." -ForegroundColor Yellow
+New-Item -ItemType Directory -Path $PackageDir | Out-Null
+New-Item -ItemType Directory -Path "$PackageDir\video-downloader-extension" | Out-Null
+New-Item -ItemType Directory -Path "$PackageDir\video-download-service" | Out-Null
+
+# 复制扩展
+Write-Host "[3/6] 复制浏览器扩展..." -ForegroundColor Yellow
+Copy-Item -Recurse -Force "video-downloader-extension\*" "$PackageDir\video-downloader-extension\" -Exclude "__pycache__","*.pyc",".git"
+
+# 复制服务
+Write-Host "[4/6] 复制本地服务..." -ForegroundColor Yellow
+Copy-Item -Recurse -Force "video-download-service\*" "$PackageDir\video-download-service\" -Exclude "__pycache__","*.pyc",".git","data"
+
+# 复制文档
+Write-Host "[5/6] 复制文档..." -ForegroundColor Yellow
+Copy-Item "README.md" "$PackageDir\" -ErrorAction SilentlyContinue
+Copy-Item "QUICKSTART.md" "$PackageDir\" -ErrorAction SilentlyContinue
+Copy-Item "INSTALLATION_GUIDE.md" "$PackageDir\" -ErrorAction SilentlyContinue
+Copy-Item "PACKAGE_README.md" "$PackageDir\" -ErrorAction SilentlyContinue
+Copy-Item "TEST_REPORT.md" "$PackageDir\" -ErrorAction SilentlyContinue
+
+# 创建安装说明
+$ReadmeContent = @"
+# 视频下载转录系统 v1.0.0
+
+## 快速安装（3步）
+
+### 第1步：运行安装程序
+进入 video-download-service 目录，右键点击 setup.bat，选择"以管理员身份运行"
+
+### 第2步：安装浏览器扩展
+1. 打开 Chrome/Edge 浏览器
+2. 访问 chrome://extensions/
+3. 开启"开发者模式"
+4. 点击"加载已解压的扩展程序"
+5. 选择 video-downloader-extension 文件夹
+
+### 第3步：开始使用
+1. 双击桌面的"视频下载转录服务"快捷方式启动服务
+2. 访问 YouTube 或 B站视频页面
+3. 点击"下载转录"按钮
+
+## 详细文档
+
+- README.md - 完整项目文档
+- QUICKSTART.md - 快速开始指南
+- INSTALLATION_GUIDE.md - 详细安装指南
+- PACKAGE_README.md - 安装包使用说明
+- TEST_REPORT.md - 系统测试报告
+
+## 系统要求
+
+- Windows 11
+- Python 3.10+
+- FFmpeg
+- Chrome/Edge 浏览器
+
+## 技术支持
+
+遇到问题请查看 INSTALLATION_GUIDE.md 的故障排除部分。
+
+---
+版本: v1.0.0 | 日期: 2026-03-01 | 许可: MIT
+"@
+$ReadmeContent | Out-File -FilePath "$PackageDir\安装说明.txt" -Encoding UTF8
+
+# 打包
+Write-Host "[6/6] 压缩打包..." -ForegroundColor Yellow
+Compress-Archive -Path $PackageDir -DestinationPath "$PackageName.zip" -Force
+
+# 显示结果
+Write-Host ""
+Write-Host "============================================================" -ForegroundColor Green
+Write-Host "[OK] 安装包创建完成！" -ForegroundColor Green
+Write-Host "============================================================" -ForegroundColor Green
+Write-Host ""
+Write-Host "文件: $PackageName.zip" -ForegroundColor White
+$FileSize = (Get-Item "$PackageName.zip").Length / 1MB
+Write-Host "大小: $([math]::Round($FileSize, 2)) MB" -ForegroundColor White
+Write-Host ""
+
+# 显示内容
+Write-Host "安装包内容:" -ForegroundColor Cyan
+Get-ChildItem -Recurse $PackageDir | Select-Object -First 30 | ForEach-Object {
+    $RelPath = $_.FullName.Replace((Get-Location).Path + "\", "")
+    Write-Host "  $RelPath"
+}
+Write-Host "  ..." -ForegroundColor Gray
+Write-Host ""
+Write-Host "安装包位置: $(Get-Location)\$PackageName.zip" -ForegroundColor Yellow

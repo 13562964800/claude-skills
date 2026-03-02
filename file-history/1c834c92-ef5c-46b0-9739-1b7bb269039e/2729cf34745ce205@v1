@@ -1,0 +1,19 @@
+import Link from 'next/link';
+
+export default function DashboardPage() {
+  return (
+    <main style={{ padding: '2rem', fontFamily: 'sans-serif' }}>
+      <h1>LegalFlow Studio</h1>
+      <p>法律智能生产中台</p>
+      <nav style={{ marginTop: '1.5rem', display: 'flex', gap: '1rem' }}>
+        <Link href="/auth">认证</Link>
+        <Link href="/profile">个人资料</Link>
+        <Link href="/projects">项目列表</Link>
+        <Link href="/materials">案件材料</Link>
+        <Link href="/documents">文档中心</Link>
+        <Link href="/workflows">工作流</Link>
+        <Link href="/knowledge">知识库</Link>
+      </nav>
+    </main>
+  );
+}

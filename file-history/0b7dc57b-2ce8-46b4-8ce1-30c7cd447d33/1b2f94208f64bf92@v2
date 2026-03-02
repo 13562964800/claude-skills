@@ -1,0 +1,135 @@
+<?xml version="1.0" encoding="utf-8"?>
+<ScrollView xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="#FFF8F0">
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="vertical"
+        android:padding="16dp">
+
+        <!-- 标题 -->
+        <TextView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="配音文字核对宝"
+            android:textSize="24sp"
+            android:textStyle="bold"
+            android:textColor="#333"
+            android:gravity="center"
+            android:paddingBottom="16dp" />
+
+        <!-- 微信导入提示 -->
+        <TextView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="从微信导入：长按文件 > 分享 > 选择本应用"
+            android:textSize="13sp"
+            android:textColor="#4CAF50"
+            android:background="#E8F5E9"
+            android:padding="12dp"
+            android:gravity="center"
+            android:layout_marginBottom="16dp" />
+
+        <!-- 选择录音 -->
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal"
+            android:layout_marginBottom="8dp">
+            <Button
+                android:id="@+id/btnPickAudio"
+                android:layout_width="wrap_content"
+                android:layout_height="48dp"
+                android:text="选择录音"
+                android:backgroundTint="#2196F3" />
+            <TextView
+                android:id="@+id/tvAudioName"
+                android:layout_width="0dp"
+                android:layout_height="48dp"
+                android:layout_weight="1"
+                android:text="未选择"
+                android:gravity="center_vertical"
+                android:paddingStart="12dp"
+                android:textColor="#666"
+                android:singleLine="true"
+                android:ellipsize="middle" />
+        </LinearLayout>
+
+        <!-- 选择文档 -->
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal"
+            android:layout_marginBottom="16dp">
+            <Button
+                android:id="@+id/btnPickDoc"
+                android:layout_width="wrap_content"
+                android:layout_height="48dp"
+                android:text="选择文档"
+                android:backgroundTint="#2196F3" />
+            <TextView
+                android:id="@+id/tvDocName"
+                android:layout_width="0dp"
+                android:layout_height="48dp"
+                android:layout_weight="1"
+                android:text="未选择"
+                android:gravity="center_vertical"
+                android:paddingStart="12dp"
+                android:textColor="#666"
+                android:singleLine="true"
+                android:ellipsize="middle" />
+        </LinearLayout>
+
+        <!-- 开始对比 -->
+        <Button
+            android:id="@+id/btnCompare"
+            android:layout_width="match_parent"
+            android:layout_height="56dp"
+            android:text="开始对比"
+            android:textSize="18sp"
+            android:textStyle="bold"
+            android:backgroundTint="#F44336" />
+
+        <!-- 进度条 -->
+        <ProgressBar
+            android:id="@+id/progressBar"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="8dp"
+            android:visibility="gone"
+            style="?android:attr/progressBarStyleHorizontal"
+            android:indeterminate="true" />
+
+        <!-- 状态 -->
+        <TextView
+            android:id="@+id/tvStatus"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="就绪"
+            android:textColor="#888"
+            android:gravity="center"
+            android:padding="8dp" />
+
+        <!-- 结果 -->
+        <ScrollView
+            android:id="@+id/scrollResult"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:visibility="gone"
+            android:layout_marginTop="12dp"
+            android:background="#FFF"
+            android:padding="12dp">
+            <TextView
+                android:id="@+id/tvResult"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:textSize="14sp"
+                android:textColor="#333"
+                android:lineSpacingMultiplier="1.4" />
+        </ScrollView>
+
+    </LinearLayout>
+</ScrollView>

@@ -1,0 +1,476 @@
+package com.multilanglearner.data.network
+
+import android.app.Notification
+import android.app.NotificationChannel
+import android.app.NotificationManager
+import android.app.PendingIntent
+import android.app.Service
+import android.content.Context
+import android.content.Intent
+import android.os.Binder
+import android.os.Build
+import android.os.IBinder
+import androidx.core.app.NotificationCompat
+import dagger.hilt.android.AndroidEntryPoint
+import kotlinx.coroutines.*
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asStateFlow
+import java.io.File
+import javax.inject.Inject
+
+/**
+ * 视频前台下载服务
+ * 支持后台下载、通知栏进度显示、暂停/继续/取消
+ */
+@AndroidEntryPoint
+class VideoDownloadForegroundService : Service() {
+
+    @Inject
+    lateinit var segmentedDownloader: SegmentedDownloader
+
+    private val serviceScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
+    private val binder = DownloadBinder()
+
+    // 下载任务管理
+    private val downloadJobs = mutableMapOf<String, DownloadTask>()
+    private val _downloadTasks = MutableStateFlow<List<DownloadTask>>(emptyList())
+    val downloadTasks: StateFlow<List<DownloadTask>> = _downloadTasks.asStateFlow()
+
+    companion object {
+        const val CHANNEL_ID = "video_download_channel"
+        const val NOTIFICATION_ID = 1001
+        const val ACTION_START_DOWNLOAD = "action_start_download"
+        const val ACTION_PAUSE_DOWNLOAD = "action_pause_download"
+        const val ACTION_RESUME_DOWNLOAD = "action_resume_download"
+        const val ACTION_CANCEL_DOWNLOAD = "action_cancel_download"
+        const val EXTRA_TASK_ID = "task_id"
+        const val EXTRA_URL = "url"
+        const val EXTRA_OUTPUT_PATH = "output_path"
+        const val EXTRA_TITLE = "title"
+
+        fun startDownload(context: Context, taskId: String, url: String, outputPath: String, title: String) {
+            val intent = Intent(context, VideoDownloadForegroundService::class.java).apply {
+                action = ACTION_START_DOWNLOAD
+                putExtra(EXTRA_TASK_ID, taskId)
+                putExtra(EXTRA_URL, url)
+                putExtra(EXTRA_OUTPUT_PATH, outputPath)
+                putExtra(EXTRA_TITLE, title)
+            }
+            context.startService(intent)
+        }
+
+        fun pauseDownload(context: Context, taskId: String) {
+            val intent = Intent(context, VideoDownloadForegroundService::class.java).apply {
+                action = ACTION_PAUSE_DOWNLOAD
+                putExtra(EXTRA_TASK_ID, taskId)
+            }
+            context.startService(intent)
+        }
+
+        fun resumeDownload(context: Context, taskId: String) {
+            val intent = Intent(context, VideoDownloadForegroundService::class.java).apply {
+                action = ACTION_RESUME_DOWNLOAD
+                putExtra(EXTRA_TASK_ID, taskId)
+            }
+            context.startService(intent)
+        }
+
+        fun cancelDownload(context: Context, taskId: String) {
+            val intent = Intent(context, VideoDownloadForegroundService::class.java).apply {
+                action = ACTION_CANCEL_DOWNLOAD
+                putExtra(EXTRA_TASK_ID, taskId)
+            }
+            context.startService(intent)
+        }
+    }
+
+    override fun onCreate() {
+        super.onCreate()
+        createNotificationChannel()
+    }
+
+    override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
+        when (intent?.action) {
+            ACTION_START_DOWNLOAD -> {
+                val taskId = intent.getStringExtra(EXTRA_TASK_ID) ?: return START_NOT_STICKY
+                val url = intent.getStringExtra(EXTRA_URL) ?: return START_NOT_STICKY
+                val outputPath = intent.getStringExtra(EXTRA_OUTPUT_PATH) ?: return START_NOT_STICKY
+                val title = intent.getStringExtra(EXTRA_TITLE) ?: "视频下载"
+                startDownloadTask(taskId, url, outputPath, title)
+            }
+            ACTION_PAUSE_DOWNLOAD -> {
+                val taskId = intent.getStringExtra(EXTRA_TASK_ID) ?: return START_NOT_STICKY
+                pauseTask(taskId)
+            }
+            ACTION_RESUME_DOWNLOAD -> {
+                val taskId = intent.getStringExtra(EXTRA_TASK_ID) ?: return START_NOT_STICKY
+                resumeTask(taskId)
+            }
+            ACTION_CANCEL_DOWNLOAD -> {
+                val taskId = intent.getStringExtra(EXTRA_TASK_ID) ?: return START_NOT_STICKY
+                cancelTask(taskId)
+            }
+        }
+        return START_STICKY
+    }
+
+    override fun onBind(intent: Intent?): IBinder {
+        return binder
+    }
+
+    override fun onDestroy() {
+        super.onDestroy()
+        serviceScope.cancel()
+        // 取消所有下载任务
+        downloadJobs.values.forEach { it.job?.cancel() }
+        downloadJobs.clear()
+    }
+
+    /**
+     * 创建通知渠道
+     */
+    private fun createNotificationChannel() {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            val channel = NotificationChannel(
+                CHANNEL_ID,
+                "视频下载",
+                NotificationManager.IMPORTANCE_LOW
+            ).apply {
+                description = "显示视频下载进度"
+                setShowBadge(false)
+            }
+            val notificationManager = getSystemService(NotificationManager::class.java)
+            notificationManager.createNotificationChannel(channel)
+        }
+    }
+
+    /**
+     * 开始下载任务
+     */
+    private fun startDownloadTask(taskId: String, url: String, outputPath: String, title: String) {
+        // 检查是否已存在
+        if (downloadJobs.containsKey(taskId)) {
+            return
+        }
+
+        val outputFile = File(outputPath)
+        val task = DownloadTask(
+            id = taskId,
+            url = url,
+            title = title,
+            outputPath = outputPath,
+            status = DownloadStatus.DOWNLOADING
+        )
+
+        downloadJobs[taskId] = task
+        updateTasksList()
+
+        // 启动前台服务
+        startForeground(NOTIFICATION_ID, createNotification(task))
+
+        // 启动下载协程
+        val job = serviceScope.launch {
+            try {
+                segmentedDownloader.download(
+                    SegmentedDownloader.DownloadConfig(
+                        url = url,
+                        outputFile = outputFile,
+                        onProgress = { progress ->
+                            updateTaskProgress(taskId, progress)
+                            updateNotification()
+                        }
+                    )
+                ).onSuccess { file ->
+                    completeTask(taskId, file)
+                }.onFailure { error ->
+                    failTask(taskId, error)
+                }
+            } catch (e: CancellationException) {
+                // 任务被取消
+                pauseTask(taskId)
+            } catch (e: Exception) {
+                failTask(taskId, e)
+            }
+        }
+
+        task.job = job
+        updateTasksList()
+    }
+
+    /**
+     * 暂停任务
+     */
+    private fun pauseTask(taskId: String) {
+        downloadJobs[taskId]?.let { task ->
+            task.job?.cancel()
+            task.status = DownloadStatus.PAUSED
+            updateTasksList()
+            updateNotification()
+        }
+    }
+
+    /**
+     * 恢复任务
+     */
+    private fun resumeTask(taskId: String) {
+        downloadJobs[taskId]?.let { task ->
+            task.status = DownloadStatus.DOWNLOADING
+            updateTasksList()
+            updateNotification()
+
+            val outputFile = File(task.outputPath)
+            val job = serviceScope.launch {
+                try {
+                    segmentedDownloader.download(
+                        SegmentedDownloader.DownloadConfig(
+                            url = task.url,
+                            outputFile = outputFile,
+                            enableResume = true,
+                            onProgress = { progress ->
+                                updateTaskProgress(taskId, progress)
+                                updateNotification()
+                            }
+                        )
+                    ).onSuccess { file ->
+                        completeTask(taskId, file)
+                    }.onFailure { error ->
+                        failTask(taskId, error)
+                    }
+                } catch (e: CancellationException) {
+                    pauseTask(taskId)
+                } catch (e: Exception) {
+                    failTask(taskId, e)
+                }
+            }
+            task.job = job
+            updateTasksList()
+        }
+    }
+
+    /**
+     * 取消任务
+     */
+    private fun cancelTask(taskId: String) {
+        downloadJobs[taskId]?.let { task ->
+            task.job?.cancel()
+            task.status = DownloadStatus.CANCELLED
+            segmentedDownloader.cancelDownload(File(task.outputPath))
+            downloadJobs.remove(taskId)
+            updateTasksList()
+            updateNotification()
+
+            // 如果没有其他任务，停止前台服务
+            if (downloadJobs.isEmpty()) {
+                stopForeground(STOP_FOREGROUND_REMOVE)
+                stopSelf()
+            }
+        }
+    }
+
+    /**
+     * 更新任务进度
+     */
+    private fun updateTaskProgress(taskId: String, progress: SegmentedDownloader.DownloadProgress) {
+        downloadJobs[taskId]?.let { task ->
+            task.progress = progress
+            task.currentBytes = progress.bytesDownloaded
+            task.totalBytes = progress.totalBytes
+            task.speed = progress.speed
+            updateTasksList()
+        }
+    }
+
+    /**
+     * 任务完成
+     */
+    private fun completeTask(taskId: String, file: File) {
+        downloadJobs[taskId]?.let { task ->
+            task.status = DownloadStatus.COMPLETED
+            task.progress = SegmentedDownloader.DownloadProgress(
+                bytesDownloaded = task.totalBytes,
+                totalBytes = task.totalBytes,
+                percent = 100,
+                speed = 0,
+                segmentIndex = task.progress?.totalSegments ?: 1,
+                totalSegments = task.progress?.totalSegments ?: 1
+            )
+            updateTasksList()
+            updateNotification()
+
+            // 延迟移除任务
+            serviceScope.launch {
+                delay(5000)
+                downloadJobs.remove(taskId)
+                updateTasksList()
+                if (downloadJobs.isEmpty()) {
+                    stopForeground(STOP_FOREGROUND_REMOVE)
+                    stopSelf()
+                }
+            }
+        }
+    }
+
+    /**
+     * 任务失败
+     */
+    private fun failTask(taskId: String, error: Throwable) {
+        downloadJobs[taskId]?.let { task ->
+            task.status = DownloadStatus.FAILED
+            task.error = error.message
+            updateTasksList()
+            updateNotification()
+        }
+    }
+
+    /**
+     * 更新任务列表
+     */
+    private fun updateTasksList() {
+        _downloadTasks.value = downloadJobs.values.toList()
+    }
+
+    /**
+     * 创建通知
+     */
+    private fun createNotification(task: DownloadTask): Notification {
+        val progress = task.progress
+        val percent = progress?.percent ?: 0
+        val contentText = when (task.status) {
+            DownloadStatus.DOWNLOADING -> {
+                val speedText = formatSpeed(task.speed)
+                val sizeText = formatSize(task.currentBytes, task.totalBytes)
+                "下载中: $sizeText ($speedText)"
+            }
+            DownloadStatus.PAUSED -> "已暂停"
+            DownloadStatus.COMPLETED -> "下载完成"
+            DownloadStatus.FAILED -> "下载失败: ${task.error}"
+            DownloadStatus.CANCELLED -> "已取消"
+        }
+
+        // 暂停/继续按钮
+        val pauseResumeAction = if (task.status == DownloadStatus.DOWNLOADING) {
+            NotificationCompat.Action.Builder(
+                android.R.drawable.ic_media_pause,
+                "暂停",
+                createPendingIntent(ACTION_PAUSE_DOWNLOAD, task.id)
+            ).build()
+        } else {
+            NotificationCompat.Action.Builder(
+                android.R.drawable.ic_media_play,
+                "继续",
+                createPendingIntent(ACTION_RESUME_DOWNLOAD, task.id)
+            ).build()
+        }
+
+        // 取消按钮
+        val cancelAction = NotificationCompat.Action.Builder(
+            android.R.drawable.ic_delete,
+            "取消",
+            createPendingIntent(ACTION_CANCEL_DOWNLOAD, task.id)
+        ).build()
+
+        return NotificationCompat.Builder(this, CHANNEL_ID)
+            .setContentTitle(task.title)
+            .setContentText(contentText)
+            .setSmallIcon(android.R.drawable.stat_sys_download)
+            .setOngoing(task.status == DownloadStatus.DOWNLOADING)
+            .setAutoCancel(false)
+            .addAction(pauseResumeAction)
+            .addAction(cancelAction)
+            .setProgress(100, percent, task.status == DownloadStatus.DOWNLOADING && progress == null)
+            .build()
+    }
+
+    /**
+     * 更新通知
+     */
+    private fun updateNotification() {
+        if (downloadJobs.isEmpty()) {
+            return
+        }
+
+        // 显示最新的下载任务
+        val latestTask = downloadJobs.values.last()
+        val notification = createNotification(latestTask)
+        val notificationManager = getSystemService(NotificationManager::class.java)
+        notificationManager.notify(NOTIFICATION_ID, notification)
+    }
+
+    /**
+     * 创建 PendingIntent
+     */
+    private fun createPendingIntent(action: String, taskId: String): PendingIntent {
+        val intent = Intent(this, VideoDownloadForegroundService::class.java).apply {
+            this.action = action
+            putExtra(EXTRA_TASK_ID, taskId)
+        }
+        return PendingIntent.getService(
+            this,
+            taskId.hashCode(),
+            intent,
+            PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
+        )
+    }
+
+    /**
+     * 格式化速度
+     */
+    private fun formatSpeed(bytesPerSecond: Long): String {
+        return when {
+            bytesPerSecond < 1024 -> "${bytesPerSecond}B/s"
+            bytesPerSecond < 1024 * 1024 -> "${bytesPerSecond / 1024}KB/s"
+            else -> "${bytesPerSecond / (1024 * 1024)}MB/s"
+        }
+    }
+
+    /**
+     * 格式化大小
+     */
+    private fun formatSize(current: Long, total: Long): String {
+        fun formatSize(bytes: Long): String {
+            return when {
+                bytes < 1024 -> "${bytes}B"
+                bytes < 1024 * 1024 -> "${bytes / 1024}KB"
+                bytes < 1024 * 1024 * 1024 -> "${bytes / (1024 * 1024)}MB"
+                else -> "${bytes / (1024 * 1024 * 1024)}GB"
+            }
+        }
+        return "${formatSize(current)}/${formatSize(total)}"
+    }
+
+    /**
+     * Binder 用于客户端获取服务实例
+     */
+    inner class DownloadBinder : Binder() {
+        fun getService(): VideoDownloadForegroundService = this@VideoDownloadForegroundService
+    }
+
+    /**
+     * 下载任务数据类
+     */
+    data class DownloadTask(
+        val id: String,
+        val url: String,
+        val title: String,
+        val outputPath: String,
+        var status: DownloadStatus = DownloadStatus.DOWNLOADING,
+        var progress: SegmentedDownloader.DownloadProgress? = null,
+        var currentBytes: Long = 0,
+        var totalBytes: Long = 0,
+        var speed: Long = 0,
+        var error: String? = null,
+        var job: Job? = null
+    )
+
+    /**
+     * 下载状态枚举
+     */
+    enum class DownloadStatus {
+        DOWNLOADING,
+        PAUSED,
+        COMPLETED,
+        FAILED,
+        CANCELLED
+    }
+}

@@ -1,0 +1,49 @@
+"""
+FFmpeg 工具
+"""
+
+import subprocess
+import os
+from pathlib import Path
+
+async def extract_audio(video_path: str, output_format: str = 'mp3') -> str:
+    """从视频提取音频"""
+    audio_path = video_path.rsplit('.', 1)[0] + f'.{output_format}'
+
+    if os.path.exists(audio_path):
+        return audio_path
+
+    cmd = [
+        'ffmpeg',
+        '-i', video_path,
+        '-vn',  # 不包含视频
+        '-acodec', 'libmp3lame' if output_format == 'mp3' else 'copy',
+        '-ar', '16000',  # 采样率 16kHz
+        '-ac', '1',  # 单声道
+        '-y',  # 覆盖输出文件
+        audio_path
+    ]
+
+    try:
+        subprocess.run(cmd, check=True, capture_output=True)
+        return audio_path
+    except subprocess.CalledProcessError as e:
+        raise Exception(f"音频提取失败: {e.stderr.decode()}")
+
+async def extract_sample(audio_path: str, duration: int = 30) -> str:
+    """提取音频样本（前 N 秒）"""
+    sample_path = audio_path.rsplit('.', 1)[0] + '_sample.mp3'
+
+    cmd = [
+        'ffmpeg',
+        '-i', audio_path,
+        '-t', str(duration),  # 持续时间
+        '-y',
+        sample_path
+    ]
+
+    try:
+        subprocess.run(cmd, check=True, capture_output=True)
+        return sample_path
+    except subprocess.CalledProcessError as e:
+        raise Exception(f"样本提取失败: {e.stderr.decode()}")

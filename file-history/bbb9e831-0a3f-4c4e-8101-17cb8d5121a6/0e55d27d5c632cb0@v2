@@ -1,0 +1,79 @@
+import re
+from docx import Document
+from docx.shared import Pt, RGBColor, Inches
+from docx.enum.text import WD_ALIGN_PARAGRAPH
+
+# 读取 Markdown
+with open(r'C:\Users\Administrator\Claude_Code_配置完全指南.md', 'r', encoding='utf-8') as f:
+    content = f.read()
+
+# 创建 Word 文档
+doc = Document()
+
+# 设置默认字体
+style = doc.styles['Normal']
+style.font.name = '微软雅黑'
+style.font.size = Pt(10.5)
+
+# 解析 Markdown
+lines = content.split('\n')
+in_code_block = False
+code_lines = []
+
+for line in lines:
+    # 代码块
+    if line.startswith('```'):
+        if in_code_block:
+            # 结束代码块
+            code_text = '\n'.join(code_lines)
+            p = doc.add_paragraph(code_text)
+            p.style = 'Normal'
+            for run in p.runs:
+                run.font.name = 'Consolas'
+                run.font.size = Pt(9)
+            code_lines = []
+            in_code_block = False
+        else:
+            # 开始代码块
+            in_code_block = True
+        continue
+
+    if in_code_block:
+        code_lines.append(line)
+        continue
+
+    # 标题
+    if line.startswith('# '):
+        doc.add_heading(line[2:], level=1)
+    elif line.startswith('## '):
+        doc.add_heading(line[3:], level=2)
+    elif line.startswith('### '):
+        doc.add_heading(line[4:], level=3)
+    elif line.startswith('#### '):
+        doc.add_heading(line[5:], level=4)
+    # 列表
+    elif line.startswith('- '):
+        doc.add_paragraph(line[2:], style='List Bullet')
+    elif re.match(r'^\d+\. ', line):
+        doc.add_paragraph(re.sub(r'^\d+\. ', '', line), style='List Number')
+    # 空行
+    elif line.strip() == '':
+        doc.add_paragraph()
+    # 普通段落
+    else:
+        # 处理行内代码
+        if '`' in line:
+            p = doc.add_paragraph()
+            parts = line.split('`')
+            for i, part in enumerate(parts):
+                run = p.add_run(part)
+                if i % 2 == 1:  # 代码部分
+                    run.font.name = 'Consolas'
+                    run.font.size = Pt(9)
+                    run.font.color.rgb = RGBColor(199, 37, 78)
+        else:
+            doc.add_paragraph(line)
+
+# 保存
+doc.save(r'C:\Users\Administrator\Claude_Code_配置完全指南.docx')
+print('转换完成: Claude_Code_配置完全指南.docx')

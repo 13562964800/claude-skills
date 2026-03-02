@@ -1,0 +1,50 @@
+<?xml version="1.0" encoding="utf-8"?>
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="200dp"
+    android:height="200dp"
+    android:viewportWidth="200"
+    android:viewportHeight="200">
+
+    <!-- 手机图标 -->
+    <group
+        android:translateX="50"
+        android:translateY="30">
+
+        <!-- 手机外框 -->
+        <path
+            android:fillColor="@color/bg_paper"
+            android:strokeColor="@color/dai_cyan"
+            android:strokeWidth="8"
+            android:strokeLineJoin="round"
+            android:pathData="M10,0 L90,0 A10,10 0 0,1 100,10 L100,130 A10,10 0 0,1 90,140 L10,140 A10,10 0 0,1 0,130 L0,10 A10,10 0 0,1 10,0 Z" />
+
+        <!-- 屏幕区域 -->
+        <path
+            android:fillColor="@color/bg_rice"
+            android:pathData="M10,10 L90,10 L90,110 L10,110 Z" />
+
+        <!-- 短信线条 -->
+        <path
+            android:strokeColor="@color/dai_cyan"
+            android:strokeWidth="6"
+            android:strokeLineCap="round"
+            android:pathData="M20,40 L80,40 M20,65 L80,65 M20,90 L80,90 M20,115 L60,115" />
+
+        <!-- 案号标签 -->
+        <path
+            android:fillColor="@color/dai_cyan"
+            android:pathData="M68,105 L82,105 A3,3 0 0,1 85,108 L85,114 A3,3 0 0,1 82,117 L68,117 A3,3 0 0,1 65,114 L65,108 A3,3 0 0,1 68,105 Z" />
+
+        <!-- 关键词图标（用 path 画圆） -->
+        <path
+            android:fillColor="@color/dai_cyan"
+            android:pathData="M25,44 m-6,0 a6,6 0 1,0 12,0 a6,6 0 1,0 -12,0" />
+        <path
+            android:fillColor="@color/dai_cyan"
+            android:pathData="M25,69 m-6,0 a6,6 0 1,0 12,0 a6,6 0 1,0 -12,0" />
+        <path
+            android:fillColor="@color/dai_cyan"
+            android:pathData="M25,94 m-6,0 a6,6 0 1,0 12,0 a6,6 0 1,0 -12,0" />
+    </group>
+
+</vector>

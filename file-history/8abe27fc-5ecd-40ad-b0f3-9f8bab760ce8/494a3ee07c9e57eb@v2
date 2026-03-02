@@ -1,0 +1,57 @@
+#!/usr/bin/env python3
+"""
+提取所有缺失插图的描述和上下文
+"""
+
+import re
+import json
+
+def extract_missing_illustrations(file_path):
+    with open(file_path, 'r', encoding='utf-8') as f:
+        content = f.read()
+
+    # 找到所有插图标记
+    pattern = r'【插图([^】]+)】'
+    illustrations = []
+
+    for match in re.finditer(pattern, content):
+        marker = match.group(0)
+        ill_id = match.group(1)
+        start_pos = match.end()
+
+        # 检查是否有SVG
+        next_content = content[start_pos:start_pos+300]
+        if '<svg' in next_content:
+            continue  # 已有SVG,跳过
+
+        # 提取上下文 (前后各200字符)
+        context_before = content[max(0, match.start()-200):match.start()]
+        context_after = content[start_pos:start_pos+200]
+
+        illustrations.append({
+            'id': ill_id,
+            'marker': marker,
+            'context_before': context_before.strip(),
+            'context_after': context_after.strip()
+        })
+
+    return illustrations
+
+if __name__ == '__main__':
+    file_path = 'AI前沿知识儿童科普画册-带全部插图.md'
+    missing = extract_missing_illustrations(file_path)
+
+    print(f'找到 {len(missing)} 个缺失的插图\n')
+
+    # 保存到JSON文件
+    with open('missing_illustrations.json', 'w', encoding='utf-8') as f:
+        json.dump(missing, f, ensure_ascii=False, indent=2)
+
+    print('已保存到 missing_illustrations.json')
+
+    # 显示前5个
+    print('\n前5个缺失的插图:')
+    for i, ill in enumerate(missing[:5]):
+        print(f'\n{i+1}. {ill["id"]}')
+        print(f'   上下文: ...{ill["context_before"][-50:]}')
+        print(f'           {ill["context_after"][:50]}...')

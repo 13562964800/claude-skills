@@ -1,0 +1,60 @@
+import json, os
+
+CONFIG_DIR = os.path.join(os.path.expanduser('~'), '.voice-doc-compare')
+CONFIG_FILE = os.path.join(CONFIG_DIR, 'config.json')
+
+ASR_PROVIDERS = {
+    'aliyun': {'name': '阿里云语音识别', 'region': 'cn', 'fields': ['key', 'secret', 'appKey']},
+    'baidu': {'name': '百度语音识别', 'region': 'cn', 'fields': ['key', 'secret', 'appKey']},
+    'funasr': {'name': 'FunASR(本地)', 'region': 'cn', 'fields': []},
+    'groq_whisper': {'name': 'Groq Whisper', 'region': 'intl', 'fields': ['key']},
+    'openai_whisper': {'name': 'OpenAI Whisper', 'region': 'intl', 'fields': ['key']},
+}
+
+LLM_PROVIDERS = {
+    # 国内八家
+    'zhipu': {'name': '智谱GLM', 'region': 'cn', 'endpoint': 'https://open.bigmodel.cn/api/paas/v4/chat/completions', 'default_model': 'glm-4'},
+    'deepseek': {'name': 'DeepSeek', 'region': 'cn', 'endpoint': 'https://api.deepseek.com/v1/chat/completions', 'default_model': 'deepseek-chat'},
+    'qwen': {'name': '通义千问', 'region': 'cn', 'endpoint': 'https://dashscope.aliyuncs.com/compatible-mode/v1/chat/completions', 'default_model': 'qwen-turbo'},
+    'moonshot': {'name': 'Kimi(月之暗面)', 'region': 'cn', 'endpoint': 'https://api.moonshot.cn/v1/chat/completions', 'default_model': 'moonshot-v1-8k'},
+    'baichuan': {'name': '百川智能', 'region': 'cn', 'endpoint': 'https://api.baichuan-ai.com/v1/chat/completions', 'default_model': 'Baichuan4'},
+    'minimax': {'name': 'MiniMax', 'region': 'cn', 'endpoint': 'https://api.minimax.chat/v1/text/chatcompletion_v2', 'default_model': 'abab6.5s-chat'},
+    'stepfun': {'name': '阶跃星辰', 'region': 'cn', 'endpoint': 'https://api.stepfun.com/v1/chat/completions', 'default_model': 'step-1-8k'},
+    'doubao': {'name': '豆包(字节)', 'region': 'cn', 'endpoint': 'https://ark.cn-beijing.volces.com/api/v3/chat/completions', 'default_model': 'doubao-pro-4k'},
+    # 国际八家
+    'openai': {'name': 'OpenAI', 'region': 'intl', 'endpoint': 'https://api.openai.com/v1/chat/completions', 'default_model': 'gpt-4o-mini'},
+    'claude': {'name': 'Claude', 'region': 'intl', 'endpoint': 'https://api.anthropic.com/v1/messages', 'default_model': 'claude-sonnet-4-20250514'},
+    'gemini': {'name': 'Gemini', 'region': 'intl', 'endpoint': 'https://generativelanguage.googleapis.com/v1beta/chat/completions', 'default_model': 'gemini-2.0-flash'},
+    'groq': {'name': 'Groq', 'region': 'intl', 'endpoint': 'https://api.groq.com/openai/v1/chat/completions', 'default_model': 'llama-3.1-70b-versatile'},
+    'mistral': {'name': 'Mistral', 'region': 'intl', 'endpoint': 'https://api.mistral.ai/v1/chat/completions', 'default_model': 'mistral-large-latest'},
+    'cohere': {'name': 'Cohere', 'region': 'intl', 'endpoint': 'https://api.cohere.com/v2/chat', 'default_model': 'command-r-plus'},
+    'perplexity': {'name': 'Perplexity', 'region': 'intl', 'endpoint': 'https://api.perplexity.ai/chat/completions', 'default_model': 'sonar-pro'},
+    'together': {'name': 'Together AI', 'region': 'intl', 'endpoint': 'https://api.together.xyz/v1/chat/completions', 'default_model': 'meta-llama/Llama-3-70b-chat-hf'},
+}
+
+DEFAULT_CONFIG = {
+    'asr_provider': 'funasr',
+    'llm_provider': 'zhipu',
+    'asr_keys': {},
+    'llm_keys': {},
+}
+
+def load_config():
+    if os.path.exists(CONFIG_FILE):
+        try:
+            with open(CONFIG_FILE, 'r', encoding='utf-8') as f:
+                return {**DEFAULT_CONFIG, **json.load(f)}
+        except Exception:
+            pass
+    return dict(DEFAULT_CONFIG)
+
+def save_config(config):
+    os.makedirs(CONFIG_DIR, exist_ok=True)
+    with open(CONFIG_FILE, 'w', encoding='utf-8') as f:
+        json.dump(config, f, ensure_ascii=False, indent=2)
+
+def is_valid(config):
+    pid = config['asr_provider']
+    if pid == 'funasr':
+        return True
+    return bool(config.get('asr_keys', {}).get(pid, {}).get('key'))

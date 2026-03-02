@@ -1,0 +1,304 @@
+package com.multilanglearner.data.network
+
+import android.content.Context
+import android.util.Log
+import com.multilanglearner.domain.model.AIConfig
+import com.multilanglearner.domain.model.WordTimestamp
+import dagger.hilt.android.qualifiers.ApplicationContext
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
+import java.io.File
+import javax.inject.Inject
+import javax.inject.Singleton
+
+/**
+ * 本地转录服务接口
+ *
+ * 支持的引擎：
+ * 1. **Sherpa-ONNX** - 推荐方案（离线、高性能、多语言）
+ * 2. **Whisper.cpp** - 高性能方案（需 NDK 编译）
+ * 3. **Android SpeechRecognizer** - 原生方案（免费，多语言）
+ *
+ * ## Sherpa-ONNX 集成方案（推荐）
+ *
+ * ### 优点
+ * - 专为移动端优化，性能好
+ * - 支持多种 Whisper 模型（tiny/base/small）
+ * - 完全离线，无需网络
+ * - 提供 Android AAR 包，集成简单
+ * - 支持实时转录和文件转录
+ *
+ * ### 集成步骤
+ * 1. 添加依赖到 build.gradle.kts：
+ *    ```kotlin
+ *    implementation("com.k2fsa.sherpa:onnx:1.10.0")
+ *    ```
+ *
+ * 2. 下载模型文件（选择一个）：
+ *    - tiny: 75MB (最快，准确率较低)
+ *    - base: 142MB (平衡)
+ *    - small: 466MB (最准确，较慢)
+ *    下载地址: https://github.com/k2-fsa/sherpa-onnx/releases
+ *
+ * 3. 将模型文件放到 assets/models/ 目录
+ *
+ * 4. 使用示例：
+ *    ```kotlin
+ *    val config = OfflineRecognizerConfig(
+ *        modelConfig = OfflineModelConfig(
+ *            whisper = OfflineWhisperModelConfig(
+ *                encoder = "assets/models/whisper-tiny-encoder.onnx",
+ *                decoder = "assets/models/whisper-tiny-decoder.onnx"
+ *            )
+ *        )
+ *    )
+ *    val recognizer = OfflineRecognizer(context, config)
+ *    val stream = recognizer.createStream()
+ *    stream.acceptWaveform(audioSamples, sampleRate)
+ *    recognizer.decode(stream)
+ *    val result = recognizer.getResult(stream)
+ *    ```
+ *
+ * ### 性能对比
+ * - tiny 模型：约 2-3x 实时速度（1分钟音频需要20-30秒）
+ * - base 模型：约 1-2x 实时速度（1分钟音频需要30-60秒）
+ * - small 模型：约 0.5-1x 实时速度（1分钟音频需要60-120秒）
+ *
+ * ### 内存占用
+ * - tiny: ~200MB
+ * - base: ~400MB
+ * - small: ~800MB
+ *
+ * ## Whisper.cpp 集成方案（高级）
+ *
+ * ### 优点
+ * - C++ 实现，性能最优
+ * - 支持量化模型，内存占用更小
+ *
+ * ### 缺点
+ * - 需要 NDK 编译
+ * - 集成复杂度高
+ * - 需要 JNI 桥接
+ *
+ * ### 集成步骤
+ * 1. 克隆 whisper.cpp: https://github.com/ggerganov/whisper.cpp
+ * 2. 使用 NDK 编译 Android 库
+ * 3. 创建 JNI 桥接层
+ * 4. 集成到项目
+ *
+ * ## 推荐方案
+ * 对于本项目，推荐使用 **Sherpa-ONNX**：
+ * - 集成简单（只需添加依赖和模型文件）
+ * - 性能足够好（tiny 模型可达 2-3x 实时速度）
+ * - 完全离线，保护隐私
+ * - 支持多语言
+ */
+@Singleton
+class LocalTranscriptionService @Inject constructor(
+    @ApplicationContext private val context: Context
+) {
+    companion object {
+        private const val TAG = "LocalTranscription"
+
+        // 转录引擎类型
+        const val ENGINE_SHERPA_ONNX = "sherpa_onnx"  // 推荐
+        const val ENGINE_WHISPER_CPP = "whisper_cpp"
+        const val ENGINE_ANDROID_SPEECH = "android_speech"
+
+        // Sherpa-ONNX 模型类型
+        const val MODEL_TINY = "tiny"   // 75MB, 最快
+        const val MODEL_BASE = "base"   // 142MB, 平衡
+        const val MODEL_SMALL = "small" // 466MB, 最准确
+    }
+
+    /**
+     * 本地转录结果
+     */
+    data class LocalTranscriptionResult(
+        val success: Boolean,
+        val text: String = "",
+        val words: List<WordTimestamp> = emptyList(),
+        val detectedLang: String = "",
+        val error: String = ""
+    )
+
+    /**
+     * 使用 Sherpa-ONNX 进行本地转录（推荐方案）
+     *
+     * 注意：需要先集成 Sherpa-ONNX 库和模型文件
+     * 集成步骤见类文档顶部说明
+     *
+     * @param audioFile 音频文件
+     * @param modelType 模型类型（tiny/base/small）
+     * @param lang 语言代码
+     * @param onProgress 进度回调
+     */
+    suspend fun transcribeWithSherpaOnnx(
+        audioFile: File,
+        modelType: String = MODEL_TINY,
+        lang: String? = null,
+        onProgress: (Int, String) -> Unit = { _, _ -> }
+    ): LocalTranscriptionResult = withContext(Dispatchers.IO) {
+        try {
+            Log.d(TAG, "Transcribing with Sherpa-ONNX: ${audioFile.name}, model=$modelType")
+
+            // TODO: 集成 Sherpa-ONNX 后实现
+            // 1. 加载模型
+            // 2. 读取音频文件
+            // 3. 转换为 16kHz 单声道 PCM
+            // 4. 调用 Sherpa-ONNX API 转录
+            // 5. 返回结果
+
+            LocalTranscriptionResult(
+                success = false,
+                error = "Sherpa-ONNX 尚未集成\n\n集成步骤：\n" +
+                    "1. 添加依赖: implementation(\"com.k2fsa.sherpa:onnx:1.10.0\")\n" +
+                    "2. 下载模型文件到 assets/models/\n" +
+                    "3. 实现转录逻辑\n\n" +
+                    "当前使用在线 Groq API 转录"
+            )
+
+        } catch (e: Exception) {
+            Log.e(TAG, "Sherpa-ONNX transcription error", e)
+            LocalTranscriptionResult(
+                success = false,
+                error = "本地转录失败: ${e.message}"
+            )
+        }
+    }
+
+    /**
+     * 使用 Android SpeechRecognizer 进行转录
+     *
+     * 优点：
+     * - 无需网络
+     * - 免费
+     * - 支持多种语言
+     * - 系统原生，性能好
+     *
+     * 限制：
+     * - 需要将音频分段播放转录（不支持文件直接转录）
+     * - 时长限制（每个分段约30秒）
+     * - 没有词级别时间戳
+     */
+    suspend fun transcribeWithAndroidSpeech(
+        audioFile: File,
+        lang: String? = null,
+        onProgress: (Int, String) -> Unit = { _, _ -> }
+    ): LocalTranscriptionResult = withContext(Dispatchers.IO) {
+        try {
+            Log.d(TAG, "Transcribing with Android SpeechRecognizer: ${audioFile.name}")
+
+            // Android SpeechRecognizer 需要 AudioTrack 播放音频并监听
+            // 这里返回不支持状态，需要完整实现 UI 层
+            // 实际实现需要：
+            // 1. 使用 MediaPlayer 播放音频
+            // 2. 使用 SpeechRecognizer 监听语音
+            // 3. 将识别结果收集
+            // 4. 重复直到音频结束
+
+            LocalTranscriptionResult(
+                success = false,
+                error = "Android SpeechRecognizer 需要播放式转录\n\n当前仅支持在线 Groq API\n\n如需本地转录，请使用小文件（<1分钟）进行测试"
+            )
+
+        } catch (e: Exception) {
+            Log.e(TAG, "Android Speech transcription error", e)
+            LocalTranscriptionResult(
+                success = false,
+                error = "本地转录失败: ${e.message}"
+            )
+        }
+    }
+
+    /**
+     * 检查本地转录引擎是否可用
+     */
+    fun checkEngineAvailability(engine: String): EngineAvailability {
+        return when (engine) {
+            ENGINE_SHERPA_ONNX -> {
+                // Sherpa-ONNX 需要集成库和模型
+                EngineAvailability(
+                    engine = engine,
+                    available = false,  // TODO: 集成后改为 true
+                    name = "Sherpa-ONNX (推荐)",
+                    description = "离线高性能转录，支持多语言，专为移动端优化",
+                    supportedLanguages = listOf("zh-CN", "en-US", "ja-JP", "ko-KR", "ru-RU", "es-ES", "fr-FR", "de-DE"),
+                    offline = true,
+                    requiresModel = true,
+                    modelSize = "75MB (tiny) / 142MB (base) / 466MB (small)",
+                    speed = "2-3x 实时速度 (tiny模型)"
+                )
+            }
+            ENGINE_ANDROID_SPEECH -> {
+                // Android SpeechRecognizer 总是可用（系统原生）
+                EngineAvailability(
+                    engine = engine,
+                    available = true,
+                    name = "Android 语音识别",
+                    description = "系统原生，无需网络，支持多种语言",
+                    supportedLanguages = listOf("zh-CN", "en-US", "ja-JP", "ko-KR", "ru-RU"),
+                    offline = true,
+                    speed = "实时"
+                )
+            }
+            ENGINE_WHISPER_CPP -> {
+                // Whisper.cpp 需要 NDK 编译
+                EngineAvailability(
+                    engine = engine,
+                    available = false,
+                    name = "Whisper.cpp",
+                    description = "高性能离线转录，需 NDK 集成",
+                    supportedLanguages = listOf("zh-CN", "en-US", "ja-JP"),
+                    offline = true,
+                    requiresModel = true,
+                    modelSize = "75MB (tiny) / 142MB (base)",
+                    speed = "3-5x 实时速度"
+                )
+            }
+            else -> {
+                EngineAvailability(
+                    engine = "unknown",
+                    available = false,
+                    name = "未知引擎",
+                    description = "不支持的转录引擎"
+                )
+            }
+        }
+    }
+
+    /**
+     * 获取推荐的转录引擎
+     */
+    fun getRecommendedEngine(fileSize: Long, hasNetwork: Boolean): String {
+        return when {
+            hasNetwork && fileSize < 100 * 1024 * 1024 -> {
+                // 有网络且文件小于100MB，使用在线 API
+                "groq"
+            }
+            !hasNetwork -> {
+                // 无网络，使用 Android 原生
+                ENGINE_ANDROID_SPEECH
+            }
+            else -> {
+                // 大文件，建议分段或压缩
+                "groq"
+            }
+        }
+    }
+}
+
+/**
+ * 转录引擎可用性信息
+ */
+data class EngineAvailability(
+    val engine: String,
+    val available: Boolean,
+    val name: String,
+    val description: String = "",
+    val supportedLanguages: List<String> = emptyList(),
+    val offline: Boolean = false,
+    val requiresModel: Boolean = false,
+    val modelSize: String = "",  // 模型大小说明
+    val speed: String = ""  // 速度说明
+)

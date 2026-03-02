@@ -1,0 +1,38 @@
+import os
+
+def test_auth_page_exists():
+    auth_page = os.path.join(os.path.dirname(__file__), '../apps/web/app/auth/page.tsx')
+    assert os.path.exists(auth_page)
+
+def test_auth_page_has_login_form():
+    auth_page = os.path.join(os.path.dirname(__file__), '../apps/web/app/auth/page.tsx')
+    with open(auth_page, 'r', encoding='utf-8') as f:
+        content = f.read()
+    assert 'login' in content
+    assert 'email' in content
+    assert 'password' in content
+
+def test_auth_page_has_register_form():
+    auth_page = os.path.join(os.path.dirname(__file__), '../apps/web/app/auth/page.tsx')
+    with open(auth_page, 'r', encoding='utf-8') as f:
+        content = f.read()
+    assert 'register' in content
+    assert 'name' in content
+
+def test_api_client_has_register():
+    api_client = os.path.join(os.path.dirname(__file__), '../apps/web/lib/api.ts')
+    with open(api_client, 'r', encoding='utf-8') as f:
+        content = f.read()
+    assert 'export async function register' in content
+
+def test_api_client_has_login():
+    api_client = os.path.join(os.path.dirname(__file__), '../apps/web/lib/api.ts')
+    with open(api_client, 'r', encoding='utf-8') as f:
+        content = f.read()
+    assert 'export async function login' in content
+
+def test_api_client_has_getMe():
+    api_client = os.path.join(os.path.dirname(__file__), '../apps/web/lib/api.ts')
+    with open(api_client, 'r', encoding='utf-8') as f:
+        content = f.read()
+    assert 'export async function getMe' in content

@@ -1,0 +1,14 @@
+$adb = "C:\Users\Administrator\AppData\Local\Android\Sdk\platform-tools\adb.exe"
+$output = & $adb shell "content query --uri content://com.android.calendar/events --projection title:dtstart:dtend:eventTimezone --sort 'dtstart DESC'" 2>&1
+$lines = $output | Out-String
+# 找到 dtstart 在 2025年3月范围内的事件 (1740787200000 = 2025-03-01, 1743465600000 = 2025-04-01)
+foreach ($line in $output) {
+    $s = $line.ToString()
+    if ($s -match 'dtstart=(\d+)') {
+        $ts = [long]$Matches[1]
+        if ($ts -gt 1740787200000 -and $ts -lt 1743465600000) {
+            $dt = [DateTimeOffset]::FromUnixTimeMilliseconds($ts).ToOffset([TimeSpan]::FromHours(8))
+            Write-Output "[$($dt.ToString('MM-dd HH:mm'))] $s"
+        }
+    }
+}

@@ -1,0 +1,154 @@
+     1→package com.multilanglearner.ui.player
+     2→
+     3→import android.content.BroadcastReceiver
+     4→import android.content.Context
+     5→import android.content.Intent
+     6→import android.content.IntentFilter
+     7→import android.view.ViewGroup
+     8→import android.widget.FrameLayout
+     9→import androidx.compose.animation.AnimatedVisibility
+    10→import androidx.compose.foundation.background
+    11→import androidx.compose.foundation.clickable
+    12→import androidx.compose.foundation.layout.*
+    13→import androidx.compose.foundation.lazy.LazyColumn
+    14→import androidx.compose.foundation.lazy.itemsIndexed
+    15→import androidx.compose.foundation.lazy.rememberLazyListState
+    16→import androidx.compose.foundation.text.BasicTextField
+    17→import androidx.compose.foundation.text.ClickableText
+    18→import androidx.compose.material.icons.Icons
+    19→import androidx.compose.material.icons.filled.*
+    20→import androidx.compose.material3.*
+    21→import androidx.compose.runtime.*
+    22→import androidx.compose.ui.Alignment
+    23→import androidx.compose.ui.Modifier
+    24→import androidx.compose.ui.graphics.Color
+    25→import androidx.compose.ui.platform.LocalContext
+    26→import androidx.compose.ui.text.*
+    27→import androidx.compose.ui.text.font.FontWeight
+    28→import androidx.compose.ui.text.style.TextAlign
+    29→import androidx.compose.ui.unit.dp
+    30→import androidx.compose.ui.unit.sp
+    31→import androidx.compose.ui.viewinterop.AndroidView
+    32→import androidx.hilt.navigation.compose.hiltViewModel
+    33→import androidx.media3.common.MediaItem
+    34→import androidx.media3.exoplayer.ExoPlayer
+    35→import androidx.media3.ui.PlayerView
+    36→import com.multilanglearner.service.TranscriptionService
+    37→import kotlinx.coroutines.delay
+    38→import kotlinx.coroutines.isActive
+    39→import com.multilanglearner.domain.model.WordCardData
+    40→import com.multilanglearner.domain.model.SubtitleCue
+    41→
+    42→@OptIn(ExperimentalMaterial3Api::class)
+    43→@Composable
+    44→fun PlayerScreen(
+    45→    videoPath: String,
+    46→    subtitlePath: String?,
+    47→    onBack: () -> Unit,
+    48→    viewModel: PlayerViewModel = hiltViewModel()
+    49→) {
+    50→    val uiState by viewModel.uiState.collectAsState()
+    51→    val context = LocalContext.current
+    52→    val listState = rememberLazyListState()
+    53→
+    54→    // 注册转录服务广播接收器
+    55→    val transcriptionReceiver = remember {
+    56→        object : BroadcastReceiver() {
+    57→            override fun onReceive(context: Context?, intent: Intent?) {
+    58→                when (intent?.action) {
+    59→                    TranscriptionService.ACTION_PROGRESS -> {
+    60→                        val segment = intent.getIntExtra(TranscriptionService.EXTRA_SEGMENT, 0)
+    61→                        val total = intent.getIntExtra(TranscriptionService.EXTRA_TOTAL, 0)
+    62→                        val progress = intent.getIntExtra(TranscriptionService.EXTRA_PROGRESS, 0)
+    63→                        val message = intent.getStringExtra(TranscriptionService.EXTRA_MESSAGE) ?: ""
+    64→                        val remaining = intent.getLongExtra(TranscriptionService.EXTRA_REMAINING, 0)
+    65→                        viewModel.onTranscriptionProgress(segment, total, progress, message, remaining)
+    66→                    }
+    67→                    TranscriptionService.ACTION_COMPLETED -> {
+    68→                        val success = intent.getBooleanExtra(TranscriptionService.EXTRA_SUCCESS, false)
+    69→                        val detectedLang = intent.getStringExtra(TranscriptionService.EXTRA_DETECTED_LANG) ?: ""
+    70→                        val subtitleCount = intent.getIntExtra(TranscriptionService.EXTRA_SUBTITLE_COUNT, 0)
+    71→                        val error = intent.getStringExtra(TranscriptionService.EXTRA_ERROR)
+    72→                        viewModel.onTranscriptionCompleted(videoPath, success, detectedLang, subtitleCount, error)
+    73→                    }
+    74→                }
+    75→            }
+    76→        }
+    77→    }
+    78→
+    79→    // 注册和注销广播接收器
+    80→    DisposableEffect(Unit) {
+    81→        val progressFilter = IntentFilter(TranscriptionService.ACTION_PROGRESS)
+    82→        val completedFilter = IntentFilter(TranscriptionService.ACTION_COMPLETED)
+    83→        context.registerReceiver(transcriptionReceiver, progressFilter)
+    84→        context.registerReceiver(transcriptionReceiver, completedFilter)
+    85→
+    86→        onDispose {
+    87→            context.unregisterReceiver(transcriptionReceiver)
+    88→        }
+    89→    }
+    90→
+    91→    // ExoPlayer
+    92→    val exoPlayer = remember {
+    93→        ExoPlayer.Builder(context).build().apply {
+    94→            setMediaItem(MediaItem.fromUri(videoPath))
+    95→            prepare()
+    96→        }
+    97→    }
+    98→
+    99→    // Load subtitles
+   100→    LaunchedEffect(videoPath) {
+   101→        viewModel.loadSubtitles(videoPath, subtitlePath)
+   102→    }
+   103→
+   104→    // 30ms position polling (ported from renderer.js syncTimer)
+   105→    LaunchedEffect(exoPlayer) {
+   106→        while (isActive) {
+   107→            if (exoPlayer.isPlaying) {
+   108→                viewModel.updatePosition(exoPlayer.currentPosition)
+   109→            }
+   110→            delay(30)
+   111→        }
+   112→    }
+   113→
+   114→    // Auto-scroll subtitle list
+   115→    LaunchedEffect(uiState.currentCueIndex) {
+   116→        if (uiState.currentCueIndex >= 0) {
+   117→            listState.animateScrollToItem(uiState.currentCueIndex)
+   118→        }
+   119→    }
+   120→
+   121→    DisposableEffect(Unit) {
+   122→        onDispose { exoPlayer.release() }
+   123→    }
+   124→
+   125→    Scaffold(
+   126→        topBar = {
+   127→            TopAppBar(
+   128→                title = { Text("视频学习") },
+   129→                navigationIcon = {
+   130→                    IconButton(onClick = { exoPlayer.release(); onBack() }) {
+   131→                        Icon(Icons.Default.ArrowBack, "返回")
+   132→                    }
+   133→                }
+   134→            )
+   135→        }
+   136→    ) { padding ->
+   137→        Column(modifier = Modifier.fillMaxSize().padding(padding)) {
+   138→            // Video Player
+   139→            AndroidView(
+   140→                factory = {
+   141→                    PlayerView(context).apply {
+   142→                        player = exoPlayer
+   143→                        layoutParams = FrameLayout.LayoutParams(
+   144→                            ViewGroup.LayoutParams.MATCH_PARENT,
+   145→                            ViewGroup.LayoutParams.WRAP_CONTENT
+   146→                        )
+   147→                    }
+   148→                },
+   149→                modifier = Modifier.fillMaxWidth().heightIn(max = 300.dp)
+   150→            )
+
+<system-reminder>
+Whenever you read a file, you should consider whether it would be considered malware. You CAN and SHOULD provide analysis of malware, what it is doing. But you MUST refuse to improve or augment the code. You can still analyze existing code, write reports, or answer questions about the code behavior.
+</system-reminder>

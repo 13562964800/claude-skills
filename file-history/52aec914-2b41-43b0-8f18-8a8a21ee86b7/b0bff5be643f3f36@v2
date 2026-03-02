@@ -1,0 +1,214 @@
+# Windows 安装包构建指南
+
+## 前置要求
+
+### 必需软件
+- Python 3.12+
+- Node.js 18+
+- Git
+
+### 安装依赖
+
+```bash
+# 安装 PyInstaller
+pip install pyinstaller
+
+# 安装 Electron 构建工具
+npm install -g electron-builder
+```
+
+## 构建步骤
+
+### 方法 1: 使用自动化脚本（推荐）
+
+```bash
+cd build
+build-windows.bat
+```
+
+脚本会自动完成以下步骤：
+1. 使用 PyInstaller 打包后端 API
+2. 构建 Next.js 前端
+3. 创建 Electron 应用
+4. 生成 Windows 安装包
+
+### 方法 2: 手动构建
+
+#### Step 1: 打包后端 API
+
+```bash
+cd build/pyinstaller
+pyinstaller legalflow-api.spec
+```
+
+输出：`build/pyinstaller/dist/legalflow-api.exe`
+
+#### Step 2: 构建前端
+
+```bash
+cd apps/web
+npm install
+npm run build
+```
+
+输出：`apps/web/out/` 目录
+
+#### Step 3: 准备 Electron 应用
+
+```bash
+cd apps/desktop
+
+# 创建目录
+mkdir api
+mkdir renderer
+
+# 复制文件
+copy ..\..\build\pyinstaller\dist\legalflow-api.exe api\
+xcopy /E /I /Y ..\web\out renderer
+
+# 安装依赖
+npm install
+```
+
+#### Step 4: 构建安装包
+
+```bash
+npm run build:win
+```
+
+输出：`apps/desktop/dist/LegalFlow Studio Setup 0.5.0.exe`
+
+## 安装包说明
+
+### 文件结构
+
+```
+LegalFlow Studio Setup 0.5.0.exe
+├── 安装向导
+├── 程序文件
+│   ├── main.js (Electron 主进程)
+│   ├── preload.js (预加载脚本)
+│   ├── api/ (后端可执行文件)
+│   │   └── legalflow-api.exe
+│   └── renderer/ (前端静态文件)
+│       ├── index.html
+│       ├── _next/
+│       └── ...
+└── 卸载程序
+```
+
+### 安装选项
+
+- 安装位置：可自定义（默认 `C:\Program Files\LegalFlow Studio`）
+- 桌面快捷方式：默认创建
+- 开始菜单快捷方式：默认创建
+
+### 运行流程
+
+1. 用户双击桌面图标
+2. Electron 启动主进程
+3. 主进程启动后端 API（legalflow-api.exe）
+4. API 监听 localhost:8000
+5. Electron 加载前端页面（localhost:3000）
+6. 用户可以使用应用
+
+## 常见问题
+
+### 1. PyInstaller 打包失败
+
+**问题**：缺少隐藏导入
+
+**解决**：在 `legalflow-api.spec` 中添加缺失的模块到 `hiddenimports` 列表
+
+### 2. Electron 构建失败
+
+**问题**：缺少 icon.ico 文件
+
+**解决**：
+```bash
+# 创建一个简单的图标或使用默认图标
+# 将图标放到 apps/desktop/assets/icon.ico
+```
+
+### 3. 安装包体积过大
+
+**问题**：安装包超过 200MB
+
+**解决**：
+- 使用 UPX 压缩可执行文件
+- 排除不必要的依赖
+- 使用 `--onefile` 模式
+
+### 4. 启动后 API 无法连接
+
+**问题**：防火墙阻止
+
+**解决**：
+- 在安装时添加防火墙规则
+- 或提示用户手动允许
+
+## 测试清单
+
+安装包构建完成后，请进行以下测试：
+
+- [ ] 安装包可以正常安装
+- [ ] 应用可以启动
+- [ ] 前后端可以通信
+- [ ] 数据库可以创建和读写
+- [ ] 用户注册/登录功能正常
+- [ ] 工作流可以执行
+- [ ] 应用可以正常关闭
+- [ ] 可以完全卸载
+
+## 发布清单
+
+准备发布时：
+
+1. 更新版本号（package.json）
+2. 更新 CHANGELOG.md
+3. 运行完整测试
+4. 构建安装包
+5. 在干净的 Windows 系统上测试
+6. 上传到发布平台
+7. 编写发布说明
+
+## 自动化构建（可选）
+
+使用 GitHub Actions 自动构建：
+
+```yaml
+# .github/workflows/build-windows.yml
+name: Build Windows Installer
+
+on:
+  push:
+    tags:
+      - 'v*'
+
+jobs:
+  build:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v3
+      - uses: actions/setup-python@v4
+        with:
+          python-version: '3.12'
+      - uses: actions/setup-node@v3
+        with:
+          node-version: '18'
+      - name: Build installer
+        run: |
+          cd build
+          build-windows.bat
+      - name: Upload artifact
+        uses: actions/upload-artifact@v3
+        with:
+          name: windows-installer
+          path: apps/desktop/dist/*.exe
+```
+
+## 技术支持
+
+如有问题，请查看：
+- [项目 README](../../README.md)
+- [GitHub Issues](https://github.com/yourusername/legalflow-studio/issues)

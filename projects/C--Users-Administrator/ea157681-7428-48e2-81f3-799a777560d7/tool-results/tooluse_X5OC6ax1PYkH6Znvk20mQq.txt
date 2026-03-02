@@ -1,0 +1,402 @@
+     1→* { margin: 0; padding: 0; box-sizing: border-box; }
+     2→
+     3→:root {
+     4→    --sub-font: 22px;
+     5→    --word-font: 26px;
+     6→    --trans-font: 18px;
+     7→    --def-font: 15px;
+     8→    --dict-input-font: 18px;
+     9→    /* 默认极光暗色主题 */
+    10→    --bg: #0a0a1a;
+    11→    --bg-gradient: linear-gradient(135deg, #0a0a1a 0%, #1a0a2e 50%, #0a1a2e 100%);
+    12→    --glass-bg: rgba(42,26,58,0.6);
+    13→    --glass-border: rgba(255,255,255,0.1);
+    14→    --input-bg: rgba(26,10,42,0.8);
+    15→    --input-border: rgba(255,107,157,0.3);
+    16→    --accent: #ff6b9d;
+    17→    --accent2: #8a2be2;
+    18→    --accent3: #06b6d4;
+    19→    --text: #fff;
+    20→    --text-dim: rgba(255,255,255,0.6);
+    21→    --text-dim2: rgba(255,255,255,0.4);
+    22→    --btn-primary: linear-gradient(135deg, #ff3366, #ff6b9d);
+    23→    --btn-secondary: linear-gradient(135deg, #8a2be2, #5d26c1);
+    24→    --sub-bg: rgba(26,10,42,0.6);
+    25→    --sub-hover: rgba(255,107,157,0.3);
+    26→    --sub-active-bg: rgba(255,107,157,0.2);
+    27→    --sub-active-border: #ff6b9d;
+    28→    --select-bg: #1a0a2e;
+    29→    --popup-bg: rgba(30,15,50,0.95);
+    30→    --word-panel-bg: linear-gradient(145deg, rgba(30,12,50,0.95), rgba(50,25,80,0.9));
+    31→    --word-card-bg: linear-gradient(135deg, rgba(255,107,157,0.12), rgba(138,43,226,0.1));
+    32→    --ai-bg: rgba(6,182,212,0.1);
+    33→    --ai-border: rgba(6,182,212,0.2);
+    34→    --scrollbar-thumb: rgba(255,107,157,0.4);
+    35→    --blob1: linear-gradient(45deg, #ff6b9d, #c04868);
+    36→    --blob2: linear-gradient(45deg, #8a2be2, #5d26c1);
+    37→    --blob3: linear-gradient(45deg, #00c8ff, #06b6d4);
+    38→    --blob-opacity: 0.5;
+    39→}
+    40→
+    41→/* 宋式美学主题 */
+    42→[data-theme="song"] {
+    43→    --bg: #f5f0e8;
+    44→    --bg-gradient: linear-gradient(135deg, #f5f0e8 0%, #ebe4d4 50%, #e8e0d0 100%);
+    45→    --glass-bg: rgba(255,250,240,0.75);
+    46→    --glass-border: rgba(139,90,43,0.15);
+    47→    --input-bg: rgba(255,252,245,0.9);
+    48→    --input-border: rgba(139,90,43,0.25);
+    49→    --accent: #8b5a2b;
+    50→    --accent2: #a0522d;
+    51→    --accent3: #6b8e23;
+    52→    --text: #3e2723;
+    53→    --text-dim: rgba(62,39,35,0.65);
+    54→    --text-dim2: rgba(62,39,35,0.4);
+    55→    --btn-primary: linear-gradient(135deg, #8b5a2b, #a0522d);
+    56→    --btn-secondary: linear-gradient(135deg, #6b8e23, #556b2f);
+    57→    --sub-bg: rgba(245,235,220,0.8);
+    58→    --sub-hover: rgba(139,90,43,0.15);
+    59→    --sub-active-bg: rgba(139,90,43,0.12);
+    60→    --sub-active-border: #8b5a2b;
+    61→    --select-bg: #f0e8d8;
+    62→    --popup-bg: rgba(250,245,235,0.97);
+    63→    --word-panel-bg: linear-gradient(145deg, rgba(250,245,235,0.97), rgba(240,232,216,0.95));
+    64→    --word-card-bg: linear-gradient(135deg, rgba(139,90,43,0.08), rgba(107,142,35,0.06));
+    65→    --ai-bg: rgba(107,142,35,0.08);
+    66→    --ai-border: rgba(107,142,35,0.2);
+    67→    --scrollbar-thumb: rgba(139,90,43,0.3);
+    68→    --blob1: linear-gradient(45deg, #d4a574, #c4956a);
+    69→    --blob2: linear-gradient(45deg, #8fbc8f, #6b8e23);
+    70→    --blob3: linear-gradient(45deg, #deb887, #d2b48c);
+    71→    --blob-opacity: 0.2;
+    72→}
+    73→
+    74→/* 跟随系统亮色 */
+    75→@media (prefers-color-scheme: light) {
+    76→    [data-theme="system"] {
+    77→        --bg: #f8f9fa;
+    78→        --bg-gradient: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 50%, #f0f0f5 100%);
+    79→        --glass-bg: rgba(255,255,255,0.75);
+    80→        --glass-border: rgba(0,0,0,0.08);
+    81→        --input-bg: rgba(255,255,255,0.9);
+    82→        --input-border: rgba(99,102,241,0.25);
+    83→        --accent: #6366f1;
+    84→        --accent2: #8b5cf6;
+    85→        --accent3: #06b6d4;
+    86→        --text: #1e293b;
+    87→        --text-dim: rgba(30,41,59,0.65);
+    88→        --text-dim2: rgba(30,41,59,0.4);
+    89→        --btn-primary: linear-gradient(135deg, #6366f1, #818cf8);
+    90→        --btn-secondary: linear-gradient(135deg, #8b5cf6, #7c3aed);
+    91→        --sub-bg: rgba(241,245,249,0.8);
+    92→        --sub-hover: rgba(99,102,241,0.12);
+    93→        --sub-active-bg: rgba(99,102,241,0.1);
+    94→        --sub-active-border: #6366f1;
+    95→        --select-bg: #f1f5f9;
+    96→        --popup-bg: rgba(255,255,255,0.97);
+    97→        --word-panel-bg: linear-gradient(145deg, rgba(255,255,255,0.97), rgba(241,245,249,0.95));
+    98→        --word-card-bg: linear-gradient(135deg, rgba(99,102,241,0.08), rgba(139,92,246,0.06));
+    99→        --ai-bg: rgba(6,182,212,0.06);
+   100→        --ai-border: rgba(6,182,212,0.15);
+   101→        --scrollbar-thumb: rgba(99,102,241,0.3);
+   102→        --blob1: linear-gradient(45deg, #a5b4fc, #818cf8);
+   103→        --blob2: linear-gradient(45deg, #c4b5fd, #8b5cf6);
+   104→        --blob3: linear-gradient(45deg, #67e8f9, #06b6d4);
+   105→        --blob-opacity: 0.15;
+   106→    }
+   107→}
+   108→
+   109→/* 跟随系统暗色 - 复用默认极光主题 */
+   110→@media (prefers-color-scheme: dark) {
+   111→    [data-theme="system"] {
+   112→        --bg: #0a0a1a;
+   113→        --bg-gradient: linear-gradient(135deg, #0a0a1a 0%, #1a0a2e 50%, #0a1a2e 100%);
+   114→        --glass-bg: rgba(42,26,58,0.6);
+   115→        --glass-border: rgba(255,255,255,0.1);
+   116→        --input-bg: rgba(26,10,42,0.8);
+   117→        --input-border: rgba(255,107,157,0.3);
+   118→        --accent: #ff6b9d;
+   119→        --accent2: #8a2be2;
+   120→        --accent3: #06b6d4;
+   121→        --text: #fff;
+   122→        --text-dim: rgba(255,255,255,0.6);
+   123→        --text-dim2: rgba(255,255,255,0.4);
+   124→        --btn-primary: linear-gradient(135deg, #ff3366, #ff6b9d);
+   125→        --btn-secondary: linear-gradient(135deg, #8a2be2, #5d26c1);
+   126→        --sub-bg: rgba(26,10,42,0.6);
+   127→        --sub-hover: rgba(255,107,157,0.3);
+   128→        --sub-active-bg: rgba(255,107,157,0.2);
+   129→        --sub-active-border: #ff6b9d;
+   130→        --select-bg: #1a0a2e;
+   131→        --popup-bg: rgba(30,15,50,0.95);
+   132→        --word-panel-bg: linear-gradient(145deg, rgba(30,12,50,0.95), rgba(50,25,80,0.9));
+   133→        --word-card-bg: linear-gradient(135deg, rgba(255,107,157,0.12), rgba(138,43,226,0.1));
+   134→        --ai-bg: rgba(6,182,212,0.1);
+   135→        --ai-border: rgba(6,182,212,0.2);
+   136→        --scrollbar-thumb: rgba(255,107,157,0.4);
+   137→        --blob1: linear-gradient(45deg, #ff6b9d, #c04868);
+   138→        --blob2: linear-gradient(45deg, #8a2be2, #5d26c1);
+   139→        --blob3: linear-gradient(45deg, #00c8ff, #06b6d4);
+   140→        --blob-opacity: 0.5;
+   141→    }
+   142→}
+   143→body.font-small { --sub-font: 18px; --word-font: 22px; --trans-font: 15px; --def-font: 13px; --dict-input-font: 15px; }
+   144→body.font-medium { --sub-font: 22px; --word-font: 26px; --trans-font: 18px; --def-font: 15px; --dict-input-font: 18px; }
+   145→body.font-large { --sub-font: 28px; --word-font: 32px; --trans-font: 22px; --def-font: 18px; --dict-input-font: 22px; }
+   146→body.font-xlarge { --sub-font: 34px; --word-font: 38px; --trans-font: 26px; --def-font: 21px; --dict-input-font: 26px; }
+   147→
+   148→body {
+   149→    font-family: 'Microsoft YaHei UI', -apple-system, sans-serif;
+   150→    min-height: 100vh;
+   151→    background: var(--bg);
+   152→    overflow-y: auto;
+   153→    color: var(--text);
+   154→}
+   155→
+   156→.aurora-bg {
+   157→    position: fixed; top: 0; left: 0; width: 100%; height: 100%; z-index: -1;
+   158→    background: var(--bg-gradient);
+   159→}
+   160→.aurora-blob {
+   161→    position: absolute; border-radius: 50%; filter: blur(80px); opacity: var(--blob-opacity);
+   162→    animation: float 20s ease-in-out infinite;
+   163→}
+   164→.blob-1 { width: 500px; height: 500px; background: var(--blob1); top: -200px; left: -100px; }
+   165→.blob-2 { width: 400px; height: 400px; background: var(--blob2); top: 50%; right: -150px; animation-delay: -5s; }
+   166→.blob-3 { width: 450px; height: 450px; background: var(--blob3); bottom: -150px; left: 30%; animation-delay: -10s; }
+   167→@keyframes float {
+   168→    0%, 100% { transform: translate(0,0) scale(1); }
+   169→    25% { transform: translate(50px,-50px) scale(1.1); }
+   170→    50% { transform: translate(-30px,30px) scale(0.9); }
+   171→    75% { transform: translate(-50px,-30px) scale(1.05); }
+   172→}
+   173→
+   174→.container { display: flex; flex-direction: column; align-items: center; padding: 20px; min-height: 100vh; }
+   175→.header { text-align: center; margin-bottom: 15px; }
+   176→.title { font-size: 28px; color: var(--text); text-shadow: 0 2px 20px rgba(255,107,157,0.5); }
+   177→.subtitle { font-size: 13px; color: var(--accent); margin-top: 5px; }
+   178→
+   179→.glass-card {
+   180→    background: var(--glass-bg); backdrop-filter: blur(20px);
+   181→    border: 1px solid var(--glass-border); border-radius: 16px;
+   182→    box-shadow: 0 8px 32px rgba(0,0,0,0.3);
+   183→}
+   184→
+   185→/* 控制栏 */
+   186→.control-bar { width: 100%; max-width: 900px; padding: 15px 20px; margin-bottom: 15px; }
+   187→.input-row { display: flex; gap: 8px; align-items: center; }
+   188→.url-input {
+   189→    flex: 1; padding: 10px 14px; font-size: 13px;
+   190→    background: var(--input-bg); border: 1px solid var(--input-border);
+   191→    border-radius: 10px; color: var(--text); outline: none;
+   192→}
+   193→.url-input:focus { border-color: var(--accent); box-shadow: 0 0 15px rgba(255,107,157,0.3); }
+   194→.url-input::placeholder { color: var(--text-dim2); }
+   195→
+   196→.paste-btn {
+   197→    width: 40px; height: 40px; font-size: 18px;
+   198→    background: var(--btn-secondary);
+   199→    border: none; border-radius: 10px; cursor: pointer; color: var(--text);
+   200→}
+   201→.paste-btn:hover { transform: scale(1.05); }
+   202→
+   203→.lang-select {
+   204→    padding: 10px; font-size: 13px; background: var(--input-bg);
+   205→    border: 1px solid var(--input-border); border-radius: 10px;
+   206→    color: var(--text); outline: none; cursor: pointer;
+   207→}
+   208→.lang-select option { background: var(--select-bg); color: var(--text); }
+   209→.video-select { flex: 1; min-width: 200px; }
+   210→
+   211→.label { font-size: 12px; color: var(--accent); font-weight: bold; margin-right: 8px; white-space: nowrap; }
+   212→
+   213→.progress-row { display: flex; align-items: center; gap: 10px; margin-top: 10px; }
+   214→.progress-bar { flex: 1; height: 8px; background: var(--input-bg); border-radius: 8px; overflow: hidden; }
+   215→.progress-fill { height: 100%; width: 0%; background: linear-gradient(90deg, var(--accent), var(--accent2), var(--accent3)); border-radius: 8px; transition: width 0.3s; }
+   216→.status-text { font-size: 12px; color: var(--text-dim); white-space: nowrap; }
+   217→
+   218→.video-list-row { display: flex; align-items: center; margin-top: 10px; gap: 8px; }
+   219→
+   220→/* 按钮 */
+   221→.btn {
+   222→    padding: 10px 20px; font-size: 14px; font-weight: bold; color: #fff;
+   223→    border: none; border-radius: 10px; cursor: pointer; transition: all 0.3s;
+   224→}
+   225→.btn-primary { background: var(--btn-primary); }
+   226→.btn-primary:hover { transform: translateY(-2px); box-shadow: 0 4px 20px rgba(255,51,102,0.5); }
+   227→.btn-small { padding: 8px 14px; font-size: 13px; background: var(--btn-secondary); border-radius: 8px; }
+   228→.btn-small:hover { transform: translateY(-1px); }
+   229→.btn:disabled { opacity: 0.5; cursor: not-allowed; }
+   230→
+   231→/* 播放区 */
+   232→.player-area { width: 100%; max-width: 900px; padding: 15px; }
+   233→video { width: 100%; border-radius: 10px; background: #000; max-height: 450px; }
+   234→
+   235→/* 模式切换 */
+   236→.mode-bar { display: flex; gap: 8px; margin: 12px 0; }
+   237→.mode-btn {
+   238→    flex: 1; padding: 10px; font-size: 13px; color: var(--text); text-align: center;
+   239→    background: rgba(255,255,255,0.05); border: 1px solid var(--glass-border);
+   240→    border-radius: 10px; cursor: pointer; transition: all 0.3s;
+   241→}
+   242→.mode-btn:hover { background: rgba(255,255,255,0.1); }
+   243→.mode-btn.active { background: linear-gradient(135deg, rgba(255,107,157,0.3), rgba(138,43,226,0.3)); border-color: var(--accent); }
+   244→
+   245→/* 字幕区 */
+   246→.subtitle-area {
+   247→    min-height: 80px; padding: 15px; background: var(--sub-bg);
+   248→    border-radius: 12px; text-align: center;
+   249→}
+   250→.subtitle-text { font-size: var(--sub-font); color: var(--text); line-height: 2; }
+   251→.subtitle-text .word {
+   252→    cursor: pointer; padding: 2px 1px; border-radius: 4px; transition: background 0.2s;
+   253→    display: inline-block;
+   254→}
+   255→.subtitle-text .word:hover { background: var(--sub-hover); }
+   256→
+   257→/* 字幕滚动列表 */
+   258→.subtitle-list {
+   259→    max-height: 200px; overflow-y: auto; margin-top: 10px; padding: 8px;
+   260→    background: var(--sub-bg); border-radius: 10px;
+   261→}
+   262→.sub-list-item {
+   263→    display: flex; gap: 10px; padding: 6px 10px; border-radius: 6px;
+   264→    cursor: pointer; transition: background 0.2s; font-size: 13px;
+   265→}
+   266→.sub-list-item:hover { background: rgba(255,255,255,0.08); }
+   267→.sub-list-item.active { background: var(--sub-active-bg); border-left: 3px solid var(--sub-active-border); }
+   268→.sub-time { color: var(--text-dim2); white-space: nowrap; min-width: 40px; }
+   269→.sub-content { color: var(--text-dim); }
+   270→.sub-list-item.active .sub-content { color: var(--text); }
+   271→
+   272→/* 听写区 */
+   273→.dictation-area { padding: 15px; background: var(--sub-bg); border-radius: 12px; }
+   274→.dictation-sentence { display: flex; flex-wrap: wrap; gap: 6px; justify-content: center; margin-bottom: 12px; }
+   275→.dictation-sentence input {
+   276→    width: 80px; padding: 8px 10px; font-size: var(--dict-input-font); text-align: center;
+   277→    background: rgba(255,255,255,0.08); border: 1px solid var(--glass-border);
+   278→    border-radius: 6px; color: var(--text); outline: none;
+   279→}
+   280→.dictation-sentence input:focus { border-color: var(--accent3); box-shadow: 0 0 10px rgba(0,200,255,0.3); }
+   281→.dictation-sentence input.correct { border-color: #4ade80; background: rgba(74,222,128,0.15); }
+   282→.dictation-sentence input.wrong { border-color: #f87171; background: rgba(248,113,113,0.15); }
+   283→.dictation-sentence .answer-hint { font-size: 11px; color: #f87171; text-align: center; margin-top: 2px; }
+   284→.dict-word-group { display: flex; flex-direction: column; align-items: center; }
+   285→.dict-word-group .word-clickable {
+   286→    font-size: 11px; color: var(--text-dim2); cursor: pointer; margin-top: 2px;
+   287→}
+   288→.dict-word-group .word-clickable:hover { color: var(--accent); }
+   289→.dictation-controls { display: flex; gap: 8px; justify-content: center; }
+   290→
+   291→/* 音形义例句内联面板 - 精美卡片式 */
+   292→.word-inline-panel {
+   293→    margin-top: 14px; padding: 0; text-align: left;
+   294→    background: var(--word-panel-bg);
+   295→    border: 1px solid rgba(255,107,157,0.35); border-radius: 16px;
+   296→    animation: fadeIn 0.3s ease-out;
+   297→    box-shadow: 0 6px 30px rgba(0,0,0,0.4), inset 0 1px 0 rgba(255,255,255,0.06);
+   298→    overflow: hidden;
+   299→}
+   300→@keyframes fadeIn { from { opacity: 0; transform: translateY(-8px); } to { opacity: 1; transform: translateY(0); } }
+   301→
+   302→.word-card {
+   303→    display: flex; align-items: center; gap: 16px; padding: 18px 22px;
+   304→    background: var(--word-card-bg);
+   305→    border-bottom: 1px solid rgba(255,255,255,0.06);
+   306→}
+   307→.word-card-left { display: flex; flex-direction: column; gap: 4px; min-width: 120px; }
+   308→.word-card-word { font-size: var(--word-font); font-weight: 800; color: var(--accent); letter-spacing: 0.5px; }
+   309→.word-card-phonetic { font-size: var(--def-font); color: var(--text-dim); font-style: italic; }
+   310→.word-card-speak {
+   311→    margin-top: 6px; padding: 6px 14px; font-size: 13px; color: #fff; width: fit-content;
+   312→    background: linear-gradient(135deg, rgba(6,182,212,0.4), rgba(138,43,226,0.4));
+   313→    border: 1px solid rgba(6,182,212,0.3); border-radius: 20px; cursor: pointer;
+   314→    transition: all 0.2s;
+   315→}
+   316→.word-card-speak:hover { transform: scale(1.05); box-shadow: 0 2px 12px rgba(6,182,212,0.4); }
+   317→.word-card-right { flex: 1; }
+   318→.word-card-trans { font-size: var(--trans-font); color: var(--text); line-height: 1.7; font-weight: 500; }
+   319→
+   320→.word-card-sections { padding: 14px 22px 16px; display: flex; gap: 16px; }
+   321→.word-card-section { flex: 1; }
+   322→.word-card-section-title {
+   323→    font-size: 13px; font-weight: bold; color: var(--text-dim2);
+   324→    letter-spacing: 1px; margin-bottom: 8px;
+   325→    padding-bottom: 6px; border-bottom: 1px solid rgba(255,255,255,0.06);
+   326→}
+   327→.word-card-section-body { font-size: var(--def-font); line-height: 1.9; }
+   328→.word-card-section-body .def-item {
+   329→    margin-bottom: 6px; padding: 6px 10px; color: var(--text);
+   330→    background: rgba(255,255,255,0.04); border-radius: 8px;
+   331→    border-left: 3px solid rgba(138,43,226,0.5);
+   332→}
+   333→.word-card-section-body .pos { color: var(--accent2); font-weight: bold; margin-right: 6px; }
+   334→.word-card-section-body .example {
+   335→    margin-bottom: 6px; padding: 6px 10px; color: var(--text-dim);
+   336→    background: rgba(255,107,157,0.04); border-radius: 8px;
+   337→    border-left: 3px solid rgba(255,107,157,0.4);
+   338→}
+   339→
+   340→/* 语音识别状态 */
+   341→.recognition-status { font-size: 11px; color: var(--accent3); margin-top: 6px; }
+   342→
+   343→/* 单词弹窗 */
+   344→.word-popup {
+   345→    position: fixed; z-index: 2000; width: 340px; max-height: 400px; overflow-y: auto;
+   346→    background: var(--popup-bg); backdrop-filter: blur(20px);
+   347→    border: 1px solid var(--input-border); border-radius: 14px;
+   348→    box-shadow: 0 10px 40px rgba(0,0,0,0.6); padding: 15px;
+   349→}
+   350→.popup-header { display: flex; align-items: center; gap: 8px; margin-bottom: 10px; }
+   351→.popup-word { font-size: 20px; font-weight: bold; color: var(--accent); }
+   352→.popup-phonetic { font-size: 13px; color: var(--text-dim); }
+   353→.popup-speak {
+   354→    font-size: 18px; background: none; border: none; cursor: pointer; padding: 2px;
+   355→}
+   356→.popup-speak:hover { transform: scale(1.2); }
+   357→.popup-close {
+   358→    margin-left: auto; width: 24px; height: 24px; font-size: 14px;
+   359→    background: rgba(255,255,255,0.1); border: none; border-radius: 50%;
+   360→    color: var(--text); cursor: pointer;
+   361→}
+   362→.popup-close:hover { background: rgba(255,107,157,0.4); }
+   363→.popup-translation { font-size: 14px; color: var(--text); line-height: 1.6; margin-bottom: 10px; }
+   364→.popup-examples { font-size: 12px; color: var(--text-dim); line-height: 1.8; }
+   365→.popup-examples .example { margin-bottom: 6px; padding-left: 10px; border-left: 2px solid rgba(255,107,157,0.3); }
+   366→.popup-examples .def-item { margin-bottom: 4px; }
+   367→.popup-examples .pos { color: var(--accent2); font-style: italic; margin-right: 4px; }
+   368→
+   369→/* AI按钮 */
+   370→.btn-ai {
+   371→    padding: 6px 14px; font-size: 12px; color: #fff; margin-top: 10px;
+   372→    background: linear-gradient(135deg, var(--accent3), var(--accent2)); border: none;
+   373→    border-radius: 8px; cursor: pointer; transition: all 0.3s;
+   374→}
+   375→.btn-ai:hover { transform: translateY(-1px); box-shadow: 0 4px 15px rgba(6,182,212,0.4); }
+   376→.btn-ai-small { margin-top: 8px; display: block; width: 100%; text-align: center; }
+   377→
+   378→/* AI结果区 */
+   379→.ai-result, .popup-ai-result {
+   380→    margin-top: 10px; padding: 12px; font-size: 13px; color: var(--text);
+   381→    background: var(--ai-bg); border: 1px solid var(--ai-border);
+   382→    border-radius: 10px; line-height: 1.8; white-space: pre-wrap;
+   383→}
+   384→
+   385→/* 弹窗(modal) */
+   386→.modal {
+   387→    display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+   388→    background: rgba(0,0,0,0.7); backdrop-filter: blur(5px);
+   389→    z-index: 3000; align-items: center; justify-content: center;
+   390→}
+   391→.modal.show { display: flex; }
+   392→.modal-content { width: 90%; max-width: 450px; padding: 20px; }
+   393→.modal-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px; }
+   394→.modal-header h2 { font-size: 18px; color: var(--accent); }
+   395→.modal-body { color: var(--text); }
+   396→.form-group { margin-bottom: 12px; }
+   397→.form-group .label { display: block; margin-bottom: 6px; }
+   398→
+   399→::-webkit-scrollbar { width: 6px; }
+   400→::-webkit-scrollbar-track { background: rgba(255,255,255,0.05); border-radius: 6px; }
+   401→::-webkit-scrollbar-thumb { background: var(--scrollbar-thumb); border-radius: 6px; }
+   402→

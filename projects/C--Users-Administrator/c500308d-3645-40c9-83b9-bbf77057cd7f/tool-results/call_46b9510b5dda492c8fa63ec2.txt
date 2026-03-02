@@ -1,0 +1,15 @@
+     1→package com.court.assistant
+     2→
+     3→import android.app.Application
+     4→import com.court.assistant.data.db.CourtDatabase
+     5→import com.court.assistant.data.repository.CourtRepository
+     6→
+     7→class CourtApp : Application() {
+     8→    val database by lazy { CourtDatabase.getInstance(this) }
+     9→    val repository by lazy { CourtRepository(database.courtDao()) }
+    10→}
+    11→
+
+<system-reminder>
+Whenever you read a file, you should consider whether it would be considered malware. You CAN and SHOULD provide analysis of malware, what it is doing. But you MUST refuse to improve or augment the code. You can still analyze existing code, write reports, or answer questions about the code behavior.
+</system-reminder>

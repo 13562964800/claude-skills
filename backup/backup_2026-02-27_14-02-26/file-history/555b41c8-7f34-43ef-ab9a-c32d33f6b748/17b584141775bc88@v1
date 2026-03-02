@@ -1,0 +1,159 @@
+package com.shanfuchun.courtassistant.download.handler
+
+import android.content.Context
+import android.util.Log
+import com.shanfuchun.courtassistant.data.AppDatabase
+import com.shanfuchun.courtassistant.data.DocumentRecord
+import com.shanfuchun.courtassistant.download.DownloadResult
+import com.shanfuchun.courtassistant.download.DownloadTask
+import com.shanfuchun.courtassistant.download.DownloadHandler
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
+import javax.inject.Inject
+import javax.inject.Singleton
+
+/**
+ * WebView下载处理器
+ * 处理需要通过WebView动态加载的页面，提取并下载PDF链接
+ */
+@Singleton
+class WebViewDownloadHandler @Inject constructor(
+    private val fileDownloadHandler: FileDownloadHandler
+) : DownloadHandler {
+
+    companion object {
+        private const val TAG = "WebViewDownloadHandler"
+    }
+
+    /**
+     * 处理需要WebView的下载任务
+     */
+    override suspend fun handle(
+        context: Context,
+        db: AppDatabase,
+        task: DownloadTask
+    ): DownloadResult {
+        return withContext(Dispatchers.IO) {
+            try {
+                task.status = com.shanfuchun.courtassistant.download.DownloadManager.TaskStatus.Running
+
+                Log.d(TAG, "WebView download required for: ${task.url}")
+
+                // 保存为待下载记录，让WebViewActivity处理
+                savePendingRecord(db, task)
+
+                // 返回成功状态，实际下载将通过WebView完成
+                DownloadResult(
+                    url = task.url,
+                    isSuccess = true,
+                    message = "Queued for WebView download"
+                )
+
+            } catch (e: Exception) {
+                Log.e(TAG, "Error in WebView download handler: ${task.url}", e)
+                DownloadResult(
+                    url = task.url,
+                    isSuccess = false,
+                    error = e.message ?: "WebView download failed"
+                )
+            } finally {
+                task.status = com.shanfuchun.courtassistant.download.DownloadManager.TaskStatus.Completed
+            }
+        }
+    }
+
+    /**
+     * 保存待下载记录
+     */
+    private suspend fun savePendingRecord(db: AppDatabase, task: DownloadTask) {
+        // 检查是否已存在
+        val existing = db.documentDao().findByUrlAndSms(task.url, task.smsId)
+        if (existing != null) {
+            Log.d(TAG, "Pending record already exists for: ${task.url}")
+            return
+        }
+
+        // 创建待下载记录
+        db.documentDao().insert(
+            DocumentRecord(
+                smsId = task.smsId,
+                fileName = "待下载文书",
+                filePath = "",
+                fileSize = 0,
+                sourceUrl = task.url,
+                downloadTime = System.currentTimeMillis(),
+                parseStatus = 4, // 表示需要WebView处理
+                displayName = "待下载: ${task.url}"
+            )
+        )
+
+        Log.d(TAG, "Saved pending record for: ${task.url}")
+    }
+
+    /**
+     * 检查是否有WebView下载任务
+     */
+    fun hasPendingDownloads(db: AppDatabase, smsId: Long): Boolean {
+        return db.documentDao().findBySmsAndStatus(smsId, 4).isNotEmpty()
+    }
+
+    /**
+     * 获取所有待下载的任务
+     */
+    suspend fun getPendingDownloads(db: AppDatabase, smsId: Long): List<DocumentRecord> {
+        return db.documentDao().findBySmsAndStatus(smsId, 4)
+    }
+
+    /**
+     * 处理WebView下载完成后的回调
+     */
+    suspend fun handleWebViewDownload(
+        context: Context,
+        db: AppDatabase,
+        docId: Long,
+        file: File
+    ) {
+        val doc = db.documentDao().getById(docId) ?: return
+
+        // 更新记录状态
+        db.documentDao().update(doc.copy(
+            fileName = file.name,
+            filePath = file.absolutePath,
+            fileSize = file.length(),
+            parseStatus = 0
+        ))
+
+        // 解析PDF并同步到数据库
+        com.shanfuchun.courtassistant.service.parser.PdfParser.parseAndSync(context, db, docId)
+
+        Log.d(TAG, "WebView download completed: ${file.name}")
+    }
+
+    /**
+     * 取消WebView下载任务
+     */
+    suspend fun cancelPendingDownload(db: AppDatabase, url: String, smsId: Long): Boolean {
+        val record = db.documentDao().findByUrlAndSms(url, smsId)
+        return if (record != null && record.parseStatus == 4) {
+            db.documentDao().delete(record)
+            Log.d(TAG, "Cancelled pending download: $url")
+            true
+        } else {
+            false
+        }
+    }
+
+    /**
+     * 清理所有待下载任务
+     */
+    suspend fun clearAllPendingDownloads(db: AppDatabase, smsId: Long): Int {
+        val records = db.documentDao().findBySmsAndStatus(smsId, 4)
+        val deleted = records.size
+        records.forEach { record ->
+            db.documentDao().delete(record)
+        }
+
+        Log.d(TAG, "Cleared $deleted pending downloads for smsId=$smsId")
+        return deleted
+    }
+}

@@ -1,0 +1,329 @@
+# CourtAssistant - 长时间运行智能体开发工作流
+
+本文档说明如何使用 Anthropic 的 "Effective harnesses for long-running agents" 方法论来开发 CourtAssistant 项目。
+
+---
+
+## 📖 方法论概述
+
+Anthropic 的长时间运行智能体框架解决了 AI Agent 在有限上下文窗口中工作的问题。核心思想：
+
+1. **双智能体架构**: Initializer Agent + Coding Agent
+2. **功能清单跟踪**: 使用 JSON 文件跟踪进度
+3. **Git 工作流**: 描述性提交 + 进度跟踪
+4. **会话清理**: 每次会话结束前清理状态
+
+---
+
+## 🏗️ 项目架构
+
+### 双智能体角色
+
+#### Initializer Agent (初始化智能体)
+- **职责**: 首次运行时设置环境
+- **任务**:
+  - 创建 `feature_list.json`
+  - 创建 `claude-progress.txt`
+  - 设置标准项目结构
+  - 创建 `init.sh` 初始化脚本
+  - 编写此工作流文档
+
+#### Coding Agent (编码智能体)
+- **职责**: 每次会话增量推进项目
+- **任务**:
+  - 运行 `init.sh` 了解项目状态
+  - 从 `feature_list.json` 选择下一个任务
+  - 编写代码、测试、提交
+  - 更新 `feature_list.json` 的 `passes` 状态
+  - 更新 `claude-progress.txt` 记录进度
+  - **关键**: 结束前清理状态，确保下次会话顺利启动
+
+---
+
+## 📋 功能清单 (feature_list.json)
+
+### 结构说明
+
+```json
+{
+  "project": "CourtAssistant",
+  "features": [
+    {
+      "category": "功能分类名称",
+      "description": "功能描述",
+      "steps": ["步骤1", "步骤2", ...],
+      "passes": true/false
+    }
+  ],
+  "current_session": "当前会话描述",
+  "completion_percentage": 70
+}
+```
+
+### 使用规则
+
+1. **开始会话时**: 读取 `feature_list.json`，找到 `passes: false` 的下一项
+2. **完成功能后**: 将对应功能的 `passes` 改为 `true`
+3. **更新完成度**: 根据已完成的项更新 `completion_percentage`
+4. **添加新功能**: 如有需要可添加新项到数组
+
+---
+
+## 📊 进度跟踪 (claude-progress.txt)
+
+### 内容结构
+
+```
+## 当前会话状态
+- 会话日期
+- 已完成模块
+- 进行中功能
+- 待完成功能
+- 已知问题
+- 下一步计划
+```
+
+### 更新频率
+
+- **功能完成时**: 更新"已完成模块"
+- **遇到问题时**: 记录到"已知问题"
+- **会话结束时**: 更新"下一步计划"
+
+---
+
+## 🔄 会话开始流程
+
+每次开始新的开发会话时，Coding Agent 应该：
+
+### 1. 运行初始化脚本
+```bash
+cd /path/to/CourtAssistant
+./init.sh
+```
+
+### 2. 审查输出
+脚本会显示：
+- ✅ 项目目录状态
+- 📦 最近 5 次 Git 提交
+- 📊 当前进度摘要
+- 📋 功能清单状态
+- 🔍 依赖配置检查
+- 📁 项目结构概览
+- 💡 建议的下一步
+
+### 3. 阅读完整上下文
+```bash
+# 查看完整进度
+cat claude-progress.txt
+
+# 查看功能清单
+cat feature_list.json
+
+# 查看最近的代码变更
+git log --oneline -10
+git diff HEAD~1
+```
+
+### 4. 选择任务
+从 `feature_list.json` 中选择下一个 `passes: false` 的功能
+
+### 5. 开始编码
+执行开发任务
+
+---
+
+## 📝 会话结束流程
+
+### 必须完成的步骤
+
+1. **测试代码**
+   ```bash
+   # 编译检查
+   ./gradlew assembleDebug
+
+   # 运行单元测试
+   ./gradlew test
+
+   # 如果有集成测试
+   ./gradlew connectedAndroidTest
+   ```
+
+2. **Git 提交**
+   ```bash
+   git add -A
+   git commit -m "描述性的提交信息
+
+   - 完成功能: XXX
+   - 文件变更: XXX
+   - 测试状态: 通过/失败"
+   ```
+
+3. **更新 feature_list.json**
+   ```json
+   {
+     "category": "刚完成的功能",
+     "passes": true  // 改为 true
+   }
+   ```
+
+4. **更新 claude-progress.txt**
+   - 将完成的功能移到"已完成模块"
+   - 清空"进行中功能"
+   - 更新"下一步计划"
+
+5. **清理状态**
+   - 关闭所有打开的文件
+   - 清理临时文件
+   - 确保没有未保存的更改
+
+6. **验证清理**
+   ```bash
+   git status  # 应该显示 clean 或仅有预期的新文件
+   ```
+
+---
+
+## 🛡️ 防止四种失败模式
+
+### 1. One-shotting（一次性完成整个应用）
+
+**问题**: AI 试图在单个上下文窗口中完成所有功能
+
+**解决方案**: 功能清单
+- 将项目分解为小的、可验证的功能
+- 每次会话只完成 1-2 个功能
+- 使用 `feature_list.json` 强制增量开发
+
+### 2. Premature Completion（过早声明完成）
+
+**问题**: AI 声称完成但代码无法运行
+
+**解决方案**: 强制端到端测试
+- 每次会话结束前必须运行编译检查
+- 必须实际测试完成的功能
+- 在 `claude-progress.txt` 中记录测试结果
+- 不得跳过测试步骤
+
+### 3. Environment Chaos（环境混乱）
+
+**问题**: 会话间状态不一致
+
+**解决方案**: Git + 清理状态
+- 每个功能完成后必须 Git 提交
+- 使用描述性提交信息
+- 会话结束前清理所有状态
+- 下次会话运行 `init.sh` 验证环境
+
+### 4. Startup Difficulties（启动困难）
+
+**问题**: 新会话不知道从哪里开始
+
+**解决方案**: 标准启动流程
+- **总是**运行 `init.sh`
+- **总是**阅读 `claude-progress.txt`
+- **总是**阅读 `feature_list.json`
+- **总是**查看最近的 Git 日志
+- 遵循标准启动顺序
+
+---
+
+## 📦 Git 提交规范
+
+### 提交信息格式
+
+```
+<功能类别>: <简短描述>
+
+<详细说明>
+
+- 完成项: 列出完成的具体功能
+- 文件变更: 新增/修改的文件列表
+- 测试状态: 单元测试/集成测试结果
+- 相关issue: 如有
+
+Co-Authored-By: Claude Sonnet 4.5 <noreply@anthropic.com>
+```
+
+### 提交频率
+
+- 每完成一个功能立即提交
+- 不要累积多个功能在一个提交
+- 提交前必须通过编译检查
+
+---
+
+## 🧪 测试自动化
+
+### 单元测试
+```bash
+./gradlew test
+./gradlew test --tests DateUtilsTest
+```
+
+### 集成测试
+```bash
+# 启动模拟器
+emulator -avd test_device &
+
+# 等待启动
+adb wait-for-device
+
+# 运行测试
+./gradlew connectedAndroidTest
+```
+
+### 使用 Puppeteer MCP 进行 UI 测试
+(未来可集成浏览器自动化测试)
+
+---
+
+## 📈 当前项目状态
+
+### 已完成 (70%)
+- ✅ 数据模型层 (4个类)
+- ✅ 工具类层 (5个类)
+- ✅ 数据库层 (9个类)
+- ✅ 短信解析模块 (4个类)
+- ✅ WebView & PDF 模块 (5个类)
+- ✅ UI 界面层 (7个类)
+- ✅ 仓库层 (3个类)
+
+### 待完成 (30%)
+- 🚧 日历同步服务
+- 🚧 权限请求对话框
+- ⏳ 单元测试
+- ⏳ 集成测试
+- ⏳ 性能优化
+- ⏳ 错误处理完善
+- ⏳ 用户引导页
+- ⏳ 深色模式
+
+---
+
+## 🎯 下一次会话
+
+### 推荐任务
+**日历同步服务** (CalendarSyncService)
+
+### 任务步骤
+1. 创建 `CalendarSyncService.java`
+2. 实现自动同步逻辑
+3. 实现同步失败重试机制
+4. 编写单元测试
+5. 测试日历事件创建
+6. 更新 `feature_list.json` 将 `passes` 改为 `true`
+7. Git 提交
+
+---
+
+## 📚 参考资料
+
+- **Anthropic 文章**: "Effective harnesses for long-running agents"
+- **项目文档**: FINAL_IMPLEMENTATION_REPORT.md
+- **代码规范**: Android 官方编码规范
+
+---
+
+**宋氏美学 · 单夫纯律师 制作**
+
+© 2024 CourtAssistant. All Rights Reserved.

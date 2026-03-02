@@ -1,0 +1,120 @@
+import { useState, useEffect, useRef, useMemo } from 'react';
+import { DATA, CAT_NAMES, DUR_NAMES } from './data';
+import './App.css';
+
+const CATS = [
+  { key:'all', label:'全部' }, { key:'civil', label:'民事实体' },
+  { key:'procedure', label:'诉讼程序' }, { key:'criminal', label:'刑事诉讼' },
+  { key:'admin', label:'行政法' }, { key:'labor', label:'劳动法' },
+  { key:'commercial', label:'商法' }, { key:'economic', label:'经济法' },
+  { key:'warning', label:'⚠ 高风险', warn:true },
+];
+const DURS = [
+  { key:'all', label:'全部' }, { key:'short', label:'≤15日' },
+  { key:'medium', label:'1-6个月' }, { key:'long', label:'1-3年' },
+  { key:'vlong', label:'3年以上' },
+];
+
+function truncate(s, n) { return s.length > n ? s.slice(0, n) + '...' : s; }
+
+function escapeRe(s) {
+  return s.replace(/[.*+?^${}()|[\]\]/g, "\x24&");
+}()|[]\]/g, '\$&');
+}
+
+function Highlight({ text, q }) {
+  if (!q) return text;
+  const re = new RegExp('(' + escapeRe(q) + ')', 'gi');
+  const parts = text.split(re);
+  return parts.map((p, i) => re.test(p) ? <mark key={i}>{p}</mark> : p);
+}
+
+function Card({ d, q }) {
+  const [open, setOpen] = useState(false);
+  return (
+    <div className={`card cat-${d.cat}${d.warn ? ' warn-card' : ''}`} onClick={() => setOpen(!open)}>
+      {d.warn && <div className="warn-badge">⚠ 高风险</div>}
+      <div className="cat-tag">{CAT_NAMES[d.cat]}</div>
+      <div className="title"><Highlight text={d.name} q={q} /></div>
+      <div className="duration"><Highlight text={d.time} q={q} /></div>
+      <div className="desc"><Highlight text={open ? d.desc : truncate(d.desc, 80)} q={q} /></div>
+      {open && (
+        <div className="detail">
+          <div className="desc" style={{marginBottom:10}}><Highlight text={d.desc} q={q} /></div>
+          <div className="risk"><Highlight text={d.risk} q={q} /></div>
+          <div className="law-ref">📖 <Highlight text={d.law} q={q} /></div>
+        </div>
+      )}
+      <div className="expand-hint">点击展开/收起详情 ▾</div>
+    </div>
+  );
+}
+
+export default function App() {
+  const [cat, setCat] = useState('all');
+  const [dur, setDur] = useState('all');
+  const [search, setSearch] = useState('');
+  const [showTop, setShowTop] = useState(false);
+  const inputRef = useRef();
+
+  useEffect(() => {
+    const onScroll = () => setShowTop(window.scrollY > 300);
+    const onKey = (e) => {
+      if (e.key === '/' && document.activeElement !== inputRef.current) {
+        e.preventDefault();
+        inputRef.current.focus();
+      }
+    };
+    window.addEventListener('scroll', onScroll);
+    document.addEventListener('keydown', onKey);
+    return () => { window.removeEventListener('scroll', onScroll); document.removeEventListener('keydown', onKey); };
+  }, []);
+
+  const filtered = useMemo(() => {
+    const s = search.toLowerCase();
+    return DATA.filter(d => {
+      if (cat === 'warning') { if (!d.warn) return false; }
+      else if (cat !== 'all' && d.cat !== cat) return false;
+      if (dur !== 'all' && d.dur !== dur) return false;
+      if (s && !(d.name + d.time + d.desc + d.risk + d.law).toLowerCase().includes(s)) return false;
+      return true;
+    });
+  }, [cat, dur, search]);
+
+  const warnCount = filtered.filter(d => d.warn).length;
+  const catCount = new Set(filtered.map(d => d.cat)).size;
+
+  return (
+    <div className="app">
+      <div className="header">
+        <h1>⚡ 法律期限速查系统</h1>
+        <p>涵盖民法 · 民事诉讼 · 刑事诉讼 · 行政法 · 劳动法 · 商法 · 经济法 关键期限 | 点击卡片查看详情</p>
+      </div>
+      <div className="search-area">
+        <input ref={inputRef} className="search-input" placeholder="输入关键词搜索：如 撤销、工伤、仲裁、15日、3年..." value={search} onChange={e => setSearch(e.target.value.trim())} />
+      </div>
+      <div className="filters">
+        {CATS.map(c => (
+          <button key={c.key} className={`fbtn${c.warn ? ' warn-btn' : ''}${cat === c.key ? ' active' : ''}`} onClick={() => setCat(c.key)}>{c.label}</button>
+        ))}
+      </div>
+      <div className="duration-filters">
+        <span style={{color:'#64748b',fontSize:'.85em',lineHeight:2}}>按期限长度：</span>
+        {DURS.map(d => (
+          <button key={d.key} className={`dbtn${dur === d.key ? ' active' : ''}`} onClick={() => setDur(d.key)}>{d.label}</button>
+        ))}
+      </div>
+      <div className="stats">
+        <div className="stat-card"><div className="num">{filtered.length}</div><div className="label">匹配条目</div></div>
+        <div className="stat-card warn"><div className="num">{warnCount}</div><div className="label">高风险项</div></div>
+        <div className="stat-card"><div className="num">{catCount}</div><div className="label">涉及门类</div></div>
+      </div>
+      {filtered.length ? (
+        <div className="cards">{filtered.map((d, i) => <Card key={i} d={d} q={search} />)}</div>
+      ) : (
+        <div className="no-result">😔 没有找到匹配的期限条目，试试其他关键词？</div>
+      )}
+      {showTop && <button id="backTop" onClick={() => window.scrollTo({top:0,behavior:'smooth'})}>↑</button>}
+    </div>
+  );
+}

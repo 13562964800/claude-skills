@@ -1,0 +1,36 @@
+[Setup]
+AppName=配音文字核对宝完整版
+AppVersion=1.0.1
+AppPublisher=配音文字核对宝
+AppCopyright=Copyright (C) 2025
+DefaultDirName={pf}\配音文字核对宝完整版
+DefaultGroupName=配音文字核对宝完整版
+OutputDir=setup_output_onedir
+OutputBaseFilename=配音文字核对宝完整版_Setup_v1.0.1
+Compression=lzma2
+SolidCompression=yes
+WizardStyle=modern
+; 请求管理员权限（用于安装到 Program Files）
+PrivilegesRequired=admin
+; 创建卸载程序
+Uninstallable=yes
+UninstallFilesDir={app}\uninstall
+
+[Files]
+; 打包整个 dist 文件夹内容
+Source: "dist\配音文字核对宝完整版\*"; DestDir: "{app}"; Flags: ignoreversion recursesubdirs
+
+[Icons]
+; 开始菜单快捷方式
+Name: "{group}\配音文字核对宝完整版"; Filename: "{app}\配音文字核对宝完整版.exe"
+Name: "{group}\卸载配音文字核对宝完整版"; Filename: "{uninstallexe}"
+; 桌面快捷方式
+Name: "{commondesktop}\配音文字核对宝完整版"; Filename: "{app}\配音文字核对宝完整版.exe"
+
+[Run]
+; 安装完成后可选运行
+Filename: "{app}\配音文字核对宝完整版.exe"; Description: "启动配音文字核对宝完整版"; Flags: postinstall nowait skipifsilent
+
+[UninstallDelete]
+; 卸载时删除所有文件
+Type: filesandordirs; Name: "{app}"

@@ -1,0 +1,341 @@
+package com.courassistant.java.service;
+
+import android.app.AlarmManager;
+import android.app.PendingIntent;
+import android.app.Service;
+import android.content.Context;
+import android.content.Intent;
+import android.os.IBinder;
+import android.os.SystemClock;
+import android.util.Log;
+
+import androidx.annotation.Nullable;
+
+import com.courassistant.java.database.CourtDatabase;
+import com.courassistant.java.database.CourtDocumentDao;
+import com.courassistant.java.database.CourtDocumentEntity;
+import com.courassistant.java.model.CourtCase;
+import com.courassistant.java.repository.CaseRepository;
+import com.courassistant.java.repository.DocumentRepository;
+import com.courassistant.java.utils.CalendarUtils;
+import com.courassistant.java.utils.DateUtils;
+
+import java.util.ArrayList;
+import java.util.List;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+
+/**
+ * 日历同步服务
+ * 自动将开庭信息同步到系统日历
+ * 支持定时同步和手动触发
+ *
+ * 宋氏美学，单夫纯律师 制作
+ */
+public class CalendarSyncService extends Service {
+
+    private static final String TAG = "CalendarSyncService";
+    private static final String ACTION_SYNC = "com.courassistant.SYNC";
+    private static final long SYNC_INTERVAL = AlarmManager.INTERVAL_HOUR; // 每小时同步一次
+    private static final int MAX_RETRY_COUNT = 3; // 最大重试次数
+
+    private ExecutorService executor;
+    private CaseRepository caseRepository;
+    private DocumentRepository documentRepository;
+
+    @Override
+    public void onCreate() {
+        super.onCreate();
+        Log.d(TAG, "日历同步服务启动");
+
+        executor = Executors.newFixedThreadPool(2);
+        caseRepository = CaseRepository.getInstance(this);
+        documentRepository = DocumentRepository.getInstance(this);
+    }
+
+    @Override
+    public int onStartCommand(Intent intent, int flags, int startId) {
+        if (intent != null && ACTION_SYNC.equals(intent.getAction())) {
+            Log.d(TAG, "收到同步请求");
+            performSync();
+        } else {
+            Log.d(TAG, "服务启动，执行自动同步");
+            performSync();
+        }
+
+        // 服务被杀死后自动重启
+        return START_STICKY;
+    }
+
+    /**
+     * 执行同步操作
+     */
+    private void performSync() {
+        executor.execute(() -> {
+            try {
+                Log.d(TAG, "开始同步开庭信息到日历");
+
+                // 1. 获取未同步的传票文档
+                documentRepository.getUnsyncedSummons(new DocumentRepository.OnDocumentsCallback() {
+                    @Override
+                    public void onResult(List<com.courassistant.java.model.CourtDocument> documents) {
+                        if (documents == null || documents.isEmpty()) {
+                            Log.d(TAG, "没有需要同步的文档");
+                            return;
+                        }
+
+                        Log.d(TAG, "找到 " + documents.size() + " 个未同步的传票");
+
+                        // 2. 同步每个传票
+                        for (com.courassistant.java.model.CourtDocument doc : documents) {
+                            syncDocumentToCalendar(doc, 0);
+                        }
+                    }
+
+                    @Override
+                    public void onError(String error) {
+                        Log.e(TAG, "获取未同步文档失败: " + error);
+                    }
+                });
+
+                // 3. 同步案件信息
+                syncCasesToCalendar();
+
+            } catch (Exception e) {
+                Log.e(TAG, "同步过程出错", e);
+            }
+        });
+    }
+
+    /**
+     * 同步单个文档到日历
+     * @param document 文档对象
+     * @param retryCount 当前重试次数
+     */
+    private void syncDocumentToCalendar(com.courassistant.java.model.CourtDocument document, int retryCount) {
+        if (retryCount >= MAX_RETRY_COUNT) {
+            Log.e(TAG, "文档同步失败，已达最大重试次数: " + document.getFileName());
+            return;
+        }
+
+        try {
+            // 从 PDF 解析开庭信息
+            com.courassistant.java.parser.PdfParser parser = new com.courassistant.java.parser.PdfParser();
+            CourtCase caseInfo = parser.parseSummonsPdf(document.getFilePath());
+
+            if (caseInfo == null) {
+                Log.w(TAG, "无法从 PDF 解析案件信息: " + document.getFileName());
+                return;
+            }
+
+            // 检查日历事件是否已存在
+            if (CalendarUtils.isEventExists(getContentResolver(), caseInfo.getCaseNo(), caseInfo.getHearingDate())) {
+                Log.d(TAG, "日历事件已存在，跳过: " + caseInfo.getCaseNo());
+                documentRepository.updateCalendarSynced(document.getId(), true, null);
+                return;
+            }
+
+            // 添加到日历
+            long eventId = CalendarUtils.addCourtEvent(this, caseInfo);
+
+            if (eventId > 0) {
+                Log.d(TAG, "成功添加日历事件: " + caseInfo.getCaseNo() + ", eventId=" + eventId);
+
+                // 更新文档同步状态
+                documentRepository.updateCalendarSynced(document.getId(), true, new DocumentRepository.OnResultCallback() {
+                    @Override
+                    public void onSuccess(Object result) {
+                        // 更新案件的日历事件ID
+                        if (caseInfo.getId() > 0) {
+                            caseRepository.updateCalendarEventId(caseInfo.getId(), eventId, null);
+                        }
+                    }
+
+                    @Override
+                    public void onError(String error) {
+                        Log.e(TAG, "更新文档同步状态失败: " + error);
+                    }
+                });
+
+            } else {
+                Log.w(TAG, "添加日历事件失败，准备重试: " + caseInfo.getCaseNo());
+                // 延迟重试
+                SystemClock.sleep(2000);
+                syncDocumentToCalendar(document, retryCount + 1);
+            }
+
+        } catch (Exception e) {
+            Log.e(TAG, "同步文档到日历出错: " + document.getFileName(), e);
+        }
+    }
+
+    /**
+     * 同步案件信息到日历
+     */
+    private void syncCasesToCalendar() {
+        caseRepository.getAllCases(new CaseRepository.OnCasesCallback() {
+            @Override
+            public void onResult(List<CourtCase> cases) {
+                if (cases == null || cases.isEmpty()) {
+                    Log.d(TAG, "没有需要同步的案件");
+                    return;
+                }
+
+                Log.d(TAG, "开始同步 " + cases.size() + " 个案件到日历");
+
+                int syncedCount = 0;
+                for (CourtCase courtCase : cases) {
+                    // 只同步有开庭时间的案件
+                    if (courtCase.getHearingDate() == null || courtCase.getHearingDate() <= 0) {
+                        continue;
+                    }
+
+                    // 检查是否已同步
+                    if (courtCase.getCalendarEventId() > 0) {
+                        // 验证事件是否还存在
+                        if (CalendarUtils.eventExists(getContentResolver(), courtCase.getCalendarEventId())) {
+                            Log.d(TAG, "案件已同步: " + courtCase.getCaseNo());
+                            continue;
+                        }
+                    }
+
+                    // 检查是否已存在（根据案号和开庭时间）
+                    if (CalendarUtils.isEventExists(getContentResolver(), courtCase.getCaseNo(), courtCase.getHearingDate())) {
+                        Log.d(TAG, "日历事件已存在: " + courtCase.getCaseNo());
+                        continue;
+                    }
+
+                    // 添加到日历
+                    long eventId = CalendarUtils.addCourtEvent(CalendarSyncService.this, courtCase);
+                    if (eventId > 0) {
+                        // 更新案件的日历事件ID
+                        final long finalEventId = eventId;
+                        caseRepository.updateCalendarEventId(courtCase.getId(), eventId, new CaseRepository.OnResultCallback() {
+                            @Override
+                            public void onSuccess(Object result) {
+                                Log.d(TAG, "案件同步成功: " + courtCase.getCaseNo() + ", eventId=" + finalEventId);
+                            }
+
+                            @Override
+                            public void onError(String error) {
+                                Log.e(TAG, "更新案件日历ID失败: " + error);
+                            }
+                        });
+                        syncedCount++;
+                    }
+                }
+
+                Log.d(TAG, "案件同步完成，成功同步 " + syncedCount + " 个案件");
+            }
+
+            @Override
+            public void onError(String error) {
+                Log.e(TAG, "获取案件列表失败: " + error);
+            }
+        });
+    }
+
+    /**
+     * 启动日历同步服务
+     * @param context 上下文
+     */
+    public static void startSync(Context context) {
+        Intent intent = new Intent(context, CalendarSyncService.class);
+        intent.setAction(ACTION_SYNC);
+        context.startService(intent);
+        Log.d(TAG, "日历同步服务已启动");
+    }
+
+    /**
+     * 设置定时同步
+     * @param context 上下文
+     * @param interval 同步间隔（毫秒）
+     */
+    public static void scheduleSync(Context context, long interval) {
+        AlarmManager alarmManager = (AlarmManager) context.getSystemService(Context.ALARM_SERVICE);
+        Intent intent = new Intent(context, CalendarSyncService.class);
+        intent.setAction(ACTION_SYNC);
+
+        PendingIntent pendingIntent = PendingIntent.getService(
+            context,
+            0,
+            intent,
+            PendingIntent.FLAG_UPDATE_CURRENT | PendingIntent.FLAG_IMMUTABLE
+        );
+
+        // 使用 AlarmManager 定时启动服务
+        alarmManager.setInexactRepeating(
+            AlarmManager.ELAPSED_REALTIME_WAKEUP,
+            SystemClock.elapsedRealtime() + interval,
+            interval,
+            pendingIntent
+        );
+
+        Log.d(TAG, "已设置定时同步，间隔: " + interval + "ms");
+    }
+
+    /**
+     * 取消定时同步
+     * @param context 上下文
+     */
+    public static void cancelScheduledSync(Context context) {
+        AlarmManager alarmManager = (AlarmManager) context.getSystemService(Context.ALARM_SERVICE);
+        Intent intent = new Intent(context, CalendarSyncService.class);
+        intent.setAction(ACTION_SYNC);
+
+        PendingIntent pendingIntent = PendingIntent.getService(
+            context,
+            0,
+            intent,
+            PendingIntent.FLAG_UPDATE_CURRENT | PendingIntent.FLAG_IMMUTABLE
+        );
+
+        if (alarmManager != null) {
+            alarmManager.cancel(pendingIntent);
+            Log.d(TAG, "已取消定时同步");
+        }
+    }
+
+    /**
+     * 同步所有待处理的开庭信息
+     * 这是一个便捷方法，供外部调用
+     * @param context 上下文
+     */
+    public static void syncAllPending(Context context) {
+        CourtDatabase database = CourtDatabase.getInstance(context);
+        CourtDocumentDao documentDao = database.courtDocumentDao();
+
+        // 在后台线程执行同步
+        ExecutorService executor = Executors.newSingleThreadExecutor();
+        executor.execute(() -> {
+            try {
+                // 获取未同步的传票
+                List<CourtDocumentEntity> unsyncedDocs = documentDao.getUnsyncedSummons();
+                Log.d(TAG, "准备同步 " + unsyncedDocs.size() + " 个待处理传票");
+
+                // 启动同步服务
+                startSync(context);
+
+            } catch (Exception e) {
+                Log.e(TAG, "同步待处理信息失败", e);
+            }
+        });
+        executor.shutdown();
+    }
+
+    @Nullable
+    @Override
+    public IBinder onBind(Intent intent) {
+        return null; // 不支持绑定
+    }
+
+    @Override
+    public void onDestroy() {
+        super.onDestroy();
+        Log.d(TAG, "日历同步服务销毁");
+
+        if (executor != null && !executor.isShutdown()) {
+            executor.shutdown();
+        }
+    }
+}

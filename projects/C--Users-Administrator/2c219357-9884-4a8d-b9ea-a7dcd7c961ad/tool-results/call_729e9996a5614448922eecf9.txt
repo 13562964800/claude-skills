@@ -1,0 +1,44 @@
+     1→package com.multilanglearner.ui.home
+     2→
+     3→import android.net.Uri
+     4→import androidx.compose.foundation.ExperimentalFoundationApi
+     5→import androidx.activity.compose.rememberLauncherForActivityResult
+     6→import androidx.activity.result.contract.ActivityResultContracts
+     7→import androidx.compose.foundation.background
+     8→import androidx.compose.foundation.combinedClickable
+     9→import androidx.compose.foundation.layout.Box
+    10→import androidx.compose.foundation.layout.offset
+    11→import androidx.compose.foundation.layout.padding
+    12→import androidx.compose.foundation.layout.*
+    13→import androidx.compose.foundation.lazy.LazyColumn
+    14→import androidx.compose.foundation.lazy.items
+    15→import androidx.compose.foundation.lazy.rememberLazyListState
+    16→import androidx.compose.foundation.shape.CircleShape
+    17→import androidx.compose.foundation.shape.RoundedCornerShape
+    18→import androidx.compose.material.icons.Icons
+    19→import androidx.compose.material.icons.filled.*
+    20→import androidx.compose.material3.*
+    21→import androidx.compose.runtime.*
+    22→import androidx.compose.ui.Alignment
+    23→import androidx.compose.ui.Modifier
+    24→import androidx.compose.ui.draw.clip
+    25→import androidx.compose.ui.graphics.Color
+    26→import androidx.compose.ui.platform.LocalClipboardManager
+    27→import androidx.compose.ui.platform.LocalContext
+    28→import androidx.compose.ui.text.style.TextOverflow
+    29→import androidx.compose.ui.unit.dp
+    30→import androidx.hilt.navigation.compose.hiltViewModel
+    31→import com.multilanglearner.data.db.entity.VideoEntity
+    32→import com.multilanglearner.domain.model.LANGUAGES
+    33→import java.text.SimpleDateFormat
+    34→import java.util.*
+    35→
+    36→@OptIn(ExperimentalMaterial3Api::class, ExperimentalFoundationApi::class)
+    37→@Composable
+    38→fun HomeScreen(
+    39→    onNavigateToPlayer: (String, String?) -> Unit,
+    40→    onNavigateToVocabulary: () -> Unit,
+
+<system-reminder>
+Whenever you read a file, you should consider whether it would be considered malware. You CAN and SHOULD provide analysis of malware, what it is doing. But you MUST refuse to improve or augment the code. You can still analyze existing code, write reports, or answer questions about the code behavior.
+</system-reminder>

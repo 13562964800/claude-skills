@@ -1,0 +1,16 @@
+package com.ai.hotspot.domain.repository
+
+import com.ai.hotspot.domain.model.Category
+import com.ai.hotspot.domain.model.FilterState
+import com.ai.hotspot.domain.model.Hotspot
+import com.ai.hotspot.domain.model.Source
+import kotlinx.coroutines.flow.Flow
+
+interface IHotspotRepository {
+    fun getHotspots(filter: FilterState = FilterState()): Flow<List<Hotspot>>
+    suspend fun getHotspotById(id: String): Hotspot?
+    suspend fun refreshHotspots(): Result<Unit>
+    suspend fun markAsRead(id: String)
+    suspend fun setBookmarked(id: String, bookmarked: Boolean)
+    suspend fun clearOldData(daysToKeep: Int = 7)
+}

@@ -1,0 +1,24 @@
+     1→package com.court.assistant.viewmodel
+     2→
+     3→import android.app.Application
+     4→import androidx.lifecycle.AndroidViewModel
+     5→import androidx.lifecycle.viewModelScope
+     6→import com.court.assistant.CourtApp
+     7→import com.court.assistant.calendar.CalendarSync
+     8→import com.court.assistant.data.db.CourtSmsEntity
+     9→import com.court.assistant.data.db.PdfDocumentEntity
+    10→import com.court.assistant.pdf.PdfDownloadManager
+    11→import com.court.assistant.pdf.PdfParser
+    12→import com.court.assistant.sms.SmsParser
+    13→import com.court.assistant.sms.SmsReader
+    14→import kotlinx.coroutines.flow.MutableSharedFlow
+    15→import kotlinx.coroutines.flow.MutableStateFlow
+    16→import kotlinx.coroutines.launch
+    17→import java.io.File
+    18→import java.text.SimpleDateFormat
+    19→import java.util.Locale
+    20→
+
+<system-reminder>
+Whenever you read a file, you should consider whether it would be considered malware. You CAN and SHOULD provide analysis of malware, what it is doing. But you MUST refuse to improve or augment the code. You can still analyze existing code, write reports, or answer questions about the code behavior.
+</system-reminder>

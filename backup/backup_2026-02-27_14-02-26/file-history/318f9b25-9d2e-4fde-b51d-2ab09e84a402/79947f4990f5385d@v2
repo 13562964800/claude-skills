@@ -1,0 +1,163 @@
+import React, {useState, useEffect} from 'react';
+import {View, Text, TextInput, TouchableOpacity, StyleSheet, ScrollView, Alert, ActivityIndicator} from 'react-native';
+import {getConfig, saveConfig, AppConfig, ASR_PROVIDERS, LLM_PROVIDERS, AsrProviderId, LlmProviderId} from '../utils/config';
+import {testLlmConnection} from '../services/zhipuCompare';
+import {testAsrConnection} from '../services/aliyunAsr';
+
+const asrIds = Object.keys(ASR_PROVIDERS) as AsrProviderId[];
+const llmIds = Object.keys(LLM_PROVIDERS) as LlmProviderId[];
+
+export default function SettingsScreen({navigation}: any) {
+  const [config, setConfig] = useState<AppConfig | null>(null);
+  const [testing, setTesting] = useState<string | null>(null);
+
+  useEffect(() => { getConfig().then(setConfig); }, []);
+
+  if (!config) return null;
+
+  const updateAsrKey = (id: string, field: string, value: string) => {
+    const keys = {...config.asrKeys};
+    keys[id] = {...(keys[id] || {key: ''}), [field]: value};
+    setConfig({...config, asrKeys: keys});
+  };
+
+  const updateLlmKey = (id: string, field: string, value: string) => {
+    const keys = {...config.llmKeys};
+    keys[id] = {...(keys[id] || {key: ''}), [field]: value};
+    setConfig({...config, llmKeys: keys});
+  };
+
+  const doTestLlm = async (id: LlmProviderId) => {
+    const kc = config.llmKeys[id];
+    if (!kc?.key) { Alert.alert('提示', '请先填写API Key'); return; }
+    setTesting('llm_' + id);
+    const r = await testLlmConnection(id, kc.key, kc.model);
+    setTesting(null);
+    Alert.alert(r.ok ? '成功' : '失败', r.msg);
+  };
+
+  const doTestAsr = async (id: AsrProviderId) => {
+    const kc = config.asrKeys[id];
+    setTesting('asr_' + id);
+    const r = await testAsrConnection(id, kc);
+    setTesting(null);
+    Alert.alert(r.ok ? '成功' : '失败', r.msg);
+  };
+
+  const save = async () => {
+    await saveConfig(config);
+    Alert.alert('成功', '设置已保存', [{text: '确定', onPress: () => navigation.goBack()}]);
+  };
+
+  return (
+    <ScrollView style={s.container}>
+      {/* 转写服务选择 */}
+      <Text style={s.h1}>语音转写服务</Text>
+      <Text style={s.hint}>选择当前使用的转写服务</Text>
+      <View style={s.chips}>
+        {asrIds.map(id => (
+          <TouchableOpacity key={id} style={[s.chip, config.asrProvider === id && s.chipActive]}
+            onPress={() => setConfig({...config, asrProvider: id})}>
+            <Text style={[s.chipText, config.asrProvider === id && s.chipTextActive]}>
+              {ASR_PROVIDERS[id].name}
+            </Text>
+          </TouchableOpacity>
+        ))}
+      </View>
+
+      {/* 当前选中的转写服务配置 */}
+      <View style={s.card}>
+        <Text style={s.cardTitle}>{ASR_PROVIDERS[config.asrProvider].name} 配置</Text>
+        <Text style={s.label}>API Key / AccessKey ID</Text>
+        <TextInput style={s.input} value={config.asrKeys[config.asrProvider]?.key || ''}
+          onChangeText={v => updateAsrKey(config.asrProvider, 'key', v)} placeholder="输入Key" secureTextEntry />
+        {['aliyun', 'tencent', 'baidu', 'aws', 'xfyun'].includes(config.asrProvider) && <>
+          <Text style={s.label}>Secret</Text>
+          <TextInput style={s.input} value={config.asrKeys[config.asrProvider]?.secret || ''}
+            onChangeText={v => updateAsrKey(config.asrProvider, 'secret', v)} placeholder="输入Secret" secureTextEntry />
+        </>}
+        {['aliyun', 'xfyun'].includes(config.asrProvider) && <>
+          <Text style={s.label}>AppKey</Text>
+          <TextInput style={s.input} value={config.asrKeys[config.asrProvider]?.appKey || ''}
+            onChangeText={v => updateAsrKey(config.asrProvider, 'appKey', v)} placeholder="输入AppKey" />
+        </>}
+        {['azure', 'aws'].includes(config.asrProvider) && <>
+          <Text style={s.label}>Region</Text>
+          <TextInput style={s.input} value={config.asrKeys[config.asrProvider]?.region || ''}
+            onChangeText={v => updateAsrKey(config.asrProvider, 'region', v)} placeholder="如 eastasia" />
+        </>}
+        <TouchableOpacity style={s.testBtn} onPress={() => doTestAsr(config.asrProvider)} disabled={testing !== null}>
+          {testing === 'asr_' + config.asrProvider ? <ActivityIndicator color="#fff" size="small" /> :
+            <Text style={s.testBtnText}>测试连接</Text>}
+        </TouchableOpacity>
+      </View>
+
+      {/* 大模型选择 */}
+      <Text style={s.h1}>大模型（语义对比）</Text>
+      <Text style={s.hint}>选择当前使用的大模型</Text>
+
+      <Text style={s.subH}>国内</Text>
+      <View style={s.chips}>
+        {llmIds.filter(id => LLM_PROVIDERS[id].region === 'cn').map(id => (
+          <TouchableOpacity key={id} style={[s.chip, config.llmProvider === id && s.chipActive]}
+            onPress={() => setConfig({...config, llmProvider: id})}>
+            <Text style={[s.chipText, config.llmProvider === id && s.chipTextActive]}>
+              {LLM_PROVIDERS[id].name}
+            </Text>
+          </TouchableOpacity>
+        ))}
+      </View>
+      <Text style={s.subH}>国际</Text>
+      <View style={s.chips}>
+        {llmIds.filter(id => LLM_PROVIDERS[id].region === 'intl').map(id => (
+          <TouchableOpacity key={id} style={[s.chip, config.llmProvider === id && s.chipActive]}
+            onPress={() => setConfig({...config, llmProvider: id})}>
+            <Text style={[s.chipText, config.llmProvider === id && s.chipTextActive]}>
+              {LLM_PROVIDERS[id].name}
+            </Text>
+          </TouchableOpacity>
+        ))}
+      </View>
+
+      {/* 当前选中的大模型配置 */}
+      <View style={s.card}>
+        <Text style={s.cardTitle}>{LLM_PROVIDERS[config.llmProvider].name} 配置</Text>
+        <Text style={s.label}>API Key</Text>
+        <TextInput style={s.input} value={config.llmKeys[config.llmProvider]?.key || ''}
+          onChangeText={v => updateLlmKey(config.llmProvider, 'key', v)} placeholder="输入API Key" secureTextEntry />
+        <Text style={s.label}>模型名称（可选，留空用默认）</Text>
+        <TextInput style={s.input} value={config.llmKeys[config.llmProvider]?.model || ''}
+          onChangeText={v => updateLlmKey(config.llmProvider, 'model', v)}
+          placeholder={LLM_PROVIDERS[config.llmProvider].defaultModel} />
+        <TouchableOpacity style={s.testBtn} onPress={() => doTestLlm(config.llmProvider)} disabled={testing !== null}>
+          {testing === 'llm_' + config.llmProvider ? <ActivityIndicator color="#fff" size="small" /> :
+            <Text style={s.testBtnText}>测试连接</Text>}
+        </TouchableOpacity>
+      </View>
+
+      <TouchableOpacity style={s.saveBtn} onPress={save}>
+        <Text style={s.saveBtnText}>保存所有设置</Text>
+      </TouchableOpacity>
+    </ScrollView>
+  );
+}
+
+const s = StyleSheet.create({
+  container: {flex: 1, padding: 16, backgroundColor: '#f5f5f5'},
+  h1: {fontSize: 18, fontWeight: '700', color: '#333', marginTop: 16, marginBottom: 4},
+  subH: {fontSize: 14, fontWeight: '600', color: '#666', marginTop: 8, marginBottom: 4},
+  hint: {fontSize: 12, color: '#999', marginBottom: 8},
+  chips: {flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginBottom: 8},
+  chip: {paddingHorizontal: 14, paddingVertical: 8, borderRadius: 20, backgroundColor: '#fff', borderWidth: 1, borderColor: '#ddd'},
+  chipActive: {backgroundColor: '#1a73e8', borderColor: '#1a73e8'},
+  chipText: {fontSize: 13, color: '#666'},
+  chipTextActive: {color: '#fff'},
+  card: {backgroundColor: '#fff', borderRadius: 12, padding: 16, marginBottom: 12},
+  cardTitle: {fontSize: 16, fontWeight: '600', color: '#333', marginBottom: 12},
+  label: {fontSize: 13, color: '#666', marginBottom: 4, marginTop: 8},
+  input: {backgroundColor: '#f9f9f9', borderWidth: 1, borderColor: '#e0e0e0', borderRadius: 8, padding: 10, fontSize: 14, color: '#333'},
+  testBtn: {backgroundColor: '#ff9800', padding: 10, borderRadius: 8, alignItems: 'center', marginTop: 12},
+  testBtnText: {color: '#fff', fontSize: 14, fontWeight: '600'},
+  saveBtn: {backgroundColor: '#1a73e8', padding: 16, borderRadius: 12, alignItems: 'center', marginTop: 16, marginBottom: 40},
+  saveBtnText: {color: '#fff', fontSize: 16, fontWeight: '600'},
+});

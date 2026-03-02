@@ -1,0 +1,137 @@
+Exit code 1
+ERROR: D8: java.lang.OutOfMemoryError: Java heap space
+com.android.builder.dexing.DexArchiveMergerException: Error while merging dex archives: 
+	at com.android.builder.dexing.D8DexArchiveMerger.getMergingExceptionToRethrow(D8DexArchiveMerger.java:159)
+	at com.android.builder.dexing.D8DexArchiveMerger.mergeDexArchives(D8DexArchiveMerger.java:147)
+	at com.android.build.gradle.internal.tasks.DexMergingWorkAction.merge(DexMergingTask.kt:891)
+	at com.android.build.gradle.internal.tasks.DexMergingWorkAction.run(DexMergingTask.kt:835)
+	at com.android.build.gradle.internal.profile.ProfileAwareWorkAction.execute(ProfileAwareWorkAction.kt:74)
+	at org.gradle.workers.internal.DefaultWorkerServer.execute(DefaultWorkerServer.java:63)
+	at org.gradle.workers.internal.NoIsolationWorkerFactory$1$1.create(NoIsolationWorkerFactory.java:66)
+	at org.gradle.workers.internal.NoIsolationWorkerFactory$1$1.create(NoIsolationWorkerFactory.java:62)
+	at org.gradle.internal.classloader.ClassLoaderUtils.executeInClassloader(ClassLoaderUtils.java:100)
+	at org.gradle.workers.internal.NoIsolationWorkerFactory$1.lambda$execute$0(NoIsolationWorkerFactory.java:62)
+	at org.gradle.workers.internal.AbstractWorker$1.call(AbstractWorker.java:44)
+	at org.gradle.workers.internal.AbstractWorker$1.call(AbstractWorker.java:41)
+	at org.gradle.internal.operations.DefaultBuildOperationRunner$CallableBuildOperationWorker.execute(DefaultBuildOperationRunner.java:204)
+	at org.gradle.internal.operations.DefaultBuildOperationRunner$CallableBuildOperationWorker.execute(DefaultBuildOperationRunner.java:199)
+	at org.gradle.internal.operations.DefaultBuildOperationRunner$2.execute(DefaultBuildOperationRunner.java:66)
+	at org.gradle.internal.operations.DefaultBuildOperationRunner$2.execute(DefaultBuildOperationRunner.java:59)
+	at org.gradle.internal.operations.DefaultBuildOperationRunner.execute(DefaultBuildOperationRunner.java:157)
+	at org.gradle.internal.operations.DefaultBuildOperationRunner.execute(DefaultBuildOperationRunner.java:59)
+	at org.gradle.internal.operations.DefaultBuildOperationRunner.call(DefaultBuildOperationRunner.java:53)
+	at org.gradle.internal.operations.DefaultBuildOperationExecutor.call(DefaultBuildOperationExecutor.java:73)
+	at org.gradle.workers.internal.AbstractWorker.executeWrappedInBuildOperation(AbstractWorker.java:41)
+	at org.gradle.workers.internal.NoIsolationWorkerFactory$1.execute(NoIsolationWorkerFactory.java:59)
+	at org.gradle.workers.internal.DefaultWorkerExecutor.lambda$submitWork$0(DefaultWorkerExecutor.java:170)
+	at java.base/java.util.concurrent.FutureTask.run(FutureTask.java:264)
+	at org.gradle.internal.work.DefaultConditionalExecutionQueue$ExecutionRunner.runExecution(DefaultConditionalExecutionQueue.java:187)
+	at org.gradle.internal.work.DefaultConditionalExecutionQueue$ExecutionRunner.access$700(DefaultConditionalExecutionQueue.java:120)
+	at org.gradle.internal.work.DefaultConditionalExecutionQueue$ExecutionRunner$1.run(DefaultConditionalExecutionQueue.java:162)
+	at org.gradle.internal.Factories$1.create(Factories.java:31)
+	at org.gradle.internal.work.DefaultWorkerLeaseService.withLocks(DefaultWorkerLeaseService.java:264)
+	at org.gradle.internal.work.DefaultWorkerLeaseService.runAsWorkerThread(DefaultWorkerLeaseService.java:128)
+	at org.gradle.internal.work.DefaultWorkerLeaseService.runAsWorkerThread(DefaultWorkerLeaseService.java:133)
+	at org.gradle.internal.work.DefaultConditionalExecutionQueue$ExecutionRunner.runBatch(DefaultConditionalExecutionQueue.java:157)
+	at org.gradle.internal.work.DefaultConditionalExecutionQueue$ExecutionRunner.run(DefaultConditionalExecutionQueue.java:126)
+	at java.base/java.util.concurrent.Executors$RunnableAdapter.call(Executors.java:539)
+	at java.base/java.util.concurrent.FutureTask.run(FutureTask.java:264)
+	at org.gradle.internal.concurrent.ExecutorPolicy$CatchAndRecordFailures.onExecute(ExecutorPolicy.java:64)
+	at org.gradle.internal.concurrent.AbstractManagedExecutor$1.run(AbstractManagedExecutor.java:47)
+	at java.base/java.util.concurrent.ThreadPoolExecutor.runWorker(ThreadPoolExecutor.java:1136)
+	at java.base/java.util.concurrent.ThreadPoolExecutor$Worker.run(ThreadPoolExecutor.java:635)
+	at java.base/java.lang.Thread.run(Thread.java:840)
+Caused by: com.android.tools.r8.CompilationFailedException: Compilation failed to complete
+	at Version.fakeStackEntry(Version_8.2.47.java:0)
+	at com.android.tools.r8.T.a(R8_8.2.47_115170b0e238ab4c8fd3abe4aa31d20c98f8a77f61775e861794cc2d75fbdf13:5)
+	at com.android.tools.r8.utils.S0.a(R8_8.2.47_115170b0e238ab4c8fd3abe4aa31d20c98f8a77f61775e861794cc2d75fbdf13:82)
+	at com.android.tools.r8.utils.S0.a(R8_8.2.47_115170b0e238ab4c8fd3abe4aa31d20c98f8a77f61775e861794cc2d75fbdf13:32)
+	at com.android.tools.r8.utils.S0.a(R8_8.2.47_115170b0e238ab4c8fd3abe4aa31d20c98f8a77f61775e861794cc2d75fbdf13:31)
+	at com.android.tools.r8.utils.S0.b(R8_8.2.47_115170b0e238ab4c8fd3abe4aa31d20c98f8a77f61775e861794cc2d75fbdf
+
+... [170 characters truncated] ...
+
+ergeDexArchives(D8DexArchiveMerger.java:145)
+	... 38 more
+Caused by: java.lang.OutOfMemoryError: Java heap space
+
+
+FAILURE: Build failed with an exception.
+
+* What went wrong:
+Execution failed for task ':app:mergeExtDexDebug'.
+> A failure occurred while executing com.android.build.gradle.internal.tasks.DexMergingTaskDelegate
+   > There was a failure while executing work items
+      > A failure occurred while executing com.android.build.gradle.internal.tasks.DexMergingWorkAction
+         > com.android.builder.dexing.DexArchiveMergerException: Error while merging dex archives: 
+
+* Try:
+> Run with --stacktrace option to get the stack trace.
+> Run with --info or --debug option to get more log output.
+> Run with --scan to get full insights.
+> Get more help at https://help.gradle.org.
+
+BUILD FAILED in 15s
+
+Configuration on demand is an incubating feature.
+
+> Configure project :app
+w: file:///C:/Users/Administrator/Desktop/CourtAssistant/app/build.gradle.kts:38:5: 'dexOptions(Action<DexOptions>): Unit' is deprecated. Setting dexOptions is obsolete.
+WARNING: DSL element 'dexOptions' is obsolete and should be removed.
+It will be removed in version 8.0 of the Android Gradle plugin.
+Using it has no effect, and the AndroidGradle plugin optimizes dexing automatically.
+
+> Task :app:clean
+> Task :app:preBuild UP-TO-DATE
+> Task :app:preDebugBuild UP-TO-DATE
+> Task :app:mergeDebugNativeDebugMetadata NO-SOURCE
+> Task :app:checkKotlinGradlePluginConfigurationErrors
+> Task :app:generateDebugResValues
+> Task :app:mapDebugSourceSetPaths
+> Task :app:generateDebugResources
+> Task :app:checkDebugAarMetadata
+> Task :app:packageDebugResources
+> Task :app:parseDebugLocalResources
+> Task :app:createDebugCompatibleScreenManifests
+> Task :app:extractDeepLinksDebug
+> Task :app:processDebugMainManifest
+> Task :app:processDebugManifest
+> Task :app:mergeDebugResources
+> Task :app:mergeDebugShaders
+> Task :app:compileDebugShaders NO-SOURCE
+> Task :app:generateDebugAssets UP-TO-DATE
+> Task :app:javaPreCompileDebug
+> Task :app:mergeDebugAssets
+> Task :app:desugarDebugFileDependencies
+> Task :app:mergeDebugJniLibFolders
+> Task :app:validateSigningDebug
+> Task :app:writeDebugAppMetadata
+> Task :app:compressDebugAssets
+> Task :app:writeDebugSigningConfigVersions
+> Task :app:processDebugManifestForPackage
+> Task :app:checkDebugDuplicateClasses
+> Task :app:mergeLibDexDebug
+> Task :app:mergeDebugNativeLibs
+
+> Task :app:stripDebugDebugSymbols
+Unable to strip the following libraries, packaging them as they are: libmlkit_google_ocr_pipeline.so.
+
+> Task :app:processDebugResources
+> Task :app:kspDebugKotlin
+
+> Task :app:mergeExtDexDebug FAILED
+
+> Task :app:compileDebugKotlin
+w: file:///C:/Users/Administrator/Desktop/CourtAssistant/app/src/main/java/com/court/assistant/ui/MainScreen.kt:288:83 Unnecessary non-null assertion (!!) on a non-null receiver of type String
+w: file:///C:/Users/Administrator/Desktop/CourtAssistant/app/src/main/java/com/court/assistant/ui/Navigation.kt:27:9 Variable 'scope' is never used
+w: file:///C:/Users/Administrator/Desktop/CourtAssistant/app/src/main/java/com/court/assistant/ui/PdfPreviewScreen.kt:38:9 Variable 'shareLauncher' is never used
+w: file:///C:/Users/Administrator/Desktop/CourtAssistant/app/src/main/java/com/court/assistant/ui/PdfPreviewScreen.kt:43:36 Parameter 'fileName' is never used
+w: file:///C:/Users/Administrator/Desktop/CourtAssistant/app/src/main/java/com/court/assistant/ui/PdfPreviewScreen.kt:89:44 'ArrowBack: ImageVector' is deprecated. Use the AutoMirrored version at Icons.AutoMirrored.Filled.ArrowBack
+w: file:///C:/Users/Administrator/Desktop/CourtAssistant/app/src/main/java/com/court/assistant/ui/SettingsScreen.kt:131:44 'ArrowBack: ImageVector' is deprecated. Use the AutoMirrored version at Icons.AutoMirrored.Filled.ArrowBack
+w: file:///C:/Users/Administrator/Desktop/CourtAssistant/app/src/main/java/com/court/assistant/ui/WebViewScreen.kt:34:9 Variable 'scope' is never used
+w: file:///C:/Users/Administrator/Desktop/CourtAssistant/app/src/main/java/com/court/assistant/ui/WebViewScreen.kt:72:44 'ArrowBack: ImageVector' is deprecated. Use the AutoMirrored version at Icons.AutoMirrored.Filled.ArrowBack
+w: file:///C:/Users/Administrator/Desktop/CourtAssistant/app/src/main/java/com/court/assistant/ui/WebViewScreen.kt:155:60 Parameter 'userAgent' is never used, could be renamed to _
+w: file:///C:/Users/Administrator/Desktop/CourtAssistant/app/src/main/java/com/court/assistant/ui/WebViewScreen.kt:155:91 Parameter 'mimetype' is never used, could be renamed to _
+w: file:///C:/Users/Administrator/Desktop/CourtAssistant/app/src/main/java/com/court/assistant/ui/WebViewScreen.kt:155:101 Parameter 'contentLength' is never used, could be renamed to _
+w: file:///C:/Users/Administrator/Desktop/CourtAssistant/app/src/main/java/com/court/assistant/viewmodel/MainViewModel.kt:174:77 Parameter 'smsId' is never used
+30 actionable tasks: 30 executed

@@ -1,0 +1,190 @@
+# -*- coding: utf-8 -*-
+"""错误处理模块 - 提供友好的错误提示和解决方案"""
+
+import tkinter as tk
+from tkinter import messagebox
+
+class ErrorHandler:
+    """错误处理器 - 提供友好的错误信息和解决方案"""
+
+    # 错误码映射表
+    ERROR_CODES = {
+        'API_KEY_MISSING': {
+            'title': 'API密钥未配置',
+            'message': '请先在设置中配置API密钥才能使用此功能',
+            'reason': '未找到有效的API密钥配置',
+            'solution': '1. 切换到"设置"标签页\n2. 选择对应的服务提供商\n3. 填入API密钥\n4. 点击"测试连接"验证\n5. 点击"保存所有设置"',
+            'can_fix': True,
+            'fix_action': '打开设置',
+        },
+        'API_KEY_INVALID': {
+            'title': 'API密钥无效',
+            'message': 'API密钥验证失败，请检查密钥是否正确',
+            'reason': '服务器返回认证失败错误',
+            'solution': '1. 检查API密钥是否正确复制\n2. 确认密钥未过期\n3. 检查账户余额是否充足\n4. 尝试重新生成密钥',
+            'can_fix': False,
+        },
+        'NETWORK_ERROR': {
+            'title': '网络连接失败',
+            'message': '无法连接到服务器，请检查网络连接',
+            'reason': '网络连接超时或中断',
+            'solution': '1. 检查网络连接是否正常\n2. 尝试切换网络（如使用热点）\n3. 检查防火墙设置\n4. 稍后重试',
+            'can_fix': False,
+        },
+        'FILE_NOT_FOUND': {
+            'title': '文件未找到',
+            'message': '指定的文件不存在或已被移动',
+            'reason': '文件路径错误或文件已删除',
+            'solution': '1. 检查文件路径是否正确\n2. 确认文件未被移动或删除\n3. 重新选择文件',
+            'can_fix': True,
+            'fix_action': '重新选择文件',
+        },
+        'UNSUPPORTED_FORMAT': {
+            'title': '不支持的文件格式',
+            'message': '所选文件格式不被支持',
+            'reason': '文件格式不在支持的格式列表中',
+            'solution': '支持的音频格式: mp3, wav, m4a, flac, ogg, wma, aac\n支持的文档格式: docx',
+            'can_fix': False,
+        },
+        'TRANSCRIBE_FAILED': {
+            'title': '语音转写失败',
+            'message': '语音转写过程中出现错误',
+            'reason': '可能是音频文件损坏或服务异常',
+            'solution': '1. 检查音频文件是否完整\n2. 尝试使用其他转写服务\n3. 检查账户是否有足够的额度',
+            'can_fix': False,
+        },
+        'COMPARE_FAILED': {
+            'title': '对比失败',
+            'message': '文档对比过程中出现错误',
+            'reason': '文档格式错误或内容异常',
+            'solution': '1. 检查Word文档是否损坏\n2. 尝试重新创建文档\n3. 确认文档包含有效文本内容',
+            'can_fix': False,
+        },
+        'DOCX_PARSE_ERROR': {
+            'title': '文档解析错误',
+            'message': '无法解析Word文档',
+            'reason': '文档可能已损坏或格式不兼容',
+            'solution': '1. 尝试用Word打开并重新保存文档\n2. 检查文档是否受密码保护\n3. 确认文档格式为.docx',
+            'can_fix': False,
+        },
+    }
+
+    @classmethod
+    def show_error(cls, parent, error_code, detail=None):
+        """显示友好的错误对话框
+
+        Args:
+            parent: 父窗口
+            error_code: 错误码
+            detail: 错误详情（可选）
+        """
+        error_info = cls.ERROR_CODES.get(error_code, cls._get_generic_error())
+
+        # 创建详细错误对话框
+        dialog = tk.Toplevel(parent)
+        dialog.title(error_info['title'])
+        dialog.geometry('500x350')
+        dialog.resizable(False, False)
+
+        # 居中显示
+        dialog.transient(parent)
+        dialog.grab_set()
+
+        # 主框架
+        main_frame = tk.Frame(dialog, padx=20, pady=20)
+        main_frame.pack(fill='both', expand=True)
+
+        # 错误图标
+        icon_label = tk.Label(main_frame, text='⚠️', font=('Arial', 32))
+        icon_label.pack(pady=(0, 10))
+
+        # 错误标题
+        title_label = tk.Label(main_frame, text=error_info['title'],
+            font=('Arial', 14, 'bold'), fg='#d32f2f')
+        title_label.pack(pady=(0, 10))
+
+        # 错误消息
+        msg_label = tk.Label(main_frame, text=error_info['message'],
+            font=('Arial', 11), wraplength=450, justify='left')
+        msg_label.pack(pady=(0, 10))
+
+        # 如果有详情，显示详情
+        if detail:
+            detail_frame = tk.LabelFrame(main_frame, text='详细信息', padx=10, pady=10)
+            detail_frame.pack(fill='x', pady=(0, 10))
+            detail_label = tk.Label(detail_frame, text=str(detail)[:200],
+                font=('Consolas', 9), wraplength=450, justify='left', anchor='w')
+            detail_label.pack(fill='both')
+
+        # 原因和解决方案
+        info_frame = tk.LabelFrame(main_frame, text='解决方案', padx=10, pady=10)
+        info_frame.pack(fill='both', expand=True, pady=(0, 10))
+
+        reason_label = tk.Label(info_frame, text=f"原因: {error_info['reason']}",
+            font=('Arial', 10), anchor='w')
+        reason_label.pack(fill='x', pady=(0, 5))
+
+        solution_label = tk.Label(info_frame, text=error_info['solution'],
+            font=('Arial', 10), wraplength=450, justify='left', anchor='nw')
+        solution_label.pack(fill='both', expand=True)
+
+        # 按钮区域
+        btn_frame = tk.Frame(main_frame)
+        btn_frame.pack(pady=(10, 0))
+
+        # 修复按钮（如果可用）
+        if error_info.get('can_fix'):
+            fix_btn = tk.Button(btn_frame, text=error_info['fix_action'],
+                command=lambda: cls._handle_fix(dialog, error_code),
+                bg='#4CAF50', fg='white', font=('Arial', 10, 'bold'),
+                padx=15, pady=5, relief='flat')
+            fix_btn.pack(side='left', padx=(0, 10))
+
+        # 关闭按钮
+        close_btn = tk.Button(btn_frame, text='关闭',
+            command=dialog.destroy,
+            font=('Arial', 10), padx=15, pady=5, relief='flat')
+        close_btn.pack(side='left')
+
+    @classmethod
+    def _get_generic_error(cls):
+        """获取通用错误信息"""
+        return {
+            'title': '发生错误',
+            'message': '程序遇到了一个错误',
+            'reason': '未知原因',
+            'solution': '请尝试以下操作：\n1. 重启程序\n2. 检查网络连接\n3. 稍后重试\n\n如果问题持续，请联系技术支持。',
+            'can_fix': False,
+        }
+
+    @classmethod
+    def _handle_fix(cls, dialog, error_code):
+        """处理一键修复"""
+        dialog.destroy()
+        # 这里可以调用相应的修复函数
+        # 例如：打开设置页、重新选择文件等
+        # 具体实现需要在主程序中处理
+
+    @classmethod
+    def parse_error(cls, exception):
+        """将异常解析为错误码"""
+        error_str = str(exception).lower()
+
+        if 'api' in error_str and ('key' in error_str or 'auth' in error_str):
+            if 'not found' in error_str or 'missing' in error_str:
+                return 'API_KEY_MISSING'
+            return 'API_KEY_INVALID'
+        elif 'network' in error_str or 'connection' in error_str or 'timeout' in error_str:
+            return 'NETWORK_ERROR'
+        elif 'not found' in error_str or 'no such file' in error_str:
+            return 'FILE_NOT_FOUND'
+        elif 'format' in error_str or 'unsupported' in error_str:
+            return 'UNSUPPORTED_FORMAT'
+        elif 'transcribe' in error_str:
+            return 'TRANSCRIBE_FAILED'
+        elif 'docx' in error_str or 'document' in error_str:
+            return 'DOCX_PARSE_ERROR'
+        elif 'compare' in error_str:
+            return 'COMPARE_FAILED'
+        else:
+            return None  # 使用通用错误

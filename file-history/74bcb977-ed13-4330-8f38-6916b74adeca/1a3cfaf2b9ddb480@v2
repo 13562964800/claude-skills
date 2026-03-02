@@ -1,0 +1,452 @@
+# Phase 5: Celery Task Queue Integration - Implementation Plan
+
+> **For Claude:** REQUIRED: Use TDD approach - write test first, run to verify failure, implement, run to verify pass, commit.
+
+**Goal:** 集成 Celery + Redis 异步任务队列，实现工作流后台执行和任务状态查询。
+
+**Architecture:**
+- Celery worker 执行 LLM 调用和工作流
+- Redis 作为消息队列和结果存储
+- FastAPI 提供任务提交和状态查询 API
+- 前端轮询任务状态并显示结果
+
+**Tech Stack:** Python, Celery, Redis, FastAPI, SQLAlchemy
+
+---
+
+## Task 1: Redis 和 Celery 基础配置
+
+**Files:**
+- Create: `apps/api/app/worker/celery_config.py`
+- Modify: `apps/api/app/worker/celery_app.py`
+- Test: `apps/api/tests/test_celery_setup.py`
+
+**Step 1: Write the failing test**
+
+```python
+# apps/api/tests/test_celery_setup.py
+from app.worker.celery_app import celery_app
+from app.worker.celery_config import CeleryConfig
+
+
+def test_celery_app_exists():
+    assert celery_app is not None
+    assert celery_app.conf.broker_url is not None
+
+
+def test_celery_config_has_redis():
+    config = CeleryConfig()
+    assert 'redis://' in config.broker_url
+    assert 'redis://' in config.result_backend
+```
+
+**Step 2: Run test to verify it fails**
+
+```bash
+cd /c/Users/Administrator/legalflow-studio/apps/api
+python -m pytest tests/test_celery_setup.py -v
+```
+
+Expected: FAIL with ImportError or AttributeError
+
+**Step 3: Write minimal implementation**
+
+`apps/api/app/worker/celery_config.py`:
+```python
+from pydantic_settings import BaseSettings
+
+
+class CeleryConfig(BaseSettings):
+    broker_url: str = 'redis://localhost:6379/0'
+    result_backend: str = 'redis://localhost:6379/0'
+    task_serializer: str = 'json'
+    result_serializer: str = 'json'
+    accept_content: list[str] = ['json']
+    timezone: str = 'Asia/Shanghai'
+    enable_utc: bool = True
+```
+
+Modify `apps/api/app/worker/celery_app.py`:
+```python
+from celery import Celery
+from app.worker.celery_config import CeleryConfig
+
+config = CeleryConfig()
+
+celery_app = Celery('legalflow')
+celery_app.config_from_object(config, namespace='')
+celery_app.autodiscover_tasks(['app.worker'])
+```
+
+**Step 4: Run test to verify it passes**
+
+```bash
+cd /c/Users/Administrator/legalflow-studio/apps/api
+python -m pytest tests/test_celery_setup.py -v
+```
+
+Expected: PASS
+
+**Step 5: Commit**
+
+```bash
+cd /c/Users/Administrator/legalflow-studio
+git add apps/api/app/worker/celery_config.py apps/api/app/worker/celery_app.py apps/api/tests/test_celery_setup.py
+git commit -m "feat: add celery configuration with redis backend"
+```
+
+---
+
+## Task 2: 异步工作流任务
+
+**Files:**
+- Modify: `apps/api/app/worker/tasks.py`
+- Test: `apps/api/tests/test_celery_tasks.py`
+
+**Step 1: Write the failing test**
+
+```python
+# apps/api/tests/test_celery_tasks.py
+from app.worker.tasks import run_workflow_async
+from app.worker.celery_app import celery_app
+
+
+def test_run_workflow_task_exists():
+    assert run_workflow_async is not None
+    assert run_workflow_async.name == 'app.worker.tasks.run_workflow_async'
+
+
+def test_run_workflow_task_signature():
+    # Test task can be called with correct parameters
+    task = run_workflow_async.s(
+        template='legal-text-format',
+        payload={'text': 'test'},
+        run_id=1
+    )
+    assert task is not None
+```
+
+**Step 2: Run test to verify it fails**
+
+```bash
+cd /c/Users/Administrator/legalflow-studio/apps/api
+python -m pytest tests/test_celery_tasks.py -v
+```
+
+Expected: FAIL with ImportError or AttributeError
+
+**Step 3: Write minimal implementation**
+
+Modify `apps/api/app/worker/tasks.py`:
+```python
+from celery import Task
+from app.worker.celery_app import celery_app
+from app.services.workflow_engine import WorkflowRunner
+from app.skills.legal_text_format import LegalTextFormatAdapter
+from app.skills.legal_qa_extractor import LegalQAExtractorAdapter
+from app.skills.litigation_analysis import LitigationAnalysisAdapter
+from app.skills.legal_proposal_generator import LegalProposalGeneratorAdapter
+
+
+_TEMPLATES = {
+    'legal-text-format': [{'key': 'format', 'skill': LegalTextFormatAdapter().run}],
+    'legal-qa-extractor': [{'key': 'extract', 'skill': LegalQAExtractorAdapter().run}],
+    'litigation-analysis': [{'key': 'analyze', 'skill': LitigationAnalysisAdapter().run}],
+    'legal-proposal-generator': [{'key': 'generate', 'skill': LegalProposalGeneratorAdapter().run}],
+}
+
+
+@celery_app.task(bind=True, name='app.worker.tasks.run_workflow_async')
+def run_workflow_async(self: Task, template: str, payload: dict, run_id: int):
+    """异步执行工作流"""
+    try:
+        steps = _TEMPLATES.get(template, [])
+        if not steps:
+            return {'status': 'failed', 'error': f'Unknown template: {template}'}
+
+        runner = WorkflowRunner(steps=steps)
+        results = runner.run(payload)
+
+        return {
+            'status': 'success',
+            'run_id': run_id,
+            'results': results
+        }
+    except Exception as e:
+        return {
+            'status': 'failed',
+            'run_id': run_id,
+            'error': str(e)
+        }
+```
+
+**Step 4: Run test to verify it passes**
+
+```bash
+cd /c/Users/Administrator/legalflow-studio/apps/api
+python -m pytest tests/test_celery_tasks.py -v
+```
+
+Expected: PASS
+
+**Step 5: Commit**
+
+```bash
+cd /c/Users/Administrator/legalflow-studio
+git add apps/api/app/worker/tasks.py apps/api/tests/test_celery_tasks.py
+git commit -m "feat: add async workflow execution task"
+```
+
+---
+
+## Task 3: 异步工作流 API
+
+**Files:**
+- Modify: `apps/api/app/api/workflows.py`
+- Test: `apps/api/tests/test_workflow_async_api.py`
+
+**Step 1: Write the failing test**
+
+```python
+# apps/api/tests/test_workflow_async_api.py
+from fastapi.testclient import TestClient
+from app.main import app
+import app.api.workflows as wf_module
+
+
+def setup_function():
+    wf_module._runs.clear()
+
+
+def test_start_async_workflow():
+    client = TestClient(app)
+    resp = client.post('/api/v1/workflow-runs/async', json={
+        'project_id': 1,
+        'template': 'legal-text-format',
+        'payload': {'text': '测试文本'}
+    }, headers={'x-role': 'lawyer'})
+    assert resp.status_code == 202
+    data = resp.json()
+    assert 'task_id' in data
+    assert 'run_id' in data
+    assert data['status'] == 'pending'
+
+
+def test_get_async_workflow_status():
+    client = TestClient(app)
+    create = client.post('/api/v1/workflow-runs/async', json={
+        'project_id': 1,
+        'template': 'legal-text-format',
+        'payload': {'text': '测试'}
+    }, headers={'x-role': 'lawyer'})
+    run_id = create.json()['run_id']
+
+    resp = client.get(f'/api/v1/workflow-runs/{run_id}')
+    assert resp.status_code == 200
+    data = resp.json()
+    assert data['status'] in ('pending', 'running', 'success', 'failed')
+```
+
+**Step 2: Run test to verify it fails**
+
+```bash
+cd /c/Users/Administrator/legalflow-studio/apps/api
+python -m pytest tests/test_workflow_async_api.py -v
+```
+
+Expected: FAIL with 404
+
+**Step 3: Write minimal implementation**
+
+Modify `apps/api/app/api/workflows.py`:
+```python
+from fastapi import APIRouter, status, Depends
+from app.core.permissions import require_project_write
+from app.services.workflow_engine import WorkflowRunner
+from app.worker.tasks import run_workflow_async
+from app.skills.legal_text_format import LegalTextFormatAdapter
+from app.skills.legal_qa_extractor import LegalQAExtractorAdapter
+from app.skills.litigation_analysis import LitigationAnalysisAdapter
+from app.skills.legal_proposal_generator import LegalProposalGeneratorAdapter
+
+router = APIRouter(prefix='/api/v1/workflow-runs', tags=['workflows'])
+_runs: dict[int, dict] = {}
+
+_TEMPLATES = {
+    'legal-text-format': [{'key': 'format', 'skill': LegalTextFormatAdapter().run}],
+    'legal-qa-extractor': [{'key': 'extract', 'skill': LegalQAExtractorAdapter().run}],
+    'litigation-analysis': [{'key': 'analyze', 'skill': LitigationAnalysisAdapter().run}],
+    'legal-proposal-generator': [{'key': 'generate', 'skill': LegalProposalGeneratorAdapter().run}],
+}
+
+
+@router.post('', status_code=status.HTTP_201_CREATED,
+             dependencies=[Depends(require_project_write)])
+def start_workflow_run(body: dict):
+    """同步执行工作流（保持向后兼容）"""
+    template = body.get('template', '')
+    payload = body.get('payload', {})
+    steps = _TEMPLATES.get(template, [])
+    run_id = len(_runs) + 1
+    try:
+        runner = WorkflowRunner(steps=steps)
+        results = runner.run(payload)
+        run = {'id': run_id, 'project_id': body.get('project_id'), 'template': template,
+               'status': 'success', 'results': results}
+    except Exception as e:
+        run = {'id': run_id, 'project_id': body.get('project_id'), 'template': template,
+               'status': 'failed', 'error': str(e)}
+    _runs[run_id] = run
+    return run
+
+
+@router.post('/async', status_code=status.HTTP_202_ACCEPTED,
+             dependencies=[Depends(require_project_write)])
+def start_async_workflow_run(body: dict):
+    """异步执行工作流"""
+    template = body.get('template', '')
+    payload = body.get('payload', {})
+    project_id = body.get('project_id')
+
+    if template not in _TEMPLATES:
+        from fastapi import HTTPException
+        raise HTTPException(status_code=400, detail=f'Unknown template: {template}')
+
+    run_id = len(_runs) + 1
+
+    # 提交 Celery 任务
+    task = run_workflow_async.delay(template=template, payload=payload, run_id=run_id)
+
+    # 保存运行记录
+    run = {
+        'id': run_id,
+        'project_id': project_id,
+        'template': template,
+        'status': 'pending',
+        'task_id': task.id
+    }
+    _runs[run_id] = run
+
+    return {
+        'run_id': run_id,
+        'task_id': task.id,
+        'status': 'pending'
+    }
+
+
+@router.get('/{run_id}')
+def get_workflow_run(run_id: int):
+    """查询工作流状态"""
+    from fastapi import HTTPException
+    from celery.result import AsyncResult
+
+    run = _runs.get(run_id)
+    if not run:
+        raise HTTPException(status_code=404, detail='not found')
+
+    # 如果是异步任务，查询 Celery 状态
+    if 'task_id' in run:
+        task = AsyncResult(run['task_id'])
+        if task.ready():
+            result = task.result
+            if isinstance(result, dict):
+                run['status'] = result.get('status', 'success')
+                if 'results' in result:
+                    run['results'] = result['results']
+                if 'error' in result:
+                    run['error'] = result['error']
+        elif task.state == 'PENDING':
+            run['status'] = 'pending'
+        elif task.state == 'STARTED':
+            run['status'] = 'running'
+        elif task.state == 'FAILURE':
+            run['status'] = 'failed'
+            run['error'] = str(task.info)
+
+    return run
+```
+
+**Step 4: Run test to verify it passes**
+
+```bash
+cd /c/Users/Administrator/legalflow-studio/apps/api
+python -m pytest tests/test_workflow_async_api.py -v
+```
+
+Expected: PASS
+
+**Step 5: Commit**
+
+```bash
+cd /c/Users/Administrator/legalflow-studio
+git add apps/api/app/api/workflows.py apps/api/tests/test_workflow_async_api.py
+git commit -m "feat: add async workflow api with celery integration"
+```
+
+---
+
+## Task 4: 全量验证
+
+**Step 1: Run all tests**
+
+```bash
+cd /c/Users/Administrator/legalflow-studio/apps/api
+python -m pytest tests/ ../../tests/ -v
+```
+
+Expected: 全部 PASS
+
+**Step 2: Manual verification (optional)**
+
+启动 Redis:
+```bash
+docker run -d -p 6379:6379 redis:alpine
+```
+
+启动 Celery worker:
+```bash
+cd apps/api
+celery -A app.worker.celery_app worker --loglevel=info
+```
+
+测试异步 API:
+```bash
+curl -X POST http://localhost:8000/api/v1/workflow-runs/async \
+  -H "Content-Type: application/json" \
+  -H "x-role: lawyer" \
+  -d '{"project_id": 1, "template": "legal-text-format", "payload": {"text": "测试"}}'
+```
+
+**Step 3: Commit if needed**
+
+```bash
+cd /c/Users/Administrator/legalflow-studio
+git add .
+git commit -m "test: phase5 celery integration verification"
+```
+
+---
+
+## Dependencies
+
+Add to `apps/api/requirements.txt`:
+```
+celery[redis]==5.3.4
+redis==5.0.1
+```
+
+Install:
+```bash
+cd apps/api
+pip install celery[redis] redis
+```
+
+---
+
+## Notes
+
+- MVP 阶段使用内存 `_runs` 字典，生产环境应使用数据库
+- Celery worker 需要单独启动
+- Redis 需要运行在 localhost:6379
+- 异步 API 返回 202 Accepted 而不是 201 Created
+- 前端需要轮询 `/api/v1/workflow-runs/{run_id}` 获取状态

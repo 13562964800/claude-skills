@@ -1,0 +1,85 @@
+// Popup UI 逻辑
+
+document.addEventListener('DOMContentLoaded', async () => {
+  const statusDot = document.getElementById('statusDot');
+  const statusText = document.getElementById('statusText');
+  const engineSelect = document.getElementById('engineSelect');
+  const groqApiKey = document.getElementById('groqApiKey');
+  const saveBtn = document.getElementById('saveBtn');
+  const taskList = document.getElementById('taskList');
+
+  // 加载设置
+  const settings = await chrome.storage.local.get(['engine', 'groqApiKey']);
+  if (settings.engine) {
+    engineSelect.value = settings.engine;
+  }
+  if (settings.groqApiKey) {
+    groqApiKey.value = settings.groqApiKey;
+  }
+
+  // 保存设置
+  saveBtn.addEventListener('click', async () => {
+    await chrome.storage.local.set({
+      engine: engineSelect.value,
+      groqApiKey: groqApiKey.value
+    });
+
+    saveBtn.textContent = '✓ 已保存';
+    setTimeout(() => {
+      saveBtn.textContent = '保存设置';
+    }, 2000);
+  });
+
+  // 检查服务状态
+  checkServiceStatus();
+  setInterval(checkServiceStatus, 5000);
+
+  // 加载任务列表
+  loadTasks();
+  setInterval(loadTasks, 2000);
+
+  async function checkServiceStatus() {
+    try {
+      const response = await fetch('http://localhost:8765/health');
+      if (response.ok) {
+        statusDot.classList.remove('offline');
+        statusText.textContent = '服务在线';
+      } else {
+        throw new Error('服务离线');
+      }
+    } catch (error) {
+      statusDot.classList.add('offline');
+      statusText.textContent = '服务离线';
+    }
+  }
+
+  async function loadTasks() {
+    const storage = await chrome.storage.local.get(null);
+    const tasks = Object.entries(storage)
+      .filter(([key]) => key.startsWith('task_'))
+      .map(([_, value]) => value)
+      .sort((a, b) => b.timestamp - a.timestamp);
+
+    if (tasks.length === 0) {
+      taskList.innerHTML = `
+        <div class="empty-state">
+          暂无任务<br>
+          在视频页面点击"下载转录"按钮开始
+        </div>
+      `;
+      return;
+    }
+
+    taskList.innerHTML = tasks.map(task => `
+      <div class="task-item">
+        <div class="task-title">${task.title || '未知标题'}</div>
+        <div class="task-progress">
+          <div class="progress-bar">
+            <div class="progress-fill" style="width: ${task.percent || '0%'}"></div>
+          </div>
+          <span>${task.percent || '0%'}</span>
+        </div>
+      </div>
+    `).join('');
+  }
+});

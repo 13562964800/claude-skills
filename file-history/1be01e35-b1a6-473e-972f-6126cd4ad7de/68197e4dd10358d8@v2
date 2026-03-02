@@ -1,0 +1,77 @@
+# Windows 音频故障诊断脚本
+
+Write-Host "=== Windows 音频故障诊断 ===" -ForegroundColor Cyan
+Write-Host ""
+
+# 1. 检查音频服务
+Write-Host "1. 检查音频服务..." -ForegroundColor Yellow
+$audioServices = @("Audiosrv", "AudioEndpointBuilder", "AudioSrv")
+foreach ($svc in $audioServices) {
+    try {
+        $s = Get-Service -Name $svc -ErrorAction SilentlyContinue
+        if ($s) {
+            $status = if ($s.Status -eq "Running") { "[OK]" } else { "[问题]" }
+            Write-Host "  $status $($s.DisplayName): $($s.Status)"
+        }
+    } catch {}
+}
+Write-Host ""
+
+# 2. 检查默认播放设备
+Write-Host "2. 尝试播放测试声音..." -ForegroundColor Yellow
+try {
+    Add-Type -AssemblyName System.Speech
+    $synth = New-Object System.Speech.Synthesis.SpeechSynthesizer
+    $synth.Speak("测试") | Out-Null
+    Write-Host "  [OK] TTS 测试成功" -ForegroundColor Green
+} catch {
+    Write-Host "  [失败] TTS 测试失败: $($_.Exception.Message)" -ForegroundColor Red
+}
+Write-Host ""
+
+# 3. 列出音频设备
+Write-Host "3. 检测到的音频渲染设备:" -ForegroundColor Yellow
+try {
+    $renderer = New-Object System.Runtime.InteropServices.MarshalByRefObject
+    $devices = Get-ChildItem "HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\MMDevices\Audio\Render" -ErrorAction Stop
+    foreach ($dev in $devices) {
+        $propsPath = Join-Path $dev.PSPath "Properties"
+        $props = Get-ItemProperty $propsPath -ErrorAction SilentlyContinue
+
+        # 获取设备名称
+        $nameProp = "{a45c254e-df1c-4efd-8020-67d146a850e0},2"
+        $stateProp = "{a45c254e-df1c-4efd-8020-67d146a850e0},7"
+
+        $devName = $props.$nameProp
+        $devState = $props.$stateProp
+
+        if ($devName) {
+            $stateStr = switch ($devState) {
+                1 { "启用" }
+                2 { "禁用" }
+                8 { "不存在" }
+                default { "未知: $devState" }
+            }
+            $status = if ($devState -eq 1) { "[启用]" } else { "[禁用]" }
+            Write-Host "  $status $devName ($stateStr)"
+        }
+    }
+} catch {
+    Write-Host "  [错误] 无法读取设备信息: $($_.Exception.Message)" -ForegroundColor Red
+}
+Write-Host ""
+
+# 4. 检查音量设置
+Write-Host "4. 建议的修复步骤:" -ForegroundColor Yellow
+Write-Host "  1. 右键点击任务栏音量图标，选择''声音设置''" -ForegroundColor White
+Write-Host "  2. 确认选择了正确的输出设备" -ForegroundColor White
+Write-Host "  3. 检查音量是否不是静音状态" -ForegroundColor White
+Write-Host "  4. 点击''测试''按钮测试扬声器" -ForegroundColor White
+Write-Host "  5. 如果问题依旧，运行音频疑难解答:" -ForegroundColor White
+Write-Host "     msdt.exe -id AudioDiagnostic" -ForegroundColor Cyan
+Write-Host ""
+
+# 5. 尝试重启音频服务
+Write-Host "5. 是否要重启音频服务? (可能解决某些问题)" -ForegroundColor Yellow
+Write-Host "   运行以下命令:"
+Write-Host "   net stop audiosrv && net start audiosrv" -ForegroundColor Cyan
